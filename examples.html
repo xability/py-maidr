@@ -242,7 +242,7 @@ cookieconsent.run({
 <meta name="DC.format" content="text/html">
 <meta name="DC.language" content="en">
 <meta name="DC.rights" content="GPL-3.0-or-later">
-<meta name="DC.date" content="2026-10-01">
+<meta name="DC.date" content="2026-10-08">
 </head>
 
 <body class="nav-sidebar docked nav-fixed quarto-light">
@@ -324,6 +324,10 @@ cookieconsent.run({
         <li>
     <a class="dropdown-item" href="./examples/roc.html">
  <span class="dropdown-text">ROC Curves <a href="#families-experimental">experimental</a></span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/pr-curve.html">
+ <span class="dropdown-text">Precision-Recall Curves <a href="#families-experimental">experimental</a></span></a>
   </li>  
         <li><hr class="dropdown-divider"></li>
         <li class="dropdown-header">Other libraries</li>
@@ -497,6 +501,12 @@ cookieconsent.run({
   <div class="sidebar-item-container"> 
   <a href="./examples/roc.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">ROC Curves <a href="#families-experimental">experimental</a></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/pr-curve.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Precision-Recall Curves <a href="#families-experimental">experimental</a></span></a>
   </div>
 </li>
       </ul>
@@ -704,6 +714,7 @@ Note
 <ul>
 <li><a href="./examples/area-errorbar-point-lollipop.html">Area [experimental], error bar [experimental], point [experimental] and lollipop plots [experimental]</a>: running totals for stacked areas and a lower bound, estimate, upper bound grid for intervals.</li>
 <li><a href="./examples/roc.html">ROC curves [experimental]</a>: a scikit-learn <code>RocCurveDisplay</code> read as rates on the unit interval, with the area under each curve and the best operating point in the description.</li>
+<li><a href="./examples/pr-curve.html">Precision-recall curves [experimental]</a>: a scikit-learn <code>PrecisionRecallDisplay</code> read against the share of positives, with the average precision of each curve and the best-F1 point in the description.</li>
 </ul>
 </section>
 </section>

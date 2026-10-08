@@ -979,318 +979,157 @@
     ]
   },
   {
-    "objectID": "examples/dashboards.html",
-    "href": "examples/dashboards.html",
-    "title": "Accessible Shiny, Streamlit and Gradio Dashboards with py-maidr",
+    "objectID": "examples/multi-layer-panel-facet.html",
+    "href": "examples/multi-layer-panel-facet.html",
+    "title": "Accessible Multi-Layer, Multi-Panel and Facet Plots in matplotlib with py-maidr",
     "section": "",
-    "text": "A dashboard is where accessibility is most often lost, because the chart is rebuilt on every interaction and a screen reader user is dropped back to the top of the page. py-maidr ships an output for Shiny for Python (output_maidr() with @render_maidr), a renderer for Streamlit (render_maidr()) and a component for Gradio (output_maidr() with render_maidr()); all three wrap the chart in an iframe that loads maidr.js, and the Shiny output puts focus back on the chart after a reactive flush when the chart was what held focus. The sections below show the minimal app for each framework, then the two details that matter in production: caching the rendered HTML in Streamlit and serving the bundle offline.\nEvery plot type py-maidr supports works here, with the same keyboard model as in a notebook: see the examples overview for the plot families and the keyboard shortcuts.",
-    "crumbs": [
-      "Accessible Shiny, Streamlit and Gradio Dashboards with py-maidr"
-    ]
-  },
-  {
-    "objectID": "examples/dashboards.html#shiny",
-    "href": "examples/dashboards.html#shiny",
-    "title": "Accessible Shiny, Streamlit and Gradio Dashboards with py-maidr",
-    "section": "Shiny",
-    "text": "Shiny\nShiny support ships as an optional extra:\npip install \"maidr[shiny]\"\nPair output_maidr() in the UI with @render_maidr in the server, the same way you would pair ui.output_plot() with @render.plot:\nimport matplotlib.pyplot as plt\nfrom shiny import App, ui\n\nfrom maidr.widget.shiny import output_maidr, render_maidr\n\napp_ui = ui.page_fluid(\n    ui.input_slider(\"n\", \"Bars\", min=2, max=10, value=4),\n    output_maidr(\"bars\"),\n)\n\n\ndef server(input, output, session):\n    @render_maidr\n    def bars():\n        fig, ax = plt.subplots()\n        ax.bar(range(input.n()), range(1, input.n() + 1))\n        return ax\n\n\napp = App(app_ui, server)\nThe decorated function may return a matplotlib or seaborn artist, a Plotly Figure, or an Altair chart. Returning None leaves the output blank.\n@render_maidr accepts width, height, and use_cdn. Prefer use_cdn here over maidr.set_use_cdn(): the setter is process-wide state shared by every concurrent session, while the argument is scoped to one output.\n@render_maidr(width=\"600px\", use_cdn=False)\ndef bars():\n    ...\nuse_cdn=False is the setting for an air-gapped deployment. The chart is rendered in an iframe whose document is fetched from a session URL rather than pushed over the websocket, and that document loads the bundled maidr.js from the app itself, which serves it once per app and version – so each chart stays around 50 KB whichever setting you choose, and the ~1.9 MB bundle crosses the wire once rather than with every chart. The default (\"auto\") loads from the CDN and falls back to that same copy when the CDN is unreachable. See the Shiny note under Offline Use and the JavaScript Bundle.\nA reactive flush replaces the whole output, so a reader who was navigating the chart when some input changed would be dropped to the top of the page without being told. @render_maidr puts focus back on the updated chart when — and only when — the chart was what held focus, so a reader who had deliberately moved to another control keeps their place.\nIn Shiny Express there is no separate UI call: the decorated function places its own container, and @output_args() sizes it, exactly as it does for @render.plot.\nfrom shiny.express import output_args\n\n@output_args(width=\"600px\")\n@render_maidr\ndef bars():\n    ...\nCheck out a reactive Shiny dashboard example with maidr and its source code is available on GitHub.",
-    "crumbs": [
-      "Accessible Shiny, Streamlit and Gradio Dashboards with py-maidr"
-    ]
-  },
-  {
-    "objectID": "examples/dashboards.html#streamlit",
-    "href": "examples/dashboards.html#streamlit",
-    "title": "Accessible Shiny, Streamlit and Gradio Dashboards with py-maidr",
-    "section": "Streamlit",
-    "text": "Streamlit\nStreamlit support ships as an optional extra:\npip install \"maidr[streamlit]\"\nimport matplotlib.pyplot as plt\nimport streamlit as st\n\nfrom maidr.widget.streamlit import render_maidr\n\nday = st.selectbox(\"Day\", [\"Thu\", \"Fri\", \"Sat\", \"Sun\"])\n\nfig, ax = plt.subplots()\nax.bar([\"lunch\", \"dinner\"], [12, 30])\nax.set_title(f\"Tips on {day}\")\n\nrender_maidr(ax)\nrender_maidr() accepts a matplotlib or seaborn artist, a Plotly Figure, or an Altair chart, plus height, width, tab_index, and use_cdn.\nThe defaults are chosen for accessibility rather than for layout:\n\nheight=\"content\" lets Streamlit measure the chart, so maidr’s braille and text panels stay visible when they open. A fixed height crops them.\ntab_index=None leaves the frame’s tab order to the browser. The chart is still reached by tabbing: an iframe’s contents take part in sequential focus navigation, and maidr gives the chart inside its own tab stop. Passing 0 makes the frame a stop as well, which is one extra Tab before the chart.\n\nThe frame is named after the chart it holds – \"Tips on Fri, accessible chart\" here, or \"Accessible chart\" when the chart has no title – the same name maidr gives its own frames in a notebook, so a screen-reader user moving through a dashboard can tell one chart from the next. That needs a Streamlit whose st.iframe takes alt (streamlit#17040); older releases name every frame st.iframe, and render_maidr() leaves them to it.\n\n\n\n\n\n\nNoteStreamlit reruns the whole script on every interaction\n\n\n\nStreamlit reloads the chart’s frame when the HTML it is handed changes. For a matplotlib, seaborn, Plotly or Altair chart that happens only when the chart itself changes: an unchanged chart renders to the same HTML on every rerun, and Streamlit keeps its frame. A reader who is inside the chart when the script reruns – an st.fragment(run_every=...) around it, or an auto-refresh – stays where they were, keeping their place and everything else maidr holds for them, with nothing announced because nothing changed.\nTwo things still start a reader over. A chart that did change is a new chart, and loads fresh. And a reader who leaves the chart to use a control and then comes back begins again at the start – not because of the rerun: maidr lets go of its place whenever focus leaves a chart, on any page.\nBokeh charts, which are experimental, still render differently every time, so their frame is reloaded on every rerun. Caching the HTML rather than the render call keeps it, since the cached string is the same each run – and for any chart, it saves rendering the chart again:\nfrom maidr.widget.streamlit import maidr_html\n\n@st.cache_data\ndef chart_html(_fig, key):     # `_fig` is not hashed; `key` is the cache key\n    return maidr_html(_fig)\n\nst.iframe(\n    chart_html(fig, key=day),\n    height=\"content\",\n    width=\"stretch\",\n    alt=f\"Tips on {day}, accessible chart\",  # the frame's accessible name\n)\nCalling st.iframe yourself means naming the frame yourself: alt is what a screen reader announces for it, and without one every chart is “st.iframe”. Drop the argument on a Streamlit that predates it.\nst.iframe arrived in Streamlit 1.56. On older versions place the same cached string with st.components.v1.html(chart_html(fig, key=day), height=600, scrolling=True) — it cannot size itself, so give it a height. render_maidr() handles that difference for you, which is why it is the better default when you are not caching.\nBoth arguments matter. The leading underscore tells Streamlit not to hash the figure, which a matplotlib Figure does not support – which leaves key as the only thing it can hash. Drop it and every argument is skipped, the cache key is constant, and the first chart is handed back for the rest of the session: a chart that quietly stops matching its own controls.\n\n\n\n\n\n\n\n\nNoteAir-gapped deployments\n\n\n\nuse_cdn=False embeds the ~1.9 MB maidr.js bundle in the page. That is required rather than wasteful: the chart is rendered inside an iframe, and an iframe built from an HTML string cannot fetch anything the app serves. The default loads from the CDN and stays around 15 KB.\n\n\nCheck out this Streamlit dashboard with maidr, and its source code is available on GitHub.\nNote: the Streamlit framework has some “Unlabeled 0 Button” which does not have to do with our maidr package. This issue needs to be addressed by the Streamlit team.",
-    "crumbs": [
-      "Accessible Shiny, Streamlit and Gradio Dashboards with py-maidr"
-    ]
-  },
-  {
-    "objectID": "examples/dashboards.html#gradio",
-    "href": "examples/dashboards.html#gradio",
-    "title": "Accessible Shiny, Streamlit and Gradio Dashboards with py-maidr",
-    "section": "Gradio",
-    "text": "Gradio\nGradio support ships as an optional extra:\npip install \"maidr[gradio]\"\nPlace a chart with output_maidr() when the app is built, and return render_maidr() from an event handler whose output is that component, the way you would return a figure for a gr.Plot:\nimport gradio as gr\nimport matplotlib.pyplot as plt\n\nfrom maidr.widget.gradio import output_maidr, render_maidr\n\n\ndef bars(n):\n    fig, ax = plt.subplots()\n    ax.bar([f\"bar {i + 1}\" for i in range(int(n))], range(1, int(n) + 1))\n    ax.set_title(f\"{int(n)} bars\")\n    markup = render_maidr(ax)\n    plt.close(fig)\n    return markup\n\n\nwith gr.Blocks() as demo:\n    n = gr.Slider(2, 10, value=4, step=1, label=\"Bars\")\n    chart = output_maidr()\n    demo.load(bars, n, chart)\n    n.change(bars, n, chart)\n\ndemo.launch()\noutput_maidr(chart) takes a chart to show from the start, and passes any other argument, such as label= or elem_id=, on to the gr.HTML it makes. Both take a matplotlib or seaborn artist, a Plotly Figure, a Bokeh figure, an Altair chart, or a chart a py-maidr reader returned, such as maidr.read_wandb_history()’s, and use_cdn.\ngr.HTML does not run the scripts of its value, so the chart is placed in an iframe, the one maidr uses in a notebook: named after the chart, \"5 bars, accessible chart\" here, sized to it as maidr’s braille and text panels open, and allowed to reach a refreshable braille display. A reader tabs straight onto the chart inside it. The chart is always passed in rather than read from matplotlib’s current figure, which every user of a Gradio app shares. use_cdn=False embeds the ~1.9 MB maidr.js bundle in each chart, for an app without network access.\nGradio 5 or newer is what the extra installs, on Python 3.10 or newer.",
-    "crumbs": [
-      "Accessible Shiny, Streamlit and Gradio Dashboards with py-maidr"
-    ]
-  },
-  {
-    "objectID": "examples/line-step.html",
-    "href": "examples/line-step.html",
-    "title": "Accessible Line and Step Plots in matplotlib and seaborn with py-maidr",
-    "section": "",
-    "text": "A line plot is the chart sonification was made for: the Left and Right arrows walk the points in x order and the tone’s pitch rises and falls with y, so the shape of the series can be heard in one autoplay pass (Ctrl or Cmd + Shift + Right). A multi-line plot keeps that reading per series and lets the reader move between the series. A step plot is a line whose value is held across an interval and then jumps; py-maidr reports which side of each sample the value is held on and announces named tick labels in place of numeric codes.\nLINE and STEP are in the stable set: see Plot Type Stability.",
+    "text": "A figure with more than one chart in it needs more than arrow keys. When two plot types share one set of axes (a bar chart with a line on a twin axis, for example) py-maidr treats them as layers and Page Up and Page Down switch between them. When a figure holds several subplots, each panel becomes an entry in a subplot list: the arrows move through the list, Enter activates a panel, and Escape returns to the list. A facet grid is the same mechanism with shared scales, so values stay comparable from panel to panel.\nThe individual plot types used below (BAR, LINE) are in the stable set: see Plot Type Stability.",
     "crumbs": [
       "Plot families",
-      "Line and Step Plots"
+      "Multi-Layer, Multi-Panel and Facet Plots"
     ]
   },
   {
-    "objectID": "examples/line-step.html#setup",
-    "href": "examples/line-step.html#setup",
-    "title": "Accessible Line and Step Plots in matplotlib and seaborn with py-maidr",
+    "objectID": "examples/multi-layer-panel-facet.html#setup",
+    "href": "examples/multi-layer-panel-facet.html#setup",
+    "title": "Accessible Multi-Layer, Multi-Panel and Facet Plots in matplotlib with py-maidr",
     "section": "Setup",
     "text": "Setup\nEvery example on this page needs only the import below. The plot cells repeat it so each one can be copied on its own.\n\nimport matplotlib.pyplot as plt\n\n# Just import maidr package: plt.show() now renders accessible output \nimport maidr",
     "crumbs": [
       "Plot families",
-      "Line and Step Plots"
+      "Multi-Layer, Multi-Panel and Facet Plots"
     ]
   },
   {
-    "objectID": "examples/line-step.html#line-plot",
-    "href": "examples/line-step.html#line-plot",
-    "title": "Accessible Line and Step Plots in matplotlib and seaborn with py-maidr",
-    "section": "Line Plot",
-    "text": "Line Plot\n\nSingle Line Plot\n\nimport matplotlib.pyplot as plt\nimport seaborn as sns\n\nimport maidr \n\n\n# Load the 'tips' dataset from seaborn\ntips = sns.load_dataset(\"tips\") \n\n# Choose a specific subset of the dataset (e.g., data for 'Thursday')\nsubset_data = tips[tips[\"day\"] == \"Thur\"]\n\n# Create a line plot\nfig, ax = plt.subplots(figsize=(6, 6))\nline_plot = sns.lineplot( \n    data=subset_data,\n    x=\"total_bill\",\n    y=\"tip\",\n    markers=True,\n    style=\"day\",\n    legend=False,\n    ax=ax,\n)\nax.set_title(\"Tips vs Total Bill (Thursday)\")\nax.set_xlabel(\"Total Bill\")\nax.set_ylabel(\"Tip\")\n\n# Add currency formatters for better screen reader output\nax.xaxis.set_major_formatter(\"${x:.2f}\")\nax.yaxis.set_major_formatter(\"${x:.2f}\")\n\nplt.show() \n\n\n\n\n\n\nMultiline Plot\n\nimport matplotlib.pyplot as plt\nimport numpy as np\nimport pandas as pd\nimport seaborn as sns\n\nimport maidr \n# Create sample data points\nx = np.array([1, 2, 3, 4, 5, 6, 7, 8])\ny1 = np.array([2, 4, 1, 5, 3, 7, 6, 8])\ny2 = np.array([1, 3, 5, 2, 4, 6, 8, 7])\ny3 = np.array([3, 1, 4, 6, 5, 2, 4, 5])\n\n# Convert to pandas DataFrame for seaborn\ndata = pd.DataFrame(\n    {\n        \"x\": np.tile(x, 3),\n        \"y\": np.concatenate([y1, y2, y3]),\n        \"series\": np.repeat([\"Series 1\", \"Series 2\", \"Series 3\"], len(x)),\n    }\n)\n\n# Create the plot\nfig, ax = plt.subplots(figsize=(6, 6))\n\n# Use seaborn lineplot for multiple lines\nlineplot = sns.lineplot(\n    x=\"x\", y=\"y\", hue=\"series\", style=\"series\", markers=True, dashes=True, data=data, ax=ax\n)\n\n# Customize the plot\nax.set_title(\"Seaborn Multiline Plot\")\nax.set_xlabel(\"X values\")\nax.set_ylabel(\"Y values\")\n\n# Add number formatters for better screen reader output\nax.xaxis.set_major_formatter(\"{x:.0f}\")\nax.yaxis.set_major_formatter(\"{x:.0f}\")\n\n# Display the plot\nplt.show()",
+    "objectID": "examples/multi-layer-panel-facet.html#multi-layered-plot",
+    "href": "examples/multi-layer-panel-facet.html#multi-layered-plot",
+    "title": "Accessible Multi-Layer, Multi-Panel and Facet Plots in matplotlib with py-maidr",
+    "section": "Multi-Layered Plot",
+    "text": "Multi-Layered Plot\n\nimport matplotlib.pyplot as plt\nimport numpy as np\nimport maidr \n\n# Generate sample data\nx = np.arange(5)\nbar_data = np.array([3, 5, 2, 7, 3])\nline_data = np.array([10, 8, 12, 14, 9])\n\n# Create a figure and a set of subplots\nfig, ax1 = plt.subplots(figsize=(8, 5)) \n\n# Create the bar chart on the first y-axis\nax1.bar(x, bar_data, color=\"skyblue\", label=\"Bar Data\")\nax1.set_xlabel(\"X values\")\nax1.set_ylabel(\"Bar values\", color=\"blue\")\nax1.tick_params(axis=\"y\", labelcolor=\"blue\")\n\n# Create a second y-axis sharing the same x-axis\nax2 = ax1.twinx()\n\n# Create the line chart on the second y-axis\nax2.plot(x, line_data, color=\"red\", marker=\"o\", linestyle=\"-\", label=\"Line Data\")\nax2.set_xlabel(\"X values\")\nax2.set_ylabel(\"Line values\", color=\"red\")\nax2.tick_params(axis=\"y\", labelcolor=\"red\")\n\n# Add title and legend\nplt.title(\"Multilayer Plot Example\")\n\n# Add legends for both axes\nlines1, labels1 = ax1.get_legend_handles_labels()\nlines2, labels2 = ax2.get_legend_handles_labels()\nax1.legend(lines1 + lines2, labels1 + labels2, loc=\"upper left\")\n\n# Add number formatters for better screen reader output\nax1.xaxis.set_major_formatter(\"{x:.0f}\")\nax1.yaxis.set_major_formatter(\"{x:.0f}\")\nax2.yaxis.set_major_formatter(\"{x:.0f}\")\n\n# Adjust layout\nfig.tight_layout()\n\nplt.show()",
     "crumbs": [
       "Plot families",
-      "Line and Step Plots"
+      "Multi-Layer, Multi-Panel and Facet Plots"
     ]
   },
   {
-    "objectID": "examples/line-step.html#step-plot",
-    "href": "examples/line-step.html#step-plot",
-    "title": "Accessible Line and Step Plots in matplotlib and seaborn with py-maidr",
-    "section": "Step Plot",
-    "text": "Step Plot\nA step plot is the right chart when the value is piecewise constant: it is held across an interval and then jumps, rather than sliding continuously between samples. ax.step() produces one, as does any drawstyle=\"steps-*\" passed to ax.plot() or sns.lineplot().\nThe classic case is a hypnogram — an ordinal sleep stage against time. Plot the stages as numeric codes so they keep driving sonification, braille and the min/max bounds, then name the codes with set_yticks(..., labels=...). maidr attaches the names to each point and announces “REM” instead of “3”.\n\nimport matplotlib.pyplot as plt\n\nimport maidr \n\n# Ordinal sleep stages, deepest first, so \"up\" means lighter sleep.\nstage_codes = [0, 1, 2, 3, 4]\nstage_names = [\"N3\", \"N2\", \"N1\", \"REM\", \"Awake\"]\n\n# One reading every half hour across a night's sleep.\nhours = [i * 0.5 for i in range(17)]\nstages = [4, 3, 2, 1, 0, 0, 1, 3, 2, 1, 0, 1, 3, 2, 1, 3, 4]\n\nfig, ax = plt.subplots(figsize=(10, 5))\n\n# where=\"post\": the stage holds until the next reading, then jumps.\nax.step(hours, stages, where=\"post\") \n\n# Name the ordinal levels; the underlying y values stay numeric.\nax.set_yticks(stage_codes, labels=stage_names) \n\nax.set_title(\"Hypnogram\\nSleep stage across one night\")\nax.set_xlabel(\"Time asleep (hours)\")\nax.set_ylabel(\"Sleep stage\")\n\n# Add a number formatter for better screen reader output\nax.xaxis.set_major_formatter(\"{x:.1f}\")\n\nplt.show() \n\n\n\n\nThe where argument decides which side of each sample the value is held on, and maidr reports it so the description can say what the chart actually means:\n\n\n\n\n\n\n\n\nmatplotlib\nmaidr stepDirection\nMeaning\n\n\n\n\nwhere=\"post\" (drawstyle=\"steps-post\")\nhv\nValue holds until the next x value, then jumps\n\n\nwhere=\"pre\" (drawstyle=\"steps-pre\" or \"steps\")\nvh\nValue jumps at the current x value, then holds\n\n\nwhere=\"mid\" (drawstyle=\"steps-mid\")\nmid\nValue jumps midway between x values\n\n\n\n\n\n\n\n\n\nNote\n\n\n\nLevel names are read from the y tick labels at render time, so calling set_yticks() or set_yticklabels() after plotting works as expected. A tick label that is itself a number (\"3\", \"1,000\", or the rescaled \"0.0\" a default axis prints for y = 1000000) carries no ordinal information and is not emitted, so a purely numeric step plot is announced by its numbers as usual.",
+    "objectID": "examples/multi-layer-panel-facet.html#multi-panel-plot-multiple-subplots",
+    "href": "examples/multi-layer-panel-facet.html#multi-panel-plot-multiple-subplots",
+    "title": "Accessible Multi-Layer, Multi-Panel and Facet Plots in matplotlib with py-maidr",
+    "section": "Multi-Panel Plot (Multiple Subplots)",
+    "text": "Multi-Panel Plot (Multiple Subplots)\n\nimport matplotlib.pyplot as plt\nimport numpy as np\nimport seaborn as sns\n\nimport maidr \n\n# Set the plotting style\nsns.set_theme(style=\"whitegrid\")\n\n# Data for line plot\nx_line = np.array([1, 2, 3, 4, 5, 6, 7, 8])\ny_line = np.array([2, 4, 1, 5, 3, 7, 6, 8])\nline_data = {\"x\": x_line, \"y\": y_line}\n\n# Data for first bar plot\ncategories = [\"A\", \"B\", \"C\", \"D\", \"E\"]\nvalues = np.random.rand(5) * 10\nbar_data = {\"categories\": categories, \"values\": values}\n\n# Data for second bar plot\ncategories_2 = [\"A\", \"B\", \"C\", \"D\", \"E\"]\nvalues_2 = np.random.randn(5) * 100\nbar_data_2 = {\"categories\": categories_2, \"values\": values_2}\n\n# Create a figure with 3 subplots arranged vertically\nfig, axs = plt.subplots(3, 1, figsize=(6, 12)) \n\n# First panel: Line plot using seaborn\nsns.lineplot(x=\"x\", y=\"y\", data=line_data, color=\"blue\", linewidth=2, ax=axs[0])\naxs[0].set_title(\"Line Plot: Random Data\")\naxs[0].set_xlabel(\"X-axis\")\naxs[0].set_ylabel(\"Values\")\n\n# Second panel: Bar plot using seaborn\nsns.barplot(\n    x=\"categories\", y=\"values\", data=bar_data, color=\"green\", alpha=0.7, ax=axs[1]\n)\naxs[1].set_title(\"Bar Plot: Random Values\")\naxs[1].set_xlabel(\"Categories\")\naxs[1].set_ylabel(\"Values\")\n\n# Third panel: Bar plot using seaborn\nsns.barplot(\n    x=\"categories\", y=\"values\", data=bar_data_2, color=\"blue\", alpha=0.7, ax=axs[2]\n)\naxs[2].set_title(\"Bar Plot 2: Random Values\")  # Fixed the typo in the title\naxs[2].set_xlabel(\"Categories\")\naxs[2].set_ylabel(\"Values\")\n\n# Add number formatters for better screen reader output\naxs[0].xaxis.set_major_formatter(\"{x:.0f}\")\naxs[0].yaxis.set_major_formatter(\"{x:.0f}\")\naxs[1].yaxis.set_major_formatter(\"{x:.1f}\")\naxs[2].yaxis.set_major_formatter(\"{x:.1f}\")\n\n# Adjust layout to prevent overlap\nplt.tight_layout()\n\n# Display the figure\nplt.show()",
     "crumbs": [
       "Plot families",
-      "Line and Step Plots"
+      "Multi-Layer, Multi-Panel and Facet Plots"
     ]
   },
   {
-    "objectID": "examples/histogram-kde.html",
-    "href": "examples/histogram-kde.html",
-    "title": "Accessible Histograms and KDE Plots in seaborn with py-maidr",
+    "objectID": "examples/multi-layer-panel-facet.html#facet-plot",
+    "href": "examples/multi-layer-panel-facet.html#facet-plot",
+    "title": "Accessible Multi-Layer, Multi-Panel and Facet Plots in matplotlib with py-maidr",
+    "section": "Facet Plot",
+    "text": "Facet Plot\n\nimport matplotlib.pyplot as plt\nimport numpy as np\n\nimport maidr \n\ncategories = [\"A\", \"B\", \"C\", \"D\", \"E\"]\n\nnp.random.seed(42)\ndata_group1 = np.random.rand(5) * 10\ndata_group2 = np.random.rand(5) * 100\ndata_group3 = np.random.rand(5) * 36\ndata_group4 = np.random.rand(5) * 42\n\ndata_sets = [data_group1, data_group2, data_group3, data_group4]\ncondition_names = [\"Group 1\", \"Group 2\", \"Group 3\", \"Group 4\"]\n\nfig, axs = plt.subplots(2, 2, figsize=(7, 7), sharey=True, sharex=True)\naxs = axs.flatten()\n\nall_data = np.concatenate(data_sets)\ny_min, y_max = np.min(all_data) * 0.9, np.max(all_data) * 1.1\n\n# Create a bar plot in each subplot\nfor i, (data, condition) in enumerate(zip(data_sets, condition_names)):\n    axs[i].bar(categories, data, color=f\"C{i}\", alpha=0.7)\n    axs[i].set_title(f\"{condition}\")\n    axs[i].set_ylim(y_min, y_max)  # Set consistent y-axis limits\n\n    # Add value labels on top of each bar\n    for j, value in enumerate(data):\n        axs[i].text(\n            j,\n            value + (y_max - y_min) * 0.02,\n            f\"{value:.1f}\",\n            ha=\"center\",\n            va=\"bottom\",\n            fontsize=9,\n        )\n\n# Add common labels\nfig.text(0.5, 0.04, \"Categories\", ha=\"center\", va=\"center\", fontsize=14)\nfig.text(\n    0.06, 0.5, \"Values\", ha=\"center\", va=\"center\", rotation=\"vertical\", fontsize=14\n)\n\n# Add a common title\nfig.suptitle(\"Facet Plot: Bar Charts by Condition\", fontsize=16)\n\n# Add number formatters for better screen reader output\nfor ax in axs:\n    ax.yaxis.set_major_formatter(\"{x:.1f}\")\n\n# Adjust layout\nplt.tight_layout(rect=(0.08, 0.08, 0.98, 0.95))\n\nplt.show()",
+    "crumbs": [
+      "Plot families",
+      "Multi-Layer, Multi-Panel and Facet Plots"
+    ]
+  },
+  {
+    "objectID": "examples/box-boxen-violin.html",
+    "href": "examples/box-boxen-violin.html",
+    "title": "Accessible Box, Boxen and Violin Plots in matplotlib and seaborn with py-maidr",
     "section": "",
-    "text": "A histogram is read bin by bin: the Left and Right arrows move across the bins, and each stop announces the bin’s range and its count while the tone’s pitch follows the count. A KDE curve is read as a smooth line, so moving along it plays the density as a continuous rise and fall in pitch and the text view gives the value under the cursor.\nHIST and the SMOOTH layer that carries a KDE curve are both in the stable set: see Plot Type Stability.",
+    "text": "A box plot is read as its five-number summary: moving along one box walks the minimum, lower quartile, median, upper quartile and maximum, with outliers announced as their own stops, and moving across the chart switches between the groups being compared. A violin plot combines a density curve with box statistics, so py-maidr exposes it as two layers (switch with Page Up and Page Down): the KDE outline is read as a smooth curve and the inner box as a box plot. A boxen plot extends the box to a ladder of quantile pairs, and each rung is announced as the percentile it actually is.\nBOX, VIOLIN_BOX and VIOLIN_KDE are in the stable set. BOXEN is experimental and may change without a deprecation period: see Plot Type Stability.",
     "crumbs": [
       "Plot families",
-      "Histograms and KDE Plots"
+      "Box, Boxen [experimental] and Violin Plots"
     ]
   },
   {
-    "objectID": "examples/histogram-kde.html#setup",
-    "href": "examples/histogram-kde.html#setup",
-    "title": "Accessible Histograms and KDE Plots in seaborn with py-maidr",
+    "objectID": "examples/box-boxen-violin.html#setup",
+    "href": "examples/box-boxen-violin.html#setup",
+    "title": "Accessible Box, Boxen and Violin Plots in matplotlib and seaborn with py-maidr",
     "section": "Setup",
     "text": "Setup\nEvery example on this page needs only the import below. The plot cells repeat it so each one can be copied on its own.\n\nimport matplotlib.pyplot as plt\n\n# Just import maidr package: plt.show() now renders accessible output \nimport maidr",
     "crumbs": [
       "Plot families",
-      "Histograms and KDE Plots"
+      "Box, Boxen [experimental] and Violin Plots"
     ]
   },
   {
-    "objectID": "examples/histogram-kde.html#histogram",
-    "href": "examples/histogram-kde.html#histogram",
-    "title": "Accessible Histograms and KDE Plots in seaborn with py-maidr",
-    "section": "Histogram",
-    "text": "Histogram\n\nimport matplotlib.pyplot as plt\nimport seaborn as sns\n\nimport maidr \n\n\n# Load the Iris dataset\niris = sns.load_dataset(\"iris\")\n\n# Select the petal lengths\npetal_lengths = iris[\"petal_length\"]\n\n# Plot a histogram of the petal lengths\nfig, ax = plt.subplots(figsize=(6, 6))\n\nhist_plot = sns.histplot(petal_lengths, kde=True, color=\"blue\", binwidth=0.5, ax=ax) \n\nax.set_title(\"Petal Lengths in Iris Dataset\")\nax.set_xlabel(\"Petal Length (cm)\")\nax.set_ylabel(\"Frequency\")\n\n# Add number formatters for better screen reader output\nax.xaxis.set_major_formatter(\"{x:.1f}\")\nax.yaxis.set_major_formatter(\"{x:.0f}\")\n\nplt.show()",
+    "objectID": "examples/box-boxen-violin.html#box-plot",
+    "href": "examples/box-boxen-violin.html#box-plot",
+    "title": "Accessible Box, Boxen and Violin Plots in matplotlib and seaborn with py-maidr",
+    "section": "Box Plot",
+    "text": "Box Plot\n\nimport matplotlib.pyplot as plt\nimport seaborn as sns\nfrom seaborn import load_dataset\n\nimport maidr \n\n# Load the iris dataset\niris = load_dataset(\"iris\")\n\n# Create the horizontal box plot\nfig, ax = plt.subplots()\nhorz_box_plot = sns.boxplot(x=\"petal_length\", y=\"species\", data=iris, orient=\"h\", ax=ax) \nax.set_ylabel(\"Species\")\nax.set_xlabel(\"Petal Length (cm)\")\nax.set_title(\"Petal Length by Species from Iris Dataset\")\n\n# Add number formatter for better screen reader output\nax.xaxis.set_major_formatter(\"{x:.1f}\")\n\n# Show the plot\nplt.show()",
     "crumbs": [
       "Plot families",
-      "Histograms and KDE Plots"
+      "Box, Boxen [experimental] and Violin Plots"
     ]
   },
   {
-    "objectID": "examples/histogram-kde.html#kde-kernel-density-estimation-plot",
-    "href": "examples/histogram-kde.html#kde-kernel-density-estimation-plot",
-    "title": "Accessible Histograms and KDE Plots in seaborn with py-maidr",
-    "section": "KDE (Kernel Density Estimation) Plot",
-    "text": "KDE (Kernel Density Estimation) Plot\n\nimport matplotlib.pyplot as plt\nimport seaborn as sns\nimport numpy as np\n\nimport maidr \n\n# Generate sample data\nnp.random.seed(42)\ndata = np.random.randn(500)\n\n# Create a KDE plot\nfig, ax = plt.subplots(figsize=(6, 6))\nkde_plot = sns.kdeplot(data, color=\"blue\", ax=ax) \n\nax.set_title(\"KDE Plot of Random Data\")\nax.set_xlabel(\"Value\")\nax.set_ylabel(\"Density\")\n\n# Add number formatters for better screen reader output\nax.xaxis.set_major_formatter(\"{x:.1f}\")\nax.yaxis.set_major_formatter(\"{x:.3f}\")\n\nplt.show()",
+    "objectID": "examples/box-boxen-violin.html#violin-plot",
+    "href": "examples/box-boxen-violin.html#violin-plot",
+    "title": "Accessible Box, Boxen and Violin Plots in matplotlib and seaborn with py-maidr",
+    "section": "Violin Plot",
+    "text": "Violin Plot\n\nSeaborn Violin Plot (Horizontal)\n\nimport matplotlib.pyplot as plt\nimport seaborn as sns\n\nimport maidr \n\n# Load the diamonds dataset\ndiamonds = sns.load_dataset(\"diamonds\")\n\n# Create horizontal violin plot comparing price across cut quality\nv = sns.violinplot(  \n    x=\"price\",          # numeric values on x-axis\n    y=\"cut\",            # 5 categories on y-axis\n    data=diamonds,\n    orient=\"h\",         # horizontal orientation\n    inner=\"box\",        # show box plot inside violin\n    hue=\"cut\",          # color by cut quality\n    palette=\"Set2\",     # distinct colors\n    legend=False,\n)\n\n# Customize the plot\nplt.title(\"Diamond Price Distribution by Cut Quality\")\nplt.xlabel(\"Price (USD)\")\nplt.ylabel(\"Cut Quality\")\n\n# Add number formatter for better screen reader output\nplt.gca().xaxis.set_major_formatter(\"{x:,.0f}\")\n\n# Show the plot\nplt.show() \n\n\n\n\n\n\nMatplotlib Violin Plot\n\nimport matplotlib.pyplot as plt\nimport seaborn as sns\n\nimport maidr \n\n# Load dataset\ndiamonds = sns.load_dataset(\"diamonds\")\n\n# Prepare data grouped by cut (5 categories)\ngroups = []\nvalues = []\nfor cut, gdf in diamonds.groupby(\"cut\", observed=False):\n    groups.append(cut)\n    values.append(gdf[\"price\"].dropna().values)\n\nfig, ax = plt.subplots(figsize=(10, 6))\n\n# Matplotlib violin plot with mean, median, and extrema\nviolins = ax.violinplot(  \n    values,\n    showmeans=True,\n    showmedians=True,\n    showextrema=True,\n)\n\n# Set x-ticks to match group labels\nax.set_xticks(range(1, len(groups) + 1))\nax.set_xticklabels(groups)\n\nax.set_title(\"Diamond Price Distribution by Cut Quality (Matplotlib Violin)\")\nax.set_xlabel(\"Cut Quality\")\nax.set_ylabel(\"Price (USD)\")\n\n# Add number formatter for better screen reader output\nax.yaxis.set_major_formatter(\"{x:,.0f}\")\n\nplt.show()",
     "crumbs": [
       "Plot families",
-      "Histograms and KDE Plots"
+      "Box, Boxen [experimental] and Violin Plots"
     ]
   },
   {
-    "objectID": "examples/candlestick-gantt.html",
-    "href": "examples/candlestick-gantt.html",
-    "title": "Accessible Candlestick and Gantt Charts in matplotlib with py-maidr",
+    "objectID": "examples/box-boxen-violin.html#boxen-plot-letter-value-plot",
+    "href": "examples/box-boxen-violin.html#boxen-plot-letter-value-plot",
+    "title": "Accessible Box, Boxen and Violin Plots in matplotlib and seaborn with py-maidr",
+    "section": "Boxen Plot (Letter-Value Plot) [experimental]",
+    "text": "Boxen Plot (Letter-Value Plot) [experimental]\n\n\n\n\n\n\nWarningPrototype\n\n\n\nThis is one of the experimental plot types. It has not been through a user study, and it may change without a deprecation period. See Plot type stability.\n\n\n\nimport matplotlib.pyplot as plt\nimport seaborn as sns\nfrom seaborn import load_dataset\n\nimport maidr \n\ndiamonds = load_dataset(\"diamonds\")\n\nfig, ax = plt.subplots()\nsns.boxenplot(data=diamonds, x=\"cut\", y=\"price\", ax=ax) \nax.set_xlabel(\"Cut\")\nax.set_ylabel(\"Price (USD)\")\nax.set_title(\"Diamond Price by Cut Quality\")\n\nplt.show() \n\n\n\n\nA boxen plot is a box plot whose tails keep resolving: instead of one quartile box and a cloud of outliers, it draws a ladder of quantile pairs, and a larger sample earns more rungs. maidr announces each rung as the percentile it actually is – “the 12.5th percentile” rather than a rung number – and moving outward from the median walks the ladder in value order. k_depth= controls how deep it goes, and the announcement follows it.",
+    "crumbs": [
+      "Plot families",
+      "Box, Boxen [experimental] and Violin Plots"
+    ]
+  },
+  {
+    "objectID": "examples/roc.html",
+    "href": "examples/roc.html",
+    "title": "Accessible ROC Curves in scikit-learn with py-maidr",
     "section": "",
-    "text": "Both of these charts draw a span rather than a point. A candlestick chart (drawn with mplfinance) is read one trading day at a time: Left and Right move along the dates and each stop announces the open, high, low and close, with the volume panel available as its own subplot. A Gantt chart drawn with ax.broken_barh() is read as lanes of spans, so a reader hears when a task starts, when it ends and therefore how long it runs.\nCANDLESTICK is in the stable set. GANTT is experimental and may change without a deprecation period: see Plot Type Stability.",
+    "text": "A ROC curve is a classifier’s true positive rate against its false positive rate, one point per decision threshold. scikit-learn draws one with RocCurveDisplay, and every way of building that display – from_estimator, from_predictions, from_cv_results, or a display built by hand – ends in its plot(), which is what maidr reads.\nRead as a plain line, a ROC curve answers the wrong questions: its minimum and maximum are 0 and 1 on every curve, each curve’s pitch is scaled to its own range so two classifiers sound alike, and the area under the curve sits in the legend text where a screen reader user is never told it. maidr reads the display instead: the pitch is the true positive rate on the unit interval, the stereo pan follows the false positive rate, each point announces how far it sits above the chance diagonal, and the description gives the area under each curve and the best operating point.\nROC is experimental and may change without a deprecation period: see Plot Type Stability.",
     "crumbs": [
-      "Plot families",
-      "Candlestick and Gantt Charts [experimental]"
+      "Experimental plot families",
+      "ROC Curves [experimental]"
     ]
   },
   {
-    "objectID": "examples/candlestick-gantt.html#setup",
-    "href": "examples/candlestick-gantt.html#setup",
-    "title": "Accessible Candlestick and Gantt Charts in matplotlib with py-maidr",
+    "objectID": "examples/roc.html#setup",
+    "href": "examples/roc.html#setup",
+    "title": "Accessible ROC Curves in scikit-learn with py-maidr",
     "section": "Setup",
-    "text": "Setup\nEvery example on this page needs only the import below. The plot cells repeat it so each one can be copied on its own.\n\nimport matplotlib.pyplot as plt\n\n# Just import maidr package: plt.show() now renders accessible output \nimport maidr",
+    "text": "Setup\nThe examples on this page need scikit-learn, which is an optional extra: pip install maidr[sklearn]. Nothing in maidr imports it; the reading is wired up when your own code imports sklearn.metrics.\n\nimport matplotlib.pyplot as plt\n\n# Just import maidr package: plt.show() now renders accessible output \nimport maidr",
     "crumbs": [
-      "Plot families",
-      "Candlestick and Gantt Charts [experimental]"
+      "Experimental plot families",
+      "ROC Curves [experimental]"
     ]
   },
   {
-    "objectID": "examples/candlestick-gantt.html#candlestick-chart",
-    "href": "examples/candlestick-gantt.html#candlestick-chart",
-    "title": "Accessible Candlestick and Gantt Charts in matplotlib with py-maidr",
-    "section": "Candlestick Chart",
-    "text": "Candlestick Chart\n\nimport mplfinance as mpf\nimport pandas as pd\n\nimport maidr \n\n# Load the sample data\ndaily = pd.read_csv(\"../../example/candle_stick/volcandat.csv\", index_col=0, parse_dates=True)\n\n# Create the candlestick chart with moving averages and volume\nfig, axlist = mpf.plot(\n    daily,\n    type=\"candle\",\n    volume=True,\n    mav = (3,6,9),\n    returnfig=True,\n    ylabel=\"Price\",\n    ylabel_lower=\"Volume\",\n    xlabel=\"Date\",\n    title=\"Stock Price with Volume\",\n    # Dates drawn, and announced, like \"Nov 01, 2019\"\n    datetime_format=\"%b %d, %Y\", \n)  \n\n# Add formatters for better screen reader output\n# Price axis - Currency format\naxlist[0].yaxis.set_major_formatter(\"${x:,.2f}\")\n# Volume axis - Integer with thousands separator\naxlist[2].yaxis.set_major_formatter(\"{x:,.0f}\")\n\nfig.tight_layout()\n\n# Display with maidr\nplt.show() \n\n\n\n\nPass datetime_format= to mpf.plot(), as above, and the dates are announced the way the x axis draws them: every candle, volume bar and moving average reads as its tick label does, Nov 01, 2019 here, or 09:30 for minute bars drawn with \"%H:%M\". Any strftime() pattern works, so \"%a %d %b\" leaves the year out. Without it, each date is announced as the frame holds it, whatever format mplfinance picked for the ticks: 2019-11-01 for daily data like this, whose index has no time of day, and the full stamp, 2026-03-02 09:30:00, for intraday bars.\nSet the format there rather than with a DateFormatter on the axis afterwards. mplfinance places candles by row number, not by date, so a DateFormatter reads those row numbers as days since 1970 and labels the axis with dates around Jan 01, 1970.",
+    "objectID": "examples/roc.html#one-classifier",
+    "href": "examples/roc.html#one-classifier",
+    "title": "Accessible ROC Curves in scikit-learn with py-maidr",
+    "section": "One classifier",
+    "text": "One classifier\n\nimport matplotlib.pyplot as plt\nfrom sklearn.datasets import make_classification\nfrom sklearn.linear_model import LogisticRegression\nfrom sklearn.metrics import RocCurveDisplay\nfrom sklearn.model_selection import train_test_split\n\nimport maidr  \n\nX, y = make_classification(n_samples=400, n_informative=4, random_state=0)\nX_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0)\nmodel = LogisticRegression(max_iter=500).fit(X_train, y_train)\n\nfig, ax = plt.subplots()\n# The display's own plot() is what maidr reads. The chance diagonal it draws\n# is a reference, not a curve, and is left out of the reading.\nRocCurveDisplay.from_estimator(model, X_test, y_test, ax=ax, plot_chance_level=True)  \nax.set_title(\"ROC curve of a logistic regression\")\n\nplt.show()  \n\n\n\n\nThe curve is one series: Left and Right move along the operating points, and each stop announces the false positive rate, the true positive rate and how far the point sits above chance. The description (d) gives the area under the curve, which is the number the display computed, and the operating point furthest above the diagonal.",
     "crumbs": [
-      "Plot families",
-      "Candlestick and Gantt Charts [experimental]"
+      "Experimental plot families",
+      "ROC Curves [experimental]"
     ]
   },
   {
-    "objectID": "examples/candlestick-gantt.html#gantt-chart",
-    "href": "examples/candlestick-gantt.html#gantt-chart",
-    "title": "Accessible Candlestick and Gantt Charts in matplotlib with py-maidr",
-    "section": "Gantt Chart [experimental]",
-    "text": "Gantt Chart [experimental]\n\n\n\n\n\n\nWarningPrototype\n\n\n\nThis is one of the experimental plot types. It has not been through a user study, and it may change without a deprecation period. See Plot type stability.\n\n\nax.broken_barh() draws horizontal bars that start and stop along an axis, which is what a schedule looks like. maidr reads it as a gantt: every bar is a span, carrying both its start and its end rather than a single position, so a reader hears when a task begins, when it finishes, and therefore how long it runs.\nThe whole chart is one layer, organized into lanes. Each broken_barh() call contributes one lane, and the spans passed in that call are the spans of that lane — so a phase that stops and restarts is two spans on one lane, not two separate rows.\n\nimport matplotlib.pyplot as plt\n\nimport maidr \n\nfig, ax = plt.subplots(figsize=(8, 4))\n\n# One call is one lane. A lane can hold several spans: \"Build\" runs for four\n# weeks, pauses for one, then resumes for three.\nax.broken_barh([(0, 3)], (10, 6)) \nax.broken_barh([(3, 4), (8, 3)], (20, 6)) \nax.broken_barh([(11, 2)], (30, 6)) \n\nax.set_xlabel(\"Week\")\nax.set_ylabel(\"Phase\")\nax.set_yticks([13, 23, 33])\nax.set_yticklabels([\"Design\", \"Build\", \"Launch\"])\nax.set_title(\"Project schedule\")\n\nplt.show() \n\n\n\n\nNaming the lanes takes both set_yticks() and set_yticklabels(), as the example does. Labels alone are ignored, because a lane name is only trusted when the axis carries fixed tick positions to attach it to; otherwise a lane falls back to the center of the row it was drawn on — the (10, 6) above puts one at 13. Measured on the three lanes above:\n\n\n\nwhat the axis sets\nlanes announced as\n\n\n\n\nset_yticks() and set_yticklabels()\nDesign, Build, Launch\n\n\nset_yticklabels() alone\n13.0, 23.0, 33.0\n\n\nset_yticks() alone\n13, 23, 33\n\n\nneither\n13.0, 23.0, 33.0\n\n\n\nlabel= is the argument that looks like it should do this, and it does not — it adds a legend entry and leaves the lane unnamed.",
+    "objectID": "examples/roc.html#comparing-classifiers",
+    "href": "examples/roc.html#comparing-classifiers",
+    "title": "Accessible ROC Curves in scikit-learn with py-maidr",
+    "section": "Comparing classifiers",
+    "text": "Comparing classifiers\nTwo displays plotted on one axes are two curves of one chart, so Up and Down switch between classifiers at the same position along the curve.\n\nimport matplotlib.pyplot as plt\nfrom sklearn.datasets import make_classification\nfrom sklearn.ensemble import RandomForestClassifier\nfrom sklearn.linear_model import LogisticRegression\nfrom sklearn.metrics import RocCurveDisplay\nfrom sklearn.model_selection import train_test_split\n\nimport maidr  \n\nX, y = make_classification(n_samples=400, n_informative=4, random_state=0)\nX_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0)\n\nfig, ax = plt.subplots()\nfor model in (LogisticRegression(max_iter=500), RandomForestClassifier(random_state=0)):\n    model.fit(X_train, y_train)\n    RocCurveDisplay.from_estimator(model, X_test, y_test, ax=ax)  \nax.set_title(\"ROC curves of two classifiers\")\n\nplt.show()  \n\n\n\n\nEach curve is named the way the caller named it – the estimator’s class here, or the name= passed to the display – rather than by the legend entry, which wraps the area around the name. The description lists the area under every curve and names the highest, which is the question a chart of several curves is drawn to answer.",
     "crumbs": [
-      "Plot families",
-      "Candlestick and Gantt Charts [experimental]"
-    ]
-  },
-  {
-    "objectID": "examples/scatter-regression.html",
-    "href": "examples/scatter-regression.html",
-    "title": "Accessible Scatter and Regression Plots in seaborn with py-maidr",
-    "section": "",
-    "text": "A scatter plot is read point by point in x order: the Left and Right arrows move across the points, each stop announces its x and y (and its hue group when one is set), and the pitch follows y. A regression plot adds a fitted line, which py-maidr exposes as a second layer: Page Up and Page Down switch between the points and the smooth curve, so the trend can be heard on its own and then checked against the scatter.\nSCATTER and SMOOTH are in the stable set: see Plot Type Stability.",
-    "crumbs": [
-      "Plot families",
-      "Scatter and Regression Plots"
-    ]
-  },
-  {
-    "objectID": "examples/scatter-regression.html#setup",
-    "href": "examples/scatter-regression.html#setup",
-    "title": "Accessible Scatter and Regression Plots in seaborn with py-maidr",
-    "section": "Setup",
-    "text": "Setup\nEvery example on this page needs only the import below. The plot cells repeat it so each one can be copied on its own.\n\nimport matplotlib.pyplot as plt\nimport seaborn as sns\n\n# Just import maidr package: plt.show() now renders accessible output \nimport maidr  \n\n# The scatter plot below reuses this dataset.\niris = sns.load_dataset(\"iris\")",
-    "crumbs": [
-      "Plot families",
-      "Scatter and Regression Plots"
-    ]
-  },
-  {
-    "objectID": "examples/scatter-regression.html#scatter-plot",
-    "href": "examples/scatter-regression.html#scatter-plot",
-    "title": "Accessible Scatter and Regression Plots in seaborn with py-maidr",
-    "section": "Scatter Plot",
-    "text": "Scatter Plot\n\nimport matplotlib.pyplot as plt\nimport seaborn as sns\n\nimport maidr \n\n# Create a scatter plot\nfig, ax = plt.subplots()\nscatter_plot = sns.scatterplot( \n    data=iris, x=\"sepal_length\", y=\"sepal_width\", hue=\"species\", ax=ax\n)\n\n# Adding title and labels\nax.set_title(\"Iris Sepal Length vs Sepal Width\")\nax.set_xlabel(\"Sepal Length (cm)\")\nax.set_ylabel(\"Sepal Width (cm)\")\n\n# Add number formatters for better screen reader output\nax.xaxis.set_major_formatter(\"{x:.1f}\")\nax.yaxis.set_major_formatter(\"{x:.1f}\")\n\n# Show the plot\nplt.show()",
-    "crumbs": [
-      "Plot families",
-      "Scatter and Regression Plots"
-    ]
-  },
-  {
-    "objectID": "examples/scatter-regression.html#regression-plot",
-    "href": "examples/scatter-regression.html#regression-plot",
-    "title": "Accessible Scatter and Regression Plots in seaborn with py-maidr",
-    "section": "Regression Plot",
-    "text": "Regression Plot\n\nimport matplotlib.pyplot as plt\nimport seaborn as sns\nimport numpy as np\n\nimport maidr \n\n# Generate sample data\nnp.random.seed(42)\nx = np.linspace(0, 10, 50)\ny = 2 * x + 1 + np.random.normal(0, 2, 50)\n\n# Create a regression plot\nfig, ax = plt.subplots(figsize=(6, 6))\nreg_plot = sns.regplot(\n    x=x,\n    y=y,\n    scatter_kws={\"s\": 50, \"alpha\": 0.7},\n    line_kws={\"color\": \"red\", \"lw\": 2},\n    ax=ax,\n) \n\nax.set_title(\"Regression Plot with Fitted Line\")\nax.set_xlabel(\"X values\")\nax.set_ylabel(\"Y values\")\n\n# Add number formatters for better screen reader output\nax.xaxis.set_major_formatter(\"{x:.1f}\")\nax.yaxis.set_major_formatter(\"{x:.2f}\")\n\nplt.show()",
-    "crumbs": [
-      "Plot families",
-      "Scatter and Regression Plots"
-    ]
-  },
-  {
-    "objectID": "examples-plotnine.html",
-    "href": "examples-plotnine.html",
-    "title": "plotnine Accessible Plot Examples",
-    "section": "",
-    "text": "maidr also supports plotnine, the Python implementation of ggplot2’s grammar of graphics. Pass a ggplot to maidr.show(), maidr.render() or maidr.save_html(), and maidr produces a page where the chart can be read from the keyboard, as sound, as text and in braille – what maidr for R does for ggplot2 itself. For the other libraries, see the Matplotlib / Seaborn, Plotly, Bokeh and Altair pages.\n\n\n\n\n\n\nWarningExperimental\n\n\n\nplotnine support is experimental. What it reads, and how, may change without a deprecation period, whichever plot type is drawn: see Plot Type Stability. Install it with pip install \"maidr[plotnine]\".\n\n\nmaidr reads each layer’s own data as plotnine computed it – after the stat, the position adjustment and the scales – rather than the shapes it drew, so a count is the count stat_count made, a stacked segment is announced with its own value, and a box with the five numbers stat_boxplot computed. Each facet panel is a subplot. As you move through a chart, the mark being read is outlined on the plotnine drawing itself.\n\n\n\n\n\n\n\nplotnine\nread as\n\n\n\n\ngeom_bar, geom_col, one bar per category\nbar\n\n\ngeom_bar, geom_col with position=\"stack\" (the default)\nstacked bar\n\n\ngeom_bar, geom_col with position=\"dodge\"\ndodged bar\n\n\ngeom_histogram\nhistogram\n\n\ngeom_point\npoint\n\n\ngeom_line\nline, one series per group\n\n\ngeom_smooth\nsmooth, with its confidence band\n\n\ngeom_boxplot\nbox\n\n\ngeom_tile with a numeric fill\nheatmap\n\n\nfacet_wrap, facet_grid\none subplot per panel\n\n\ngeom_bar, geom_col with position=\"fill\"\nnormalized stacked bar [experimental]\n\n\n\nAny other geom, a jittered point, or a chart on a coordinate system other than coord_cartesian is left out with a warning naming it, and a chart with nothing maidr can read is shown as a static image. Use maidr.show(p) rather than plotnine’s own p.show() or a notebook’s display of p: those draw the chart as an ordinary matplotlib figure, which maidr cannot read beyond its points.\n\n\n\nfrom plotnine import aes, geom_bar, ggplot, labs\nfrom plotnine.data import penguins\n\nimport maidr  \n\np = (\n    ggplot(penguins, aes(\"species\"))\n    + geom_bar()\n    + labs(title=\"Penguins per Species\", x=\"Species\", y=\"Penguins\")\n)\n\nmaidr.show(p)  \n\n\n\n\n\n\n\n\n\n\n\nfrom plotnine import aes, geom_bar, ggplot, labs\nfrom plotnine.data import penguins\n\nimport maidr  \n\np = (\n    ggplot(penguins, aes(\"species\", fill=\"island\"))\n    + geom_bar()\n    + labs(title=\"Penguins per Species and Island\", x=\"Species\", y=\"Penguins\")\n)\n\nmaidr.show(p)  \n\n\n\n\nEach segment is announced with its own count, not the height of the stack it sits on, and a species with no penguins on an island is announced as missing rather than as zero. The series run from the bottom of the stack up.\n\n\n\n\nfrom plotnine import aes, geom_bar, ggplot, labs\nfrom plotnine.data import penguins\n\nimport maidr  \n\np = (\n    ggplot(penguins.dropna(subset=[\"sex\"]), aes(\"species\", fill=\"sex\"))\n    + geom_bar(position=\"dodge\")\n    + labs(title=\"Penguins per Species and Sex\", x=\"Species\", y=\"Penguins\")\n)\n\nmaidr.show(p)  \n\n\n\n\n\n\n\n\nfrom plotnine import aes, geom_histogram, ggplot, labs\nfrom plotnine.data import penguins\n\nimport maidr  \n\np = (\n    ggplot(penguins.dropna(subset=[\"body_mass_g\"]), aes(\"body_mass_g\"))\n    + geom_histogram(bins=20)\n    + labs(title=\"Penguin Body Mass\", x=\"Body Mass (g)\", y=\"Penguins\")\n)\n\nmaidr.show(p)  \n\n\n\n\n\n\n\n\nfrom plotnine import aes, geom_point, ggplot, labs\nfrom plotnine.data import mtcars\n\nimport maidr  \n\np = (\n    ggplot(mtcars, aes(\"hp\", \"mpg\"))\n    + geom_point()\n    + labs(title=\"Fuel Economy and Power\", x=\"Horsepower\", y=\"Miles per Gallon\")\n)\n\nmaidr.show(p)  \n\n\n\n\n\n\n\n\nfrom plotnine import aes, geom_line, ggplot, labs\nfrom plotnine.data import economics\n\nimport maidr  \n\nrecent = economics[economics[\"date\"].dt.year &gt;= 2000]\np = (\n    ggplot(recent, aes(\"date\", \"unemploy\"))\n    + geom_line()\n    + labs(title=\"US Unemployment\", x=\"Month\", y=\"Unemployed (thousands)\")\n)\n\nmaidr.show(p)  \n\n\n\n\n\n\n\n\nfrom plotnine import aes, geom_line, ggplot, labs\nfrom plotnine.data import economics_long\n\nimport maidr  \n\ntwo = economics_long[\n    economics_long[\"variable\"].isin([\"psavert\", \"uempmed\"])\n    & (economics_long[\"date\"].dt.year &gt;= 2000)\n]\np = (\n    ggplot(two, aes(\"date\", \"value\", color=\"variable\"))\n    + geom_line()\n    + labs(title=\"Savings Rate and Unemployment Duration\", x=\"Month\", y=\"Value\")\n)\n\nmaidr.show(p)  \n\n\n\n\nEach colour is one series, named by its value of the variable color maps.\n\n\n\n\nfrom plotnine import aes, geom_boxplot, ggplot, labs\nfrom plotnine.data import penguins\n\nimport maidr  \n\np = (\n    ggplot(penguins.dropna(subset=[\"body_mass_g\"]), aes(\"species\", \"body_mass_g\"))\n    + geom_boxplot()\n    + labs(title=\"Body Mass by Species\", x=\"Species\", y=\"Body Mass (g)\")\n)\n\nmaidr.show(p)  \n\n\n\n\n\n\n\n\nfrom plotnine import aes, geom_tile, ggplot, guide_colorbar, guides, labs\nfrom plotnine.data import penguins\n\nimport maidr  \n\nmeans = (\n    penguins.groupby([\"species\", \"island\"], observed=True)[\"body_mass_g\"]\n    .mean()\n    .round()\n    .reset_index()\n)\np = (\n    ggplot(means, aes(\"island\", \"species\", fill=\"body_mass_g\"))\n    + geom_tile()\n    + guides(fill=guide_colorbar(display=\"rectangles\"))\n    + labs(title=\"Mean Body Mass (g)\", x=\"Island\", y=\"Species\", fill=\"Body Mass (g)\")\n)\n\nmaidr.show(p)  \n\n\n\n\nEach cell is announced with the value fill maps, not its colour. A species never recorded on an island has no tile, and is announced as missing.\nguide_colorbar(display=\"rectangles\") draws the colour bar as a stack of rectangles. plotnine’s default gradient is written to SVG as thousands of shaded triangles, which makes this one chart close to 2 MB; the rectangles look the same and weigh a few tens of kilobytes.\n\n\n\n\nfrom plotnine import aes, geom_point, geom_smooth, ggplot, labs\nfrom plotnine.data import mtcars\n\nimport maidr  \n\np = (\n    ggplot(mtcars, aes(\"wt\", \"mpg\"))\n    + geom_point()\n    + geom_smooth(method=\"lm\")\n    + labs(title=\"Fuel Economy and Weight\", x=\"Weight (1000 lb)\",\n           y=\"Miles per Gallon\")\n)\n\nmaidr.show(p)  \n\n\n\n\nThe points and the fitted line are two layers of one subplot; the line carries the bounds of its confidence band at every point.\n\n\n\n\nfrom plotnine import aes, facet_wrap, geom_point, ggplot, labs\nfrom plotnine.data import mtcars\n\nimport maidr  \n\np = (\n    ggplot(mtcars, aes(\"wt\", \"mpg\"))\n    + geom_point()\n    + facet_wrap(\"cyl\")\n    + labs(title=\"Fuel Economy by Cylinders\", x=\"Weight (1000 lb)\",\n           y=\"Miles per Gallon\")\n)\n\nmaidr.show(p)  \n\n\n\n\nEach panel is a subplot, titled by its facet as cyl = 4. Press Enter to go into one, Escape to come back out, and the arrow keys between them, in the directions they are laid out on the page.\n\n\n\n\nfrom plotnine import aes, geom_bar, ggplot, labs\nfrom plotnine.data import penguins\n\nimport maidr  \n\np = (\n    ggplot(penguins, aes(\"island\", fill=\"species\"))\n    + geom_bar(position=\"fill\")\n    + labs(title=\"Species Share on Each Island\", x=\"Island\", y=\"Share\")\n)\n\nmaidr.show(p)  \n\n\n\n\nEach segment is announced as its share of the bar, so the segments of one bar add up to 1.",
-    "crumbs": [
-      "Other libraries",
-      "plotnine [experimental]"
-    ]
-  },
-  {
-    "objectID": "examples-plotnine.html#sec-plotnine-examples",
-    "href": "examples-plotnine.html#sec-plotnine-examples",
-    "title": "plotnine Accessible Plot Examples",
-    "section": "",
-    "text": "maidr also supports plotnine, the Python implementation of ggplot2’s grammar of graphics. Pass a ggplot to maidr.show(), maidr.render() or maidr.save_html(), and maidr produces a page where the chart can be read from the keyboard, as sound, as text and in braille – what maidr for R does for ggplot2 itself. For the other libraries, see the Matplotlib / Seaborn, Plotly, Bokeh and Altair pages.\n\n\n\n\n\n\nWarningExperimental\n\n\n\nplotnine support is experimental. What it reads, and how, may change without a deprecation period, whichever plot type is drawn: see Plot Type Stability. Install it with pip install \"maidr[plotnine]\".\n\n\nmaidr reads each layer’s own data as plotnine computed it – after the stat, the position adjustment and the scales – rather than the shapes it drew, so a count is the count stat_count made, a stacked segment is announced with its own value, and a box with the five numbers stat_boxplot computed. Each facet panel is a subplot. As you move through a chart, the mark being read is outlined on the plotnine drawing itself.\n\n\n\n\n\n\n\nplotnine\nread as\n\n\n\n\ngeom_bar, geom_col, one bar per category\nbar\n\n\ngeom_bar, geom_col with position=\"stack\" (the default)\nstacked bar\n\n\ngeom_bar, geom_col with position=\"dodge\"\ndodged bar\n\n\ngeom_histogram\nhistogram\n\n\ngeom_point\npoint\n\n\ngeom_line\nline, one series per group\n\n\ngeom_smooth\nsmooth, with its confidence band\n\n\ngeom_boxplot\nbox\n\n\ngeom_tile with a numeric fill\nheatmap\n\n\nfacet_wrap, facet_grid\none subplot per panel\n\n\ngeom_bar, geom_col with position=\"fill\"\nnormalized stacked bar [experimental]\n\n\n\nAny other geom, a jittered point, or a chart on a coordinate system other than coord_cartesian is left out with a warning naming it, and a chart with nothing maidr can read is shown as a static image. Use maidr.show(p) rather than plotnine’s own p.show() or a notebook’s display of p: those draw the chart as an ordinary matplotlib figure, which maidr cannot read beyond its points.\n\n\n\nfrom plotnine import aes, geom_bar, ggplot, labs\nfrom plotnine.data import penguins\n\nimport maidr  \n\np = (\n    ggplot(penguins, aes(\"species\"))\n    + geom_bar()\n    + labs(title=\"Penguins per Species\", x=\"Species\", y=\"Penguins\")\n)\n\nmaidr.show(p)  \n\n\n\n\n\n\n\n\n\n\n\nfrom plotnine import aes, geom_bar, ggplot, labs\nfrom plotnine.data import penguins\n\nimport maidr  \n\np = (\n    ggplot(penguins, aes(\"species\", fill=\"island\"))\n    + geom_bar()\n    + labs(title=\"Penguins per Species and Island\", x=\"Species\", y=\"Penguins\")\n)\n\nmaidr.show(p)  \n\n\n\n\nEach segment is announced with its own count, not the height of the stack it sits on, and a species with no penguins on an island is announced as missing rather than as zero. The series run from the bottom of the stack up.\n\n\n\n\nfrom plotnine import aes, geom_bar, ggplot, labs\nfrom plotnine.data import penguins\n\nimport maidr  \n\np = (\n    ggplot(penguins.dropna(subset=[\"sex\"]), aes(\"species\", fill=\"sex\"))\n    + geom_bar(position=\"dodge\")\n    + labs(title=\"Penguins per Species and Sex\", x=\"Species\", y=\"Penguins\")\n)\n\nmaidr.show(p)  \n\n\n\n\n\n\n\n\nfrom plotnine import aes, geom_histogram, ggplot, labs\nfrom plotnine.data import penguins\n\nimport maidr  \n\np = (\n    ggplot(penguins.dropna(subset=[\"body_mass_g\"]), aes(\"body_mass_g\"))\n    + geom_histogram(bins=20)\n    + labs(title=\"Penguin Body Mass\", x=\"Body Mass (g)\", y=\"Penguins\")\n)\n\nmaidr.show(p)  \n\n\n\n\n\n\n\n\nfrom plotnine import aes, geom_point, ggplot, labs\nfrom plotnine.data import mtcars\n\nimport maidr  \n\np = (\n    ggplot(mtcars, aes(\"hp\", \"mpg\"))\n    + geom_point()\n    + labs(title=\"Fuel Economy and Power\", x=\"Horsepower\", y=\"Miles per Gallon\")\n)\n\nmaidr.show(p)  \n\n\n\n\n\n\n\n\nfrom plotnine import aes, geom_line, ggplot, labs\nfrom plotnine.data import economics\n\nimport maidr  \n\nrecent = economics[economics[\"date\"].dt.year &gt;= 2000]\np = (\n    ggplot(recent, aes(\"date\", \"unemploy\"))\n    + geom_line()\n    + labs(title=\"US Unemployment\", x=\"Month\", y=\"Unemployed (thousands)\")\n)\n\nmaidr.show(p)  \n\n\n\n\n\n\n\n\nfrom plotnine import aes, geom_line, ggplot, labs\nfrom plotnine.data import economics_long\n\nimport maidr  \n\ntwo = economics_long[\n    economics_long[\"variable\"].isin([\"psavert\", \"uempmed\"])\n    & (economics_long[\"date\"].dt.year &gt;= 2000)\n]\np = (\n    ggplot(two, aes(\"date\", \"value\", color=\"variable\"))\n    + geom_line()\n    + labs(title=\"Savings Rate and Unemployment Duration\", x=\"Month\", y=\"Value\")\n)\n\nmaidr.show(p)  \n\n\n\n\nEach colour is one series, named by its value of the variable color maps.\n\n\n\n\nfrom plotnine import aes, geom_boxplot, ggplot, labs\nfrom plotnine.data import penguins\n\nimport maidr  \n\np = (\n    ggplot(penguins.dropna(subset=[\"body_mass_g\"]), aes(\"species\", \"body_mass_g\"))\n    + geom_boxplot()\n    + labs(title=\"Body Mass by Species\", x=\"Species\", y=\"Body Mass (g)\")\n)\n\nmaidr.show(p)  \n\n\n\n\n\n\n\n\nfrom plotnine import aes, geom_tile, ggplot, guide_colorbar, guides, labs\nfrom plotnine.data import penguins\n\nimport maidr  \n\nmeans = (\n    penguins.groupby([\"species\", \"island\"], observed=True)[\"body_mass_g\"]\n    .mean()\n    .round()\n    .reset_index()\n)\np = (\n    ggplot(means, aes(\"island\", \"species\", fill=\"body_mass_g\"))\n    + geom_tile()\n    + guides(fill=guide_colorbar(display=\"rectangles\"))\n    + labs(title=\"Mean Body Mass (g)\", x=\"Island\", y=\"Species\", fill=\"Body Mass (g)\")\n)\n\nmaidr.show(p)  \n\n\n\n\nEach cell is announced with the value fill maps, not its colour. A species never recorded on an island has no tile, and is announced as missing.\nguide_colorbar(display=\"rectangles\") draws the colour bar as a stack of rectangles. plotnine’s default gradient is written to SVG as thousands of shaded triangles, which makes this one chart close to 2 MB; the rectangles look the same and weigh a few tens of kilobytes.\n\n\n\n\nfrom plotnine import aes, geom_point, geom_smooth, ggplot, labs\nfrom plotnine.data import mtcars\n\nimport maidr  \n\np = (\n    ggplot(mtcars, aes(\"wt\", \"mpg\"))\n    + geom_point()\n    + geom_smooth(method=\"lm\")\n    + labs(title=\"Fuel Economy and Weight\", x=\"Weight (1000 lb)\",\n           y=\"Miles per Gallon\")\n)\n\nmaidr.show(p)  \n\n\n\n\nThe points and the fitted line are two layers of one subplot; the line carries the bounds of its confidence band at every point.\n\n\n\n\nfrom plotnine import aes, facet_wrap, geom_point, ggplot, labs\nfrom plotnine.data import mtcars\n\nimport maidr  \n\np = (\n    ggplot(mtcars, aes(\"wt\", \"mpg\"))\n    + geom_point()\n    + facet_wrap(\"cyl\")\n    + labs(title=\"Fuel Economy by Cylinders\", x=\"Weight (1000 lb)\",\n           y=\"Miles per Gallon\")\n)\n\nmaidr.show(p)  \n\n\n\n\nEach panel is a subplot, titled by its facet as cyl = 4. Press Enter to go into one, Escape to come back out, and the arrow keys between them, in the directions they are laid out on the page.\n\n\n\n\nfrom plotnine import aes, geom_bar, ggplot, labs\nfrom plotnine.data import penguins\n\nimport maidr  \n\np = (\n    ggplot(penguins, aes(\"island\", fill=\"species\"))\n    + geom_bar(position=\"fill\")\n    + labs(title=\"Species Share on Each Island\", x=\"Island\", y=\"Share\")\n)\n\nmaidr.show(p)  \n\n\n\n\nEach segment is announced as its share of the bar, so the segments of one bar add up to 1.",
-    "crumbs": [
-      "Other libraries",
-      "plotnine [experimental]"
-    ]
-  },
-  {
-    "objectID": "examples-plotnine.html#saving-and-embedding",
-    "href": "examples-plotnine.html#saving-and-embedding",
-    "title": "plotnine Accessible Plot Examples",
-    "section": "Saving and embedding",
-    "text": "Saving and embedding\nmaidr.save_html(p, \"chart.html\") writes the same page to a file, and maidr.render(p) returns it as HTML for a Shiny or Streamlit app. plotnine draws through matplotlib, so use_cdn behaves exactly as it does for a matplotlib figure, and use_cdn=False gives a page that works offline.",
-    "crumbs": [
-      "Other libraries",
-      "plotnine [experimental]"
-    ]
-  },
-  {
-    "objectID": "examples/bar.html",
-    "href": "examples/bar.html",
-    "title": "Accessible Bar Charts in matplotlib and seaborn with py-maidr",
-    "section": "",
-    "text": "A bar chart is the plot most readers start with, and it is the one py-maidr reads most directly: each bar is one stop, the Left and Right arrows move across the categories, and the bar’s height is played as a tone whose pitch rises with the value while the text and braille views name the category and its number. A stacked or dodged bar chart adds a second dimension, so Up and Down move between the series that share a category and the total is reported alongside each part.\nThe examples below cover sns.barplot(), sns.countplot(), and stacked and dodged bars drawn with ax.bar(). All four plot types (BAR, COUNT, STACKED, DODGED) are in the stable set: see Plot Type Stability.",
-    "crumbs": [
-      "Plot families",
-      "Bar, Count, Stacked and Dodged Bar Charts"
-    ]
-  },
-  {
-    "objectID": "examples/bar.html#setup",
-    "href": "examples/bar.html#setup",
-    "title": "Accessible Bar Charts in matplotlib and seaborn with py-maidr",
-    "section": "Setup",
-    "text": "Setup\nEvery example on this page needs only the import below. The plot cells repeat it so each one can be copied on its own.\n\nimport matplotlib.pyplot as plt\n\n# Just import maidr package: plt.show() now renders accessible output \nimport maidr",
-    "crumbs": [
-      "Plot families",
-      "Bar, Count, Stacked and Dodged Bar Charts"
-    ]
-  },
-  {
-    "objectID": "examples/bar.html#bar-plot",
-    "href": "examples/bar.html#bar-plot",
-    "title": "Accessible Bar Charts in matplotlib and seaborn with py-maidr",
-    "section": "Bar Plot",
-    "text": "Bar Plot\n\nimport matplotlib.pyplot as plt\nimport seaborn as sns\n\n# Just import maidr package \nimport maidr  \n\n\n# Load the penguins dataset\npenguins = sns.load_dataset(\"penguins\")\n\n# Create a bar plot showing the average body mass of penguins by species\nfig, ax = plt.subplots(figsize=(6, 6))\n\n# Assign the plot to a variable\nbar_plot = sns.barplot(\n    x=\"species\", y=\"body_mass_g\", data=penguins, errorbar=\"sd\", palette=\"Blues_d\", ax=ax\n)\nax.set_title(\"Average Body Mass of Penguins by Species\")\nax.set_xlabel(\"Species\")\nax.set_ylabel(\"Body Mass (g)\")\n\n# Add number formatter for better screen reader output\nax.yaxis.set_major_formatter(\"{x:,.0f}\")\n\n# plt.show() now renders accessible maidr output \nplt.show()",
-    "crumbs": [
-      "Plot families",
-      "Bar, Count, Stacked and Dodged Bar Charts"
-    ]
-  },
-  {
-    "objectID": "examples/bar.html#count-plot",
-    "href": "examples/bar.html#count-plot",
-    "title": "Accessible Bar Charts in matplotlib and seaborn with py-maidr",
-    "section": "Count Plot",
-    "text": "Count Plot\n\nimport matplotlib.pyplot as plt\nimport seaborn as sns\n\nimport maidr \n\n# Load the Titanic dataset\ntitanic = sns.load_dataset(\"titanic\")\n\n# Create a count plot\nfig, ax = plt.subplots(figsize=(6, 6))\ncount_plot = sns.countplot(x=\"class\", data=titanic, palette=\"viridis\", ax=ax) \n\nax.set_title(\"Passenger Class Distribution on the Titanic\")\nax.set_xlabel(\"Passenger Class\")\nax.set_ylabel(\"Count\")\n\n# Add number formatter for better screen reader output\nax.yaxis.set_major_formatter(\"{x:.0f}\")\n\nplt.show()",
-    "crumbs": [
-      "Plot families",
-      "Bar, Count, Stacked and Dodged Bar Charts"
-    ]
-  },
-  {
-    "objectID": "examples/bar.html#stacked-bar-plot",
-    "href": "examples/bar.html#stacked-bar-plot",
-    "title": "Accessible Bar Charts in matplotlib and seaborn with py-maidr",
-    "section": "Stacked Bar Plot",
-    "text": "Stacked Bar Plot\n\nimport matplotlib.pyplot as plt\nimport numpy as np\n\nimport maidr \n\nspecies = (\n    \"Adelie\",\n    \"Chinstrap\",\n    \"Gentoo\",\n)\nweight_counts = {\n    \"Below\": np.array([70, 31, 58]),\n    \"Above\": np.array([82, 37, 66]),\n}\nwidth = 0.5\n\nfig, ax = plt.subplots()\n\nbottom = np.zeros(3)\n\nfor boolean, weight_count in weight_counts.items():\n    p = ax.bar(species, weight_count, width, label=boolean, bottom=bottom) \n    bottom += weight_count\n\nax.set_xlabel(\"Species of Penguins\")\nax.set_ylabel(\"Average Body Mass\")\n\nax.set_title(\"Number of penguins with above average body mass\")\nax.legend(loc=\"upper right\")\n\n# Add number formatter for better screen reader output\nax.yaxis.set_major_formatter(\"{x:.0f}\")\n\nplt.show()",
-    "crumbs": [
-      "Plot families",
-      "Bar, Count, Stacked and Dodged Bar Charts"
-    ]
-  },
-  {
-    "objectID": "examples/bar.html#dodged-bar-plot",
-    "href": "examples/bar.html#dodged-bar-plot",
-    "title": "Accessible Bar Charts in matplotlib and seaborn with py-maidr",
-    "section": "Dodged Bar Plot",
-    "text": "Dodged Bar Plot\n\nimport matplotlib.pyplot as plt\nimport numpy as np\n\nimport maidr \n\nspecies: tuple[str, str, str] = (\n    \"Adelie\",\n    \"Chinstrap\",\n    \"Gentoo\",\n)\nweight_counts: dict[str, np.ndarray] = {\n    \"Below\": np.array([70, 31, 58]),\n    \"Above\": np.array([82, 37, 66]),\n}\n\nx: np.ndarray = np.arange(len(species))\ntotal_groups: int = len(weight_counts)\nwidth: float = 0.35\n\nfig, ax = plt.subplots() \n\noffsets: list[float] = [(-width / 2) + i * width for i in range(total_groups)]\n\nfor offset, (category, counts) in zip(offsets, weight_counts.items()):\n    positions = x + offset\n    p = ax.bar(positions, counts, width, label=category) \n\n# Set x-axis labels and title\nax.set_xticks(x)\nax.set_xticklabels(species)\nax.set_xlabel(\"Species\")\nax.set_ylabel(\"Weight\")\nax.set_title(\"Dodged Bar Plot: Penguin Weight Counts\")\nax.legend(loc=\"upper right\")\n\n# Add number formatter for better screen reader output\nax.yaxis.set_major_formatter(\"{x:.0f}\")\n\n# Display the plot\nplt.show()",
-    "crumbs": [
-      "Plot families",
-      "Bar, Count, Stacked and Dodged Bar Charts"
+      "Experimental plot families",
+      "ROC Curves [experimental]"
     ]
   },
   {
@@ -1360,157 +1199,362 @@
     ]
   },
   {
-    "objectID": "examples/roc.html",
-    "href": "examples/roc.html",
-    "title": "Accessible ROC Curves in scikit-learn with py-maidr",
+    "objectID": "examples/bar.html",
+    "href": "examples/bar.html",
+    "title": "Accessible Bar Charts in matplotlib and seaborn with py-maidr",
     "section": "",
-    "text": "A ROC curve is a classifier’s true positive rate against its false positive rate, one point per decision threshold. scikit-learn draws one with RocCurveDisplay, and every way of building that display – from_estimator, from_predictions, from_cv_results, or a display built by hand – ends in its plot(), which is what maidr reads.\nRead as a plain line, a ROC curve answers the wrong questions: its minimum and maximum are 0 and 1 on every curve, each curve’s pitch is scaled to its own range so two classifiers sound alike, and the area under the curve sits in the legend text where a screen reader user is never told it. maidr reads the display instead: the pitch is the true positive rate on the unit interval, the stereo pan follows the false positive rate, each point announces how far it sits above the chance diagonal, and the description gives the area under each curve and the best operating point.\nROC is experimental and may change without a deprecation period: see Plot Type Stability.",
+    "text": "A bar chart is the plot most readers start with, and it is the one py-maidr reads most directly: each bar is one stop, the Left and Right arrows move across the categories, and the bar’s height is played as a tone whose pitch rises with the value while the text and braille views name the category and its number. A stacked or dodged bar chart adds a second dimension, so Up and Down move between the series that share a category and the total is reported alongside each part.\nThe examples below cover sns.barplot(), sns.countplot(), and stacked and dodged bars drawn with ax.bar(). All four plot types (BAR, COUNT, STACKED, DODGED) are in the stable set: see Plot Type Stability.",
     "crumbs": [
-      "Experimental plot families",
-      "ROC Curves [experimental]"
+      "Plot families",
+      "Bar, Count, Stacked and Dodged Bar Charts"
     ]
   },
   {
-    "objectID": "examples/roc.html#setup",
-    "href": "examples/roc.html#setup",
-    "title": "Accessible ROC Curves in scikit-learn with py-maidr",
+    "objectID": "examples/bar.html#setup",
+    "href": "examples/bar.html#setup",
+    "title": "Accessible Bar Charts in matplotlib and seaborn with py-maidr",
+    "section": "Setup",
+    "text": "Setup\nEvery example on this page needs only the import below. The plot cells repeat it so each one can be copied on its own.\n\nimport matplotlib.pyplot as plt\n\n# Just import maidr package: plt.show() now renders accessible output \nimport maidr",
+    "crumbs": [
+      "Plot families",
+      "Bar, Count, Stacked and Dodged Bar Charts"
+    ]
+  },
+  {
+    "objectID": "examples/bar.html#bar-plot",
+    "href": "examples/bar.html#bar-plot",
+    "title": "Accessible Bar Charts in matplotlib and seaborn with py-maidr",
+    "section": "Bar Plot",
+    "text": "Bar Plot\n\nimport matplotlib.pyplot as plt\nimport seaborn as sns\n\n# Just import maidr package \nimport maidr  \n\n\n# Load the penguins dataset\npenguins = sns.load_dataset(\"penguins\")\n\n# Create a bar plot showing the average body mass of penguins by species\nfig, ax = plt.subplots(figsize=(6, 6))\n\n# Assign the plot to a variable\nbar_plot = sns.barplot(\n    x=\"species\", y=\"body_mass_g\", data=penguins, errorbar=\"sd\", palette=\"Blues_d\", ax=ax\n)\nax.set_title(\"Average Body Mass of Penguins by Species\")\nax.set_xlabel(\"Species\")\nax.set_ylabel(\"Body Mass (g)\")\n\n# Add number formatter for better screen reader output\nax.yaxis.set_major_formatter(\"{x:,.0f}\")\n\n# plt.show() now renders accessible maidr output \nplt.show()",
+    "crumbs": [
+      "Plot families",
+      "Bar, Count, Stacked and Dodged Bar Charts"
+    ]
+  },
+  {
+    "objectID": "examples/bar.html#count-plot",
+    "href": "examples/bar.html#count-plot",
+    "title": "Accessible Bar Charts in matplotlib and seaborn with py-maidr",
+    "section": "Count Plot",
+    "text": "Count Plot\n\nimport matplotlib.pyplot as plt\nimport seaborn as sns\n\nimport maidr \n\n# Load the Titanic dataset\ntitanic = sns.load_dataset(\"titanic\")\n\n# Create a count plot\nfig, ax = plt.subplots(figsize=(6, 6))\ncount_plot = sns.countplot(x=\"class\", data=titanic, palette=\"viridis\", ax=ax) \n\nax.set_title(\"Passenger Class Distribution on the Titanic\")\nax.set_xlabel(\"Passenger Class\")\nax.set_ylabel(\"Count\")\n\n# Add number formatter for better screen reader output\nax.yaxis.set_major_formatter(\"{x:.0f}\")\n\nplt.show()",
+    "crumbs": [
+      "Plot families",
+      "Bar, Count, Stacked and Dodged Bar Charts"
+    ]
+  },
+  {
+    "objectID": "examples/bar.html#stacked-bar-plot",
+    "href": "examples/bar.html#stacked-bar-plot",
+    "title": "Accessible Bar Charts in matplotlib and seaborn with py-maidr",
+    "section": "Stacked Bar Plot",
+    "text": "Stacked Bar Plot\n\nimport matplotlib.pyplot as plt\nimport numpy as np\n\nimport maidr \n\nspecies = (\n    \"Adelie\",\n    \"Chinstrap\",\n    \"Gentoo\",\n)\nweight_counts = {\n    \"Below\": np.array([70, 31, 58]),\n    \"Above\": np.array([82, 37, 66]),\n}\nwidth = 0.5\n\nfig, ax = plt.subplots()\n\nbottom = np.zeros(3)\n\nfor boolean, weight_count in weight_counts.items():\n    p = ax.bar(species, weight_count, width, label=boolean, bottom=bottom) \n    bottom += weight_count\n\nax.set_xlabel(\"Species of Penguins\")\nax.set_ylabel(\"Average Body Mass\")\n\nax.set_title(\"Number of penguins with above average body mass\")\nax.legend(loc=\"upper right\")\n\n# Add number formatter for better screen reader output\nax.yaxis.set_major_formatter(\"{x:.0f}\")\n\nplt.show()",
+    "crumbs": [
+      "Plot families",
+      "Bar, Count, Stacked and Dodged Bar Charts"
+    ]
+  },
+  {
+    "objectID": "examples/bar.html#dodged-bar-plot",
+    "href": "examples/bar.html#dodged-bar-plot",
+    "title": "Accessible Bar Charts in matplotlib and seaborn with py-maidr",
+    "section": "Dodged Bar Plot",
+    "text": "Dodged Bar Plot\n\nimport matplotlib.pyplot as plt\nimport numpy as np\n\nimport maidr \n\nspecies: tuple[str, str, str] = (\n    \"Adelie\",\n    \"Chinstrap\",\n    \"Gentoo\",\n)\nweight_counts: dict[str, np.ndarray] = {\n    \"Below\": np.array([70, 31, 58]),\n    \"Above\": np.array([82, 37, 66]),\n}\n\nx: np.ndarray = np.arange(len(species))\ntotal_groups: int = len(weight_counts)\nwidth: float = 0.35\n\nfig, ax = plt.subplots() \n\noffsets: list[float] = [(-width / 2) + i * width for i in range(total_groups)]\n\nfor offset, (category, counts) in zip(offsets, weight_counts.items()):\n    positions = x + offset\n    p = ax.bar(positions, counts, width, label=category) \n\n# Set x-axis labels and title\nax.set_xticks(x)\nax.set_xticklabels(species)\nax.set_xlabel(\"Species\")\nax.set_ylabel(\"Weight\")\nax.set_title(\"Dodged Bar Plot: Penguin Weight Counts\")\nax.legend(loc=\"upper right\")\n\n# Add number formatter for better screen reader output\nax.yaxis.set_major_formatter(\"{x:.0f}\")\n\n# Display the plot\nplt.show()",
+    "crumbs": [
+      "Plot families",
+      "Bar, Count, Stacked and Dodged Bar Charts"
+    ]
+  },
+  {
+    "objectID": "examples-plotnine.html",
+    "href": "examples-plotnine.html",
+    "title": "plotnine Accessible Plot Examples",
+    "section": "",
+    "text": "maidr also supports plotnine, the Python implementation of ggplot2’s grammar of graphics. Pass a ggplot to maidr.show(), maidr.render() or maidr.save_html(), and maidr produces a page where the chart can be read from the keyboard, as sound, as text and in braille – what maidr for R does for ggplot2 itself. For the other libraries, see the Matplotlib / Seaborn, Plotly, Bokeh and Altair pages.\n\n\n\n\n\n\nWarningExperimental\n\n\n\nplotnine support is experimental. What it reads, and how, may change without a deprecation period, whichever plot type is drawn: see Plot Type Stability. Install it with pip install \"maidr[plotnine]\".\n\n\nmaidr reads each layer’s own data as plotnine computed it – after the stat, the position adjustment and the scales – rather than the shapes it drew, so a count is the count stat_count made, a stacked segment is announced with its own value, and a box with the five numbers stat_boxplot computed. Each facet panel is a subplot. As you move through a chart, the mark being read is outlined on the plotnine drawing itself.\n\n\n\n\n\n\n\nplotnine\nread as\n\n\n\n\ngeom_bar, geom_col, one bar per category\nbar\n\n\ngeom_bar, geom_col with position=\"stack\" (the default)\nstacked bar\n\n\ngeom_bar, geom_col with position=\"dodge\"\ndodged bar\n\n\ngeom_histogram\nhistogram\n\n\ngeom_point\npoint\n\n\ngeom_line\nline, one series per group\n\n\ngeom_smooth\nsmooth, with its confidence band\n\n\ngeom_boxplot\nbox\n\n\ngeom_tile with a numeric fill\nheatmap\n\n\nfacet_wrap, facet_grid\none subplot per panel\n\n\ngeom_bar, geom_col with position=\"fill\"\nnormalized stacked bar [experimental]\n\n\n\nAny other geom, a jittered point, or a chart on a coordinate system other than coord_cartesian is left out with a warning naming it, and a chart with nothing maidr can read is shown as a static image. Use maidr.show(p) rather than plotnine’s own p.show() or a notebook’s display of p: those draw the chart as an ordinary matplotlib figure, which maidr cannot read beyond its points.\n\n\n\nfrom plotnine import aes, geom_bar, ggplot, labs\nfrom plotnine.data import penguins\n\nimport maidr  \n\np = (\n    ggplot(penguins, aes(\"species\"))\n    + geom_bar()\n    + labs(title=\"Penguins per Species\", x=\"Species\", y=\"Penguins\")\n)\n\nmaidr.show(p)  \n\n\n\n\n\n\n\n\n\n\n\nfrom plotnine import aes, geom_bar, ggplot, labs\nfrom plotnine.data import penguins\n\nimport maidr  \n\np = (\n    ggplot(penguins, aes(\"species\", fill=\"island\"))\n    + geom_bar()\n    + labs(title=\"Penguins per Species and Island\", x=\"Species\", y=\"Penguins\")\n)\n\nmaidr.show(p)  \n\n\n\n\nEach segment is announced with its own count, not the height of the stack it sits on, and a species with no penguins on an island is announced as missing rather than as zero. The series run from the bottom of the stack up.\n\n\n\n\nfrom plotnine import aes, geom_bar, ggplot, labs\nfrom plotnine.data import penguins\n\nimport maidr  \n\np = (\n    ggplot(penguins.dropna(subset=[\"sex\"]), aes(\"species\", fill=\"sex\"))\n    + geom_bar(position=\"dodge\")\n    + labs(title=\"Penguins per Species and Sex\", x=\"Species\", y=\"Penguins\")\n)\n\nmaidr.show(p)  \n\n\n\n\n\n\n\n\nfrom plotnine import aes, geom_histogram, ggplot, labs\nfrom plotnine.data import penguins\n\nimport maidr  \n\np = (\n    ggplot(penguins.dropna(subset=[\"body_mass_g\"]), aes(\"body_mass_g\"))\n    + geom_histogram(bins=20)\n    + labs(title=\"Penguin Body Mass\", x=\"Body Mass (g)\", y=\"Penguins\")\n)\n\nmaidr.show(p)  \n\n\n\n\n\n\n\n\nfrom plotnine import aes, geom_point, ggplot, labs\nfrom plotnine.data import mtcars\n\nimport maidr  \n\np = (\n    ggplot(mtcars, aes(\"hp\", \"mpg\"))\n    + geom_point()\n    + labs(title=\"Fuel Economy and Power\", x=\"Horsepower\", y=\"Miles per Gallon\")\n)\n\nmaidr.show(p)  \n\n\n\n\n\n\n\n\nfrom plotnine import aes, geom_line, ggplot, labs\nfrom plotnine.data import economics\n\nimport maidr  \n\nrecent = economics[economics[\"date\"].dt.year &gt;= 2000]\np = (\n    ggplot(recent, aes(\"date\", \"unemploy\"))\n    + geom_line()\n    + labs(title=\"US Unemployment\", x=\"Month\", y=\"Unemployed (thousands)\")\n)\n\nmaidr.show(p)  \n\n\n\n\n\n\n\n\nfrom plotnine import aes, geom_line, ggplot, labs\nfrom plotnine.data import economics_long\n\nimport maidr  \n\ntwo = economics_long[\n    economics_long[\"variable\"].isin([\"psavert\", \"uempmed\"])\n    & (economics_long[\"date\"].dt.year &gt;= 2000)\n]\np = (\n    ggplot(two, aes(\"date\", \"value\", color=\"variable\"))\n    + geom_line()\n    + labs(title=\"Savings Rate and Unemployment Duration\", x=\"Month\", y=\"Value\")\n)\n\nmaidr.show(p)  \n\n\n\n\nEach colour is one series, named by its value of the variable color maps.\n\n\n\n\nfrom plotnine import aes, geom_boxplot, ggplot, labs\nfrom plotnine.data import penguins\n\nimport maidr  \n\np = (\n    ggplot(penguins.dropna(subset=[\"body_mass_g\"]), aes(\"species\", \"body_mass_g\"))\n    + geom_boxplot()\n    + labs(title=\"Body Mass by Species\", x=\"Species\", y=\"Body Mass (g)\")\n)\n\nmaidr.show(p)  \n\n\n\n\n\n\n\n\nfrom plotnine import aes, geom_tile, ggplot, guide_colorbar, guides, labs\nfrom plotnine.data import penguins\n\nimport maidr  \n\nmeans = (\n    penguins.groupby([\"species\", \"island\"], observed=True)[\"body_mass_g\"]\n    .mean()\n    .round()\n    .reset_index()\n)\np = (\n    ggplot(means, aes(\"island\", \"species\", fill=\"body_mass_g\"))\n    + geom_tile()\n    + guides(fill=guide_colorbar(display=\"rectangles\"))\n    + labs(title=\"Mean Body Mass (g)\", x=\"Island\", y=\"Species\", fill=\"Body Mass (g)\")\n)\n\nmaidr.show(p)  \n\n\n\n\nEach cell is announced with the value fill maps, not its colour. A species never recorded on an island has no tile, and is announced as missing.\nguide_colorbar(display=\"rectangles\") draws the colour bar as a stack of rectangles. plotnine’s default gradient is written to SVG as thousands of shaded triangles, which makes this one chart close to 2 MB; the rectangles look the same and weigh a few tens of kilobytes.\n\n\n\n\nfrom plotnine import aes, geom_point, geom_smooth, ggplot, labs\nfrom plotnine.data import mtcars\n\nimport maidr  \n\np = (\n    ggplot(mtcars, aes(\"wt\", \"mpg\"))\n    + geom_point()\n    + geom_smooth(method=\"lm\")\n    + labs(title=\"Fuel Economy and Weight\", x=\"Weight (1000 lb)\",\n           y=\"Miles per Gallon\")\n)\n\nmaidr.show(p)  \n\n\n\n\nThe points and the fitted line are two layers of one subplot; the line carries the bounds of its confidence band at every point.\n\n\n\n\nfrom plotnine import aes, facet_wrap, geom_point, ggplot, labs\nfrom plotnine.data import mtcars\n\nimport maidr  \n\np = (\n    ggplot(mtcars, aes(\"wt\", \"mpg\"))\n    + geom_point()\n    + facet_wrap(\"cyl\")\n    + labs(title=\"Fuel Economy by Cylinders\", x=\"Weight (1000 lb)\",\n           y=\"Miles per Gallon\")\n)\n\nmaidr.show(p)  \n\n\n\n\nEach panel is a subplot, titled by its facet as cyl = 4. Press Enter to go into one, Escape to come back out, and the arrow keys between them, in the directions they are laid out on the page.\n\n\n\n\nfrom plotnine import aes, geom_bar, ggplot, labs\nfrom plotnine.data import penguins\n\nimport maidr  \n\np = (\n    ggplot(penguins, aes(\"island\", fill=\"species\"))\n    + geom_bar(position=\"fill\")\n    + labs(title=\"Species Share on Each Island\", x=\"Island\", y=\"Share\")\n)\n\nmaidr.show(p)  \n\n\n\n\nEach segment is announced as its share of the bar, so the segments of one bar add up to 1.",
+    "crumbs": [
+      "Other libraries",
+      "plotnine [experimental]"
+    ]
+  },
+  {
+    "objectID": "examples-plotnine.html#sec-plotnine-examples",
+    "href": "examples-plotnine.html#sec-plotnine-examples",
+    "title": "plotnine Accessible Plot Examples",
+    "section": "",
+    "text": "maidr also supports plotnine, the Python implementation of ggplot2’s grammar of graphics. Pass a ggplot to maidr.show(), maidr.render() or maidr.save_html(), and maidr produces a page where the chart can be read from the keyboard, as sound, as text and in braille – what maidr for R does for ggplot2 itself. For the other libraries, see the Matplotlib / Seaborn, Plotly, Bokeh and Altair pages.\n\n\n\n\n\n\nWarningExperimental\n\n\n\nplotnine support is experimental. What it reads, and how, may change without a deprecation period, whichever plot type is drawn: see Plot Type Stability. Install it with pip install \"maidr[plotnine]\".\n\n\nmaidr reads each layer’s own data as plotnine computed it – after the stat, the position adjustment and the scales – rather than the shapes it drew, so a count is the count stat_count made, a stacked segment is announced with its own value, and a box with the five numbers stat_boxplot computed. Each facet panel is a subplot. As you move through a chart, the mark being read is outlined on the plotnine drawing itself.\n\n\n\n\n\n\n\nplotnine\nread as\n\n\n\n\ngeom_bar, geom_col, one bar per category\nbar\n\n\ngeom_bar, geom_col with position=\"stack\" (the default)\nstacked bar\n\n\ngeom_bar, geom_col with position=\"dodge\"\ndodged bar\n\n\ngeom_histogram\nhistogram\n\n\ngeom_point\npoint\n\n\ngeom_line\nline, one series per group\n\n\ngeom_smooth\nsmooth, with its confidence band\n\n\ngeom_boxplot\nbox\n\n\ngeom_tile with a numeric fill\nheatmap\n\n\nfacet_wrap, facet_grid\none subplot per panel\n\n\ngeom_bar, geom_col with position=\"fill\"\nnormalized stacked bar [experimental]\n\n\n\nAny other geom, a jittered point, or a chart on a coordinate system other than coord_cartesian is left out with a warning naming it, and a chart with nothing maidr can read is shown as a static image. Use maidr.show(p) rather than plotnine’s own p.show() or a notebook’s display of p: those draw the chart as an ordinary matplotlib figure, which maidr cannot read beyond its points.\n\n\n\nfrom plotnine import aes, geom_bar, ggplot, labs\nfrom plotnine.data import penguins\n\nimport maidr  \n\np = (\n    ggplot(penguins, aes(\"species\"))\n    + geom_bar()\n    + labs(title=\"Penguins per Species\", x=\"Species\", y=\"Penguins\")\n)\n\nmaidr.show(p)  \n\n\n\n\n\n\n\n\n\n\n\nfrom plotnine import aes, geom_bar, ggplot, labs\nfrom plotnine.data import penguins\n\nimport maidr  \n\np = (\n    ggplot(penguins, aes(\"species\", fill=\"island\"))\n    + geom_bar()\n    + labs(title=\"Penguins per Species and Island\", x=\"Species\", y=\"Penguins\")\n)\n\nmaidr.show(p)  \n\n\n\n\nEach segment is announced with its own count, not the height of the stack it sits on, and a species with no penguins on an island is announced as missing rather than as zero. The series run from the bottom of the stack up.\n\n\n\n\nfrom plotnine import aes, geom_bar, ggplot, labs\nfrom plotnine.data import penguins\n\nimport maidr  \n\np = (\n    ggplot(penguins.dropna(subset=[\"sex\"]), aes(\"species\", fill=\"sex\"))\n    + geom_bar(position=\"dodge\")\n    + labs(title=\"Penguins per Species and Sex\", x=\"Species\", y=\"Penguins\")\n)\n\nmaidr.show(p)  \n\n\n\n\n\n\n\n\nfrom plotnine import aes, geom_histogram, ggplot, labs\nfrom plotnine.data import penguins\n\nimport maidr  \n\np = (\n    ggplot(penguins.dropna(subset=[\"body_mass_g\"]), aes(\"body_mass_g\"))\n    + geom_histogram(bins=20)\n    + labs(title=\"Penguin Body Mass\", x=\"Body Mass (g)\", y=\"Penguins\")\n)\n\nmaidr.show(p)  \n\n\n\n\n\n\n\n\nfrom plotnine import aes, geom_point, ggplot, labs\nfrom plotnine.data import mtcars\n\nimport maidr  \n\np = (\n    ggplot(mtcars, aes(\"hp\", \"mpg\"))\n    + geom_point()\n    + labs(title=\"Fuel Economy and Power\", x=\"Horsepower\", y=\"Miles per Gallon\")\n)\n\nmaidr.show(p)  \n\n\n\n\n\n\n\n\nfrom plotnine import aes, geom_line, ggplot, labs\nfrom plotnine.data import economics\n\nimport maidr  \n\nrecent = economics[economics[\"date\"].dt.year &gt;= 2000]\np = (\n    ggplot(recent, aes(\"date\", \"unemploy\"))\n    + geom_line()\n    + labs(title=\"US Unemployment\", x=\"Month\", y=\"Unemployed (thousands)\")\n)\n\nmaidr.show(p)  \n\n\n\n\n\n\n\n\nfrom plotnine import aes, geom_line, ggplot, labs\nfrom plotnine.data import economics_long\n\nimport maidr  \n\ntwo = economics_long[\n    economics_long[\"variable\"].isin([\"psavert\", \"uempmed\"])\n    & (economics_long[\"date\"].dt.year &gt;= 2000)\n]\np = (\n    ggplot(two, aes(\"date\", \"value\", color=\"variable\"))\n    + geom_line()\n    + labs(title=\"Savings Rate and Unemployment Duration\", x=\"Month\", y=\"Value\")\n)\n\nmaidr.show(p)  \n\n\n\n\nEach colour is one series, named by its value of the variable color maps.\n\n\n\n\nfrom plotnine import aes, geom_boxplot, ggplot, labs\nfrom plotnine.data import penguins\n\nimport maidr  \n\np = (\n    ggplot(penguins.dropna(subset=[\"body_mass_g\"]), aes(\"species\", \"body_mass_g\"))\n    + geom_boxplot()\n    + labs(title=\"Body Mass by Species\", x=\"Species\", y=\"Body Mass (g)\")\n)\n\nmaidr.show(p)  \n\n\n\n\n\n\n\n\nfrom plotnine import aes, geom_tile, ggplot, guide_colorbar, guides, labs\nfrom plotnine.data import penguins\n\nimport maidr  \n\nmeans = (\n    penguins.groupby([\"species\", \"island\"], observed=True)[\"body_mass_g\"]\n    .mean()\n    .round()\n    .reset_index()\n)\np = (\n    ggplot(means, aes(\"island\", \"species\", fill=\"body_mass_g\"))\n    + geom_tile()\n    + guides(fill=guide_colorbar(display=\"rectangles\"))\n    + labs(title=\"Mean Body Mass (g)\", x=\"Island\", y=\"Species\", fill=\"Body Mass (g)\")\n)\n\nmaidr.show(p)  \n\n\n\n\nEach cell is announced with the value fill maps, not its colour. A species never recorded on an island has no tile, and is announced as missing.\nguide_colorbar(display=\"rectangles\") draws the colour bar as a stack of rectangles. plotnine’s default gradient is written to SVG as thousands of shaded triangles, which makes this one chart close to 2 MB; the rectangles look the same and weigh a few tens of kilobytes.\n\n\n\n\nfrom plotnine import aes, geom_point, geom_smooth, ggplot, labs\nfrom plotnine.data import mtcars\n\nimport maidr  \n\np = (\n    ggplot(mtcars, aes(\"wt\", \"mpg\"))\n    + geom_point()\n    + geom_smooth(method=\"lm\")\n    + labs(title=\"Fuel Economy and Weight\", x=\"Weight (1000 lb)\",\n           y=\"Miles per Gallon\")\n)\n\nmaidr.show(p)  \n\n\n\n\nThe points and the fitted line are two layers of one subplot; the line carries the bounds of its confidence band at every point.\n\n\n\n\nfrom plotnine import aes, facet_wrap, geom_point, ggplot, labs\nfrom plotnine.data import mtcars\n\nimport maidr  \n\np = (\n    ggplot(mtcars, aes(\"wt\", \"mpg\"))\n    + geom_point()\n    + facet_wrap(\"cyl\")\n    + labs(title=\"Fuel Economy by Cylinders\", x=\"Weight (1000 lb)\",\n           y=\"Miles per Gallon\")\n)\n\nmaidr.show(p)  \n\n\n\n\nEach panel is a subplot, titled by its facet as cyl = 4. Press Enter to go into one, Escape to come back out, and the arrow keys between them, in the directions they are laid out on the page.\n\n\n\n\nfrom plotnine import aes, geom_bar, ggplot, labs\nfrom plotnine.data import penguins\n\nimport maidr  \n\np = (\n    ggplot(penguins, aes(\"island\", fill=\"species\"))\n    + geom_bar(position=\"fill\")\n    + labs(title=\"Species Share on Each Island\", x=\"Island\", y=\"Share\")\n)\n\nmaidr.show(p)  \n\n\n\n\nEach segment is announced as its share of the bar, so the segments of one bar add up to 1.",
+    "crumbs": [
+      "Other libraries",
+      "plotnine [experimental]"
+    ]
+  },
+  {
+    "objectID": "examples-plotnine.html#saving-and-embedding",
+    "href": "examples-plotnine.html#saving-and-embedding",
+    "title": "plotnine Accessible Plot Examples",
+    "section": "Saving and embedding",
+    "text": "Saving and embedding\nmaidr.save_html(p, \"chart.html\") writes the same page to a file, and maidr.render(p) returns it as HTML for a Shiny or Streamlit app. plotnine draws through matplotlib, so use_cdn behaves exactly as it does for a matplotlib figure, and use_cdn=False gives a page that works offline.",
+    "crumbs": [
+      "Other libraries",
+      "plotnine [experimental]"
+    ]
+  },
+  {
+    "objectID": "examples/scatter-regression.html",
+    "href": "examples/scatter-regression.html",
+    "title": "Accessible Scatter and Regression Plots in seaborn with py-maidr",
+    "section": "",
+    "text": "A scatter plot is read point by point in x order: the Left and Right arrows move across the points, each stop announces its x and y (and its hue group when one is set), and the pitch follows y. A regression plot adds a fitted line, which py-maidr exposes as a second layer: Page Up and Page Down switch between the points and the smooth curve, so the trend can be heard on its own and then checked against the scatter.\nSCATTER and SMOOTH are in the stable set: see Plot Type Stability.",
+    "crumbs": [
+      "Plot families",
+      "Scatter and Regression Plots"
+    ]
+  },
+  {
+    "objectID": "examples/scatter-regression.html#setup",
+    "href": "examples/scatter-regression.html#setup",
+    "title": "Accessible Scatter and Regression Plots in seaborn with py-maidr",
+    "section": "Setup",
+    "text": "Setup\nEvery example on this page needs only the import below. The plot cells repeat it so each one can be copied on its own.\n\nimport matplotlib.pyplot as plt\nimport seaborn as sns\n\n# Just import maidr package: plt.show() now renders accessible output \nimport maidr  \n\n# The scatter plot below reuses this dataset.\niris = sns.load_dataset(\"iris\")",
+    "crumbs": [
+      "Plot families",
+      "Scatter and Regression Plots"
+    ]
+  },
+  {
+    "objectID": "examples/scatter-regression.html#scatter-plot",
+    "href": "examples/scatter-regression.html#scatter-plot",
+    "title": "Accessible Scatter and Regression Plots in seaborn with py-maidr",
+    "section": "Scatter Plot",
+    "text": "Scatter Plot\n\nimport matplotlib.pyplot as plt\nimport seaborn as sns\n\nimport maidr \n\n# Create a scatter plot\nfig, ax = plt.subplots()\nscatter_plot = sns.scatterplot( \n    data=iris, x=\"sepal_length\", y=\"sepal_width\", hue=\"species\", ax=ax\n)\n\n# Adding title and labels\nax.set_title(\"Iris Sepal Length vs Sepal Width\")\nax.set_xlabel(\"Sepal Length (cm)\")\nax.set_ylabel(\"Sepal Width (cm)\")\n\n# Add number formatters for better screen reader output\nax.xaxis.set_major_formatter(\"{x:.1f}\")\nax.yaxis.set_major_formatter(\"{x:.1f}\")\n\n# Show the plot\nplt.show()",
+    "crumbs": [
+      "Plot families",
+      "Scatter and Regression Plots"
+    ]
+  },
+  {
+    "objectID": "examples/scatter-regression.html#regression-plot",
+    "href": "examples/scatter-regression.html#regression-plot",
+    "title": "Accessible Scatter and Regression Plots in seaborn with py-maidr",
+    "section": "Regression Plot",
+    "text": "Regression Plot\n\nimport matplotlib.pyplot as plt\nimport seaborn as sns\nimport numpy as np\n\nimport maidr \n\n# Generate sample data\nnp.random.seed(42)\nx = np.linspace(0, 10, 50)\ny = 2 * x + 1 + np.random.normal(0, 2, 50)\n\n# Create a regression plot\nfig, ax = plt.subplots(figsize=(6, 6))\nreg_plot = sns.regplot(\n    x=x,\n    y=y,\n    scatter_kws={\"s\": 50, \"alpha\": 0.7},\n    line_kws={\"color\": \"red\", \"lw\": 2},\n    ax=ax,\n) \n\nax.set_title(\"Regression Plot with Fitted Line\")\nax.set_xlabel(\"X values\")\nax.set_ylabel(\"Y values\")\n\n# Add number formatters for better screen reader output\nax.xaxis.set_major_formatter(\"{x:.1f}\")\nax.yaxis.set_major_formatter(\"{x:.2f}\")\n\nplt.show()",
+    "crumbs": [
+      "Plot families",
+      "Scatter and Regression Plots"
+    ]
+  },
+  {
+    "objectID": "examples/candlestick-gantt.html",
+    "href": "examples/candlestick-gantt.html",
+    "title": "Accessible Candlestick and Gantt Charts in matplotlib with py-maidr",
+    "section": "",
+    "text": "Both of these charts draw a span rather than a point. A candlestick chart (drawn with mplfinance) is read one trading day at a time: Left and Right move along the dates and each stop announces the open, high, low and close, with the volume panel available as its own subplot. A Gantt chart drawn with ax.broken_barh() is read as lanes of spans, so a reader hears when a task starts, when it ends and therefore how long it runs.\nCANDLESTICK is in the stable set. GANTT is experimental and may change without a deprecation period: see Plot Type Stability.",
+    "crumbs": [
+      "Plot families",
+      "Candlestick and Gantt Charts [experimental]"
+    ]
+  },
+  {
+    "objectID": "examples/candlestick-gantt.html#setup",
+    "href": "examples/candlestick-gantt.html#setup",
+    "title": "Accessible Candlestick and Gantt Charts in matplotlib with py-maidr",
+    "section": "Setup",
+    "text": "Setup\nEvery example on this page needs only the import below. The plot cells repeat it so each one can be copied on its own.\n\nimport matplotlib.pyplot as plt\n\n# Just import maidr package: plt.show() now renders accessible output \nimport maidr",
+    "crumbs": [
+      "Plot families",
+      "Candlestick and Gantt Charts [experimental]"
+    ]
+  },
+  {
+    "objectID": "examples/candlestick-gantt.html#candlestick-chart",
+    "href": "examples/candlestick-gantt.html#candlestick-chart",
+    "title": "Accessible Candlestick and Gantt Charts in matplotlib with py-maidr",
+    "section": "Candlestick Chart",
+    "text": "Candlestick Chart\n\nimport mplfinance as mpf\nimport pandas as pd\n\nimport maidr \n\n# Load the sample data\ndaily = pd.read_csv(\"../../example/candle_stick/volcandat.csv\", index_col=0, parse_dates=True)\n\n# Create the candlestick chart with moving averages and volume\nfig, axlist = mpf.plot(\n    daily,\n    type=\"candle\",\n    volume=True,\n    mav = (3,6,9),\n    returnfig=True,\n    ylabel=\"Price\",\n    ylabel_lower=\"Volume\",\n    xlabel=\"Date\",\n    title=\"Stock Price with Volume\",\n    # Dates drawn, and announced, like \"Nov 01, 2019\"\n    datetime_format=\"%b %d, %Y\", \n)  \n\n# Add formatters for better screen reader output\n# Price axis - Currency format\naxlist[0].yaxis.set_major_formatter(\"${x:,.2f}\")\n# Volume axis - Integer with thousands separator\naxlist[2].yaxis.set_major_formatter(\"{x:,.0f}\")\n\nfig.tight_layout()\n\n# Display with maidr\nplt.show() \n\n\n\n\nPass datetime_format= to mpf.plot(), as above, and the dates are announced the way the x axis draws them: every candle, volume bar and moving average reads as its tick label does, Nov 01, 2019 here, or 09:30 for minute bars drawn with \"%H:%M\". Any strftime() pattern works, so \"%a %d %b\" leaves the year out. Without it, each date is announced as the frame holds it, whatever format mplfinance picked for the ticks: 2019-11-01 for daily data like this, whose index has no time of day, and the full stamp, 2026-03-02 09:30:00, for intraday bars.\nSet the format there rather than with a DateFormatter on the axis afterwards. mplfinance places candles by row number, not by date, so a DateFormatter reads those row numbers as days since 1970 and labels the axis with dates around Jan 01, 1970.",
+    "crumbs": [
+      "Plot families",
+      "Candlestick and Gantt Charts [experimental]"
+    ]
+  },
+  {
+    "objectID": "examples/candlestick-gantt.html#gantt-chart",
+    "href": "examples/candlestick-gantt.html#gantt-chart",
+    "title": "Accessible Candlestick and Gantt Charts in matplotlib with py-maidr",
+    "section": "Gantt Chart [experimental]",
+    "text": "Gantt Chart [experimental]\n\n\n\n\n\n\nWarningPrototype\n\n\n\nThis is one of the experimental plot types. It has not been through a user study, and it may change without a deprecation period. See Plot type stability.\n\n\nax.broken_barh() draws horizontal bars that start and stop along an axis, which is what a schedule looks like. maidr reads it as a gantt: every bar is a span, carrying both its start and its end rather than a single position, so a reader hears when a task begins, when it finishes, and therefore how long it runs.\nThe whole chart is one layer, organized into lanes. Each broken_barh() call contributes one lane, and the spans passed in that call are the spans of that lane — so a phase that stops and restarts is two spans on one lane, not two separate rows.\n\nimport matplotlib.pyplot as plt\n\nimport maidr \n\nfig, ax = plt.subplots(figsize=(8, 4))\n\n# One call is one lane. A lane can hold several spans: \"Build\" runs for four\n# weeks, pauses for one, then resumes for three.\nax.broken_barh([(0, 3)], (10, 6)) \nax.broken_barh([(3, 4), (8, 3)], (20, 6)) \nax.broken_barh([(11, 2)], (30, 6)) \n\nax.set_xlabel(\"Week\")\nax.set_ylabel(\"Phase\")\nax.set_yticks([13, 23, 33])\nax.set_yticklabels([\"Design\", \"Build\", \"Launch\"])\nax.set_title(\"Project schedule\")\n\nplt.show() \n\n\n\n\nNaming the lanes takes both set_yticks() and set_yticklabels(), as the example does. Labels alone are ignored, because a lane name is only trusted when the axis carries fixed tick positions to attach it to; otherwise a lane falls back to the center of the row it was drawn on — the (10, 6) above puts one at 13. Measured on the three lanes above:\n\n\n\nwhat the axis sets\nlanes announced as\n\n\n\n\nset_yticks() and set_yticklabels()\nDesign, Build, Launch\n\n\nset_yticklabels() alone\n13.0, 23.0, 33.0\n\n\nset_yticks() alone\n13, 23, 33\n\n\nneither\n13.0, 23.0, 33.0\n\n\n\nlabel= is the argument that looks like it should do this, and it does not — it adds a legend entry and leaves the lane unnamed.",
+    "crumbs": [
+      "Plot families",
+      "Candlestick and Gantt Charts [experimental]"
+    ]
+  },
+  {
+    "objectID": "examples/histogram-kde.html",
+    "href": "examples/histogram-kde.html",
+    "title": "Accessible Histograms and KDE Plots in seaborn with py-maidr",
+    "section": "",
+    "text": "A histogram is read bin by bin: the Left and Right arrows move across the bins, and each stop announces the bin’s range and its count while the tone’s pitch follows the count. A KDE curve is read as a smooth line, so moving along it plays the density as a continuous rise and fall in pitch and the text view gives the value under the cursor.\nHIST and the SMOOTH layer that carries a KDE curve are both in the stable set: see Plot Type Stability.",
+    "crumbs": [
+      "Plot families",
+      "Histograms and KDE Plots"
+    ]
+  },
+  {
+    "objectID": "examples/histogram-kde.html#setup",
+    "href": "examples/histogram-kde.html#setup",
+    "title": "Accessible Histograms and KDE Plots in seaborn with py-maidr",
+    "section": "Setup",
+    "text": "Setup\nEvery example on this page needs only the import below. The plot cells repeat it so each one can be copied on its own.\n\nimport matplotlib.pyplot as plt\n\n# Just import maidr package: plt.show() now renders accessible output \nimport maidr",
+    "crumbs": [
+      "Plot families",
+      "Histograms and KDE Plots"
+    ]
+  },
+  {
+    "objectID": "examples/histogram-kde.html#histogram",
+    "href": "examples/histogram-kde.html#histogram",
+    "title": "Accessible Histograms and KDE Plots in seaborn with py-maidr",
+    "section": "Histogram",
+    "text": "Histogram\n\nimport matplotlib.pyplot as plt\nimport seaborn as sns\n\nimport maidr \n\n\n# Load the Iris dataset\niris = sns.load_dataset(\"iris\")\n\n# Select the petal lengths\npetal_lengths = iris[\"petal_length\"]\n\n# Plot a histogram of the petal lengths\nfig, ax = plt.subplots(figsize=(6, 6))\n\nhist_plot = sns.histplot(petal_lengths, kde=True, color=\"blue\", binwidth=0.5, ax=ax) \n\nax.set_title(\"Petal Lengths in Iris Dataset\")\nax.set_xlabel(\"Petal Length (cm)\")\nax.set_ylabel(\"Frequency\")\n\n# Add number formatters for better screen reader output\nax.xaxis.set_major_formatter(\"{x:.1f}\")\nax.yaxis.set_major_formatter(\"{x:.0f}\")\n\nplt.show()",
+    "crumbs": [
+      "Plot families",
+      "Histograms and KDE Plots"
+    ]
+  },
+  {
+    "objectID": "examples/histogram-kde.html#kde-kernel-density-estimation-plot",
+    "href": "examples/histogram-kde.html#kde-kernel-density-estimation-plot",
+    "title": "Accessible Histograms and KDE Plots in seaborn with py-maidr",
+    "section": "KDE (Kernel Density Estimation) Plot",
+    "text": "KDE (Kernel Density Estimation) Plot\n\nimport matplotlib.pyplot as plt\nimport seaborn as sns\nimport numpy as np\n\nimport maidr \n\n# Generate sample data\nnp.random.seed(42)\ndata = np.random.randn(500)\n\n# Create a KDE plot\nfig, ax = plt.subplots(figsize=(6, 6))\nkde_plot = sns.kdeplot(data, color=\"blue\", ax=ax) \n\nax.set_title(\"KDE Plot of Random Data\")\nax.set_xlabel(\"Value\")\nax.set_ylabel(\"Density\")\n\n# Add number formatters for better screen reader output\nax.xaxis.set_major_formatter(\"{x:.1f}\")\nax.yaxis.set_major_formatter(\"{x:.3f}\")\n\nplt.show()",
+    "crumbs": [
+      "Plot families",
+      "Histograms and KDE Plots"
+    ]
+  },
+  {
+    "objectID": "examples/line-step.html",
+    "href": "examples/line-step.html",
+    "title": "Accessible Line and Step Plots in matplotlib and seaborn with py-maidr",
+    "section": "",
+    "text": "A line plot is the chart sonification was made for: the Left and Right arrows walk the points in x order and the tone’s pitch rises and falls with y, so the shape of the series can be heard in one autoplay pass (Ctrl or Cmd + Shift + Right). A multi-line plot keeps that reading per series and lets the reader move between the series. A step plot is a line whose value is held across an interval and then jumps; py-maidr reports which side of each sample the value is held on and announces named tick labels in place of numeric codes.\nLINE and STEP are in the stable set: see Plot Type Stability.",
+    "crumbs": [
+      "Plot families",
+      "Line and Step Plots"
+    ]
+  },
+  {
+    "objectID": "examples/line-step.html#setup",
+    "href": "examples/line-step.html#setup",
+    "title": "Accessible Line and Step Plots in matplotlib and seaborn with py-maidr",
+    "section": "Setup",
+    "text": "Setup\nEvery example on this page needs only the import below. The plot cells repeat it so each one can be copied on its own.\n\nimport matplotlib.pyplot as plt\n\n# Just import maidr package: plt.show() now renders accessible output \nimport maidr",
+    "crumbs": [
+      "Plot families",
+      "Line and Step Plots"
+    ]
+  },
+  {
+    "objectID": "examples/line-step.html#line-plot",
+    "href": "examples/line-step.html#line-plot",
+    "title": "Accessible Line and Step Plots in matplotlib and seaborn with py-maidr",
+    "section": "Line Plot",
+    "text": "Line Plot\n\nSingle Line Plot\n\nimport matplotlib.pyplot as plt\nimport seaborn as sns\n\nimport maidr \n\n\n# Load the 'tips' dataset from seaborn\ntips = sns.load_dataset(\"tips\") \n\n# Choose a specific subset of the dataset (e.g., data for 'Thursday')\nsubset_data = tips[tips[\"day\"] == \"Thur\"]\n\n# Create a line plot\nfig, ax = plt.subplots(figsize=(6, 6))\nline_plot = sns.lineplot( \n    data=subset_data,\n    x=\"total_bill\",\n    y=\"tip\",\n    markers=True,\n    style=\"day\",\n    legend=False,\n    ax=ax,\n)\nax.set_title(\"Tips vs Total Bill (Thursday)\")\nax.set_xlabel(\"Total Bill\")\nax.set_ylabel(\"Tip\")\n\n# Add currency formatters for better screen reader output\nax.xaxis.set_major_formatter(\"${x:.2f}\")\nax.yaxis.set_major_formatter(\"${x:.2f}\")\n\nplt.show() \n\n\n\n\n\n\nMultiline Plot\n\nimport matplotlib.pyplot as plt\nimport numpy as np\nimport pandas as pd\nimport seaborn as sns\n\nimport maidr \n# Create sample data points\nx = np.array([1, 2, 3, 4, 5, 6, 7, 8])\ny1 = np.array([2, 4, 1, 5, 3, 7, 6, 8])\ny2 = np.array([1, 3, 5, 2, 4, 6, 8, 7])\ny3 = np.array([3, 1, 4, 6, 5, 2, 4, 5])\n\n# Convert to pandas DataFrame for seaborn\ndata = pd.DataFrame(\n    {\n        \"x\": np.tile(x, 3),\n        \"y\": np.concatenate([y1, y2, y3]),\n        \"series\": np.repeat([\"Series 1\", \"Series 2\", \"Series 3\"], len(x)),\n    }\n)\n\n# Create the plot\nfig, ax = plt.subplots(figsize=(6, 6))\n\n# Use seaborn lineplot for multiple lines\nlineplot = sns.lineplot(\n    x=\"x\", y=\"y\", hue=\"series\", style=\"series\", markers=True, dashes=True, data=data, ax=ax\n)\n\n# Customize the plot\nax.set_title(\"Seaborn Multiline Plot\")\nax.set_xlabel(\"X values\")\nax.set_ylabel(\"Y values\")\n\n# Add number formatters for better screen reader output\nax.xaxis.set_major_formatter(\"{x:.0f}\")\nax.yaxis.set_major_formatter(\"{x:.0f}\")\n\n# Display the plot\nplt.show()",
+    "crumbs": [
+      "Plot families",
+      "Line and Step Plots"
+    ]
+  },
+  {
+    "objectID": "examples/line-step.html#step-plot",
+    "href": "examples/line-step.html#step-plot",
+    "title": "Accessible Line and Step Plots in matplotlib and seaborn with py-maidr",
+    "section": "Step Plot",
+    "text": "Step Plot\nA step plot is the right chart when the value is piecewise constant: it is held across an interval and then jumps, rather than sliding continuously between samples. ax.step() produces one, as does any drawstyle=\"steps-*\" passed to ax.plot() or sns.lineplot().\nThe classic case is a hypnogram — an ordinal sleep stage against time. Plot the stages as numeric codes so they keep driving sonification, braille and the min/max bounds, then name the codes with set_yticks(..., labels=...). maidr attaches the names to each point and announces “REM” instead of “3”.\n\nimport matplotlib.pyplot as plt\n\nimport maidr \n\n# Ordinal sleep stages, deepest first, so \"up\" means lighter sleep.\nstage_codes = [0, 1, 2, 3, 4]\nstage_names = [\"N3\", \"N2\", \"N1\", \"REM\", \"Awake\"]\n\n# One reading every half hour across a night's sleep.\nhours = [i * 0.5 for i in range(17)]\nstages = [4, 3, 2, 1, 0, 0, 1, 3, 2, 1, 0, 1, 3, 2, 1, 3, 4]\n\nfig, ax = plt.subplots(figsize=(10, 5))\n\n# where=\"post\": the stage holds until the next reading, then jumps.\nax.step(hours, stages, where=\"post\") \n\n# Name the ordinal levels; the underlying y values stay numeric.\nax.set_yticks(stage_codes, labels=stage_names) \n\nax.set_title(\"Hypnogram\\nSleep stage across one night\")\nax.set_xlabel(\"Time asleep (hours)\")\nax.set_ylabel(\"Sleep stage\")\n\n# Add a number formatter for better screen reader output\nax.xaxis.set_major_formatter(\"{x:.1f}\")\n\nplt.show() \n\n\n\n\nThe where argument decides which side of each sample the value is held on, and maidr reports it so the description can say what the chart actually means:\n\n\n\n\n\n\n\n\nmatplotlib\nmaidr stepDirection\nMeaning\n\n\n\n\nwhere=\"post\" (drawstyle=\"steps-post\")\nhv\nValue holds until the next x value, then jumps\n\n\nwhere=\"pre\" (drawstyle=\"steps-pre\" or \"steps\")\nvh\nValue jumps at the current x value, then holds\n\n\nwhere=\"mid\" (drawstyle=\"steps-mid\")\nmid\nValue jumps midway between x values\n\n\n\n\n\n\n\n\n\nNote\n\n\n\nLevel names are read from the y tick labels at render time, so calling set_yticks() or set_yticklabels() after plotting works as expected. A tick label that is itself a number (\"3\", \"1,000\", or the rescaled \"0.0\" a default axis prints for y = 1000000) carries no ordinal information and is not emitted, so a purely numeric step plot is announced by its numbers as usual.",
+    "crumbs": [
+      "Plot families",
+      "Line and Step Plots"
+    ]
+  },
+  {
+    "objectID": "examples/dashboards.html",
+    "href": "examples/dashboards.html",
+    "title": "Accessible Shiny, Streamlit and Gradio Dashboards with py-maidr",
+    "section": "",
+    "text": "A dashboard is where accessibility is most often lost, because the chart is rebuilt on every interaction and a screen reader user is dropped back to the top of the page. py-maidr ships an output for Shiny for Python (output_maidr() with @render_maidr), a renderer for Streamlit (render_maidr()) and a component for Gradio (output_maidr() with render_maidr()); all three wrap the chart in an iframe that loads maidr.js, and the Shiny output puts focus back on the chart after a reactive flush when the chart was what held focus. The sections below show the minimal app for each framework, then the two details that matter in production: caching the rendered HTML in Streamlit and serving the bundle offline.\nEvery plot type py-maidr supports works here, with the same keyboard model as in a notebook: see the examples overview for the plot families and the keyboard shortcuts.",
+    "crumbs": [
+      "Accessible Shiny, Streamlit and Gradio Dashboards with py-maidr"
+    ]
+  },
+  {
+    "objectID": "examples/dashboards.html#shiny",
+    "href": "examples/dashboards.html#shiny",
+    "title": "Accessible Shiny, Streamlit and Gradio Dashboards with py-maidr",
+    "section": "Shiny",
+    "text": "Shiny\nShiny support ships as an optional extra:\npip install \"maidr[shiny]\"\nPair output_maidr() in the UI with @render_maidr in the server, the same way you would pair ui.output_plot() with @render.plot:\nimport matplotlib.pyplot as plt\nfrom shiny import App, ui\n\nfrom maidr.widget.shiny import output_maidr, render_maidr\n\napp_ui = ui.page_fluid(\n    ui.input_slider(\"n\", \"Bars\", min=2, max=10, value=4),\n    output_maidr(\"bars\"),\n)\n\n\ndef server(input, output, session):\n    @render_maidr\n    def bars():\n        fig, ax = plt.subplots()\n        ax.bar(range(input.n()), range(1, input.n() + 1))\n        return ax\n\n\napp = App(app_ui, server)\nThe decorated function may return a matplotlib or seaborn artist, a Plotly Figure, or an Altair chart. Returning None leaves the output blank.\n@render_maidr accepts width, height, and use_cdn. Prefer use_cdn here over maidr.set_use_cdn(): the setter is process-wide state shared by every concurrent session, while the argument is scoped to one output.\n@render_maidr(width=\"600px\", use_cdn=False)\ndef bars():\n    ...\nuse_cdn=False is the setting for an air-gapped deployment. The chart is rendered in an iframe whose document is fetched from a session URL rather than pushed over the websocket, and that document loads the bundled maidr.js from the app itself, which serves it once per app and version – so each chart stays around 50 KB whichever setting you choose, and the ~1.9 MB bundle crosses the wire once rather than with every chart. The default (\"auto\") loads from the CDN and falls back to that same copy when the CDN is unreachable. See the Shiny note under Offline Use and the JavaScript Bundle.\nA reactive flush replaces the whole output, so a reader who was navigating the chart when some input changed would be dropped to the top of the page without being told. @render_maidr puts focus back on the updated chart when — and only when — the chart was what held focus, so a reader who had deliberately moved to another control keeps their place.\nIn Shiny Express there is no separate UI call: the decorated function places its own container, and @output_args() sizes it, exactly as it does for @render.plot.\nfrom shiny.express import output_args\n\n@output_args(width=\"600px\")\n@render_maidr\ndef bars():\n    ...\nCheck out a reactive Shiny dashboard example with maidr and its source code is available on GitHub.",
+    "crumbs": [
+      "Accessible Shiny, Streamlit and Gradio Dashboards with py-maidr"
+    ]
+  },
+  {
+    "objectID": "examples/dashboards.html#streamlit",
+    "href": "examples/dashboards.html#streamlit",
+    "title": "Accessible Shiny, Streamlit and Gradio Dashboards with py-maidr",
+    "section": "Streamlit",
+    "text": "Streamlit\nStreamlit support ships as an optional extra:\npip install \"maidr[streamlit]\"\nimport matplotlib.pyplot as plt\nimport streamlit as st\n\nfrom maidr.widget.streamlit import render_maidr\n\nday = st.selectbox(\"Day\", [\"Thu\", \"Fri\", \"Sat\", \"Sun\"])\n\nfig, ax = plt.subplots()\nax.bar([\"lunch\", \"dinner\"], [12, 30])\nax.set_title(f\"Tips on {day}\")\n\nrender_maidr(ax)\nrender_maidr() accepts a matplotlib or seaborn artist, a Plotly Figure, or an Altair chart, plus height, width, tab_index, and use_cdn.\nThe defaults are chosen for accessibility rather than for layout:\n\nheight=\"content\" lets Streamlit measure the chart, so maidr’s braille and text panels stay visible when they open. A fixed height crops them.\ntab_index=None leaves the frame’s tab order to the browser. The chart is still reached by tabbing: an iframe’s contents take part in sequential focus navigation, and maidr gives the chart inside its own tab stop. Passing 0 makes the frame a stop as well, which is one extra Tab before the chart.\n\nThe frame is named after the chart it holds – \"Tips on Fri, accessible chart\" here, or \"Accessible chart\" when the chart has no title – the same name maidr gives its own frames in a notebook, so a screen-reader user moving through a dashboard can tell one chart from the next. That needs a Streamlit whose st.iframe takes alt (streamlit#17040); older releases name every frame st.iframe, and render_maidr() leaves them to it.\n\n\n\n\n\n\nNoteStreamlit reruns the whole script on every interaction\n\n\n\nStreamlit reloads the chart’s frame when the HTML it is handed changes. For a matplotlib, seaborn, Plotly or Altair chart that happens only when the chart itself changes: an unchanged chart renders to the same HTML on every rerun, and Streamlit keeps its frame. A reader who is inside the chart when the script reruns – an st.fragment(run_every=...) around it, or an auto-refresh – stays where they were, keeping their place and everything else maidr holds for them, with nothing announced because nothing changed.\nTwo things still start a reader over. A chart that did change is a new chart, and loads fresh. And a reader who leaves the chart to use a control and then comes back begins again at the start – not because of the rerun: maidr lets go of its place whenever focus leaves a chart, on any page.\nBokeh charts, which are experimental, still render differently every time, so their frame is reloaded on every rerun. Caching the HTML rather than the render call keeps it, since the cached string is the same each run – and for any chart, it saves rendering the chart again:\nfrom maidr.widget.streamlit import maidr_html\n\n@st.cache_data\ndef chart_html(_fig, key):     # `_fig` is not hashed; `key` is the cache key\n    return maidr_html(_fig)\n\nst.iframe(\n    chart_html(fig, key=day),\n    height=\"content\",\n    width=\"stretch\",\n    alt=f\"Tips on {day}, accessible chart\",  # the frame's accessible name\n)\nCalling st.iframe yourself means naming the frame yourself: alt is what a screen reader announces for it, and without one every chart is “st.iframe”. Drop the argument on a Streamlit that predates it.\nst.iframe arrived in Streamlit 1.56. On older versions place the same cached string with st.components.v1.html(chart_html(fig, key=day), height=600, scrolling=True) — it cannot size itself, so give it a height. render_maidr() handles that difference for you, which is why it is the better default when you are not caching.\nBoth arguments matter. The leading underscore tells Streamlit not to hash the figure, which a matplotlib Figure does not support – which leaves key as the only thing it can hash. Drop it and every argument is skipped, the cache key is constant, and the first chart is handed back for the rest of the session: a chart that quietly stops matching its own controls.\n\n\n\n\n\n\n\n\nNoteAir-gapped deployments\n\n\n\nuse_cdn=False embeds the ~1.9 MB maidr.js bundle in the page. That is required rather than wasteful: the chart is rendered inside an iframe, and an iframe built from an HTML string cannot fetch anything the app serves. The default loads from the CDN and stays around 15 KB.\n\n\nCheck out this Streamlit dashboard with maidr, and its source code is available on GitHub.\nNote: the Streamlit framework has some “Unlabeled 0 Button” which does not have to do with our maidr package. This issue needs to be addressed by the Streamlit team.",
+    "crumbs": [
+      "Accessible Shiny, Streamlit and Gradio Dashboards with py-maidr"
+    ]
+  },
+  {
+    "objectID": "examples/dashboards.html#gradio",
+    "href": "examples/dashboards.html#gradio",
+    "title": "Accessible Shiny, Streamlit and Gradio Dashboards with py-maidr",
+    "section": "Gradio",
+    "text": "Gradio\nGradio support ships as an optional extra:\npip install \"maidr[gradio]\"\nPlace a chart with output_maidr() when the app is built, and return render_maidr() from an event handler whose output is that component, the way you would return a figure for a gr.Plot:\nimport gradio as gr\nimport matplotlib.pyplot as plt\n\nfrom maidr.widget.gradio import output_maidr, render_maidr\n\n\ndef bars(n):\n    fig, ax = plt.subplots()\n    ax.bar([f\"bar {i + 1}\" for i in range(int(n))], range(1, int(n) + 1))\n    ax.set_title(f\"{int(n)} bars\")\n    markup = render_maidr(ax)\n    plt.close(fig)\n    return markup\n\n\nwith gr.Blocks() as demo:\n    n = gr.Slider(2, 10, value=4, step=1, label=\"Bars\")\n    chart = output_maidr()\n    demo.load(bars, n, chart)\n    n.change(bars, n, chart)\n\ndemo.launch()\noutput_maidr(chart) takes a chart to show from the start, and passes any other argument, such as label= or elem_id=, on to the gr.HTML it makes. Both take a matplotlib or seaborn artist, a Plotly Figure, a Bokeh figure, an Altair chart, or a chart a py-maidr reader returned, such as maidr.read_wandb_history()’s, and use_cdn.\ngr.HTML does not run the scripts of its value, so the chart is placed in an iframe, the one maidr uses in a notebook: named after the chart, \"5 bars, accessible chart\" here, sized to it as maidr’s braille and text panels open, and allowed to reach a refreshable braille display. A reader tabs straight onto the chart inside it. The chart is always passed in rather than read from matplotlib’s current figure, which every user of a Gradio app shares. use_cdn=False embeds the ~1.9 MB maidr.js bundle in each chart, for an app without network access.\nGradio 5 or newer is what the extra installs, on Python 3.10 or newer.",
+    "crumbs": [
+      "Accessible Shiny, Streamlit and Gradio Dashboards with py-maidr"
+    ]
+  },
+  {
+    "objectID": "examples/pr-curve.html",
+    "href": "examples/pr-curve.html",
+    "title": "Accessible Precision-Recall Curves in scikit-learn with py-maidr",
+    "section": "",
+    "text": "A precision-recall curve is a classifier’s precision against its recall, one point per decision threshold. scikit-learn draws one with PrecisionRecallDisplay, and every way of building that display – from_estimator, from_predictions, from_cv_results, or a display built by hand – ends in its plot(), which is what maidr reads.\nRead as a plain step line, a precision-recall curve answers the wrong questions. Whether a classifier beats guessing is how far its precision sits above the share of positives in the data – a level that is different for every dataset – and the average precision the chart is quoted by sits in the legend text, where a screen reader user is never told it. maidr reads the display instead: each point announces how far its precision sits above that baseline, and the description gives the average precision of each curve against it and the point with the best F1 score.\nPR_CURVE is experimental and may change without a deprecation period: see Plot Type Stability.",
+    "crumbs": [
+      "Experimental plot families",
+      "Precision-Recall Curves [experimental]"
+    ]
+  },
+  {
+    "objectID": "examples/pr-curve.html#setup",
+    "href": "examples/pr-curve.html#setup",
+    "title": "Accessible Precision-Recall Curves in scikit-learn with py-maidr",
     "section": "Setup",
     "text": "Setup\nThe examples on this page need scikit-learn, which is an optional extra: pip install maidr[sklearn]. Nothing in maidr imports it; the reading is wired up when your own code imports sklearn.metrics.\n\nimport matplotlib.pyplot as plt\n\n# Just import maidr package: plt.show() now renders accessible output \nimport maidr",
     "crumbs": [
       "Experimental plot families",
-      "ROC Curves [experimental]"
+      "Precision-Recall Curves [experimental]"
     ]
   },
   {
-    "objectID": "examples/roc.html#one-classifier",
-    "href": "examples/roc.html#one-classifier",
-    "title": "Accessible ROC Curves in scikit-learn with py-maidr",
+    "objectID": "examples/pr-curve.html#one-classifier",
+    "href": "examples/pr-curve.html#one-classifier",
+    "title": "Accessible Precision-Recall Curves in scikit-learn with py-maidr",
     "section": "One classifier",
-    "text": "One classifier\n\nimport matplotlib.pyplot as plt\nfrom sklearn.datasets import make_classification\nfrom sklearn.linear_model import LogisticRegression\nfrom sklearn.metrics import RocCurveDisplay\nfrom sklearn.model_selection import train_test_split\n\nimport maidr  \n\nX, y = make_classification(n_samples=400, n_informative=4, random_state=0)\nX_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0)\nmodel = LogisticRegression(max_iter=500).fit(X_train, y_train)\n\nfig, ax = plt.subplots()\n# The display's own plot() is what maidr reads. The chance diagonal it draws\n# is a reference, not a curve, and is left out of the reading.\nRocCurveDisplay.from_estimator(model, X_test, y_test, ax=ax, plot_chance_level=True)  \nax.set_title(\"ROC curve of a logistic regression\")\n\nplt.show()  \n\n\n\n\nThe curve is one series: Left and Right move along the operating points, and each stop announces the false positive rate, the true positive rate and how far the point sits above chance. The description (d) gives the area under the curve, which is the number the display computed, and the operating point furthest above the diagonal.",
+    "text": "One classifier\n\nimport matplotlib.pyplot as plt\nfrom sklearn.datasets import make_classification\nfrom sklearn.linear_model import LogisticRegression\nfrom sklearn.metrics import PrecisionRecallDisplay\nfrom sklearn.model_selection import train_test_split\n\nimport maidr  \n\nX, y = make_classification(\n    n_samples=600, n_informative=4, weights=[0.8], random_state=0\n)\nX_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0)\nmodel = LogisticRegression(max_iter=500).fit(X_train, y_train)\n\nfig, ax = plt.subplots()\n# The display's own plot() is what maidr reads. The dashed chance level it\n# draws is a reference, not a curve: maidr reads every point against it.\nPrecisionRecallDisplay.from_estimator(  \n    model, X_test, y_test, ax=ax, plot_chance_level=True  \n)  \nax.set_title(\"Precision-recall curve of a logistic regression\")\n\nplt.show()  \n\n\n\n\nThe curve is one series: Left and Right move along it from low recall to high, and each stop announces the recall, the precision and how far the precision sits above the share of positives – about one in five here, since the data is imbalanced. The description (d) gives the average precision, which is the number the display computed, against that baseline, and the point with the best F1 score.",
     "crumbs": [
       "Experimental plot families",
-      "ROC Curves [experimental]"
+      "Precision-Recall Curves [experimental]"
     ]
   },
   {
-    "objectID": "examples/roc.html#comparing-classifiers",
-    "href": "examples/roc.html#comparing-classifiers",
-    "title": "Accessible ROC Curves in scikit-learn with py-maidr",
+    "objectID": "examples/pr-curve.html#comparing-classifiers",
+    "href": "examples/pr-curve.html#comparing-classifiers",
+    "title": "Accessible Precision-Recall Curves in scikit-learn with py-maidr",
     "section": "Comparing classifiers",
-    "text": "Comparing classifiers\nTwo displays plotted on one axes are two curves of one chart, so Up and Down switch between classifiers at the same position along the curve.\n\nimport matplotlib.pyplot as plt\nfrom sklearn.datasets import make_classification\nfrom sklearn.ensemble import RandomForestClassifier\nfrom sklearn.linear_model import LogisticRegression\nfrom sklearn.metrics import RocCurveDisplay\nfrom sklearn.model_selection import train_test_split\n\nimport maidr  \n\nX, y = make_classification(n_samples=400, n_informative=4, random_state=0)\nX_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0)\n\nfig, ax = plt.subplots()\nfor model in (LogisticRegression(max_iter=500), RandomForestClassifier(random_state=0)):\n    model.fit(X_train, y_train)\n    RocCurveDisplay.from_estimator(model, X_test, y_test, ax=ax)  \nax.set_title(\"ROC curves of two classifiers\")\n\nplt.show()  \n\n\n\n\nEach curve is named the way the caller named it – the estimator’s class here, or the name= passed to the display – rather than by the legend entry, which wraps the area around the name. The description lists the area under every curve and names the highest, which is the question a chart of several curves is drawn to answer.",
+    "text": "Comparing classifiers\nTwo displays plotted on one axes are two curves of one chart, so Up and Down switch between classifiers at the same recall.\n\nimport matplotlib.pyplot as plt\nfrom sklearn.datasets import make_classification\nfrom sklearn.ensemble import RandomForestClassifier\nfrom sklearn.linear_model import LogisticRegression\nfrom sklearn.metrics import PrecisionRecallDisplay\nfrom sklearn.model_selection import train_test_split\n\nimport maidr  \n\nX, y = make_classification(\n    n_samples=600, n_informative=4, weights=[0.8], random_state=0\n)\nX_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0)\n\nfig, ax = plt.subplots()\nfor model in (LogisticRegression(max_iter=500), RandomForestClassifier(random_state=0)):\n    model.fit(X_train, y_train)\n    PrecisionRecallDisplay.from_estimator(model, X_test, y_test, ax=ax)  \nax.set_title(\"Precision-recall curves of two classifiers\")\n\nplt.show()  \n\n\n\n\nEach curve is named the way the caller named it – the estimator’s class here, or the name= passed to the display – rather than by the legend entry, which wraps the average precision around the name. The description lists the average precision of every curve and names the highest.\nThe precision-recall curves maidr.keras.plot_pr_curve() and maidr.read_tensorboard_pr_curves() draw are read the same way; see the Keras and TensorBoard galleries.",
     "crumbs": [
       "Experimental plot families",
-      "ROC Curves [experimental]"
-    ]
-  },
-  {
-    "objectID": "examples/box-boxen-violin.html",
-    "href": "examples/box-boxen-violin.html",
-    "title": "Accessible Box, Boxen and Violin Plots in matplotlib and seaborn with py-maidr",
-    "section": "",
-    "text": "A box plot is read as its five-number summary: moving along one box walks the minimum, lower quartile, median, upper quartile and maximum, with outliers announced as their own stops, and moving across the chart switches between the groups being compared. A violin plot combines a density curve with box statistics, so py-maidr exposes it as two layers (switch with Page Up and Page Down): the KDE outline is read as a smooth curve and the inner box as a box plot. A boxen plot extends the box to a ladder of quantile pairs, and each rung is announced as the percentile it actually is.\nBOX, VIOLIN_BOX and VIOLIN_KDE are in the stable set. BOXEN is experimental and may change without a deprecation period: see Plot Type Stability.",
-    "crumbs": [
-      "Plot families",
-      "Box, Boxen [experimental] and Violin Plots"
-    ]
-  },
-  {
-    "objectID": "examples/box-boxen-violin.html#setup",
-    "href": "examples/box-boxen-violin.html#setup",
-    "title": "Accessible Box, Boxen and Violin Plots in matplotlib and seaborn with py-maidr",
-    "section": "Setup",
-    "text": "Setup\nEvery example on this page needs only the import below. The plot cells repeat it so each one can be copied on its own.\n\nimport matplotlib.pyplot as plt\n\n# Just import maidr package: plt.show() now renders accessible output \nimport maidr",
-    "crumbs": [
-      "Plot families",
-      "Box, Boxen [experimental] and Violin Plots"
-    ]
-  },
-  {
-    "objectID": "examples/box-boxen-violin.html#box-plot",
-    "href": "examples/box-boxen-violin.html#box-plot",
-    "title": "Accessible Box, Boxen and Violin Plots in matplotlib and seaborn with py-maidr",
-    "section": "Box Plot",
-    "text": "Box Plot\n\nimport matplotlib.pyplot as plt\nimport seaborn as sns\nfrom seaborn import load_dataset\n\nimport maidr \n\n# Load the iris dataset\niris = load_dataset(\"iris\")\n\n# Create the horizontal box plot\nfig, ax = plt.subplots()\nhorz_box_plot = sns.boxplot(x=\"petal_length\", y=\"species\", data=iris, orient=\"h\", ax=ax) \nax.set_ylabel(\"Species\")\nax.set_xlabel(\"Petal Length (cm)\")\nax.set_title(\"Petal Length by Species from Iris Dataset\")\n\n# Add number formatter for better screen reader output\nax.xaxis.set_major_formatter(\"{x:.1f}\")\n\n# Show the plot\nplt.show()",
-    "crumbs": [
-      "Plot families",
-      "Box, Boxen [experimental] and Violin Plots"
-    ]
-  },
-  {
-    "objectID": "examples/box-boxen-violin.html#violin-plot",
-    "href": "examples/box-boxen-violin.html#violin-plot",
-    "title": "Accessible Box, Boxen and Violin Plots in matplotlib and seaborn with py-maidr",
-    "section": "Violin Plot",
-    "text": "Violin Plot\n\nSeaborn Violin Plot (Horizontal)\n\nimport matplotlib.pyplot as plt\nimport seaborn as sns\n\nimport maidr \n\n# Load the diamonds dataset\ndiamonds = sns.load_dataset(\"diamonds\")\n\n# Create horizontal violin plot comparing price across cut quality\nv = sns.violinplot(  \n    x=\"price\",          # numeric values on x-axis\n    y=\"cut\",            # 5 categories on y-axis\n    data=diamonds,\n    orient=\"h\",         # horizontal orientation\n    inner=\"box\",        # show box plot inside violin\n    hue=\"cut\",          # color by cut quality\n    palette=\"Set2\",     # distinct colors\n    legend=False,\n)\n\n# Customize the plot\nplt.title(\"Diamond Price Distribution by Cut Quality\")\nplt.xlabel(\"Price (USD)\")\nplt.ylabel(\"Cut Quality\")\n\n# Add number formatter for better screen reader output\nplt.gca().xaxis.set_major_formatter(\"{x:,.0f}\")\n\n# Show the plot\nplt.show() \n\n\n\n\n\n\nMatplotlib Violin Plot\n\nimport matplotlib.pyplot as plt\nimport seaborn as sns\n\nimport maidr \n\n# Load dataset\ndiamonds = sns.load_dataset(\"diamonds\")\n\n# Prepare data grouped by cut (5 categories)\ngroups = []\nvalues = []\nfor cut, gdf in diamonds.groupby(\"cut\", observed=False):\n    groups.append(cut)\n    values.append(gdf[\"price\"].dropna().values)\n\nfig, ax = plt.subplots(figsize=(10, 6))\n\n# Matplotlib violin plot with mean, median, and extrema\nviolins = ax.violinplot(  \n    values,\n    showmeans=True,\n    showmedians=True,\n    showextrema=True,\n)\n\n# Set x-ticks to match group labels\nax.set_xticks(range(1, len(groups) + 1))\nax.set_xticklabels(groups)\n\nax.set_title(\"Diamond Price Distribution by Cut Quality (Matplotlib Violin)\")\nax.set_xlabel(\"Cut Quality\")\nax.set_ylabel(\"Price (USD)\")\n\n# Add number formatter for better screen reader output\nax.yaxis.set_major_formatter(\"{x:,.0f}\")\n\nplt.show()",
-    "crumbs": [
-      "Plot families",
-      "Box, Boxen [experimental] and Violin Plots"
-    ]
-  },
-  {
-    "objectID": "examples/box-boxen-violin.html#boxen-plot-letter-value-plot",
-    "href": "examples/box-boxen-violin.html#boxen-plot-letter-value-plot",
-    "title": "Accessible Box, Boxen and Violin Plots in matplotlib and seaborn with py-maidr",
-    "section": "Boxen Plot (Letter-Value Plot) [experimental]",
-    "text": "Boxen Plot (Letter-Value Plot) [experimental]\n\n\n\n\n\n\nWarningPrototype\n\n\n\nThis is one of the experimental plot types. It has not been through a user study, and it may change without a deprecation period. See Plot type stability.\n\n\n\nimport matplotlib.pyplot as plt\nimport seaborn as sns\nfrom seaborn import load_dataset\n\nimport maidr \n\ndiamonds = load_dataset(\"diamonds\")\n\nfig, ax = plt.subplots()\nsns.boxenplot(data=diamonds, x=\"cut\", y=\"price\", ax=ax) \nax.set_xlabel(\"Cut\")\nax.set_ylabel(\"Price (USD)\")\nax.set_title(\"Diamond Price by Cut Quality\")\n\nplt.show() \n\n\n\n\nA boxen plot is a box plot whose tails keep resolving: instead of one quartile box and a cloud of outliers, it draws a ladder of quantile pairs, and a larger sample earns more rungs. maidr announces each rung as the percentile it actually is – “the 12.5th percentile” rather than a rung number – and moving outward from the median walks the ladder in value order. k_depth= controls how deep it goes, and the announcement follows it.",
-    "crumbs": [
-      "Plot families",
-      "Box, Boxen [experimental] and Violin Plots"
-    ]
-  },
-  {
-    "objectID": "examples/multi-layer-panel-facet.html",
-    "href": "examples/multi-layer-panel-facet.html",
-    "title": "Accessible Multi-Layer, Multi-Panel and Facet Plots in matplotlib with py-maidr",
-    "section": "",
-    "text": "A figure with more than one chart in it needs more than arrow keys. When two plot types share one set of axes (a bar chart with a line on a twin axis, for example) py-maidr treats them as layers and Page Up and Page Down switch between them. When a figure holds several subplots, each panel becomes an entry in a subplot list: the arrows move through the list, Enter activates a panel, and Escape returns to the list. A facet grid is the same mechanism with shared scales, so values stay comparable from panel to panel.\nThe individual plot types used below (BAR, LINE) are in the stable set: see Plot Type Stability.",
-    "crumbs": [
-      "Plot families",
-      "Multi-Layer, Multi-Panel and Facet Plots"
-    ]
-  },
-  {
-    "objectID": "examples/multi-layer-panel-facet.html#setup",
-    "href": "examples/multi-layer-panel-facet.html#setup",
-    "title": "Accessible Multi-Layer, Multi-Panel and Facet Plots in matplotlib with py-maidr",
-    "section": "Setup",
-    "text": "Setup\nEvery example on this page needs only the import below. The plot cells repeat it so each one can be copied on its own.\n\nimport matplotlib.pyplot as plt\n\n# Just import maidr package: plt.show() now renders accessible output \nimport maidr",
-    "crumbs": [
-      "Plot families",
-      "Multi-Layer, Multi-Panel and Facet Plots"
-    ]
-  },
-  {
-    "objectID": "examples/multi-layer-panel-facet.html#multi-layered-plot",
-    "href": "examples/multi-layer-panel-facet.html#multi-layered-plot",
-    "title": "Accessible Multi-Layer, Multi-Panel and Facet Plots in matplotlib with py-maidr",
-    "section": "Multi-Layered Plot",
-    "text": "Multi-Layered Plot\n\nimport matplotlib.pyplot as plt\nimport numpy as np\nimport maidr \n\n# Generate sample data\nx = np.arange(5)\nbar_data = np.array([3, 5, 2, 7, 3])\nline_data = np.array([10, 8, 12, 14, 9])\n\n# Create a figure and a set of subplots\nfig, ax1 = plt.subplots(figsize=(8, 5)) \n\n# Create the bar chart on the first y-axis\nax1.bar(x, bar_data, color=\"skyblue\", label=\"Bar Data\")\nax1.set_xlabel(\"X values\")\nax1.set_ylabel(\"Bar values\", color=\"blue\")\nax1.tick_params(axis=\"y\", labelcolor=\"blue\")\n\n# Create a second y-axis sharing the same x-axis\nax2 = ax1.twinx()\n\n# Create the line chart on the second y-axis\nax2.plot(x, line_data, color=\"red\", marker=\"o\", linestyle=\"-\", label=\"Line Data\")\nax2.set_xlabel(\"X values\")\nax2.set_ylabel(\"Line values\", color=\"red\")\nax2.tick_params(axis=\"y\", labelcolor=\"red\")\n\n# Add title and legend\nplt.title(\"Multilayer Plot Example\")\n\n# Add legends for both axes\nlines1, labels1 = ax1.get_legend_handles_labels()\nlines2, labels2 = ax2.get_legend_handles_labels()\nax1.legend(lines1 + lines2, labels1 + labels2, loc=\"upper left\")\n\n# Add number formatters for better screen reader output\nax1.xaxis.set_major_formatter(\"{x:.0f}\")\nax1.yaxis.set_major_formatter(\"{x:.0f}\")\nax2.yaxis.set_major_formatter(\"{x:.0f}\")\n\n# Adjust layout\nfig.tight_layout()\n\nplt.show()",
-    "crumbs": [
-      "Plot families",
-      "Multi-Layer, Multi-Panel and Facet Plots"
-    ]
-  },
-  {
-    "objectID": "examples/multi-layer-panel-facet.html#multi-panel-plot-multiple-subplots",
-    "href": "examples/multi-layer-panel-facet.html#multi-panel-plot-multiple-subplots",
-    "title": "Accessible Multi-Layer, Multi-Panel and Facet Plots in matplotlib with py-maidr",
-    "section": "Multi-Panel Plot (Multiple Subplots)",
-    "text": "Multi-Panel Plot (Multiple Subplots)\n\nimport matplotlib.pyplot as plt\nimport numpy as np\nimport seaborn as sns\n\nimport maidr \n\n# Set the plotting style\nsns.set_theme(style=\"whitegrid\")\n\n# Data for line plot\nx_line = np.array([1, 2, 3, 4, 5, 6, 7, 8])\ny_line = np.array([2, 4, 1, 5, 3, 7, 6, 8])\nline_data = {\"x\": x_line, \"y\": y_line}\n\n# Data for first bar plot\ncategories = [\"A\", \"B\", \"C\", \"D\", \"E\"]\nvalues = np.random.rand(5) * 10\nbar_data = {\"categories\": categories, \"values\": values}\n\n# Data for second bar plot\ncategories_2 = [\"A\", \"B\", \"C\", \"D\", \"E\"]\nvalues_2 = np.random.randn(5) * 100\nbar_data_2 = {\"categories\": categories_2, \"values\": values_2}\n\n# Create a figure with 3 subplots arranged vertically\nfig, axs = plt.subplots(3, 1, figsize=(6, 12)) \n\n# First panel: Line plot using seaborn\nsns.lineplot(x=\"x\", y=\"y\", data=line_data, color=\"blue\", linewidth=2, ax=axs[0])\naxs[0].set_title(\"Line Plot: Random Data\")\naxs[0].set_xlabel(\"X-axis\")\naxs[0].set_ylabel(\"Values\")\n\n# Second panel: Bar plot using seaborn\nsns.barplot(\n    x=\"categories\", y=\"values\", data=bar_data, color=\"green\", alpha=0.7, ax=axs[1]\n)\naxs[1].set_title(\"Bar Plot: Random Values\")\naxs[1].set_xlabel(\"Categories\")\naxs[1].set_ylabel(\"Values\")\n\n# Third panel: Bar plot using seaborn\nsns.barplot(\n    x=\"categories\", y=\"values\", data=bar_data_2, color=\"blue\", alpha=0.7, ax=axs[2]\n)\naxs[2].set_title(\"Bar Plot 2: Random Values\")  # Fixed the typo in the title\naxs[2].set_xlabel(\"Categories\")\naxs[2].set_ylabel(\"Values\")\n\n# Add number formatters for better screen reader output\naxs[0].xaxis.set_major_formatter(\"{x:.0f}\")\naxs[0].yaxis.set_major_formatter(\"{x:.0f}\")\naxs[1].yaxis.set_major_formatter(\"{x:.1f}\")\naxs[2].yaxis.set_major_formatter(\"{x:.1f}\")\n\n# Adjust layout to prevent overlap\nplt.tight_layout()\n\n# Display the figure\nplt.show()",
-    "crumbs": [
-      "Plot families",
-      "Multi-Layer, Multi-Panel and Facet Plots"
-    ]
-  },
-  {
-    "objectID": "examples/multi-layer-panel-facet.html#facet-plot",
-    "href": "examples/multi-layer-panel-facet.html#facet-plot",
-    "title": "Accessible Multi-Layer, Multi-Panel and Facet Plots in matplotlib with py-maidr",
-    "section": "Facet Plot",
-    "text": "Facet Plot\n\nimport matplotlib.pyplot as plt\nimport numpy as np\n\nimport maidr \n\ncategories = [\"A\", \"B\", \"C\", \"D\", \"E\"]\n\nnp.random.seed(42)\ndata_group1 = np.random.rand(5) * 10\ndata_group2 = np.random.rand(5) * 100\ndata_group3 = np.random.rand(5) * 36\ndata_group4 = np.random.rand(5) * 42\n\ndata_sets = [data_group1, data_group2, data_group3, data_group4]\ncondition_names = [\"Group 1\", \"Group 2\", \"Group 3\", \"Group 4\"]\n\nfig, axs = plt.subplots(2, 2, figsize=(7, 7), sharey=True, sharex=True)\naxs = axs.flatten()\n\nall_data = np.concatenate(data_sets)\ny_min, y_max = np.min(all_data) * 0.9, np.max(all_data) * 1.1\n\n# Create a bar plot in each subplot\nfor i, (data, condition) in enumerate(zip(data_sets, condition_names)):\n    axs[i].bar(categories, data, color=f\"C{i}\", alpha=0.7)\n    axs[i].set_title(f\"{condition}\")\n    axs[i].set_ylim(y_min, y_max)  # Set consistent y-axis limits\n\n    # Add value labels on top of each bar\n    for j, value in enumerate(data):\n        axs[i].text(\n            j,\n            value + (y_max - y_min) * 0.02,\n            f\"{value:.1f}\",\n            ha=\"center\",\n            va=\"bottom\",\n            fontsize=9,\n        )\n\n# Add common labels\nfig.text(0.5, 0.04, \"Categories\", ha=\"center\", va=\"center\", fontsize=14)\nfig.text(\n    0.06, 0.5, \"Values\", ha=\"center\", va=\"center\", rotation=\"vertical\", fontsize=14\n)\n\n# Add a common title\nfig.suptitle(\"Facet Plot: Bar Charts by Condition\", fontsize=16)\n\n# Add number formatters for better screen reader output\nfor ax in axs:\n    ax.yaxis.set_major_formatter(\"{x:.1f}\")\n\n# Adjust layout\nplt.tight_layout(rect=(0.08, 0.08, 0.98, 0.95))\n\nplt.show()",
-    "crumbs": [
-      "Plot families",
-      "Multi-Layer, Multi-Panel and Facet Plots"
+      "Precision-Recall Curves [experimental]"
     ]
   },
   {
@@ -1854,7 +1898,7 @@
     "href": "examples.html#examples-by-plot-family",
     "title": "Matplotlib & Seaborn Accessible Plot Examples",
     "section": "Examples by plot family",
-    "text": "Examples by plot family\nEach family has its own page so the code, the rendered accessible chart and the notes on how py-maidr reads that chart stay together. Every page starts with import maidr and ends with plt.show(). An experimental plot type is marked experimental after its name, here and on its page; a type with no mark is stable. See Plot Type Stability.\n\nStable\n\nBar, count, stacked and dodged bar charts: one tone per bar, Up and Down between series in a stacked or dodged chart.\nPie charts and word clouds [experimental]: a flat row of labeled values, with each slice’s share of the whole computed at render time.\nHistograms and KDE plots: bins read as ranges with counts, densities read as a smooth curve.\nLine, multi-line and step plots: pitch follows the value along x; step plots report which side of a sample the value is held on.\nHeatmaps, hexbin [experimental] and contour plots [experimental]: grids navigated with all four arrows, hexagonal bins by center, contours one level curve at a time.\nBox, boxen [experimental] and violin plots: five-number summaries, letter-value ladders and density curves paired with box statistics.\nScatter and regression plots: points in x order, with the fitted line as a separate layer.\nMulti-layer, multi-panel and facet plots: Page Up and Page Down between layers, a subplot list for panels.\nCandlestick and Gantt charts [experimental]: open, high, low and close per day; start and end per task span.\nShiny and Streamlit dashboards: reactive apps, HTML caching and air-gapped deployments (no executed plots).\n\n\n\nExperimental\nThese may change without a deprecation period; see Plot Type Stability.\n\nArea [experimental], error bar [experimental], point [experimental] and lollipop plots [experimental]: running totals for stacked areas and a lower bound, estimate, upper bound grid for intervals.\nROC curves [experimental]: a scikit-learn RocCurveDisplay read as rates on the unit interval, with the area under each curve and the best operating point in the description.",
+    "text": "Examples by plot family\nEach family has its own page so the code, the rendered accessible chart and the notes on how py-maidr reads that chart stay together. Every page starts with import maidr and ends with plt.show(). An experimental plot type is marked experimental after its name, here and on its page; a type with no mark is stable. See Plot Type Stability.\n\nStable\n\nBar, count, stacked and dodged bar charts: one tone per bar, Up and Down between series in a stacked or dodged chart.\nPie charts and word clouds [experimental]: a flat row of labeled values, with each slice’s share of the whole computed at render time.\nHistograms and KDE plots: bins read as ranges with counts, densities read as a smooth curve.\nLine, multi-line and step plots: pitch follows the value along x; step plots report which side of a sample the value is held on.\nHeatmaps, hexbin [experimental] and contour plots [experimental]: grids navigated with all four arrows, hexagonal bins by center, contours one level curve at a time.\nBox, boxen [experimental] and violin plots: five-number summaries, letter-value ladders and density curves paired with box statistics.\nScatter and regression plots: points in x order, with the fitted line as a separate layer.\nMulti-layer, multi-panel and facet plots: Page Up and Page Down between layers, a subplot list for panels.\nCandlestick and Gantt charts [experimental]: open, high, low and close per day; start and end per task span.\nShiny and Streamlit dashboards: reactive apps, HTML caching and air-gapped deployments (no executed plots).\n\n\n\nExperimental\nThese may change without a deprecation period; see Plot Type Stability.\n\nArea [experimental], error bar [experimental], point [experimental] and lollipop plots [experimental]: running totals for stacked areas and a lower bound, estimate, upper bound grid for intervals.\nROC curves [experimental]: a scikit-learn RocCurveDisplay read as rates on the unit interval, with the area under each curve and the best operating point in the description.\nPrecision-recall curves [experimental]: a scikit-learn PrecisionRecallDisplay read against the share of positives, with the average precision of each curve and the best-F1 point in the description.",
     "crumbs": [
       "Overview"
     ]
