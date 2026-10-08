@@ -685,6 +685,40 @@ Each hexagon is a bin announced by its centre and how many penguins fell in
 it; the up and down arrows move to the nearest bin of the staggered row above
 or below.
 
+### Directed Graph [experimental]
+
+```{python}
+#| warning: false
+#| fig-alt: A directed graph of a training pipeline drawn with Bokeh from networkx
+
+import networkx as nx
+from bokeh.plotting import figure, from_networkx
+
+import maidr  #<<
+
+pipeline = nx.DiGraph(
+    [
+        ("load", "clean"),
+        ("clean", "features"),
+        ("clean", "labels"),
+        ("features", "train"),
+        ("labels", "train"),
+    ]
+)
+
+p = figure(title="A training pipeline", height=400)
+p.renderers.append(from_networkx(pipeline, nx.spring_layout, seed=1))  #<<
+
+maidr.show(p)  #<<
+```
+
+A graph `from_networkx` made from a directed graph (`nx.DiGraph`) is walked
+node by node in topological order: each node announces what feeds it, what it
+feeds, and whether it is a branch or merge point, and is selected in the
+plot. An undirected graph is left unread, as before, since an undirected
+edge has no direction to announce. Needs networkx (`pip install
+maidr[networkx]`).
+
 ## Saving and embedding
 
 `maidr.save_html(p, "chart.html")` writes the same page to a file.

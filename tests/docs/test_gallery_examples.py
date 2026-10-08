@@ -193,6 +193,7 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
         "Horizontal Area Plot [experimental]": [["area"]],
         "Gantt Chart [experimental]": [["gantt"]],
         "Hexbin Plot [experimental]": [["hexbin"]],
+        "Directed Graph [experimental]": [["directed_graph"]],
     },
     "examples-plotnine.qmd": {
         "Bar Plot": [["bar"]],
