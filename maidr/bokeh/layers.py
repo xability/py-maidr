@@ -11,6 +11,7 @@ Bokeh                                       MAIDR layer
 ``vbar`` with ``dodge()``, nested factors   ``dodged_bar``
 ``quad``                                    ``hist``
 ``line`` / ``multi_line``                   ``line`` (one row per series)
+``line`` / ``step`` labelled Recall, Precision  ``pr_curve``
 ``step``                                    ``step``
 ``scatter`` / ``circle``                    ``point``
 ``rect`` coloured through a colour mapper   ``heat``
@@ -68,6 +69,7 @@ from maidr.bokeh.utils import warn
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
 from maidr.core.plot.histogram import HistPlot
+from maidr.util.named_pr_curve import named_pr_curve
 
 #: Bokeh's ``Step.mode`` in MAIDR's ``stepDirection`` vocabulary. ``after``
 #: holds each value until the next sample, as matplotlib's ``steps-post``
@@ -895,6 +897,7 @@ class PlotReader:
         if not rows:
             return None
         schema = self._schema(PlotType.LINE, rows, self._legend_title)
+        _name_pr_curve(schema)
         return BokehLayer(schema, self._plot, {"kind": "cursor", "grid": grid})
 
     def _step(self, renderers: list) -> BokehLayer | None:
@@ -918,6 +921,7 @@ class PlotReader:
         direction = _STEP_DIRECTIONS.get(renderers[0].glyph.mode)
         if direction:
             schema[MaidrKey.STEP_DIRECTION] = direction
+        _name_pr_curve(schema)
         return BokehLayer(schema, self._plot, {"kind": "cursor", "grid": grid})
 
     def _bands(self, renderers: list) -> tuple[list[list[dict]], list[list]]:
@@ -1885,6 +1889,26 @@ class PlotReader:
 # ---------------------------------------------------------------------- #
 #  Helpers                                                                #
 # ---------------------------------------------------------------------- #
+
+
+def _name_pr_curve(schema: dict) -> None:
+    """
+    Type a line or step layer ``pr_curve`` when its axes name it one.
+
+    A precision-recall curve drawn with ``p.line(recall, precision)`` or
+    ``p.step`` says what it is only through its axis labels. Labelled exactly
+    ``Recall`` and ``Precision``, with every value a fraction of one, it is
+    read as one, as the matplotlib and Plotly paths read it; see
+    :func:`maidr.util.named_pr_curve.named_pr_curve`. The data is the line's
+    own shape, so the highlight entry keyed by its rows is unchanged.
+
+    Parameters
+    ----------
+    schema : dict
+        A ``line`` or ``step`` layer, changed in place.
+    """
+    if named_pr_curve(schema):
+        schema[MaidrKey.TYPE] = PlotType.PR_CURVE
 
 
 def resolve_column(data: dict, name: str | None) -> list | None:
