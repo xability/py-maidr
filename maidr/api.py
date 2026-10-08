@@ -510,6 +510,13 @@ def _init_notebook_on_import() -> None:
     init_notebook()
 
 
+#: Set in the namespace a Quarto render runs a document's cells in once a
+#: chart has stashed the bundle in the page being built. Quarto's cleanup cell
+#: clears that namespace (``%reset``) after every render, so a render that
+#: reuses the kernel, as ``quarto preview`` does, stashes it in its own page.
+_QUARTO_STASHED = "_maidr_bundle_stashed"
+
+
 def _init_notebook_for_show(use_cdn: bool | Literal["auto"] | None) -> None:
     """Stash the bundle ahead of the iframe a ``show()`` is about to display.
 
@@ -526,11 +533,10 @@ def _init_notebook_for_show(use_cdn: bool | Literal["auto"] | None) -> None:
     A Quarto render builds one document in one pass, so none of that
     applies: every chart's frame reaches the same ``window``, and each
     further copy is the same 2 MB again (#888). Under ``"auto"`` there the
-    first chart stashes it and the rest reuse it. ``use_cdn=False`` keeps a
-    copy per chart: it is each chart's only source, and ``quarto preview``
-    renders again in the kernel it already used, where the copy an earlier
-    render stashed is not in the page being built. Under ``"auto"`` that
-    costs a preview only its offline fallback.
+    first chart of each render stashes it and the rest reuse it; see
+    :data:`_QUARTO_STASHED`. ``use_cdn=False`` keeps a copy per chart: it is
+    each chart's only source, so no chart may depend on another chart's
+    output, which a cell can hide.
 
     Parameters
     ----------
@@ -542,10 +548,19 @@ def _init_notebook_for_show(use_cdn: bool | Literal["auto"] | None) -> None:
 
     if use_cdn is True or not Environment.is_notebook():
         return
-    once_per_document = (
-        Environment.is_quarto() and _resolve_use_cdn(use_cdn) == "auto"
-    )
-    init_notebook(use_cdn=use_cdn, force=not once_per_document)
+    if not (Environment.is_quarto() and _resolve_use_cdn(use_cdn) == "auto"):
+        init_notebook(use_cdn=use_cdn, force=True)
+        return
+
+    from IPython import get_ipython
+
+    shell = get_ipython()
+    if shell is not None and shell.user_ns.get(_QUARTO_STASHED):
+        return
+    init_notebook(use_cdn=use_cdn, force=True)
+    if shell is not None:
+        # Hidden from ``%who``, and cleared with the rest of the namespace.
+        shell.push({_QUARTO_STASHED: True}, interactive=False)
 
 
 def _is_plotly_figure(obj: Any) -> bool:

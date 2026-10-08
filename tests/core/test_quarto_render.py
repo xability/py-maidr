@@ -9,10 +9,11 @@ the same document, though, so a page with three charts carried four identical
 
 These pin that a render under the default ``use_cdn="auto"`` stashes the
 bundle once, with its first chart -- not with the import, whose cell is often a
-setup cell Quarto drops the output of -- and that a notebook, and a render under
-``use_cdn=False``, still give every chart its own copy. That the render also
-resolves the CDN version is pinned with the other event-loop cases, in
-``test_cdn_event_loop.py``.
+setup cell Quarto drops the output of -- that a render reusing the kernel, as
+``quarto preview`` does, stashes it again in its own page, and that a notebook,
+and a render under ``use_cdn=False``, still give every chart its own copy. That
+the render also resolves the CDN version is pinned with the other event-loop
+cases, in ``test_cdn_event_loop.py``.
 """
 
 from __future__ import annotations
@@ -33,25 +34,50 @@ from maidr.util.environment import Environment  # noqa: E402
 QUARTO_VARIABLE = "QUARTO_FIG_FORMAT"
 
 
+class _Kernel:
+    """The part of the kernel's IPython shell the stash uses."""
+
+    def __init__(self) -> None:
+        self.user_ns: dict = {}
+
+    def push(self, variables: dict, interactive: bool = True) -> None:
+        self.user_ns.update(variables)
+
+    def reset(self) -> None:
+        """What Quarto's cleanup cell does after each render: ``%reset``."""
+        self.user_ns.clear()
+
+
+class _Page:
+    """What a kernel has displayed, and the kernel itself."""
+
+    def __init__(self) -> None:
+        self.displayed: list[str] = []
+        self.kernel = _Kernel()
+
+    def copies(self) -> int:
+        """How many copies of the bundle have been stashed so far."""
+        return sum("window.__maidrJsSource = " in html for html in self.displayed)
+
+
 @pytest.fixture
 def page(monkeypatch):
-    """A notebook page, recording what is displayed on it.
-
-    Yields a function counting the bundle copies stashed so far.
-    """
+    """A notebook page, recording what is displayed on it."""
+    ipython = pytest.importorskip("IPython")
     ipython_display = pytest.importorskip("IPython.display")
+    page = _Page()
     monkeypatch.delenv(QUARTO_VARIABLE, raising=False)
     monkeypatch.setattr(Environment, "is_notebook", staticmethod(lambda: True))
+    monkeypatch.setattr(ipython, "get_ipython", lambda: page.kernel)
     monkeypatch.setattr(maidr_api, "_NOTEBOOK_LOADED", False)
     # The chart itself is displayed through htmltools; only the stash goes
     # through IPython.display, which is what this records. The module is
     # patched rather than replaced: matplotlib reads IPython's version when
     # a figure is created.
     monkeypatch.setattr("htmltools._core.Tag.show", lambda self, *a, **k: None)
-    displayed: list[str] = []
     monkeypatch.setattr(ipython_display, "HTML", lambda html: html)
-    monkeypatch.setattr(ipython_display, "display", displayed.append)
-    yield lambda: sum("window.__maidrJsSource" in html for html in displayed)
+    monkeypatch.setattr(ipython_display, "display", page.displayed.append)
+    yield page
 
 
 def _show_a_chart(**kwargs) -> None:
@@ -79,7 +105,7 @@ def test_a_notebook_gives_every_chart_its_own_copy(page):
     _show_a_chart()
     _show_a_chart()
 
-    assert page() == 2
+    assert page.copies() == 2
 
 
 def test_a_quarto_render_stashes_the_bundle_once(page, monkeypatch):
@@ -90,7 +116,29 @@ def test_a_quarto_render_stashes_the_bundle_once(page, monkeypatch):
     _show_a_chart()
     _show_a_chart()
 
-    assert page() == 1
+    assert page.copies() == 1
+
+
+def test_a_render_in_a_reused_kernel_stashes_a_copy_in_its_own_page(
+    page, monkeypatch
+):
+    """``quarto preview`` renders again in the kernel it already used.
+
+    The page the second render builds holds none of the first render's
+    output, so it needs a copy of its own. Quarto clears the namespace the
+    cells run in after each render, which is how the second render's first
+    chart knows to stash it.
+    """
+    monkeypatch.setenv(QUARTO_VARIABLE, "png")
+
+    _show_a_chart()
+    _show_a_chart()
+    assert page.copies() == 1
+
+    page.kernel.reset()
+    _show_a_chart()
+    _show_a_chart()
+    assert page.copies() == 2
 
 
 def test_a_quarto_render_offline_still_gives_every_chart_its_own_copy(
@@ -106,7 +154,7 @@ def test_a_quarto_render_offline_still_gives_every_chart_its_own_copy(
     _show_a_chart(use_cdn=False)
     _show_a_chart(use_cdn=False)
 
-    assert page() == 2
+    assert page.copies() == 2
 
 
 def test_a_quarto_render_stashes_with_the_first_chart_not_the_import(page, monkeypatch):
@@ -114,16 +162,16 @@ def test_a_quarto_render_stashes_with_the_first_chart_not_the_import(page, monke
     monkeypatch.setenv(QUARTO_VARIABLE, "png")
 
     maidr_api._init_notebook_on_import()
-    assert page() == 0
+    assert page.copies() == 0
 
     _show_a_chart()
-    assert page() == 1
+    assert page.copies() == 1
 
 
 def test_a_notebook_still_stashes_on_import(page):
     maidr_api._init_notebook_on_import()
 
-    assert page() == 1
+    assert page.copies() == 1
 
 
 def test_a_quarto_render_on_the_cdn_alone_stashes_nothing(page, monkeypatch):
@@ -131,4 +179,4 @@ def test_a_quarto_render_on_the_cdn_alone_stashes_nothing(page, monkeypatch):
 
     _show_a_chart(use_cdn=True)
 
-    assert page() == 0
+    assert page.copies() == 0
