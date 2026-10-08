@@ -333,6 +333,10 @@ cookieconsent.run({
     <a class="dropdown-item" href="./examples/pr-curve.html">
  <span class="dropdown-text">Precision-Recall Curves [experimental]</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="./examples/network-graph.html">
+ <span class="dropdown-text">Directed Graphs [experimental]</span></a>
+  </li>  
         <li><hr class="dropdown-divider"></li>
         <li class="dropdown-header">Other libraries</li>
         <li>
@@ -513,6 +517,12 @@ cookieconsent.run({
  <span class="menu-text">Precision-Recall Curves [experimental]</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/network-graph.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Directed Graphs [experimental]</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item">
@@ -671,7 +681,7 @@ Note
 </div>
 <section id="bar-plot" class="level3">
 <h3 class="anchored" data-anchor-id="bar-plot">Bar Plot</h3>
-<div id="c302118f" class="cell" data-execution_count="1">
+<div id="c1367d87" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" data-source-line-numbers="nil" data-code-line-numbers="4,21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> altair <span class="im">as</span> alt</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> seaborn <span class="im">as</span> sns</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -697,16 +707,16 @@ Note
 <script src="https://cdn.jsdelivr.net/npm/maidr@4.14.0/dist/maidr.js"></script>
 </div>
 <div class="cell-output cell-output-display">
-<iframe id="iframe_37d907e2-048d-4d65-af88-8d17153c9f02" title="The Number of Tips by Day, accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
+<iframe id="iframe_ca4da5dd-7a53-47ee-bfe2-d525508bc377" title="The Number of Tips by Day, accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega@5&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega-lite@5&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega-embed@6&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/maidr@4.14.0/dist/vegalite.js&quot;></script>
-  <div id=&quot;maidr-altair-f7609c38-d0d4-4690-ac23-0bf5260b5f55&quot;></div>
+  <div id=&quot;maidr-altair-3cfed246-084b-45b5-9d7a-2b726d1712dd&quot;></div>
   <script type=&quot;text/javascript&quot;>
             (function() {
                 function showError(msg) {
-                    var el = document.getElementById(&quot;maidr-altair-f7609c38-d0d4-4690-ac23-0bf5260b5f55&quot;);
+                    var el = document.getElementById(&quot;maidr-altair-3cfed246-084b-45b5-9d7a-2b726d1712dd&quot;);
                     if (!el) return;
                     el.innerHTML = '';
                     var pre = document.createElement('pre');
@@ -731,9 +741,9 @@ Note
                     }
                     try {
                         window.maidrVegaLite.embed(
-                            '#' + &quot;maidr-altair-f7609c38-d0d4-4690-ac23-0bf5260b5f55&quot;,
+                            '#' + &quot;maidr-altair-3cfed246-084b-45b5-9d7a-2b726d1712dd&quot;,
                             spec,
-                            { id: &quot;f7609c38-d0d4-4690-ac23-0bf5260b5f55&quot; }
+                            { id: &quot;3cfed246-084b-45b5-9d7a-2b726d1712dd&quot; }
                         ).catch(function(err) {
                             showError(String(err &amp;&amp; err.message ? err.message : err));
                         });
@@ -766,7 +776,7 @@ Note
         </script>
 </div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
         function resizeIframe() {
-            var iframe = document.getElementById('iframe_37d907e2-048d-4d65-af88-8d17153c9f02');
+            var iframe = document.getElementById('iframe_ca4da5dd-7a53-47ee-bfe2-d525508bc377');
             if (!iframe || !iframe.contentWindow || !iframe.contentWindow.document) {
                 return;
             }
@@ -825,7 +835,7 @@ Note
             iframe.style.height = height + 'px';
         }
 
-        var iframe = document.getElementById('iframe_37d907e2-048d-4d65-af88-8d17153c9f02');
+        var iframe = document.getElementById('iframe_ca4da5dd-7a53-47ee-bfe2-d525508bc377');
         resizeIframe();
 
         // Setup resize listener on contentWindow
@@ -869,7 +879,7 @@ Note
 </section>
 <section id="dodged-grouped-bar-plot" class="level3">
 <h3 class="anchored" data-anchor-id="dodged-grouped-bar-plot">Dodged (Grouped) Bar Plot</h3>
-<div id="8a4e5688" class="cell" data-execution_count="2">
+<div id="469814ec" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" data-source-line-numbers="nil" data-code-line-numbers="4,33"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> altair <span class="im">as</span> alt</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -904,16 +914,16 @@ Note
 <span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>maidr.show(dodged_plot)  </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<iframe id="iframe_d5be6e91-9fca-460d-8242-7ee8fc8cb2e0" title="Dodged Bar Plot: Penguin Weight Counts, accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
+<iframe id="iframe_e668c44a-c0f1-4311-a5c5-d81f8c1a24d3" title="Dodged Bar Plot: Penguin Weight Counts, accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega@5&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega-lite@5&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega-embed@6&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/maidr@4.14.0/dist/vegalite.js&quot;></script>
-  <div id=&quot;maidr-altair-e702ddcf-e9ab-4516-8949-ad744aef0e15&quot;></div>
+  <div id=&quot;maidr-altair-b52a9251-640c-4172-acb0-a5eb3cf6411c&quot;></div>
   <script type=&quot;text/javascript&quot;>
             (function() {
                 function showError(msg) {
-                    var el = document.getElementById(&quot;maidr-altair-e702ddcf-e9ab-4516-8949-ad744aef0e15&quot;);
+                    var el = document.getElementById(&quot;maidr-altair-b52a9251-640c-4172-acb0-a5eb3cf6411c&quot;);
                     if (!el) return;
                     el.innerHTML = '';
                     var pre = document.createElement('pre');
@@ -938,9 +948,9 @@ Note
                     }
                     try {
                         window.maidrVegaLite.embed(
-                            '#' + &quot;maidr-altair-e702ddcf-e9ab-4516-8949-ad744aef0e15&quot;,
+                            '#' + &quot;maidr-altair-b52a9251-640c-4172-acb0-a5eb3cf6411c&quot;,
                             spec,
-                            { id: &quot;e702ddcf-e9ab-4516-8949-ad744aef0e15&quot; }
+                            { id: &quot;b52a9251-640c-4172-acb0-a5eb3cf6411c&quot; }
                         ).catch(function(err) {
                             showError(String(err &amp;&amp; err.message ? err.message : err));
                         });
@@ -973,7 +983,7 @@ Note
         </script>
 </div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
         function resizeIframe() {
-            var iframe = document.getElementById('iframe_d5be6e91-9fca-460d-8242-7ee8fc8cb2e0');
+            var iframe = document.getElementById('iframe_e668c44a-c0f1-4311-a5c5-d81f8c1a24d3');
             if (!iframe || !iframe.contentWindow || !iframe.contentWindow.document) {
                 return;
             }
@@ -1032,7 +1042,7 @@ Note
             iframe.style.height = height + 'px';
         }
 
-        var iframe = document.getElementById('iframe_d5be6e91-9fca-460d-8242-7ee8fc8cb2e0');
+        var iframe = document.getElementById('iframe_e668c44a-c0f1-4311-a5c5-d81f8c1a24d3');
         resizeIframe();
 
         // Setup resize listener on contentWindow
@@ -1076,7 +1086,7 @@ Note
 </section>
 <section id="stacked-bar-plot" class="level3">
 <h3 class="anchored" data-anchor-id="stacked-bar-plot">Stacked Bar Plot</h3>
-<div id="02e269ca" class="cell" data-execution_count="3">
+<div id="30d3a25f" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" data-source-line-numbers="nil" data-code-line-numbers="4,34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> altair <span class="im">as</span> alt</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> seaborn <span class="im">as</span> sns</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -1112,16 +1122,16 @@ Note
 <span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>maidr.show(stacked_plot)  </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<iframe id="iframe_88c4e900-795b-46f2-a3b3-0ccf707b88f5" title="Passenger Count by Class and Survival Status on the Titanic, accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
+<iframe id="iframe_8a0238fd-b498-40ac-8193-59a70216672c" title="Passenger Count by Class and Survival Status on the Titanic, accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega@5&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega-lite@5&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega-embed@6&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/maidr@4.14.0/dist/vegalite.js&quot;></script>
-  <div id=&quot;maidr-altair-f5ae4048-a9a6-4e13-9598-76c00dc71762&quot;></div>
+  <div id=&quot;maidr-altair-a143d77e-9ee4-4f34-adce-06d400a6e58e&quot;></div>
   <script type=&quot;text/javascript&quot;>
             (function() {
                 function showError(msg) {
-                    var el = document.getElementById(&quot;maidr-altair-f5ae4048-a9a6-4e13-9598-76c00dc71762&quot;);
+                    var el = document.getElementById(&quot;maidr-altair-a143d77e-9ee4-4f34-adce-06d400a6e58e&quot;);
                     if (!el) return;
                     el.innerHTML = '';
                     var pre = document.createElement('pre');
@@ -1146,9 +1156,9 @@ Note
                     }
                     try {
                         window.maidrVegaLite.embed(
-                            '#' + &quot;maidr-altair-f5ae4048-a9a6-4e13-9598-76c00dc71762&quot;,
+                            '#' + &quot;maidr-altair-a143d77e-9ee4-4f34-adce-06d400a6e58e&quot;,
                             spec,
-                            { id: &quot;f5ae4048-a9a6-4e13-9598-76c00dc71762&quot; }
+                            { id: &quot;a143d77e-9ee4-4f34-adce-06d400a6e58e&quot; }
                         ).catch(function(err) {
                             showError(String(err &amp;&amp; err.message ? err.message : err));
                         });
@@ -1181,7 +1191,7 @@ Note
         </script>
 </div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
         function resizeIframe() {
-            var iframe = document.getElementById('iframe_88c4e900-795b-46f2-a3b3-0ccf707b88f5');
+            var iframe = document.getElementById('iframe_8a0238fd-b498-40ac-8193-59a70216672c');
             if (!iframe || !iframe.contentWindow || !iframe.contentWindow.document) {
                 return;
             }
@@ -1240,7 +1250,7 @@ Note
             iframe.style.height = height + 'px';
         }
 
-        var iframe = document.getElementById('iframe_88c4e900-795b-46f2-a3b3-0ccf707b88f5');
+        var iframe = document.getElementById('iframe_8a0238fd-b498-40ac-8193-59a70216672c');
         resizeIframe();
 
         // Setup resize listener on contentWindow
@@ -1284,7 +1294,7 @@ Note
 </section>
 <section id="count-plot" class="level3">
 <h3 class="anchored" data-anchor-id="count-plot">Count Plot</h3>
-<div id="a3f40c10" class="cell" data-execution_count="4">
+<div id="91edbbd4" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" data-source-line-numbers="nil" data-code-line-numbers="4,22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> altair <span class="im">as</span> alt</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> seaborn <span class="im">as</span> sns</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -1308,16 +1318,16 @@ Note
 <span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>maidr.show(count_plot)  </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<iframe id="iframe_a74e37c6-fbf9-461c-9787-61370540e480" title="Passenger Class Distribution on the Titanic, accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
+<iframe id="iframe_f35ea456-348d-4f87-91bf-81a3dc831b34" title="Passenger Class Distribution on the Titanic, accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega@5&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega-lite@5&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega-embed@6&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/maidr@4.14.0/dist/vegalite.js&quot;></script>
-  <div id=&quot;maidr-altair-11f91753-20c5-42f8-b83c-44ed623c7117&quot;></div>
+  <div id=&quot;maidr-altair-98d323d7-d5a7-4316-b0ab-cb51c29b5d53&quot;></div>
   <script type=&quot;text/javascript&quot;>
             (function() {
                 function showError(msg) {
-                    var el = document.getElementById(&quot;maidr-altair-11f91753-20c5-42f8-b83c-44ed623c7117&quot;);
+                    var el = document.getElementById(&quot;maidr-altair-98d323d7-d5a7-4316-b0ab-cb51c29b5d53&quot;);
                     if (!el) return;
                     el.innerHTML = '';
                     var pre = document.createElement('pre');
@@ -1342,9 +1352,9 @@ Note
                     }
                     try {
                         window.maidrVegaLite.embed(
-                            '#' + &quot;maidr-altair-11f91753-20c5-42f8-b83c-44ed623c7117&quot;,
+                            '#' + &quot;maidr-altair-98d323d7-d5a7-4316-b0ab-cb51c29b5d53&quot;,
                             spec,
-                            { id: &quot;11f91753-20c5-42f8-b83c-44ed623c7117&quot; }
+                            { id: &quot;98d323d7-d5a7-4316-b0ab-cb51c29b5d53&quot; }
                         ).catch(function(err) {
                             showError(String(err &amp;&amp; err.message ? err.message : err));
                         });
@@ -1377,7 +1387,7 @@ Note
         </script>
 </div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
         function resizeIframe() {
-            var iframe = document.getElementById('iframe_a74e37c6-fbf9-461c-9787-61370540e480');
+            var iframe = document.getElementById('iframe_f35ea456-348d-4f87-91bf-81a3dc831b34');
             if (!iframe || !iframe.contentWindow || !iframe.contentWindow.document) {
                 return;
             }
@@ -1436,7 +1446,7 @@ Note
             iframe.style.height = height + 'px';
         }
 
-        var iframe = document.getElementById('iframe_a74e37c6-fbf9-461c-9787-61370540e480');
+        var iframe = document.getElementById('iframe_f35ea456-348d-4f87-91bf-81a3dc831b34');
         resizeIframe();
 
         // Setup resize listener on contentWindow
@@ -1480,7 +1490,7 @@ Note
 </section>
 <section id="histogram" class="level3">
 <h3 class="anchored" data-anchor-id="histogram">Histogram</h3>
-<div id="bd0bdc64" class="cell" data-execution_count="5">
+<div id="7f827fda" class="cell" data-execution_count="5">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5" data-source-line-numbers="nil" data-code-line-numbers="4,26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> altair <span class="im">as</span> alt</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> seaborn <span class="im">as</span> sns</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -1508,16 +1518,16 @@ Note
 <span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>maidr.show(hist_plot)  </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<iframe id="iframe_11099ca8-77b7-490b-8451-8cb6a0ba9ca2" title="Histogram of Petal Lengths in Iris Dataset, accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
+<iframe id="iframe_f5c41697-410f-4e87-8bc9-aedf09af6075" title="Histogram of Petal Lengths in Iris Dataset, accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega@5&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega-lite@5&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega-embed@6&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/maidr@4.14.0/dist/vegalite.js&quot;></script>
-  <div id=&quot;maidr-altair-01494506-d3b0-4be2-a42d-7a6817d420e6&quot;></div>
+  <div id=&quot;maidr-altair-157ac2ad-6e67-4ea8-8619-f5d50775b5ba&quot;></div>
   <script type=&quot;text/javascript&quot;>
             (function() {
                 function showError(msg) {
-                    var el = document.getElementById(&quot;maidr-altair-01494506-d3b0-4be2-a42d-7a6817d420e6&quot;);
+                    var el = document.getElementById(&quot;maidr-altair-157ac2ad-6e67-4ea8-8619-f5d50775b5ba&quot;);
                     if (!el) return;
                     el.innerHTML = '';
                     var pre = document.createElement('pre');
@@ -1542,9 +1552,9 @@ Note
                     }
                     try {
                         window.maidrVegaLite.embed(
-                            '#' + &quot;maidr-altair-01494506-d3b0-4be2-a42d-7a6817d420e6&quot;,
+                            '#' + &quot;maidr-altair-157ac2ad-6e67-4ea8-8619-f5d50775b5ba&quot;,
                             spec,
-                            { id: &quot;01494506-d3b0-4be2-a42d-7a6817d420e6&quot; }
+                            { id: &quot;157ac2ad-6e67-4ea8-8619-f5d50775b5ba&quot; }
                         ).catch(function(err) {
                             showError(String(err &amp;&amp; err.message ? err.message : err));
                         });
@@ -1577,7 +1587,7 @@ Note
         </script>
 </div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
         function resizeIframe() {
-            var iframe = document.getElementById('iframe_11099ca8-77b7-490b-8451-8cb6a0ba9ca2');
+            var iframe = document.getElementById('iframe_f5c41697-410f-4e87-8bc9-aedf09af6075');
             if (!iframe || !iframe.contentWindow || !iframe.contentWindow.document) {
                 return;
             }
@@ -1636,7 +1646,7 @@ Note
             iframe.style.height = height + 'px';
         }
 
-        var iframe = document.getElementById('iframe_11099ca8-77b7-490b-8451-8cb6a0ba9ca2');
+        var iframe = document.getElementById('iframe_f5c41697-410f-4e87-8bc9-aedf09af6075');
         resizeIframe();
 
         // Setup resize listener on contentWindow
@@ -1680,7 +1690,7 @@ Note
 </section>
 <section id="single-kde-plot" class="level3">
 <h3 class="anchored" data-anchor-id="single-kde-plot">Single KDE Plot</h3>
-<div id="5b26fb59" class="cell" data-execution_count="6">
+<div id="aa019f8c" class="cell" data-execution_count="6">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6" data-source-line-numbers="nil" data-code-line-numbers="5,24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> altair <span class="im">as</span> alt</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
@@ -1706,16 +1716,16 @@ Note
 <span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>maidr.show(kde_plot)  </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<iframe id="iframe_ab015fc9-7b5f-4b5c-a99a-725f2cbff7d0" title="Single KDE Plot with Altair, accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
+<iframe id="iframe_7753df27-ee6c-48ed-a325-b6049aa926bc" title="Single KDE Plot with Altair, accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega@5&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega-lite@5&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega-embed@6&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/maidr@4.14.0/dist/vegalite.js&quot;></script>
-  <div id=&quot;maidr-altair-47b4397c-8ffa-47ad-b58a-ecee0b517005&quot;></div>
+  <div id=&quot;maidr-altair-bd907bbc-afe5-4752-974b-7b5eb07486c7&quot;></div>
   <script type=&quot;text/javascript&quot;>
             (function() {
                 function showError(msg) {
-                    var el = document.getElementById(&quot;maidr-altair-47b4397c-8ffa-47ad-b58a-ecee0b517005&quot;);
+                    var el = document.getElementById(&quot;maidr-altair-bd907bbc-afe5-4752-974b-7b5eb07486c7&quot;);
                     if (!el) return;
                     el.innerHTML = '';
                     var pre = document.createElement('pre');
@@ -1740,9 +1750,9 @@ Note
                     }
                     try {
                         window.maidrVegaLite.embed(
-                            '#' + &quot;maidr-altair-47b4397c-8ffa-47ad-b58a-ecee0b517005&quot;,
+                            '#' + &quot;maidr-altair-bd907bbc-afe5-4752-974b-7b5eb07486c7&quot;,
                             spec,
-                            { id: &quot;47b4397c-8ffa-47ad-b58a-ecee0b517005&quot; }
+                            { id: &quot;bd907bbc-afe5-4752-974b-7b5eb07486c7&quot; }
                         ).catch(function(err) {
                             showError(String(err &amp;&amp; err.message ? err.message : err));
                         });
@@ -1775,7 +1785,7 @@ Note
         </script>
 </div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
         function resizeIframe() {
-            var iframe = document.getElementById('iframe_ab015fc9-7b5f-4b5c-a99a-725f2cbff7d0');
+            var iframe = document.getElementById('iframe_7753df27-ee6c-48ed-a325-b6049aa926bc');
             if (!iframe || !iframe.contentWindow || !iframe.contentWindow.document) {
                 return;
             }
@@ -1834,7 +1844,7 @@ Note
             iframe.style.height = height + 'px';
         }
 
-        var iframe = document.getElementById('iframe_ab015fc9-7b5f-4b5c-a99a-725f2cbff7d0');
+        var iframe = document.getElementById('iframe_7753df27-ee6c-48ed-a325-b6049aa926bc');
         resizeIframe();
 
         // Setup resize listener on contentWindow
@@ -1878,7 +1888,7 @@ Note
 </section>
 <section id="multiple-kde-overlays" class="level3">
 <h3 class="anchored" data-anchor-id="multiple-kde-overlays">Multiple KDE Overlays</h3>
-<div id="4fa76c43" class="cell" data-execution_count="7">
+<div id="edbaca84" class="cell" data-execution_count="7">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7" data-source-line-numbers="nil" data-code-line-numbers="5,36"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> altair <span class="im">as</span> alt</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
@@ -1916,16 +1926,16 @@ Note
 <span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb7-36"><a href="#cb7-36" aria-hidden="true" tabindex="-1"></a>maidr.show(multi_kde)  </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<iframe id="iframe_b0f90829-3169-4d39-9369-7ea85055c6df" title="Multiple KDE Plots with Altair, accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
+<iframe id="iframe_58a7e6f8-25d7-46f1-8bb3-f6db47a13338" title="Multiple KDE Plots with Altair, accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega@5&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega-lite@5&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega-embed@6&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/maidr@4.14.0/dist/vegalite.js&quot;></script>
-  <div id=&quot;maidr-altair-21fb6d32-1eb5-4c05-bf7e-fbaba36f0b2d&quot;></div>
+  <div id=&quot;maidr-altair-652c5207-9a43-44ab-8a01-fb9620525cd4&quot;></div>
   <script type=&quot;text/javascript&quot;>
             (function() {
                 function showError(msg) {
-                    var el = document.getElementById(&quot;maidr-altair-21fb6d32-1eb5-4c05-bf7e-fbaba36f0b2d&quot;);
+                    var el = document.getElementById(&quot;maidr-altair-652c5207-9a43-44ab-8a01-fb9620525cd4&quot;);
                     if (!el) return;
                     el.innerHTML = '';
                     var pre = document.createElement('pre');
@@ -1950,9 +1960,9 @@ Note
                     }
                     try {
                         window.maidrVegaLite.embed(
-                            '#' + &quot;maidr-altair-21fb6d32-1eb5-4c05-bf7e-fbaba36f0b2d&quot;,
+                            '#' + &quot;maidr-altair-652c5207-9a43-44ab-8a01-fb9620525cd4&quot;,
                             spec,
-                            { id: &quot;21fb6d32-1eb5-4c05-bf7e-fbaba36f0b2d&quot; }
+                            { id: &quot;652c5207-9a43-44ab-8a01-fb9620525cd4&quot; }
                         ).catch(function(err) {
                             showError(String(err &amp;&amp; err.message ? err.message : err));
                         });
@@ -1985,7 +1995,7 @@ Note
         </script>
 </div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
         function resizeIframe() {
-            var iframe = document.getElementById('iframe_b0f90829-3169-4d39-9369-7ea85055c6df');
+            var iframe = document.getElementById('iframe_58a7e6f8-25d7-46f1-8bb3-f6db47a13338');
             if (!iframe || !iframe.contentWindow || !iframe.contentWindow.document) {
                 return;
             }
@@ -2044,7 +2054,7 @@ Note
             iframe.style.height = height + 'px';
         }
 
-        var iframe = document.getElementById('iframe_b0f90829-3169-4d39-9369-7ea85055c6df');
+        var iframe = document.getElementById('iframe_58a7e6f8-25d7-46f1-8bb3-f6db47a13338');
         resizeIframe();
 
         // Setup resize listener on contentWindow
@@ -2088,7 +2098,7 @@ Note
 </section>
 <section id="box-plot-vertical-and-horizontal" class="level3">
 <h3 class="anchored" data-anchor-id="box-plot-vertical-and-horizontal">Box Plot (Vertical and Horizontal)</h3>
-<div id="8835ebcc" class="cell" data-execution_count="8">
+<div id="8fcc3f8e" class="cell" data-execution_count="8">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8" data-source-line-numbers="nil" data-code-line-numbers="4,37,38"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> altair <span class="im">as</span> alt</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> seaborn <span class="im">as</span> sns</span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -2128,16 +2138,16 @@ Note
 <span id="cb8-37"><a href="#cb8-37" aria-hidden="true" tabindex="-1"></a>maidr.show(boxplot(<span class="st">"v"</span>))  </span>
 <span id="cb8-38"><a href="#cb8-38" aria-hidden="true" tabindex="-1"></a>maidr.show(boxplot(<span class="st">"h"</span>))  </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<iframe id="iframe_df2fd1f4-d02f-4f1a-b76b-a54cc368d466" title="Vertical Box Plot of Petal Length by Iris Species, accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
+<iframe id="iframe_66f82d6c-4e5c-445b-9949-5dcaa1bac74c" title="Vertical Box Plot of Petal Length by Iris Species, accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega@5&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega-lite@5&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega-embed@6&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/maidr@4.14.0/dist/vegalite.js&quot;></script>
-  <div id=&quot;maidr-altair-a365109b-2bd1-4aa2-b20d-740bb8f5954d&quot;></div>
+  <div id=&quot;maidr-altair-5ae56297-517e-4cc9-a77d-fd0127ae8d0c&quot;></div>
   <script type=&quot;text/javascript&quot;>
             (function() {
                 function showError(msg) {
-                    var el = document.getElementById(&quot;maidr-altair-a365109b-2bd1-4aa2-b20d-740bb8f5954d&quot;);
+                    var el = document.getElementById(&quot;maidr-altair-5ae56297-517e-4cc9-a77d-fd0127ae8d0c&quot;);
                     if (!el) return;
                     el.innerHTML = '';
                     var pre = document.createElement('pre');
@@ -2162,9 +2172,9 @@ Note
                     }
                     try {
                         window.maidrVegaLite.embed(
-                            '#' + &quot;maidr-altair-a365109b-2bd1-4aa2-b20d-740bb8f5954d&quot;,
+                            '#' + &quot;maidr-altair-5ae56297-517e-4cc9-a77d-fd0127ae8d0c&quot;,
                             spec,
-                            { id: &quot;a365109b-2bd1-4aa2-b20d-740bb8f5954d&quot; }
+                            { id: &quot;5ae56297-517e-4cc9-a77d-fd0127ae8d0c&quot; }
                         ).catch(function(err) {
                             showError(String(err &amp;&amp; err.message ? err.message : err));
                         });
@@ -2197,7 +2207,7 @@ Note
         </script>
 </div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
         function resizeIframe() {
-            var iframe = document.getElementById('iframe_df2fd1f4-d02f-4f1a-b76b-a54cc368d466');
+            var iframe = document.getElementById('iframe_66f82d6c-4e5c-445b-9949-5dcaa1bac74c');
             if (!iframe || !iframe.contentWindow || !iframe.contentWindow.document) {
                 return;
             }
@@ -2256,7 +2266,7 @@ Note
             iframe.style.height = height + 'px';
         }
 
-        var iframe = document.getElementById('iframe_df2fd1f4-d02f-4f1a-b76b-a54cc368d466');
+        var iframe = document.getElementById('iframe_66f82d6c-4e5c-445b-9949-5dcaa1bac74c');
         resizeIframe();
 
         // Setup resize listener on contentWindow
@@ -2297,16 +2307,16 @@ Note
     "></iframe>
 </div>
 <div class="cell-output cell-output-display">
-<iframe id="iframe_5d7b6b02-4987-4e1c-8de6-d45f1024c95b" title="Horizontal Box Plot of Petal Length by Iris Species, accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
+<iframe id="iframe_26b3594a-58d4-4b3d-9b58-a4e5b56d5ec2" title="Horizontal Box Plot of Petal Length by Iris Species, accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega@5&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega-lite@5&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega-embed@6&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/maidr@4.14.0/dist/vegalite.js&quot;></script>
-  <div id=&quot;maidr-altair-f4bc785f-7855-4ea5-8f6a-a3410facdb50&quot;></div>
+  <div id=&quot;maidr-altair-138690d0-4ad0-40a2-ab98-187cf4f2f89f&quot;></div>
   <script type=&quot;text/javascript&quot;>
             (function() {
                 function showError(msg) {
-                    var el = document.getElementById(&quot;maidr-altair-f4bc785f-7855-4ea5-8f6a-a3410facdb50&quot;);
+                    var el = document.getElementById(&quot;maidr-altair-138690d0-4ad0-40a2-ab98-187cf4f2f89f&quot;);
                     if (!el) return;
                     el.innerHTML = '';
                     var pre = document.createElement('pre');
@@ -2331,9 +2341,9 @@ Note
                     }
                     try {
                         window.maidrVegaLite.embed(
-                            '#' + &quot;maidr-altair-f4bc785f-7855-4ea5-8f6a-a3410facdb50&quot;,
+                            '#' + &quot;maidr-altair-138690d0-4ad0-40a2-ab98-187cf4f2f89f&quot;,
                             spec,
-                            { id: &quot;f4bc785f-7855-4ea5-8f6a-a3410facdb50&quot; }
+                            { id: &quot;138690d0-4ad0-40a2-ab98-187cf4f2f89f&quot; }
                         ).catch(function(err) {
                             showError(String(err &amp;&amp; err.message ? err.message : err));
                         });
@@ -2366,7 +2376,7 @@ Note
         </script>
 </div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
         function resizeIframe() {
-            var iframe = document.getElementById('iframe_5d7b6b02-4987-4e1c-8de6-d45f1024c95b');
+            var iframe = document.getElementById('iframe_26b3594a-58d4-4b3d-9b58-a4e5b56d5ec2');
             if (!iframe || !iframe.contentWindow || !iframe.contentWindow.document) {
                 return;
             }
@@ -2425,7 +2435,7 @@ Note
             iframe.style.height = height + 'px';
         }
 
-        var iframe = document.getElementById('iframe_5d7b6b02-4987-4e1c-8de6-d45f1024c95b');
+        var iframe = document.getElementById('iframe_26b3594a-58d4-4b3d-9b58-a4e5b56d5ec2');
         resizeIframe();
 
         // Setup resize listener on contentWindow
@@ -2469,7 +2479,7 @@ Note
 </section>
 <section id="heatmap" class="level3">
 <h3 class="anchored" data-anchor-id="heatmap">Heatmap</h3>
-<div id="46294ec9" class="cell" data-execution_count="9">
+<div id="bae1adb3" class="cell" data-execution_count="9">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9" data-source-line-numbers="nil" data-code-line-numbers="5,59,60"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> altair <span class="im">as</span> alt</span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
@@ -2531,16 +2541,16 @@ Note
 <span id="cb9-59"><a href="#cb9-59" aria-hidden="true" tabindex="-1"></a>chart <span class="op">=</span> heatmap <span class="op">+</span> text  </span>
 <span id="cb9-60"><a href="#cb9-60" aria-hidden="true" tabindex="-1"></a>maidr.show(chart)  </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<iframe id="iframe_e96190ed-7699-446b-a36b-f50cbc6430a7" title="Accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
+<iframe id="iframe_227e3d4f-a39e-4ed3-9a4f-138b40e737e3" title="Accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega@5&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega-lite@5&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega-embed@6&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/maidr@4.14.0/dist/vegalite.js&quot;></script>
-  <div id=&quot;maidr-altair-fa213be2-a9e5-472d-99ab-1a352c08af11&quot;></div>
+  <div id=&quot;maidr-altair-0cde6f1f-3fd6-49b0-945d-1ce923c54bc0&quot;></div>
   <script type=&quot;text/javascript&quot;>
             (function() {
                 function showError(msg) {
-                    var el = document.getElementById(&quot;maidr-altair-fa213be2-a9e5-472d-99ab-1a352c08af11&quot;);
+                    var el = document.getElementById(&quot;maidr-altair-0cde6f1f-3fd6-49b0-945d-1ce923c54bc0&quot;);
                     if (!el) return;
                     el.innerHTML = '';
                     var pre = document.createElement('pre');
@@ -2565,9 +2575,9 @@ Note
                     }
                     try {
                         window.maidrVegaLite.embed(
-                            '#' + &quot;maidr-altair-fa213be2-a9e5-472d-99ab-1a352c08af11&quot;,
+                            '#' + &quot;maidr-altair-0cde6f1f-3fd6-49b0-945d-1ce923c54bc0&quot;,
                             spec,
-                            { id: &quot;fa213be2-a9e5-472d-99ab-1a352c08af11&quot; }
+                            { id: &quot;0cde6f1f-3fd6-49b0-945d-1ce923c54bc0&quot; }
                         ).catch(function(err) {
                             showError(String(err &amp;&amp; err.message ? err.message : err));
                         });
@@ -2600,7 +2610,7 @@ Note
         </script>
 </div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
         function resizeIframe() {
-            var iframe = document.getElementById('iframe_e96190ed-7699-446b-a36b-f50cbc6430a7');
+            var iframe = document.getElementById('iframe_227e3d4f-a39e-4ed3-9a4f-138b40e737e3');
             if (!iframe || !iframe.contentWindow || !iframe.contentWindow.document) {
                 return;
             }
@@ -2659,7 +2669,7 @@ Note
             iframe.style.height = height + 'px';
         }
 
-        var iframe = document.getElementById('iframe_e96190ed-7699-446b-a36b-f50cbc6430a7');
+        var iframe = document.getElementById('iframe_227e3d4f-a39e-4ed3-9a4f-138b40e737e3');
         resizeIframe();
 
         // Setup resize listener on contentWindow
@@ -2703,7 +2713,7 @@ Note
 </section>
 <section id="line-plot" class="level3">
 <h3 class="anchored" data-anchor-id="line-plot">Line Plot</h3>
-<div id="e5b7ea3b" class="cell" data-execution_count="10">
+<div id="e907dbed" class="cell" data-execution_count="10">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10" data-source-line-numbers="nil" data-code-line-numbers="4,24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> altair <span class="im">as</span> alt</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> seaborn <span class="im">as</span> sns</span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -2729,16 +2739,16 @@ Note
 <span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>maidr.show(line_plot)  </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<iframe id="iframe_b6222e4d-6748-4360-9340-110e4ff49c99" title="Total Passengers per Year From the Flights Dataset, accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
+<iframe id="iframe_219d22b5-4f3a-4ed4-87ab-8131159037ce" title="Total Passengers per Year From the Flights Dataset, accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega@5&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega-lite@5&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega-embed@6&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/maidr@4.14.0/dist/vegalite.js&quot;></script>
-  <div id=&quot;maidr-altair-e5285b66-8f68-4901-81fe-1aaf714b4355&quot;></div>
+  <div id=&quot;maidr-altair-cc636cb6-3c5e-485c-8ddf-635421e02187&quot;></div>
   <script type=&quot;text/javascript&quot;>
             (function() {
                 function showError(msg) {
-                    var el = document.getElementById(&quot;maidr-altair-e5285b66-8f68-4901-81fe-1aaf714b4355&quot;);
+                    var el = document.getElementById(&quot;maidr-altair-cc636cb6-3c5e-485c-8ddf-635421e02187&quot;);
                     if (!el) return;
                     el.innerHTML = '';
                     var pre = document.createElement('pre');
@@ -2763,9 +2773,9 @@ Note
                     }
                     try {
                         window.maidrVegaLite.embed(
-                            '#' + &quot;maidr-altair-e5285b66-8f68-4901-81fe-1aaf714b4355&quot;,
+                            '#' + &quot;maidr-altair-cc636cb6-3c5e-485c-8ddf-635421e02187&quot;,
                             spec,
-                            { id: &quot;e5285b66-8f68-4901-81fe-1aaf714b4355&quot; }
+                            { id: &quot;cc636cb6-3c5e-485c-8ddf-635421e02187&quot; }
                         ).catch(function(err) {
                             showError(String(err &amp;&amp; err.message ? err.message : err));
                         });
@@ -2798,7 +2808,7 @@ Note
         </script>
 </div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
         function resizeIframe() {
-            var iframe = document.getElementById('iframe_b6222e4d-6748-4360-9340-110e4ff49c99');
+            var iframe = document.getElementById('iframe_219d22b5-4f3a-4ed4-87ab-8131159037ce');
             if (!iframe || !iframe.contentWindow || !iframe.contentWindow.document) {
                 return;
             }
@@ -2857,7 +2867,7 @@ Note
             iframe.style.height = height + 'px';
         }
 
-        var iframe = document.getElementById('iframe_b6222e4d-6748-4360-9340-110e4ff49c99');
+        var iframe = document.getElementById('iframe_219d22b5-4f3a-4ed4-87ab-8131159037ce');
         resizeIframe();
 
         // Setup resize listener on contentWindow
@@ -2901,7 +2911,7 @@ Note
 </section>
 <section id="multi-line-plot" class="level3">
 <h3 class="anchored" data-anchor-id="multi-line-plot">Multi-Line Plot</h3>
-<div id="c1dd3368" class="cell" data-execution_count="11">
+<div id="2c8641d2" class="cell" data-execution_count="11">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11" data-source-line-numbers="nil" data-code-line-numbers="5,30"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> altair <span class="im">as</span> alt</span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
@@ -2933,16 +2943,16 @@ Note
 <span id="cb11-29"><a href="#cb11-29" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-30"><a href="#cb11-30" aria-hidden="true" tabindex="-1"></a>maidr.show(multiline_plot)  </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<iframe id="iframe_2bb28858-87d0-490b-a44e-627d9e3dcfe3" title="Altair Multi-Line Plot, accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
+<iframe id="iframe_ef1ed0ac-0e4e-4585-aa5b-e61ca5f3819f" title="Altair Multi-Line Plot, accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega@5&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega-lite@5&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega-embed@6&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/maidr@4.14.0/dist/vegalite.js&quot;></script>
-  <div id=&quot;maidr-altair-0f4aa7f8-6649-44cb-9118-7a0a53841a7e&quot;></div>
+  <div id=&quot;maidr-altair-e77092ea-e224-4a18-a5cf-f0f89055eaea&quot;></div>
   <script type=&quot;text/javascript&quot;>
             (function() {
                 function showError(msg) {
-                    var el = document.getElementById(&quot;maidr-altair-0f4aa7f8-6649-44cb-9118-7a0a53841a7e&quot;);
+                    var el = document.getElementById(&quot;maidr-altair-e77092ea-e224-4a18-a5cf-f0f89055eaea&quot;);
                     if (!el) return;
                     el.innerHTML = '';
                     var pre = document.createElement('pre');
@@ -2967,9 +2977,9 @@ Note
                     }
                     try {
                         window.maidrVegaLite.embed(
-                            '#' + &quot;maidr-altair-0f4aa7f8-6649-44cb-9118-7a0a53841a7e&quot;,
+                            '#' + &quot;maidr-altair-e77092ea-e224-4a18-a5cf-f0f89055eaea&quot;,
                             spec,
-                            { id: &quot;0f4aa7f8-6649-44cb-9118-7a0a53841a7e&quot; }
+                            { id: &quot;e77092ea-e224-4a18-a5cf-f0f89055eaea&quot; }
                         ).catch(function(err) {
                             showError(String(err &amp;&amp; err.message ? err.message : err));
                         });
@@ -3002,7 +3012,7 @@ Note
         </script>
 </div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
         function resizeIframe() {
-            var iframe = document.getElementById('iframe_2bb28858-87d0-490b-a44e-627d9e3dcfe3');
+            var iframe = document.getElementById('iframe_ef1ed0ac-0e4e-4585-aa5b-e61ca5f3819f');
             if (!iframe || !iframe.contentWindow || !iframe.contentWindow.document) {
                 return;
             }
@@ -3061,7 +3071,7 @@ Note
             iframe.style.height = height + 'px';
         }
 
-        var iframe = document.getElementById('iframe_2bb28858-87d0-490b-a44e-627d9e3dcfe3');
+        var iframe = document.getElementById('iframe_ef1ed0ac-0e4e-4585-aa5b-e61ca5f3819f');
         resizeIframe();
 
         // Setup resize listener on contentWindow
@@ -3107,7 +3117,7 @@ Note
 <h3 class="anchored" data-anchor-id="step-plot">Step Plot</h3>
 <p>Altair expresses a staircase through the mark’s <code>interpolate</code> property, which Vega-Lite hands to the matching d3 curve. maidr renders Altair charts through the upstream Vega-Lite adapter, so a stepping <code>interpolate</code> is recognized there and the chart is bound as a step layer rather than a line.</p>
 <p>A <strong>hypnogram</strong> is the canonical case: the sleep stage is held for a stretch of the night and then jumps.</p>
-<div id="17d64628" class="cell" data-execution_count="12">
+<div id="e1468039" class="cell" data-execution_count="12">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12" data-source-line-numbers="nil" data-code-line-numbers="4,16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> altair <span class="im">as</span> alt</span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
 <span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -3143,16 +3153,16 @@ Note
 <span id="cb12-33"><a href="#cb12-33" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb12-34"><a href="#cb12-34" aria-hidden="true" tabindex="-1"></a>maidr.show(chart)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<iframe id="iframe_2644de76-8cea-40fa-bbe5-398611e25eb7" title="Hypnogram: sleep stage across one night, accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
+<iframe id="iframe_61bea97e-ff04-4216-a9f3-b4cac1ecd6b6" title="Hypnogram: sleep stage across one night, accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega@5&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega-lite@5&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega-embed@6&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/maidr@4.14.0/dist/vegalite.js&quot;></script>
-  <div id=&quot;maidr-altair-4a9e68c9-f356-43d4-9c18-97d00bf0ca2b&quot;></div>
+  <div id=&quot;maidr-altair-ea93ae73-41ea-4d8a-8272-fb44141ded31&quot;></div>
   <script type=&quot;text/javascript&quot;>
             (function() {
                 function showError(msg) {
-                    var el = document.getElementById(&quot;maidr-altair-4a9e68c9-f356-43d4-9c18-97d00bf0ca2b&quot;);
+                    var el = document.getElementById(&quot;maidr-altair-ea93ae73-41ea-4d8a-8272-fb44141ded31&quot;);
                     if (!el) return;
                     el.innerHTML = '';
                     var pre = document.createElement('pre');
@@ -3177,9 +3187,9 @@ Note
                     }
                     try {
                         window.maidrVegaLite.embed(
-                            '#' + &quot;maidr-altair-4a9e68c9-f356-43d4-9c18-97d00bf0ca2b&quot;,
+                            '#' + &quot;maidr-altair-ea93ae73-41ea-4d8a-8272-fb44141ded31&quot;,
                             spec,
-                            { id: &quot;4a9e68c9-f356-43d4-9c18-97d00bf0ca2b&quot; }
+                            { id: &quot;ea93ae73-41ea-4d8a-8272-fb44141ded31&quot; }
                         ).catch(function(err) {
                             showError(String(err &amp;&amp; err.message ? err.message : err));
                         });
@@ -3212,7 +3222,7 @@ Note
         </script>
 </div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
         function resizeIframe() {
-            var iframe = document.getElementById('iframe_2644de76-8cea-40fa-bbe5-398611e25eb7');
+            var iframe = document.getElementById('iframe_61bea97e-ff04-4216-a9f3-b4cac1ecd6b6');
             if (!iframe || !iframe.contentWindow || !iframe.contentWindow.document) {
                 return;
             }
@@ -3271,7 +3281,7 @@ Note
             iframe.style.height = height + 'px';
         }
 
-        var iframe = document.getElementById('iframe_2644de76-8cea-40fa-bbe5-398611e25eb7');
+        var iframe = document.getElementById('iframe_61bea97e-ff04-4216-a9f3-b4cac1ecd6b6');
         resizeIframe();
 
         // Setup resize listener on contentWindow
@@ -3360,7 +3370,7 @@ Note
 </section>
 <section id="scatter-plot" class="level3">
 <h3 class="anchored" data-anchor-id="scatter-plot">Scatter Plot</h3>
-<div id="7216ec65" class="cell" data-execution_count="13">
+<div id="79fad75c" class="cell" data-execution_count="13">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13" data-source-line-numbers="nil" data-code-line-numbers="4,23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> altair <span class="im">as</span> alt</span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> seaborn <span class="im">as</span> sns</span>
 <span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -3385,16 +3395,16 @@ Note
 <span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a>maidr.show(scatter_plot)  </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<iframe id="iframe_97882f1b-9d18-4374-9c86-d43b31ced78c" title="Iris Sepal Length vs Sepal Width, accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
+<iframe id="iframe_f98bb90c-c0de-488b-a5ff-7caf86be3034" title="Iris Sepal Length vs Sepal Width, accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega@5&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega-lite@5&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega-embed@6&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/maidr@4.14.0/dist/vegalite.js&quot;></script>
-  <div id=&quot;maidr-altair-61dfe847-1ccc-4e8e-96b7-f11f6c591b97&quot;></div>
+  <div id=&quot;maidr-altair-5544f518-9740-43f3-9a8e-f32f64a6032d&quot;></div>
   <script type=&quot;text/javascript&quot;>
             (function() {
                 function showError(msg) {
-                    var el = document.getElementById(&quot;maidr-altair-61dfe847-1ccc-4e8e-96b7-f11f6c591b97&quot;);
+                    var el = document.getElementById(&quot;maidr-altair-5544f518-9740-43f3-9a8e-f32f64a6032d&quot;);
                     if (!el) return;
                     el.innerHTML = '';
                     var pre = document.createElement('pre');
@@ -3419,9 +3429,9 @@ Note
                     }
                     try {
                         window.maidrVegaLite.embed(
-                            '#' + &quot;maidr-altair-61dfe847-1ccc-4e8e-96b7-f11f6c591b97&quot;,
+                            '#' + &quot;maidr-altair-5544f518-9740-43f3-9a8e-f32f64a6032d&quot;,
                             spec,
-                            { id: &quot;61dfe847-1ccc-4e8e-96b7-f11f6c591b97&quot; }
+                            { id: &quot;5544f518-9740-43f3-9a8e-f32f64a6032d&quot; }
                         ).catch(function(err) {
                             showError(String(err &amp;&amp; err.message ? err.message : err));
                         });
@@ -3454,7 +3464,7 @@ Note
         </script>
 </div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
         function resizeIframe() {
-            var iframe = document.getElementById('iframe_97882f1b-9d18-4374-9c86-d43b31ced78c');
+            var iframe = document.getElementById('iframe_f98bb90c-c0de-488b-a5ff-7caf86be3034');
             if (!iframe || !iframe.contentWindow || !iframe.contentWindow.document) {
                 return;
             }
@@ -3513,7 +3523,7 @@ Note
             iframe.style.height = height + 'px';
         }
 
-        var iframe = document.getElementById('iframe_97882f1b-9d18-4374-9c86-d43b31ced78c');
+        var iframe = document.getElementById('iframe_f98bb90c-c0de-488b-a5ff-7caf86be3034');
         resizeIframe();
 
         // Setup resize listener on contentWindow
@@ -3557,7 +3567,7 @@ Note
 </section>
 <section id="multi-layered-plot" class="level3">
 <h3 class="anchored" data-anchor-id="multi-layered-plot">Multi-Layered Plot</h3>
-<div id="38c2c25b" class="cell" data-execution_count="14">
+<div id="1af4e2b6" class="cell" data-execution_count="14">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14" data-source-line-numbers="nil" data-code-line-numbers="5,37"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> altair <span class="im">as</span> alt</span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
@@ -3596,16 +3606,16 @@ Note
 <span id="cb14-36"><a href="#cb14-36" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb14-37"><a href="#cb14-37" aria-hidden="true" tabindex="-1"></a>maidr.show(chart)  </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<iframe id="iframe_af58498c-d3aa-4cec-a834-0e5563845841" title="Multilayer Plot Example, accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
+<iframe id="iframe_c4daa9ee-08bb-4f79-b2bf-90326135e869" title="Multilayer Plot Example, accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega@5&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega-lite@5&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega-embed@6&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/maidr@4.14.0/dist/vegalite.js&quot;></script>
-  <div id=&quot;maidr-altair-1de0216e-1e48-4c22-80e2-5846ea087334&quot;></div>
+  <div id=&quot;maidr-altair-dd8bf0c9-4ac0-4c2b-9874-27f167638a9e&quot;></div>
   <script type=&quot;text/javascript&quot;>
             (function() {
                 function showError(msg) {
-                    var el = document.getElementById(&quot;maidr-altair-1de0216e-1e48-4c22-80e2-5846ea087334&quot;);
+                    var el = document.getElementById(&quot;maidr-altair-dd8bf0c9-4ac0-4c2b-9874-27f167638a9e&quot;);
                     if (!el) return;
                     el.innerHTML = '';
                     var pre = document.createElement('pre');
@@ -3630,9 +3640,9 @@ Note
                     }
                     try {
                         window.maidrVegaLite.embed(
-                            '#' + &quot;maidr-altair-1de0216e-1e48-4c22-80e2-5846ea087334&quot;,
+                            '#' + &quot;maidr-altair-dd8bf0c9-4ac0-4c2b-9874-27f167638a9e&quot;,
                             spec,
-                            { id: &quot;1de0216e-1e48-4c22-80e2-5846ea087334&quot; }
+                            { id: &quot;dd8bf0c9-4ac0-4c2b-9874-27f167638a9e&quot; }
                         ).catch(function(err) {
                             showError(String(err &amp;&amp; err.message ? err.message : err));
                         });
@@ -3665,7 +3675,7 @@ Note
         </script>
 </div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
         function resizeIframe() {
-            var iframe = document.getElementById('iframe_af58498c-d3aa-4cec-a834-0e5563845841');
+            var iframe = document.getElementById('iframe_c4daa9ee-08bb-4f79-b2bf-90326135e869');
             if (!iframe || !iframe.contentWindow || !iframe.contentWindow.document) {
                 return;
             }
@@ -3724,7 +3734,7 @@ Note
             iframe.style.height = height + 'px';
         }
 
-        var iframe = document.getElementById('iframe_af58498c-d3aa-4cec-a834-0e5563845841');
+        var iframe = document.getElementById('iframe_c4daa9ee-08bb-4f79-b2bf-90326135e869');
         resizeIframe();
 
         // Setup resize listener on contentWindow
@@ -3768,7 +3778,7 @@ Note
 </section>
 <section id="regression-scatter-loess-smooth" class="level3">
 <h3 class="anchored" data-anchor-id="regression-scatter-loess-smooth">Regression (Scatter + LOESS Smooth)</h3>
-<div id="c893eb59" class="cell" data-execution_count="15">
+<div id="e2766ceb" class="cell" data-execution_count="15">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15" data-source-line-numbers="nil" data-code-line-numbers="5,38"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> altair <span class="im">as</span> alt</span>
 <span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
@@ -3808,16 +3818,16 @@ Note
 <span id="cb15-37"><a href="#cb15-37" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb15-38"><a href="#cb15-38" aria-hidden="true" tabindex="-1"></a>maidr.show(chart)  </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<iframe id="iframe_0dbdf6dc-f342-483c-b37b-bec5b20d9919" title="Altair: Scatter with LOESS Smooth Line, accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
+<iframe id="iframe_61538a90-a0c0-42ef-8140-7c7db203d179" title="Altair: Scatter with LOESS Smooth Line, accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega@5&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega-lite@5&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/vega-embed@6&quot;></script>
   <script src=&quot;https://cdn.jsdelivr.net/npm/maidr@4.14.0/dist/vegalite.js&quot;></script>
-  <div id=&quot;maidr-altair-5f13e7d0-8fff-4323-a520-72bdc8b6882a&quot;></div>
+  <div id=&quot;maidr-altair-d8de6c9a-bea0-4807-9fba-4ad7e34f9e1e&quot;></div>
   <script type=&quot;text/javascript&quot;>
             (function() {
                 function showError(msg) {
-                    var el = document.getElementById(&quot;maidr-altair-5f13e7d0-8fff-4323-a520-72bdc8b6882a&quot;);
+                    var el = document.getElementById(&quot;maidr-altair-d8de6c9a-bea0-4807-9fba-4ad7e34f9e1e&quot;);
                     if (!el) return;
                     el.innerHTML = '';
                     var pre = document.createElement('pre');
@@ -3842,9 +3852,9 @@ Note
                     }
                     try {
                         window.maidrVegaLite.embed(
-                            '#' + &quot;maidr-altair-5f13e7d0-8fff-4323-a520-72bdc8b6882a&quot;,
+                            '#' + &quot;maidr-altair-d8de6c9a-bea0-4807-9fba-4ad7e34f9e1e&quot;,
                             spec,
-                            { id: &quot;5f13e7d0-8fff-4323-a520-72bdc8b6882a&quot; }
+                            { id: &quot;d8de6c9a-bea0-4807-9fba-4ad7e34f9e1e&quot; }
                         ).catch(function(err) {
                             showError(String(err &amp;&amp; err.message ? err.message : err));
                         });
@@ -3877,7 +3887,7 @@ Note
         </script>
 </div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
         function resizeIframe() {
-            var iframe = document.getElementById('iframe_0dbdf6dc-f342-483c-b37b-bec5b20d9919');
+            var iframe = document.getElementById('iframe_61538a90-a0c0-42ef-8140-7c7db203d179');
             if (!iframe || !iframe.contentWindow || !iframe.contentWindow.document) {
                 return;
             }
@@ -3936,7 +3946,7 @@ Note
             iframe.style.height = height + 'px';
         }
 
-        var iframe = document.getElementById('iframe_0dbdf6dc-f342-483c-b37b-bec5b20d9919');
+        var iframe = document.getElementById('iframe_61538a90-a0c0-42ef-8140-7c7db203d179');
         resizeIframe();
 
         // Setup resize listener on contentWindow

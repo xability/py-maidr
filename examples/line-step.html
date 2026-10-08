@@ -333,6 +333,10 @@ cookieconsent.run({
     <a class="dropdown-item" href="../examples/pr-curve.html">
  <span class="dropdown-text">Precision-Recall Curves [experimental]</span></a>
   </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/network-graph.html">
+ <span class="dropdown-text">Directed Graphs [experimental]</span></a>
+  </li>  
         <li><hr class="dropdown-divider"></li>
         <li class="dropdown-header">Other libraries</li>
         <li>
@@ -513,6 +517,12 @@ cookieconsent.run({
  <span class="menu-text">Precision-Recall Curves [experimental]</span></a>
   </div>
 </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/network-graph.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Directed Graphs [experimental]</span></a>
+  </div>
+</li>
       </ul>
   </li>
         <li class="sidebar-item">
@@ -644,7 +654,7 @@ cookieconsent.run({
 <section id="setup" class="level2">
 <h2 class="anchored" data-anchor-id="setup">Setup</h2>
 <p>Every example on this page needs only the import below. The plot cells repeat it so each one can be copied on its own.</p>
-<div id="3a8839d9" class="cell" data-execution_count="1">
+<div id="85b9fd00" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" data-source-line-numbers="nil" data-code-line-numbers="3,4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Just import maidr package: plt.show() now renders accessible output </span></span>
@@ -658,7 +668,7 @@ cookieconsent.run({
 <h2 class="anchored" data-anchor-id="line-plot">Line Plot</h2>
 <section id="single-line-plot" class="level3">
 <h3 class="anchored" data-anchor-id="single-line-plot">Single Line Plot</h3>
-<div id="1b3f055d" class="cell" data-execution_count="2">
+<div id="a04e73fd" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" data-source-line-numbers="nil" data-code-line-numbers="4,8,15,32"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> seaborn <span class="im">as</span> sns</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -692,7 +702,7 @@ cookieconsent.run({
 <span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a>plt.show() </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<iframe id="iframe_4afcc827-b5d1-4bb9-bbb2-74f2c8e735f5" title="Tips vs Total Bill (Thursday), accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
+<iframe id="iframe_64a7e4b2-ddb9-4d8b-ac7e-ea3d38388b73" title="Tips vs Total Bill (Thursday), accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
   <script type=&quot;text/javascript&quot;>
                 (function() {
                     var existing = document.querySelector('script[src=&quot;https://cdn.jsdelivr.net/npm/maidr@4.14.0/dist/maidr.js&quot;]');
@@ -710,12 +720,12 @@ cookieconsent.run({
                     }
                 })();
             </script>
-  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;432pt&quot; height=&quot;432pt&quot; viewBox=&quot;0 0 432 432&quot; version=&quot;1.1&quot; id=&quot;04161b7f-0d42-4d0f-9390-ae6fcc9ead28&quot; maidr=&quot;{&amp;quot;id&amp;quot;: &amp;quot;04161b7f-0d42-4d0f-9390-ae6fcc9ead28&amp;quot;, &amp;quot;subplots&amp;quot;: [[{&amp;quot;id&amp;quot;: &amp;quot;fe2b4070-ce81-42f6-9e7a-52ca8c8029af&amp;quot;, &amp;quot;layers&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;7bed65bc-9453-4972-8d26-ffddef499ce2&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;line&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;Tips vs Total Bill (Thursday)&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Total Bill&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;type&amp;quot;: &amp;quot;currency&amp;quot;, &amp;quot;decimals&amp;quot;: 2, &amp;quot;currency&amp;quot;: &amp;quot;USD&amp;quot;}}, &amp;quot;y&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Tip&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;type&amp;quot;: &amp;quot;currency&amp;quot;, &amp;quot;decimals&amp;quot;: 2, &amp;quot;currency&amp;quot;: &amp;quot;USD&amp;quot;}}}, &amp;quot;data&amp;quot;: [[{&amp;quot;x&amp;quot;: 7.51, &amp;quot;y&amp;quot;: 2.0}, {&amp;quot;x&amp;quot;: 7.56, &amp;quot;y&amp;quot;: 1.44}, {&amp;quot;x&amp;quot;: 8.35, &amp;quot;y&amp;quot;: 1.5}, {&amp;quot;x&amp;quot;: 8.51, &amp;quot;y&amp;quot;: 1.25}, {&amp;quot;x&amp;quot;: 8.52, &amp;quot;y&amp;quot;: 1.48}, {&amp;quot;x&amp;quot;: 9.78, &amp;quot;y&amp;quot;: 1.73}, {&amp;quot;x&amp;quot;: 10.07, &amp;quot;y&amp;quot;: 1.83}, {&amp;quot;x&amp;quot;: 10.33, &amp;quot;y&amp;quot;: 2.0}, {&amp;quot;x&amp;quot;: 10.34, &amp;quot;y&amp;quot;: 2.0}, {&amp;quot;x&amp;quot;: 10.65, &amp;quot;y&amp;quot;: 1.5}, {&amp;quot;x&amp;quot;: 11.17, &amp;quot;y&amp;quot;: 1.5}, {&amp;quot;x&amp;quot;: 11.38, &amp;quot;y&amp;quot;: 2.0}, {&amp;quot;x&amp;quot;: 11.69, &amp;quot;y&amp;quot;: 2.31}, {&amp;quot;x&amp;quot;: 11.87, &amp;quot;y&amp;quot;: 1.63}, {&amp;quot;x&amp;quot;: 12.26, &amp;quot;y&amp;quot;: 2.0}, {&amp;quot;x&amp;quot;: 12.43, &amp;quot;y&amp;quot;: 1.8}, {&amp;quot;x&amp;quot;: 12.48, &amp;quot;y&amp;quot;: 2.52}, {&amp;quot;x&amp;quot;: 12.74, &amp;quot;y&amp;quot;: 2.01}, {&amp;quot;x&amp;quot;: 13.0, &amp;quot;y&amp;quot;: 2.0}, {&amp;quot;x&amp;quot;: 13.03, &amp;quot;y&amp;quot;: 2.0}, {&amp;quot;x&amp;quot;: 13.16, &amp;quot;y&amp;quot;: 2.75}, {&amp;quot;x&amp;quot;: 13.42, &amp;quot;y&amp;quot;: 1.68}, {&amp;quot;x&amp;quot;: 13.51, &amp;quot;y&amp;quot;: 2.0}, {&amp;quot;x&amp;quot;: 14.15, &amp;quot;y&amp;quot;: 2.0}, {&amp;quot;x&amp;quot;: 14.26, &amp;quot;y&amp;quot;: 2.5}, {&amp;quot;x&amp;quot;: 14.52, &amp;quot;y&amp;quot;: 2.0}, {&amp;quot;x&amp;quot;: 15.48, &amp;quot;y&amp;quot;: 2.02}, {&amp;quot;x&amp;quot;: 15.95, &amp;quot;y&amp;quot;: 2.0}, {&amp;quot;x&amp;quot;: 15.98, &amp;quot;y&amp;quot;: 2.03}, {&amp;quot;x&amp;quot;: 16.0, &amp;quot;y&amp;quot;: 2.0}, {&amp;quot;x&amp;quot;: 16.4, &amp;quot;y&amp;quot;: 2.5}, {&amp;quot;x&amp;quot;: 16.43, &amp;quot;y&amp;quot;: 2.3}, {&amp;quot;x&amp;quot;: 16.47, &amp;quot;y&amp;quot;: 3.23}, {&amp;quot;x&amp;quot;: 16.58, &amp;quot;y&amp;quot;: 4.0}, {&amp;quot;x&amp;quot;: 16.66, &amp;quot;y&amp;quot;: 3.4}, {&amp;quot;x&amp;quot;: 17.29, &amp;quot;y&amp;quot;: 2.71}, {&amp;quot;x&amp;quot;: 17.47, &amp;quot;y&amp;quot;: 3.5}, {&amp;quot;x&amp;quot;: 18.26, &amp;quot;y&amp;quot;: 3.25}, {&amp;quot;x&amp;quot;: 18.28, &amp;quot;y&amp;quot;: 4.0}, {&amp;quot;x&amp;quot;: 18.64, &amp;quot;y&amp;quot;: 1.36}, {&amp;quot;x&amp;quot;: 18.71, &amp;quot;y&amp;quot;: 4.0}, {&amp;quot;x&amp;quot;: 18.78, &amp;quot;y&amp;quot;: 3.0}, {&amp;quot;x&amp;quot;: 19.08, &amp;quot;y&amp;quot;: 1.5}, {&amp;quot;x&amp;quot;: 19.44, &amp;quot;y&amp;quot;: 3.0}, {&amp;quot;x&amp;quot;: 19.81, &amp;quot;y&amp;quot;: 4.19}, {&amp;quot;x&amp;quot;: 20.27, &amp;quot;y&amp;quot;: 2.83}, {&amp;quot;x&amp;quot;: 20.53, &amp;quot;y&amp;quot;: 4.0}, {&amp;quot;x&amp;quot;: 21.16, &amp;quot;y&amp;quot;: 3.0}, {&amp;quot;x&amp;quot;: 22.76, &amp;quot;y&amp;quot;: 3.0}, {&amp;quot;x&amp;quot;: 22.82, &amp;quot;y&amp;quot;: 2.18}, {&amp;quot;x&amp;quot;: 24.08, &amp;quot;y&amp;quot;: 2.92}, {&amp;quot;x&amp;quot;: 24.71, &amp;quot;y&amp;quot;: 5.85}, {&amp;quot;x&amp;quot;: 27.05, &amp;quot;y&amp;quot;: 5.0}, {&amp;quot;x&amp;quot;: 27.2, &amp;quot;y&amp;quot;: 4.0}, {&amp;quot;x&amp;quot;: 28.44, &amp;quot;y&amp;quot;: 2.56}, {&amp;quot;x&amp;quot;: 29.8, &amp;quot;y&amp;quot;: 4.2}, {&amp;quot;x&amp;quot;: 32.68, &amp;quot;y&amp;quot;: 5.0}, {&amp;quot;x&amp;quot;: 34.3, &amp;quot;y&amp;quot;: 6.7}, {&amp;quot;x&amp;quot;: 34.83, &amp;quot;y&amp;quot;: 5.17}, {&amp;quot;x&amp;quot;: 41.19, &amp;quot;y&amp;quot;: 5.0}, {&amp;quot;x&amp;quot;: 43.11, &amp;quot;y&amp;quot;: 5.0}]], &amp;quot;selectors&amp;quot;: [&amp;quot;g[id='maidr-85f6bebd-2a7d-40ba-af94-efd80c75eca3'] path&amp;quot;]}]}]]}&quot;>
+  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;432pt&quot; height=&quot;432pt&quot; viewBox=&quot;0 0 432 432&quot; version=&quot;1.1&quot; id=&quot;b6ef38f0-1153-406f-a521-9c5f9b976ed0&quot; maidr=&quot;{&amp;quot;id&amp;quot;: &amp;quot;b6ef38f0-1153-406f-a521-9c5f9b976ed0&amp;quot;, &amp;quot;subplots&amp;quot;: [[{&amp;quot;id&amp;quot;: &amp;quot;42c7db33-88b1-4ed9-a9c4-3e63b3f6427e&amp;quot;, &amp;quot;layers&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;c619b412-6954-491e-a7c3-6abd0d9f7de8&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;line&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;Tips vs Total Bill (Thursday)&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Total Bill&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;type&amp;quot;: &amp;quot;currency&amp;quot;, &amp;quot;decimals&amp;quot;: 2, &amp;quot;currency&amp;quot;: &amp;quot;USD&amp;quot;}}, &amp;quot;y&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Tip&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;type&amp;quot;: &amp;quot;currency&amp;quot;, &amp;quot;decimals&amp;quot;: 2, &amp;quot;currency&amp;quot;: &amp;quot;USD&amp;quot;}}}, &amp;quot;data&amp;quot;: [[{&amp;quot;x&amp;quot;: 7.51, &amp;quot;y&amp;quot;: 2.0}, {&amp;quot;x&amp;quot;: 7.56, &amp;quot;y&amp;quot;: 1.44}, {&amp;quot;x&amp;quot;: 8.35, &amp;quot;y&amp;quot;: 1.5}, {&amp;quot;x&amp;quot;: 8.51, &amp;quot;y&amp;quot;: 1.25}, {&amp;quot;x&amp;quot;: 8.52, &amp;quot;y&amp;quot;: 1.48}, {&amp;quot;x&amp;quot;: 9.78, &amp;quot;y&amp;quot;: 1.73}, {&amp;quot;x&amp;quot;: 10.07, &amp;quot;y&amp;quot;: 1.83}, {&amp;quot;x&amp;quot;: 10.33, &amp;quot;y&amp;quot;: 2.0}, {&amp;quot;x&amp;quot;: 10.34, &amp;quot;y&amp;quot;: 2.0}, {&amp;quot;x&amp;quot;: 10.65, &amp;quot;y&amp;quot;: 1.5}, {&amp;quot;x&amp;quot;: 11.17, &amp;quot;y&amp;quot;: 1.5}, {&amp;quot;x&amp;quot;: 11.38, &amp;quot;y&amp;quot;: 2.0}, {&amp;quot;x&amp;quot;: 11.69, &amp;quot;y&amp;quot;: 2.31}, {&amp;quot;x&amp;quot;: 11.87, &amp;quot;y&amp;quot;: 1.63}, {&amp;quot;x&amp;quot;: 12.26, &amp;quot;y&amp;quot;: 2.0}, {&amp;quot;x&amp;quot;: 12.43, &amp;quot;y&amp;quot;: 1.8}, {&amp;quot;x&amp;quot;: 12.48, &amp;quot;y&amp;quot;: 2.52}, {&amp;quot;x&amp;quot;: 12.74, &amp;quot;y&amp;quot;: 2.01}, {&amp;quot;x&amp;quot;: 13.0, &amp;quot;y&amp;quot;: 2.0}, {&amp;quot;x&amp;quot;: 13.03, &amp;quot;y&amp;quot;: 2.0}, {&amp;quot;x&amp;quot;: 13.16, &amp;quot;y&amp;quot;: 2.75}, {&amp;quot;x&amp;quot;: 13.42, &amp;quot;y&amp;quot;: 1.68}, {&amp;quot;x&amp;quot;: 13.51, &amp;quot;y&amp;quot;: 2.0}, {&amp;quot;x&amp;quot;: 14.15, &amp;quot;y&amp;quot;: 2.0}, {&amp;quot;x&amp;quot;: 14.26, &amp;quot;y&amp;quot;: 2.5}, {&amp;quot;x&amp;quot;: 14.52, &amp;quot;y&amp;quot;: 2.0}, {&amp;quot;x&amp;quot;: 15.48, &amp;quot;y&amp;quot;: 2.02}, {&amp;quot;x&amp;quot;: 15.95, &amp;quot;y&amp;quot;: 2.0}, {&amp;quot;x&amp;quot;: 15.98, &amp;quot;y&amp;quot;: 2.03}, {&amp;quot;x&amp;quot;: 16.0, &amp;quot;y&amp;quot;: 2.0}, {&amp;quot;x&amp;quot;: 16.4, &amp;quot;y&amp;quot;: 2.5}, {&amp;quot;x&amp;quot;: 16.43, &amp;quot;y&amp;quot;: 2.3}, {&amp;quot;x&amp;quot;: 16.47, &amp;quot;y&amp;quot;: 3.23}, {&amp;quot;x&amp;quot;: 16.58, &amp;quot;y&amp;quot;: 4.0}, {&amp;quot;x&amp;quot;: 16.66, &amp;quot;y&amp;quot;: 3.4}, {&amp;quot;x&amp;quot;: 17.29, &amp;quot;y&amp;quot;: 2.71}, {&amp;quot;x&amp;quot;: 17.47, &amp;quot;y&amp;quot;: 3.5}, {&amp;quot;x&amp;quot;: 18.26, &amp;quot;y&amp;quot;: 3.25}, {&amp;quot;x&amp;quot;: 18.28, &amp;quot;y&amp;quot;: 4.0}, {&amp;quot;x&amp;quot;: 18.64, &amp;quot;y&amp;quot;: 1.36}, {&amp;quot;x&amp;quot;: 18.71, &amp;quot;y&amp;quot;: 4.0}, {&amp;quot;x&amp;quot;: 18.78, &amp;quot;y&amp;quot;: 3.0}, {&amp;quot;x&amp;quot;: 19.08, &amp;quot;y&amp;quot;: 1.5}, {&amp;quot;x&amp;quot;: 19.44, &amp;quot;y&amp;quot;: 3.0}, {&amp;quot;x&amp;quot;: 19.81, &amp;quot;y&amp;quot;: 4.19}, {&amp;quot;x&amp;quot;: 20.27, &amp;quot;y&amp;quot;: 2.83}, {&amp;quot;x&amp;quot;: 20.53, &amp;quot;y&amp;quot;: 4.0}, {&amp;quot;x&amp;quot;: 21.16, &amp;quot;y&amp;quot;: 3.0}, {&amp;quot;x&amp;quot;: 22.76, &amp;quot;y&amp;quot;: 3.0}, {&amp;quot;x&amp;quot;: 22.82, &amp;quot;y&amp;quot;: 2.18}, {&amp;quot;x&amp;quot;: 24.08, &amp;quot;y&amp;quot;: 2.92}, {&amp;quot;x&amp;quot;: 24.71, &amp;quot;y&amp;quot;: 5.85}, {&amp;quot;x&amp;quot;: 27.05, &amp;quot;y&amp;quot;: 5.0}, {&amp;quot;x&amp;quot;: 27.2, &amp;quot;y&amp;quot;: 4.0}, {&amp;quot;x&amp;quot;: 28.44, &amp;quot;y&amp;quot;: 2.56}, {&amp;quot;x&amp;quot;: 29.8, &amp;quot;y&amp;quot;: 4.2}, {&amp;quot;x&amp;quot;: 32.68, &amp;quot;y&amp;quot;: 5.0}, {&amp;quot;x&amp;quot;: 34.3, &amp;quot;y&amp;quot;: 6.7}, {&amp;quot;x&amp;quot;: 34.83, &amp;quot;y&amp;quot;: 5.17}, {&amp;quot;x&amp;quot;: 41.19, &amp;quot;y&amp;quot;: 5.0}, {&amp;quot;x&amp;quot;: 43.11, &amp;quot;y&amp;quot;: 5.0}]], &amp;quot;selectors&amp;quot;: [&amp;quot;g[id='maidr-ee890cb9-468b-4eaf-8d36-2b11685f3246'] path&amp;quot;]}]}]]}&quot;>
  <metadata>
   <rdf:RDF xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot; xmlns:cc=&quot;http://creativecommons.org/ns#&quot; xmlns:rdf=&quot;http://www.w3.org/1999/02/22-rdf-syntax-ns#&quot;>
    <cc:Work>
     <dc:type rdf:resource=&quot;http://purl.org/dc/dcmitype/StillImage&quot;/>
-    <dc:date>2026-10-08T12:03:35.500455</dc:date>
+    <dc:date>2026-10-08T12:42:39.899115</dc:date>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
@@ -729,29 +739,29 @@ cookieconsent.run({
   <style type=&quot;text/css&quot;>*{stroke-linejoin: round; stroke-linecap: butt}</style>
  </defs>
  <g id=&quot;figure_1&quot;>
-  <g id=&quot;maidr-9084a73b-8013-4e53-9d44-3a3673d7bbca&quot;>
+  <g id=&quot;maidr-abf41c04-0f41-4b56-b7a3-31a137b4f0bd&quot;>
    <path d=&quot;M 0 432  L 432 432  L 432 0  L 0 0  z &quot; style=&quot;fill: #ffffff&quot;/>
   </g>
   <g id=&quot;axes_1&quot;>
-   <g id=&quot;maidr-603d8cc4-312f-42e0-bb0a-da47d61de435&quot;>
+   <g id=&quot;maidr-d59b7aab-51b9-424c-a710-0c9969757c20&quot;>
     <path d=&quot;M 54 384.48  L 388.8 384.48  L 388.8 51.84  L 54 51.84  z &quot; style=&quot;fill: #ffffff&quot;/>
    </g>
-   <g id=&quot;maidr-a277dbfa-a3d0-4fb5-8f71-4d855d581104&quot;>
+   <g id=&quot;maidr-96f30181-24c9-4c5a-bb83-cf1ff21c1bf6&quot;>
     <defs>
-     <path id=&quot;m407e0ac117&quot; d=&quot;M 116.155158 -104.254679  L 116.155158 -104.254679  L 116.155158 -104.254679  L 116.155158 -104.254679  z &quot; style=&quot;stroke: #1f77b4; stroke-opacity: 0.2&quot;/>
+     <path id=&quot;m3291a8b482&quot; d=&quot;M 116.155158 -104.254679  L 116.155158 -104.254679  L 116.155158 -104.254679  L 116.155158 -104.254679  z &quot; style=&quot;stroke: #1f77b4; stroke-opacity: 0.2&quot;/>
     </defs>
-    <g clip-path=&quot;url(#pb93104c5db)&quot;>
-     <use xlink:href=&quot;#m407e0ac117&quot; x=&quot;0&quot; y=&quot;432&quot; style=&quot;fill: #1f77b4; fill-opacity: 0.2; stroke: #1f77b4; stroke-opacity: 0.2&quot;/>
+    <g clip-path=&quot;url(#p36001da362)&quot;>
+     <use xlink:href=&quot;#m3291a8b482&quot; x=&quot;0&quot; y=&quot;432&quot; style=&quot;fill: #1f77b4; fill-opacity: 0.2; stroke: #1f77b4; stroke-opacity: 0.2&quot;/>
     </g>
    </g>
    <g id=&quot;matplotlib.axis_1&quot;>
     <g id=&quot;xtick_1&quot;>
-     <g id=&quot;maidr-4b7848b9-51c9-4ae0-93d2-f1e7fa02287c&quot;>
+     <g id=&quot;maidr-76c1e228-2d63-4012-9dfd-8390604f3ada&quot;>
       <defs>
-       <path id=&quot;m4f48412473&quot; d=&quot;M 0 0  L 0 3.5  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <path id=&quot;me9a1c86e1e&quot; d=&quot;M 0 0  L 0 3.5  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </defs>
       <g>
-       <use xlink:href=&quot;#m4f48412473&quot; x=&quot;90.506537&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#me9a1c86e1e&quot; x=&quot;90.506537&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_1&quot;>
@@ -773,9 +783,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;xtick_2&quot;>
-     <g id=&quot;maidr-f7b48702-c2d7-4c23-94ed-3681bd15a691&quot;>
+     <g id=&quot;maidr-6003f3d2-c107-4251-a730-000e448b6f23&quot;>
       <g>
-       <use xlink:href=&quot;#m4f48412473&quot; x=&quot;133.254239&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#me9a1c86e1e&quot; x=&quot;133.254239&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_2&quot;>
@@ -794,9 +804,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;xtick_3&quot;>
-     <g id=&quot;maidr-210dad76-7f96-411c-b3d3-462214556b65&quot;>
+     <g id=&quot;maidr-bde33e1f-f008-4807-a460-db9fe7e9e398&quot;>
       <g>
-       <use xlink:href=&quot;#m4f48412473&quot; x=&quot;176.001941&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#me9a1c86e1e&quot; x=&quot;176.001941&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_3&quot;>
@@ -815,9 +825,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;xtick_4&quot;>
-     <g id=&quot;maidr-b0e37b9a-adf8-43ec-9d69-e09dd3694df7&quot;>
+     <g id=&quot;maidr-325f759f-05d0-4775-b280-370e80282ed1&quot;>
       <g>
-       <use xlink:href=&quot;#m4f48412473&quot; x=&quot;218.749642&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#me9a1c86e1e&quot; x=&quot;218.749642&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_4&quot;>
@@ -833,9 +843,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;xtick_5&quot;>
-     <g id=&quot;maidr-7ad6fe5f-70c5-4db0-991e-eac8af124d1f&quot;>
+     <g id=&quot;maidr-28601138-d0b6-4323-97ce-138f5276884e&quot;>
       <g>
-       <use xlink:href=&quot;#m4f48412473&quot; x=&quot;261.497344&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#me9a1c86e1e&quot; x=&quot;261.497344&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_5&quot;>
@@ -854,9 +864,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;xtick_6&quot;>
-     <g id=&quot;maidr-c8e85d9c-1ba7-4545-9e41-f13f92e0fcd9&quot;>
+     <g id=&quot;maidr-b27e5797-991d-46fc-ba09-0af17e52c2af&quot;>
       <g>
-       <use xlink:href=&quot;#m4f48412473&quot; x=&quot;304.245046&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#me9a1c86e1e&quot; x=&quot;304.245046&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_6&quot;>
@@ -872,9 +882,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;xtick_7&quot;>
-     <g id=&quot;maidr-693974c0-07d6-4d9d-ad1b-594967cde874&quot;>
+     <g id=&quot;maidr-c7ce5e33-d26e-409d-b9eb-a3cfac374e15&quot;>
       <g>
-       <use xlink:href=&quot;#m4f48412473&quot; x=&quot;346.992748&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#me9a1c86e1e&quot; x=&quot;346.992748&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_7&quot;>
@@ -920,12 +930,12 @@ cookieconsent.run({
    </g>
    <g id=&quot;matplotlib.axis_2&quot;>
     <g id=&quot;ytick_1&quot;>
-     <g id=&quot;maidr-5205bc0e-402a-457a-a166-82c268850ba7&quot;>
+     <g id=&quot;maidr-383079bd-c4b9-4efe-acc6-c779d42d6555&quot;>
       <defs>
-       <path id=&quot;m4d2f44b4d5&quot; d=&quot;M 0 0  L -3.5 0  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <path id=&quot;m312ebec301&quot; d=&quot;M 0 0  L -3.5 0  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </defs>
       <g>
-       <use xlink:href=&quot;#m4d2f44b4d5&quot; x=&quot;54&quot; y=&quot;383.23156&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m312ebec301&quot; x=&quot;54&quot; y=&quot;383.23156&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_9&quot;>
@@ -940,9 +950,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;ytick_2&quot;>
-     <g id=&quot;maidr-519c4fd6-e258-4fa4-9a13-07b3d3333673&quot;>
+     <g id=&quot;maidr-15c54323-0de6-4394-bfa9-ac132b4eca99&quot;>
       <g>
-       <use xlink:href=&quot;#m4d2f44b4d5&quot; x=&quot;54&quot; y=&quot;327.745321&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m312ebec301&quot; x=&quot;54&quot; y=&quot;327.745321&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_10&quot;>
@@ -957,9 +967,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;ytick_3&quot;>
-     <g id=&quot;maidr-5feeab40-df28-4126-bf5f-b6baaa61028f&quot;>
+     <g id=&quot;maidr-2ce9bca2-cce4-4784-8258-0d72d8ef7c0f&quot;>
       <g>
-       <use xlink:href=&quot;#m4d2f44b4d5&quot; x=&quot;54&quot; y=&quot;272.259083&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m312ebec301&quot; x=&quot;54&quot; y=&quot;272.259083&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_11&quot;>
@@ -974,9 +984,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;ytick_4&quot;>
-     <g id=&quot;maidr-ccc204b9-ba6d-4e56-ad4c-9c3c31be25cf&quot;>
+     <g id=&quot;maidr-c9fe7656-4c9a-4b19-b8d2-3e7e60cbb7f7&quot;>
       <g>
-       <use xlink:href=&quot;#m4d2f44b4d5&quot; x=&quot;54&quot; y=&quot;216.772844&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m312ebec301&quot; x=&quot;54&quot; y=&quot;216.772844&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_12&quot;>
@@ -991,9 +1001,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;ytick_5&quot;>
-     <g id=&quot;maidr-057798da-0ed0-42ef-aaa0-aad998701480&quot;>
+     <g id=&quot;maidr-a4805eab-ad2a-412c-8022-96950a44bc57&quot;>
       <g>
-       <use xlink:href=&quot;#m4d2f44b4d5&quot; x=&quot;54&quot; y=&quot;161.286606&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m312ebec301&quot; x=&quot;54&quot; y=&quot;161.286606&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_13&quot;>
@@ -1008,9 +1018,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;ytick_6&quot;>
-     <g id=&quot;maidr-0b0f3418-74b0-41a6-966a-e20f32262c41&quot;>
+     <g id=&quot;maidr-aba98ac8-c86d-4623-bd42-a9c0f3e748e5&quot;>
       <g>
-       <use xlink:href=&quot;#m4d2f44b4d5&quot; x=&quot;54&quot; y=&quot;105.800367&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m312ebec301&quot; x=&quot;54&quot; y=&quot;105.800367&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_14&quot;>
@@ -1039,85 +1049,85 @@ cookieconsent.run({
      </g>
     </g>
    </g>
-   <g id=&quot;maidr-85f6bebd-2a7d-40ba-af94-efd80c75eca3&quot; maidr=&quot;498f304d-6118-4c73-adc0-d330823bebdf&quot;>
-    <path d=&quot;M 69.218182 327.745321  L 69.645659 358.817615  L 76.399796 355.48844  L 77.767722 369.36  L 77.853218 356.598165  L 88.625638 342.726606  L 91.105005 337.177982  L 93.327886 327.745321  L 93.413381 327.745321  L 96.063739 355.48844  L 100.509499 355.48844  L 102.304903 327.745321  L 104.95526 310.544587  L 106.494178 348.275229  L 109.828498 327.745321  L 111.28192 338.842569  L 111.709397 298.892477  L 113.932278 327.190459  L 116.155158 327.745321  L 116.411645 327.745321  L 117.523085 286.130642  L 119.745965 345.500917  L 120.515424 327.745321  L 125.98713 327.745321  L 126.927579 300.002202  L 129.15046 327.745321  L 137.358018 326.635596  L 141.376302 327.745321  L 141.632789 326.080734  L 141.803779 327.745321  L 145.223596 300.002202  L 145.480082 311.09945  L 145.822063 259.497248  L 146.762513 216.772844  L 147.446476 250.064587  L 152.832686 288.350092  L 154.371604 244.515963  L 161.125741 258.387523  L 161.296731 216.772844  L 164.374566 363.256514  L 164.973034 216.772844  L 165.571502 272.259083  L 168.136364 355.48844  L 171.214198 272.259083  L 174.377528 206.230459  L 178.310317 281.691743  L 180.533197 216.772844  L 185.919408 272.259083  L 199.598672 272.259083  L 200.111645 317.757798  L 210.884065 276.697982  L 216.270276 114.123303  L 236.2762 161.286606  L 237.558631 216.772844  L 248.160061 296.673028  L 259.787436 205.675596  L 284.410112 161.286606  L 298.260368 66.96  L 302.791624 151.853945  L 357.166701 161.286606  L 373.581818 161.286606  &quot; clip-path=&quot;url(#pb93104c5db)&quot; style=&quot;fill: none; stroke: #1f77b4; stroke-width: 1.5; stroke-linecap: square&quot;/>
+   <g id=&quot;maidr-ee890cb9-468b-4eaf-8d36-2b11685f3246&quot; maidr=&quot;8732b4c0-3539-4ac4-8909-38493a2228a5&quot;>
+    <path d=&quot;M 69.218182 327.745321  L 69.645659 358.817615  L 76.399796 355.48844  L 77.767722 369.36  L 77.853218 356.598165  L 88.625638 342.726606  L 91.105005 337.177982  L 93.327886 327.745321  L 93.413381 327.745321  L 96.063739 355.48844  L 100.509499 355.48844  L 102.304903 327.745321  L 104.95526 310.544587  L 106.494178 348.275229  L 109.828498 327.745321  L 111.28192 338.842569  L 111.709397 298.892477  L 113.932278 327.190459  L 116.155158 327.745321  L 116.411645 327.745321  L 117.523085 286.130642  L 119.745965 345.500917  L 120.515424 327.745321  L 125.98713 327.745321  L 126.927579 300.002202  L 129.15046 327.745321  L 137.358018 326.635596  L 141.376302 327.745321  L 141.632789 326.080734  L 141.803779 327.745321  L 145.223596 300.002202  L 145.480082 311.09945  L 145.822063 259.497248  L 146.762513 216.772844  L 147.446476 250.064587  L 152.832686 288.350092  L 154.371604 244.515963  L 161.125741 258.387523  L 161.296731 216.772844  L 164.374566 363.256514  L 164.973034 216.772844  L 165.571502 272.259083  L 168.136364 355.48844  L 171.214198 272.259083  L 174.377528 206.230459  L 178.310317 281.691743  L 180.533197 216.772844  L 185.919408 272.259083  L 199.598672 272.259083  L 200.111645 317.757798  L 210.884065 276.697982  L 216.270276 114.123303  L 236.2762 161.286606  L 237.558631 216.772844  L 248.160061 296.673028  L 259.787436 205.675596  L 284.410112 161.286606  L 298.260368 66.96  L 302.791624 151.853945  L 357.166701 161.286606  L 373.581818 161.286606  &quot; clip-path=&quot;url(#p36001da362)&quot; style=&quot;fill: none; stroke: #1f77b4; stroke-width: 1.5; stroke-linecap: square&quot;/>
     <defs>
-     <path id=&quot;m41e90622d9&quot; d=&quot;M 0 3  C 0.795609 3 1.55874 2.683901 2.12132 2.12132  C 2.683901 1.55874 3 0.795609 3 0  C 3 -0.795609 2.683901 -1.55874 2.12132 -2.12132  C 1.55874 -2.683901 0.795609 -3 0 -3  C -0.795609 -3 -1.55874 -2.683901 -2.12132 -2.12132  C -2.683901 -1.55874 -3 -0.795609 -3 0  C -3 0.795609 -2.683901 1.55874 -2.12132 2.12132  C -1.55874 2.683901 -0.795609 3 0 3  z &quot; style=&quot;stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <path id=&quot;mb580a1bef2&quot; d=&quot;M 0 3  C 0.795609 3 1.55874 2.683901 2.12132 2.12132  C 2.683901 1.55874 3 0.795609 3 0  C 3 -0.795609 2.683901 -1.55874 2.12132 -2.12132  C 1.55874 -2.683901 0.795609 -3 0 -3  C -0.795609 -3 -1.55874 -2.683901 -2.12132 -2.12132  C -2.683901 -1.55874 -3 -0.795609 -3 0  C -3 0.795609 -2.683901 1.55874 -2.12132 2.12132  C -1.55874 2.683901 -0.795609 3 0 3  z &quot; style=&quot;stroke: #ffffff; stroke-width: 0.75&quot;/>
     </defs>
-    <g clip-path=&quot;url(#pb93104c5db)&quot;>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;69.218182&quot; y=&quot;327.745321&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;69.645659&quot; y=&quot;358.817615&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;76.399796&quot; y=&quot;355.48844&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;77.767722&quot; y=&quot;369.36&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;77.853218&quot; y=&quot;356.598165&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;88.625638&quot; y=&quot;342.726606&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;91.105005&quot; y=&quot;337.177982&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;93.327886&quot; y=&quot;327.745321&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;93.413381&quot; y=&quot;327.745321&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;96.063739&quot; y=&quot;355.48844&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;100.509499&quot; y=&quot;355.48844&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;102.304903&quot; y=&quot;327.745321&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;104.95526&quot; y=&quot;310.544587&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;106.494178&quot; y=&quot;348.275229&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;109.828498&quot; y=&quot;327.745321&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;111.28192&quot; y=&quot;338.842569&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;111.709397&quot; y=&quot;298.892477&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;113.932278&quot; y=&quot;327.190459&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;116.155158&quot; y=&quot;327.745321&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;116.411645&quot; y=&quot;327.745321&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;117.523085&quot; y=&quot;286.130642&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;119.745965&quot; y=&quot;345.500917&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;120.515424&quot; y=&quot;327.745321&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;125.98713&quot; y=&quot;327.745321&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;126.927579&quot; y=&quot;300.002202&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;129.15046&quot; y=&quot;327.745321&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;137.358018&quot; y=&quot;326.635596&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;141.376302&quot; y=&quot;327.745321&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;141.632789&quot; y=&quot;326.080734&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;141.803779&quot; y=&quot;327.745321&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;145.223596&quot; y=&quot;300.002202&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;145.480082&quot; y=&quot;311.09945&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;145.822063&quot; y=&quot;259.497248&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;146.762513&quot; y=&quot;216.772844&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;147.446476&quot; y=&quot;250.064587&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;152.832686&quot; y=&quot;288.350092&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;154.371604&quot; y=&quot;244.515963&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;161.125741&quot; y=&quot;258.387523&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;161.296731&quot; y=&quot;216.772844&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;164.374566&quot; y=&quot;363.256514&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;164.973034&quot; y=&quot;216.772844&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;165.571502&quot; y=&quot;272.259083&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;168.136364&quot; y=&quot;355.48844&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;171.214198&quot; y=&quot;272.259083&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;174.377528&quot; y=&quot;206.230459&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;178.310317&quot; y=&quot;281.691743&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;180.533197&quot; y=&quot;216.772844&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;185.919408&quot; y=&quot;272.259083&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;199.598672&quot; y=&quot;272.259083&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;200.111645&quot; y=&quot;317.757798&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;210.884065&quot; y=&quot;276.697982&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;216.270276&quot; y=&quot;114.123303&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;236.2762&quot; y=&quot;161.286606&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;237.558631&quot; y=&quot;216.772844&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;248.160061&quot; y=&quot;296.673028&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;259.787436&quot; y=&quot;205.675596&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;284.410112&quot; y=&quot;161.286606&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;298.260368&quot; y=&quot;66.96&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;302.791624&quot; y=&quot;151.853945&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;357.166701&quot; y=&quot;161.286606&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m41e90622d9&quot; x=&quot;373.581818&quot; y=&quot;161.286606&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+    <g clip-path=&quot;url(#p36001da362)&quot;>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;69.218182&quot; y=&quot;327.745321&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;69.645659&quot; y=&quot;358.817615&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;76.399796&quot; y=&quot;355.48844&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;77.767722&quot; y=&quot;369.36&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;77.853218&quot; y=&quot;356.598165&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;88.625638&quot; y=&quot;342.726606&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;91.105005&quot; y=&quot;337.177982&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;93.327886&quot; y=&quot;327.745321&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;93.413381&quot; y=&quot;327.745321&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;96.063739&quot; y=&quot;355.48844&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;100.509499&quot; y=&quot;355.48844&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;102.304903&quot; y=&quot;327.745321&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;104.95526&quot; y=&quot;310.544587&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;106.494178&quot; y=&quot;348.275229&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;109.828498&quot; y=&quot;327.745321&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;111.28192&quot; y=&quot;338.842569&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;111.709397&quot; y=&quot;298.892477&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;113.932278&quot; y=&quot;327.190459&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;116.155158&quot; y=&quot;327.745321&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;116.411645&quot; y=&quot;327.745321&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;117.523085&quot; y=&quot;286.130642&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;119.745965&quot; y=&quot;345.500917&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;120.515424&quot; y=&quot;327.745321&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;125.98713&quot; y=&quot;327.745321&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;126.927579&quot; y=&quot;300.002202&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;129.15046&quot; y=&quot;327.745321&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;137.358018&quot; y=&quot;326.635596&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;141.376302&quot; y=&quot;327.745321&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;141.632789&quot; y=&quot;326.080734&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;141.803779&quot; y=&quot;327.745321&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;145.223596&quot; y=&quot;300.002202&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;145.480082&quot; y=&quot;311.09945&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;145.822063&quot; y=&quot;259.497248&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;146.762513&quot; y=&quot;216.772844&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;147.446476&quot; y=&quot;250.064587&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;152.832686&quot; y=&quot;288.350092&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;154.371604&quot; y=&quot;244.515963&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;161.125741&quot; y=&quot;258.387523&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;161.296731&quot; y=&quot;216.772844&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;164.374566&quot; y=&quot;363.256514&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;164.973034&quot; y=&quot;216.772844&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;165.571502&quot; y=&quot;272.259083&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;168.136364&quot; y=&quot;355.48844&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;171.214198&quot; y=&quot;272.259083&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;174.377528&quot; y=&quot;206.230459&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;178.310317&quot; y=&quot;281.691743&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;180.533197&quot; y=&quot;216.772844&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;185.919408&quot; y=&quot;272.259083&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;199.598672&quot; y=&quot;272.259083&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;200.111645&quot; y=&quot;317.757798&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;210.884065&quot; y=&quot;276.697982&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;216.270276&quot; y=&quot;114.123303&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;236.2762&quot; y=&quot;161.286606&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;237.558631&quot; y=&quot;216.772844&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;248.160061&quot; y=&quot;296.673028&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;259.787436&quot; y=&quot;205.675596&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;284.410112&quot; y=&quot;161.286606&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;298.260368&quot; y=&quot;66.96&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;302.791624&quot; y=&quot;151.853945&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;357.166701&quot; y=&quot;161.286606&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mb580a1bef2&quot; x=&quot;373.581818&quot; y=&quot;161.286606&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
     </g>
    </g>
-   <g id=&quot;maidr-7cebc8f1-e5a2-436b-bba9-18031e61bc96&quot;>
+   <g id=&quot;maidr-e30cc088-7a1a-4bec-aca7-f0a5f23f2ac4&quot;>
     <path d=&quot;M 54 384.48  L 54 51.84  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-ff699ab3-ac5d-40a8-9064-fb8aaa623197&quot;>
+   <g id=&quot;maidr-5c7102be-d4c6-46d9-badc-112498dd2016&quot;>
     <path d=&quot;M 388.8 384.48  L 388.8 51.84  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-da58d7cf-d9c0-4df7-8536-26a00af77325&quot;>
+   <g id=&quot;maidr-60f544d2-bb4a-4d93-b8a5-9f518810bacb&quot;>
     <path d=&quot;M 54 384.48  L 388.8 384.48  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-bbd4a37b-455d-429c-bec8-0125437e4245&quot;>
+   <g id=&quot;maidr-4709a20e-abb6-424a-b52e-de82d7f7ea06&quot;>
     <path d=&quot;M 54 51.84  L 388.8 51.84  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
    <g id=&quot;text_16&quot;>
@@ -1168,7 +1178,7 @@ cookieconsent.run({
   </g>
  </g>
  <defs>
-  <clipPath id=&quot;pb93104c5db&quot;>
+  <clipPath id=&quot;p36001da362&quot;>
    <rect x=&quot;54&quot; y=&quot;51.84&quot; width=&quot;334.8&quot; height=&quot;332.64&quot;/>
   </clipPath>
  </defs>
@@ -1176,7 +1186,7 @@ cookieconsent.run({
 </div>
 </div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
         function resizeIframe() {
-            let iframe = document.getElementById('iframe_4afcc827-b5d1-4bb9-bbb2-74f2c8e735f5');
+            let iframe = document.getElementById('iframe_64a7e4b2-ddb9-4d8b-ac7e-ea3d38388b73');
             if (
                 iframe &amp;&amp; iframe.contentWindow &amp;&amp;
                 iframe.contentWindow.document
@@ -1240,7 +1250,7 @@ cookieconsent.run({
                 iframe.style.width = iframeDocument.body.scrollWidth + 'px';
             }
         }
-        let iframe = document.getElementById('iframe_4afcc827-b5d1-4bb9-bbb2-74f2c8e735f5');
+        let iframe = document.getElementById('iframe_64a7e4b2-ddb9-4d8b-ac7e-ea3d38388b73');
         resizeIframe();
         iframe.onload = function() {
             resizeIframe();
@@ -1301,7 +1311,7 @@ cookieconsent.run({
 </section>
 <section id="multiline-plot" class="level3">
 <h3 class="anchored" data-anchor-id="multiline-plot">Multiline Plot</h3>
-<div id="ead9ab53" class="cell" data-execution_count="3">
+<div id="83704d0f" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" data-source-line-numbers="nil" data-code-line-numbers="6,40"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
@@ -1343,7 +1353,7 @@ cookieconsent.run({
 <span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a><span class="co"># Display the plot</span></span>
 <span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a>plt.show() </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<iframe id="iframe_8f705fa7-9cd9-4400-942c-f71f97f24d1e" title="Seaborn Multiline Plot, accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
+<iframe id="iframe_74f53f51-ee14-47f4-b797-7d5a7b204365" title="Seaborn Multiline Plot, accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
   <script type=&quot;text/javascript&quot;>
                 (function() {
                     var existing = document.querySelector('script[src=&quot;https://cdn.jsdelivr.net/npm/maidr@4.14.0/dist/maidr.js&quot;]');
@@ -1361,12 +1371,12 @@ cookieconsent.run({
                     }
                 })();
             </script>
-  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;432pt&quot; height=&quot;432pt&quot; viewBox=&quot;0 0 432 432&quot; version=&quot;1.1&quot; id=&quot;41858c3d-9ba4-4154-a61c-6920140664ae&quot; maidr=&quot;{&amp;quot;id&amp;quot;: &amp;quot;41858c3d-9ba4-4154-a61c-6920140664ae&amp;quot;, &amp;quot;subplots&amp;quot;: [[{&amp;quot;id&amp;quot;: &amp;quot;5c7ee00b-0c8b-417e-836c-fe0ca2a8735f&amp;quot;, &amp;quot;layers&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;2d6d0a0d-567c-4ca5-bf25-0a8d28a7d7ef&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;line&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;Seaborn Multiline Plot&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;X values&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;type&amp;quot;: &amp;quot;fixed&amp;quot;, &amp;quot;decimals&amp;quot;: 0}}, &amp;quot;y&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Y values&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;type&amp;quot;: &amp;quot;fixed&amp;quot;, &amp;quot;decimals&amp;quot;: 0}}, &amp;quot;z&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;series&amp;quot;}}, &amp;quot;data&amp;quot;: [[{&amp;quot;x&amp;quot;: 1.0, &amp;quot;y&amp;quot;: 2.0, &amp;quot;z&amp;quot;: &amp;quot;Series 1&amp;quot;}, {&amp;quot;x&amp;quot;: 2.0, &amp;quot;y&amp;quot;: 4.0, &amp;quot;z&amp;quot;: &amp;quot;Series 1&amp;quot;}, {&amp;quot;x&amp;quot;: 3.0, &amp;quot;y&amp;quot;: 1.0, &amp;quot;z&amp;quot;: &amp;quot;Series 1&amp;quot;}, {&amp;quot;x&amp;quot;: 4.0, &amp;quot;y&amp;quot;: 5.0, &amp;quot;z&amp;quot;: &amp;quot;Series 1&amp;quot;}, {&amp;quot;x&amp;quot;: 5.0, &amp;quot;y&amp;quot;: 3.0, &amp;quot;z&amp;quot;: &amp;quot;Series 1&amp;quot;}, {&amp;quot;x&amp;quot;: 6.0, &amp;quot;y&amp;quot;: 7.0, &amp;quot;z&amp;quot;: &amp;quot;Series 1&amp;quot;}, {&amp;quot;x&amp;quot;: 7.0, &amp;quot;y&amp;quot;: 6.0, &amp;quot;z&amp;quot;: &amp;quot;Series 1&amp;quot;}, {&amp;quot;x&amp;quot;: 8.0, &amp;quot;y&amp;quot;: 8.0, &amp;quot;z&amp;quot;: &amp;quot;Series 1&amp;quot;}], [{&amp;quot;x&amp;quot;: 1.0, &amp;quot;y&amp;quot;: 1.0, &amp;quot;z&amp;quot;: &amp;quot;Series 2&amp;quot;}, {&amp;quot;x&amp;quot;: 2.0, &amp;quot;y&amp;quot;: 3.0, &amp;quot;z&amp;quot;: &amp;quot;Series 2&amp;quot;}, {&amp;quot;x&amp;quot;: 3.0, &amp;quot;y&amp;quot;: 5.0, &amp;quot;z&amp;quot;: &amp;quot;Series 2&amp;quot;}, {&amp;quot;x&amp;quot;: 4.0, &amp;quot;y&amp;quot;: 2.0, &amp;quot;z&amp;quot;: &amp;quot;Series 2&amp;quot;}, {&amp;quot;x&amp;quot;: 5.0, &amp;quot;y&amp;quot;: 4.0, &amp;quot;z&amp;quot;: &amp;quot;Series 2&amp;quot;}, {&amp;quot;x&amp;quot;: 6.0, &amp;quot;y&amp;quot;: 6.0, &amp;quot;z&amp;quot;: &amp;quot;Series 2&amp;quot;}, {&amp;quot;x&amp;quot;: 7.0, &amp;quot;y&amp;quot;: 8.0, &amp;quot;z&amp;quot;: &amp;quot;Series 2&amp;quot;}, {&amp;quot;x&amp;quot;: 8.0, &amp;quot;y&amp;quot;: 7.0, &amp;quot;z&amp;quot;: &amp;quot;Series 2&amp;quot;}], [{&amp;quot;x&amp;quot;: 1.0, &amp;quot;y&amp;quot;: 3.0, &amp;quot;z&amp;quot;: &amp;quot;Series 3&amp;quot;}, {&amp;quot;x&amp;quot;: 2.0, &amp;quot;y&amp;quot;: 1.0, &amp;quot;z&amp;quot;: &amp;quot;Series 3&amp;quot;}, {&amp;quot;x&amp;quot;: 3.0, &amp;quot;y&amp;quot;: 4.0, &amp;quot;z&amp;quot;: &amp;quot;Series 3&amp;quot;}, {&amp;quot;x&amp;quot;: 4.0, &amp;quot;y&amp;quot;: 6.0, &amp;quot;z&amp;quot;: &amp;quot;Series 3&amp;quot;}, {&amp;quot;x&amp;quot;: 5.0, &amp;quot;y&amp;quot;: 5.0, &amp;quot;z&amp;quot;: &amp;quot;Series 3&amp;quot;}, {&amp;quot;x&amp;quot;: 6.0, &amp;quot;y&amp;quot;: 2.0, &amp;quot;z&amp;quot;: &amp;quot;Series 3&amp;quot;}, {&amp;quot;x&amp;quot;: 7.0, &amp;quot;y&amp;quot;: 4.0, &amp;quot;z&amp;quot;: &amp;quot;Series 3&amp;quot;}, {&amp;quot;x&amp;quot;: 8.0, &amp;quot;y&amp;quot;: 5.0, &amp;quot;z&amp;quot;: &amp;quot;Series 3&amp;quot;}]], &amp;quot;selectors&amp;quot;: [&amp;quot;g[id='maidr-b114dcf2-6922-482e-b0b8-6ba17f4ce396'] path&amp;quot;, &amp;quot;g[id='maidr-5cd5a0a1-6e4b-4880-8474-9e9f9263636b'] path&amp;quot;, &amp;quot;g[id='maidr-28240167-43bf-4ce5-a5eb-18be4977ed0b'] path&amp;quot;]}]}]]}&quot;>
+  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;432pt&quot; height=&quot;432pt&quot; viewBox=&quot;0 0 432 432&quot; version=&quot;1.1&quot; id=&quot;22f27e7f-bf60-4177-8246-400e35ee7acd&quot; maidr=&quot;{&amp;quot;id&amp;quot;: &amp;quot;22f27e7f-bf60-4177-8246-400e35ee7acd&amp;quot;, &amp;quot;subplots&amp;quot;: [[{&amp;quot;id&amp;quot;: &amp;quot;3a3d8df7-af62-410f-8bd1-50a83d89fca6&amp;quot;, &amp;quot;layers&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;0c1ac3d9-24d2-4abb-9e12-50283064e7c8&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;line&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;Seaborn Multiline Plot&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;X values&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;type&amp;quot;: &amp;quot;fixed&amp;quot;, &amp;quot;decimals&amp;quot;: 0}}, &amp;quot;y&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Y values&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;type&amp;quot;: &amp;quot;fixed&amp;quot;, &amp;quot;decimals&amp;quot;: 0}}, &amp;quot;z&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;series&amp;quot;}}, &amp;quot;data&amp;quot;: [[{&amp;quot;x&amp;quot;: 1.0, &amp;quot;y&amp;quot;: 2.0, &amp;quot;z&amp;quot;: &amp;quot;Series 1&amp;quot;}, {&amp;quot;x&amp;quot;: 2.0, &amp;quot;y&amp;quot;: 4.0, &amp;quot;z&amp;quot;: &amp;quot;Series 1&amp;quot;}, {&amp;quot;x&amp;quot;: 3.0, &amp;quot;y&amp;quot;: 1.0, &amp;quot;z&amp;quot;: &amp;quot;Series 1&amp;quot;}, {&amp;quot;x&amp;quot;: 4.0, &amp;quot;y&amp;quot;: 5.0, &amp;quot;z&amp;quot;: &amp;quot;Series 1&amp;quot;}, {&amp;quot;x&amp;quot;: 5.0, &amp;quot;y&amp;quot;: 3.0, &amp;quot;z&amp;quot;: &amp;quot;Series 1&amp;quot;}, {&amp;quot;x&amp;quot;: 6.0, &amp;quot;y&amp;quot;: 7.0, &amp;quot;z&amp;quot;: &amp;quot;Series 1&amp;quot;}, {&amp;quot;x&amp;quot;: 7.0, &amp;quot;y&amp;quot;: 6.0, &amp;quot;z&amp;quot;: &amp;quot;Series 1&amp;quot;}, {&amp;quot;x&amp;quot;: 8.0, &amp;quot;y&amp;quot;: 8.0, &amp;quot;z&amp;quot;: &amp;quot;Series 1&amp;quot;}], [{&amp;quot;x&amp;quot;: 1.0, &amp;quot;y&amp;quot;: 1.0, &amp;quot;z&amp;quot;: &amp;quot;Series 2&amp;quot;}, {&amp;quot;x&amp;quot;: 2.0, &amp;quot;y&amp;quot;: 3.0, &amp;quot;z&amp;quot;: &amp;quot;Series 2&amp;quot;}, {&amp;quot;x&amp;quot;: 3.0, &amp;quot;y&amp;quot;: 5.0, &amp;quot;z&amp;quot;: &amp;quot;Series 2&amp;quot;}, {&amp;quot;x&amp;quot;: 4.0, &amp;quot;y&amp;quot;: 2.0, &amp;quot;z&amp;quot;: &amp;quot;Series 2&amp;quot;}, {&amp;quot;x&amp;quot;: 5.0, &amp;quot;y&amp;quot;: 4.0, &amp;quot;z&amp;quot;: &amp;quot;Series 2&amp;quot;}, {&amp;quot;x&amp;quot;: 6.0, &amp;quot;y&amp;quot;: 6.0, &amp;quot;z&amp;quot;: &amp;quot;Series 2&amp;quot;}, {&amp;quot;x&amp;quot;: 7.0, &amp;quot;y&amp;quot;: 8.0, &amp;quot;z&amp;quot;: &amp;quot;Series 2&amp;quot;}, {&amp;quot;x&amp;quot;: 8.0, &amp;quot;y&amp;quot;: 7.0, &amp;quot;z&amp;quot;: &amp;quot;Series 2&amp;quot;}], [{&amp;quot;x&amp;quot;: 1.0, &amp;quot;y&amp;quot;: 3.0, &amp;quot;z&amp;quot;: &amp;quot;Series 3&amp;quot;}, {&amp;quot;x&amp;quot;: 2.0, &amp;quot;y&amp;quot;: 1.0, &amp;quot;z&amp;quot;: &amp;quot;Series 3&amp;quot;}, {&amp;quot;x&amp;quot;: 3.0, &amp;quot;y&amp;quot;: 4.0, &amp;quot;z&amp;quot;: &amp;quot;Series 3&amp;quot;}, {&amp;quot;x&amp;quot;: 4.0, &amp;quot;y&amp;quot;: 6.0, &amp;quot;z&amp;quot;: &amp;quot;Series 3&amp;quot;}, {&amp;quot;x&amp;quot;: 5.0, &amp;quot;y&amp;quot;: 5.0, &amp;quot;z&amp;quot;: &amp;quot;Series 3&amp;quot;}, {&amp;quot;x&amp;quot;: 6.0, &amp;quot;y&amp;quot;: 2.0, &amp;quot;z&amp;quot;: &amp;quot;Series 3&amp;quot;}, {&amp;quot;x&amp;quot;: 7.0, &amp;quot;y&amp;quot;: 4.0, &amp;quot;z&amp;quot;: &amp;quot;Series 3&amp;quot;}, {&amp;quot;x&amp;quot;: 8.0, &amp;quot;y&amp;quot;: 5.0, &amp;quot;z&amp;quot;: &amp;quot;Series 3&amp;quot;}]], &amp;quot;selectors&amp;quot;: [&amp;quot;g[id='maidr-d6542f3e-9b6f-4f82-a1b8-91e08b9d007e'] path&amp;quot;, &amp;quot;g[id='maidr-c4951f87-7a52-4d64-a88f-d3734e0a0e38'] path&amp;quot;, &amp;quot;g[id='maidr-6c59a409-04fd-443d-b9ff-77fc068fcd53'] path&amp;quot;]}]}]]}&quot;>
  <metadata>
   <rdf:RDF xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot; xmlns:cc=&quot;http://creativecommons.org/ns#&quot; xmlns:rdf=&quot;http://www.w3.org/1999/02/22-rdf-syntax-ns#&quot;>
    <cc:Work>
     <dc:type rdf:resource=&quot;http://purl.org/dc/dcmitype/StillImage&quot;/>
-    <dc:date>2026-10-08T12:03:35.591302</dc:date>
+    <dc:date>2026-10-08T12:42:39.980567</dc:date>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
@@ -1380,24 +1390,24 @@ cookieconsent.run({
   <style type=&quot;text/css&quot;>*{stroke-linejoin: round; stroke-linecap: butt}</style>
  </defs>
  <g id=&quot;figure_1&quot;>
-  <g id=&quot;maidr-ccba1911-bb3a-4f32-ba3f-a9d0d8ff64f3&quot;>
+  <g id=&quot;maidr-932610d9-bb9b-49a7-94a7-931f50341b76&quot;>
    <path d=&quot;M 0 432  L 432 432  L 432 0  L 0 0  z &quot; style=&quot;fill: #ffffff&quot;/>
   </g>
   <g id=&quot;axes_1&quot;>
-   <g id=&quot;maidr-d617336c-0a7e-48d5-b044-5052b45778c3&quot;>
+   <g id=&quot;maidr-1ab50ca3-601c-4796-8b70-7bccc3a4cc73&quot;>
     <path d=&quot;M 54 384.48  L 388.8 384.48  L 388.8 51.84  L 54 51.84  z &quot; style=&quot;fill: #ffffff&quot;/>
    </g>
-   <g id=&quot;maidr-19233eb0-503e-4a69-ba61-86bb2e6ae446&quot;/>
-   <g id=&quot;maidr-b84ca4e4-7226-4fc1-801e-12b5e58721dd&quot;/>
-   <g id=&quot;maidr-9b6e86e5-4845-4856-8972-22097f461fa5&quot;/>
+   <g id=&quot;maidr-ec038f31-81f7-4159-97f1-5211cef28658&quot;/>
+   <g id=&quot;maidr-85d9b7d3-751b-4d13-9322-2a2402948213&quot;/>
+   <g id=&quot;maidr-8f222e49-841d-459c-a016-3d06a149e178&quot;/>
    <g id=&quot;matplotlib.axis_1&quot;>
     <g id=&quot;xtick_1&quot;>
-     <g id=&quot;maidr-690b052a-be97-47dc-8085-47c6ff8f0d53&quot;>
+     <g id=&quot;maidr-40c3adb8-7cea-4e1d-96d6-66db08718b39&quot;>
       <defs>
-       <path id=&quot;m8f572c9abe&quot; d=&quot;M 0 0  L 0 3.5  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <path id=&quot;mf44eccfb47&quot; d=&quot;M 0 0  L 0 3.5  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </defs>
       <g>
-       <use xlink:href=&quot;#m8f572c9abe&quot; x=&quot;69.218182&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mf44eccfb47&quot; x=&quot;69.218182&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_1&quot;>
@@ -1411,9 +1421,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;xtick_2&quot;>
-     <g id=&quot;maidr-ae006af5-f9a8-4752-b3d8-ccdac708fe6e&quot;>
+     <g id=&quot;maidr-aca5f3f1-0f55-43f8-ab18-582af4dafb70&quot;>
       <g>
-       <use xlink:href=&quot;#m8f572c9abe&quot; x=&quot;112.698701&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mf44eccfb47&quot; x=&quot;112.698701&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_2&quot;>
@@ -1427,9 +1437,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;xtick_3&quot;>
-     <g id=&quot;maidr-cde3412a-6bbe-456b-9d1e-2a3034c39fce&quot;>
+     <g id=&quot;maidr-2ad97949-1618-41cd-93de-4676870974c1&quot;>
       <g>
-       <use xlink:href=&quot;#m8f572c9abe&quot; x=&quot;156.179221&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mf44eccfb47&quot; x=&quot;156.179221&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_3&quot;>
@@ -1443,9 +1453,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;xtick_4&quot;>
-     <g id=&quot;maidr-611ce8b0-4337-4463-bef8-711c09e2a916&quot;>
+     <g id=&quot;maidr-a12e671f-33c8-45c4-9506-a8cb474aec93&quot;>
       <g>
-       <use xlink:href=&quot;#m8f572c9abe&quot; x=&quot;199.65974&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mf44eccfb47&quot; x=&quot;199.65974&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_4&quot;>
@@ -1459,9 +1469,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;xtick_5&quot;>
-     <g id=&quot;maidr-c2172faa-60b2-4545-866f-ef10d938195a&quot;>
+     <g id=&quot;maidr-25e87dcc-6b9b-42f9-9a47-4405b33d2ef9&quot;>
       <g>
-       <use xlink:href=&quot;#m8f572c9abe&quot; x=&quot;243.14026&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mf44eccfb47&quot; x=&quot;243.14026&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_5&quot;>
@@ -1475,9 +1485,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;xtick_6&quot;>
-     <g id=&quot;maidr-b539e317-663d-41b1-8cc6-676bcf02e78b&quot;>
+     <g id=&quot;maidr-84cfa025-9e90-46cf-8a9c-854d6041e31f&quot;>
       <g>
-       <use xlink:href=&quot;#m8f572c9abe&quot; x=&quot;286.620779&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mf44eccfb47&quot; x=&quot;286.620779&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_6&quot;>
@@ -1491,9 +1501,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;xtick_7&quot;>
-     <g id=&quot;maidr-9e14d8fb-1ec5-43a1-bf08-06d5b0c8b184&quot;>
+     <g id=&quot;maidr-e75377da-81d9-468f-86d1-1a127e45fc36&quot;>
       <g>
-       <use xlink:href=&quot;#m8f572c9abe&quot; x=&quot;330.101299&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mf44eccfb47&quot; x=&quot;330.101299&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_7&quot;>
@@ -1507,9 +1517,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;xtick_8&quot;>
-     <g id=&quot;maidr-8309497a-adab-4cc9-aa41-d8d202247632&quot;>
+     <g id=&quot;maidr-c3c863b5-5145-4d7a-82d5-51651c1d1af6&quot;>
       <g>
-       <use xlink:href=&quot;#m8f572c9abe&quot; x=&quot;373.581818&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mf44eccfb47&quot; x=&quot;373.581818&quot; y=&quot;384.48&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_8&quot;>
@@ -1548,12 +1558,12 @@ cookieconsent.run({
    </g>
    <g id=&quot;matplotlib.axis_2&quot;>
     <g id=&quot;ytick_1&quot;>
-     <g id=&quot;maidr-7effc555-6af6-4f1a-ac7e-48baedccd0e8&quot;>
+     <g id=&quot;maidr-dc42f2d2-77d3-4b11-8a33-ca0782888e77&quot;>
       <defs>
-       <path id=&quot;m83646a511d&quot; d=&quot;M 0 0  L -3.5 0  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <path id=&quot;m00ea87490a&quot; d=&quot;M 0 0  L -3.5 0  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </defs>
       <g>
-       <use xlink:href=&quot;#m83646a511d&quot; x=&quot;54&quot; y=&quot;369.36&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m00ea87490a&quot; x=&quot;54&quot; y=&quot;369.36&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_10&quot;>
@@ -1564,9 +1574,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;ytick_2&quot;>
-     <g id=&quot;maidr-c04a8fae-2340-4c75-81c5-02bd75034d64&quot;>
+     <g id=&quot;maidr-d2ed24d3-7d2e-437e-a40d-35ccb2a0d8bf&quot;>
       <g>
-       <use xlink:href=&quot;#m83646a511d&quot; x=&quot;54&quot; y=&quot;326.16&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m00ea87490a&quot; x=&quot;54&quot; y=&quot;326.16&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_11&quot;>
@@ -1577,9 +1587,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;ytick_3&quot;>
-     <g id=&quot;maidr-13201d10-96b8-4926-82db-25f5850a9bd2&quot;>
+     <g id=&quot;maidr-2f566d4e-a75b-46b3-97ef-ccbbb6b82947&quot;>
       <g>
-       <use xlink:href=&quot;#m83646a511d&quot; x=&quot;54&quot; y=&quot;282.96&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m00ea87490a&quot; x=&quot;54&quot; y=&quot;282.96&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_12&quot;>
@@ -1590,9 +1600,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;ytick_4&quot;>
-     <g id=&quot;maidr-0d1444fc-95e6-41b6-a4a2-5e6d5cf01ce6&quot;>
+     <g id=&quot;maidr-c5ae07f5-d069-4c22-a3b8-7b8085206776&quot;>
       <g>
-       <use xlink:href=&quot;#m83646a511d&quot; x=&quot;54&quot; y=&quot;239.76&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m00ea87490a&quot; x=&quot;54&quot; y=&quot;239.76&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_13&quot;>
@@ -1603,9 +1613,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;ytick_5&quot;>
-     <g id=&quot;maidr-4b61a853-b74d-4200-9cfc-dd6253648c28&quot;>
+     <g id=&quot;maidr-d721ee91-1769-441e-b9bd-8bb81b4480fa&quot;>
       <g>
-       <use xlink:href=&quot;#m83646a511d&quot; x=&quot;54&quot; y=&quot;196.56&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m00ea87490a&quot; x=&quot;54&quot; y=&quot;196.56&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_14&quot;>
@@ -1616,9 +1626,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;ytick_6&quot;>
-     <g id=&quot;maidr-c6e8675c-e377-467c-aff8-a79e9c990010&quot;>
+     <g id=&quot;maidr-a083f018-0545-4228-a34d-0696ee74637c&quot;>
       <g>
-       <use xlink:href=&quot;#m83646a511d&quot; x=&quot;54&quot; y=&quot;153.36&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m00ea87490a&quot; x=&quot;54&quot; y=&quot;153.36&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_15&quot;>
@@ -1629,9 +1639,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;ytick_7&quot;>
-     <g id=&quot;maidr-76338068-a391-4a02-8e36-3d5705fde1d6&quot;>
+     <g id=&quot;maidr-35d1df65-eac2-4ae6-91b5-76cd731d548a&quot;>
       <g>
-       <use xlink:href=&quot;#m83646a511d&quot; x=&quot;54&quot; y=&quot;110.16&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m00ea87490a&quot; x=&quot;54&quot; y=&quot;110.16&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_16&quot;>
@@ -1642,9 +1652,9 @@ cookieconsent.run({
      </g>
     </g>
     <g id=&quot;ytick_8&quot;>
-     <g id=&quot;maidr-f8cae534-afbc-4137-871a-1a3d721092b6&quot;>
+     <g id=&quot;maidr-ba2edf75-4171-47be-9480-d0d6374f16a6&quot;>
       <g>
-       <use xlink:href=&quot;#m83646a511d&quot; x=&quot;54&quot; y=&quot;66.96&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m00ea87490a&quot; x=&quot;54&quot; y=&quot;66.96&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_17&quot;>
@@ -1671,67 +1681,67 @@ cookieconsent.run({
      </g>
     </g>
    </g>
-   <g id=&quot;maidr-b114dcf2-6922-482e-b0b8-6ba17f4ce396&quot; maidr=&quot;817a5a8f-2e77-4337-b828-19b6f8aee067&quot;>
-    <path d=&quot;M 69.218182 326.16  L 112.698701 239.76  L 156.179221 369.36  L 199.65974 196.56  L 243.14026 282.96  L 286.620779 110.16  L 330.101299 153.36  L 373.581818 66.96  &quot; clip-path=&quot;url(#p2830c8f022)&quot; style=&quot;fill: none; stroke: #1f77b4; stroke-width: 1.5; stroke-linecap: square&quot;/>
+   <g id=&quot;maidr-d6542f3e-9b6f-4f82-a1b8-91e08b9d007e&quot; maidr=&quot;d9592aa6-d667-4733-bb69-cdccabfe472e&quot;>
+    <path d=&quot;M 69.218182 326.16  L 112.698701 239.76  L 156.179221 369.36  L 199.65974 196.56  L 243.14026 282.96  L 286.620779 110.16  L 330.101299 153.36  L 373.581818 66.96  &quot; clip-path=&quot;url(#pa99e018279)&quot; style=&quot;fill: none; stroke: #1f77b4; stroke-width: 1.5; stroke-linecap: square&quot;/>
     <defs>
-     <path id=&quot;m6f818b7964&quot; d=&quot;M 0 3  C 0.795609 3 1.55874 2.683901 2.12132 2.12132  C 2.683901 1.55874 3 0.795609 3 0  C 3 -0.795609 2.683901 -1.55874 2.12132 -2.12132  C 1.55874 -2.683901 0.795609 -3 0 -3  C -0.795609 -3 -1.55874 -2.683901 -2.12132 -2.12132  C -2.683901 -1.55874 -3 -0.795609 -3 0  C -3 0.795609 -2.683901 1.55874 -2.12132 2.12132  C -1.55874 2.683901 -0.795609 3 0 3  z &quot; style=&quot;stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <path id=&quot;mcb0d715128&quot; d=&quot;M 0 3  C 0.795609 3 1.55874 2.683901 2.12132 2.12132  C 2.683901 1.55874 3 0.795609 3 0  C 3 -0.795609 2.683901 -1.55874 2.12132 -2.12132  C 1.55874 -2.683901 0.795609 -3 0 -3  C -0.795609 -3 -1.55874 -2.683901 -2.12132 -2.12132  C -2.683901 -1.55874 -3 -0.795609 -3 0  C -3 0.795609 -2.683901 1.55874 -2.12132 2.12132  C -1.55874 2.683901 -0.795609 3 0 3  z &quot; style=&quot;stroke: #ffffff; stroke-width: 0.75&quot;/>
     </defs>
-    <g clip-path=&quot;url(#p2830c8f022)&quot;>
-     <use xlink:href=&quot;#m6f818b7964&quot; x=&quot;69.218182&quot; y=&quot;326.16&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m6f818b7964&quot; x=&quot;112.698701&quot; y=&quot;239.76&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m6f818b7964&quot; x=&quot;156.179221&quot; y=&quot;369.36&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m6f818b7964&quot; x=&quot;199.65974&quot; y=&quot;196.56&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m6f818b7964&quot; x=&quot;243.14026&quot; y=&quot;282.96&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m6f818b7964&quot; x=&quot;286.620779&quot; y=&quot;110.16&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m6f818b7964&quot; x=&quot;330.101299&quot; y=&quot;153.36&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
-     <use xlink:href=&quot;#m6f818b7964&quot; x=&quot;373.581818&quot; y=&quot;66.96&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+    <g clip-path=&quot;url(#pa99e018279)&quot;>
+     <use xlink:href=&quot;#mcb0d715128&quot; x=&quot;69.218182&quot; y=&quot;326.16&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mcb0d715128&quot; x=&quot;112.698701&quot; y=&quot;239.76&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mcb0d715128&quot; x=&quot;156.179221&quot; y=&quot;369.36&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mcb0d715128&quot; x=&quot;199.65974&quot; y=&quot;196.56&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mcb0d715128&quot; x=&quot;243.14026&quot; y=&quot;282.96&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mcb0d715128&quot; x=&quot;286.620779&quot; y=&quot;110.16&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mcb0d715128&quot; x=&quot;330.101299&quot; y=&quot;153.36&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+     <use xlink:href=&quot;#mcb0d715128&quot; x=&quot;373.581818&quot; y=&quot;66.96&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
     </g>
    </g>
-   <g id=&quot;maidr-5cd5a0a1-6e4b-4880-8474-9e9f9263636b&quot; maidr=&quot;817a5a8f-2e77-4337-b828-19b6f8aee067&quot;>
-    <path d=&quot;M 69.218182 369.36  L 112.698701 282.96  L 156.179221 196.56  L 199.65974 326.16  L 243.14026 239.76  L 286.620779 153.36  L 330.101299 66.96  L 373.581818 110.16  &quot; clip-path=&quot;url(#p2830c8f022)&quot; style=&quot;fill: none; stroke-dasharray: 6,2.25; stroke-dashoffset: 0; stroke: #ff7f0e; stroke-width: 1.5&quot;/>
+   <g id=&quot;maidr-c4951f87-7a52-4d64-a88f-d3734e0a0e38&quot; maidr=&quot;d9592aa6-d667-4733-bb69-cdccabfe472e&quot;>
+    <path d=&quot;M 69.218182 369.36  L 112.698701 282.96  L 156.179221 196.56  L 199.65974 326.16  L 243.14026 239.76  L 286.620779 153.36  L 330.101299 66.96  L 373.581818 110.16  &quot; clip-path=&quot;url(#pa99e018279)&quot; style=&quot;fill: none; stroke-dasharray: 6,2.25; stroke-dashoffset: 0; stroke: #ff7f0e; stroke-width: 1.5&quot;/>
     <defs>
-     <path id=&quot;m38bc721a09&quot; d=&quot;M -1.5 3  L 0 1.5  L 1.5 3  L 3 1.5  L 1.5 0  L 3 -1.5  L 1.5 -3  L 0 -1.5  L -1.5 -3  L -3 -1.5  L -1.5 0  L -3 1.5  z &quot; style=&quot;stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
+     <path id=&quot;m44b48b7a23&quot; d=&quot;M -1.5 3  L 0 1.5  L 1.5 3  L 3 1.5  L 1.5 0  L 3 -1.5  L 1.5 -3  L 0 -1.5  L -1.5 -3  L -3 -1.5  L -1.5 0  L -3 1.5  z &quot; style=&quot;stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
     </defs>
-    <g clip-path=&quot;url(#p2830c8f022)&quot;>
-     <use xlink:href=&quot;#m38bc721a09&quot; x=&quot;69.218182&quot; y=&quot;369.36&quot; style=&quot;fill: #ff7f0e; stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
-     <use xlink:href=&quot;#m38bc721a09&quot; x=&quot;112.698701&quot; y=&quot;282.96&quot; style=&quot;fill: #ff7f0e; stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
-     <use xlink:href=&quot;#m38bc721a09&quot; x=&quot;156.179221&quot; y=&quot;196.56&quot; style=&quot;fill: #ff7f0e; stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
-     <use xlink:href=&quot;#m38bc721a09&quot; x=&quot;199.65974&quot; y=&quot;326.16&quot; style=&quot;fill: #ff7f0e; stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
-     <use xlink:href=&quot;#m38bc721a09&quot; x=&quot;243.14026&quot; y=&quot;239.76&quot; style=&quot;fill: #ff7f0e; stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
-     <use xlink:href=&quot;#m38bc721a09&quot; x=&quot;286.620779&quot; y=&quot;153.36&quot; style=&quot;fill: #ff7f0e; stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
-     <use xlink:href=&quot;#m38bc721a09&quot; x=&quot;330.101299&quot; y=&quot;66.96&quot; style=&quot;fill: #ff7f0e; stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
-     <use xlink:href=&quot;#m38bc721a09&quot; x=&quot;373.581818&quot; y=&quot;110.16&quot; style=&quot;fill: #ff7f0e; stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
+    <g clip-path=&quot;url(#pa99e018279)&quot;>
+     <use xlink:href=&quot;#m44b48b7a23&quot; x=&quot;69.218182&quot; y=&quot;369.36&quot; style=&quot;fill: #ff7f0e; stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
+     <use xlink:href=&quot;#m44b48b7a23&quot; x=&quot;112.698701&quot; y=&quot;282.96&quot; style=&quot;fill: #ff7f0e; stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
+     <use xlink:href=&quot;#m44b48b7a23&quot; x=&quot;156.179221&quot; y=&quot;196.56&quot; style=&quot;fill: #ff7f0e; stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
+     <use xlink:href=&quot;#m44b48b7a23&quot; x=&quot;199.65974&quot; y=&quot;326.16&quot; style=&quot;fill: #ff7f0e; stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
+     <use xlink:href=&quot;#m44b48b7a23&quot; x=&quot;243.14026&quot; y=&quot;239.76&quot; style=&quot;fill: #ff7f0e; stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
+     <use xlink:href=&quot;#m44b48b7a23&quot; x=&quot;286.620779&quot; y=&quot;153.36&quot; style=&quot;fill: #ff7f0e; stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
+     <use xlink:href=&quot;#m44b48b7a23&quot; x=&quot;330.101299&quot; y=&quot;66.96&quot; style=&quot;fill: #ff7f0e; stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
+     <use xlink:href=&quot;#m44b48b7a23&quot; x=&quot;373.581818&quot; y=&quot;110.16&quot; style=&quot;fill: #ff7f0e; stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
     </g>
    </g>
-   <g id=&quot;maidr-28240167-43bf-4ce5-a5eb-18be4977ed0b&quot; maidr=&quot;817a5a8f-2e77-4337-b828-19b6f8aee067&quot;>
-    <path d=&quot;M 69.218182 282.96  L 112.698701 369.36  L 156.179221 239.76  L 199.65974 153.36  L 243.14026 196.56  L 286.620779 326.16  L 330.101299 239.76  L 373.581818 196.56  &quot; clip-path=&quot;url(#p2830c8f022)&quot; style=&quot;fill: none; stroke-dasharray: 1.5,1.5; stroke-dashoffset: 0; stroke: #2ca02c; stroke-width: 1.5&quot;/>
+   <g id=&quot;maidr-6c59a409-04fd-443d-b9ff-77fc068fcd53&quot; maidr=&quot;d9592aa6-d667-4733-bb69-cdccabfe472e&quot;>
+    <path d=&quot;M 69.218182 282.96  L 112.698701 369.36  L 156.179221 239.76  L 199.65974 153.36  L 243.14026 196.56  L 286.620779 326.16  L 330.101299 239.76  L 373.581818 196.56  &quot; clip-path=&quot;url(#pa99e018279)&quot; style=&quot;fill: none; stroke-dasharray: 1.5,1.5; stroke-dashoffset: 0; stroke: #2ca02c; stroke-width: 1.5&quot;/>
     <defs>
-     <path id=&quot;m5d91a8e4cd&quot; d=&quot;M -2.12132 -2.12132  L -2.12132 2.12132  L 2.12132 2.12132  L 2.12132 -2.12132  z &quot; style=&quot;stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
+     <path id=&quot;ma9b75d665b&quot; d=&quot;M -2.12132 -2.12132  L -2.12132 2.12132  L 2.12132 2.12132  L 2.12132 -2.12132  z &quot; style=&quot;stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
     </defs>
-    <g clip-path=&quot;url(#p2830c8f022)&quot;>
-     <use xlink:href=&quot;#m5d91a8e4cd&quot; x=&quot;69.218182&quot; y=&quot;282.96&quot; style=&quot;fill: #2ca02c; stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
-     <use xlink:href=&quot;#m5d91a8e4cd&quot; x=&quot;112.698701&quot; y=&quot;369.36&quot; style=&quot;fill: #2ca02c; stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
-     <use xlink:href=&quot;#m5d91a8e4cd&quot; x=&quot;156.179221&quot; y=&quot;239.76&quot; style=&quot;fill: #2ca02c; stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
-     <use xlink:href=&quot;#m5d91a8e4cd&quot; x=&quot;199.65974&quot; y=&quot;153.36&quot; style=&quot;fill: #2ca02c; stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
-     <use xlink:href=&quot;#m5d91a8e4cd&quot; x=&quot;243.14026&quot; y=&quot;196.56&quot; style=&quot;fill: #2ca02c; stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
-     <use xlink:href=&quot;#m5d91a8e4cd&quot; x=&quot;286.620779&quot; y=&quot;326.16&quot; style=&quot;fill: #2ca02c; stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
-     <use xlink:href=&quot;#m5d91a8e4cd&quot; x=&quot;330.101299&quot; y=&quot;239.76&quot; style=&quot;fill: #2ca02c; stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
-     <use xlink:href=&quot;#m5d91a8e4cd&quot; x=&quot;373.581818&quot; y=&quot;196.56&quot; style=&quot;fill: #2ca02c; stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
+    <g clip-path=&quot;url(#pa99e018279)&quot;>
+     <use xlink:href=&quot;#ma9b75d665b&quot; x=&quot;69.218182&quot; y=&quot;282.96&quot; style=&quot;fill: #2ca02c; stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
+     <use xlink:href=&quot;#ma9b75d665b&quot; x=&quot;112.698701&quot; y=&quot;369.36&quot; style=&quot;fill: #2ca02c; stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
+     <use xlink:href=&quot;#ma9b75d665b&quot; x=&quot;156.179221&quot; y=&quot;239.76&quot; style=&quot;fill: #2ca02c; stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
+     <use xlink:href=&quot;#ma9b75d665b&quot; x=&quot;199.65974&quot; y=&quot;153.36&quot; style=&quot;fill: #2ca02c; stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
+     <use xlink:href=&quot;#ma9b75d665b&quot; x=&quot;243.14026&quot; y=&quot;196.56&quot; style=&quot;fill: #2ca02c; stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
+     <use xlink:href=&quot;#ma9b75d665b&quot; x=&quot;286.620779&quot; y=&quot;326.16&quot; style=&quot;fill: #2ca02c; stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
+     <use xlink:href=&quot;#ma9b75d665b&quot; x=&quot;330.101299&quot; y=&quot;239.76&quot; style=&quot;fill: #2ca02c; stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
+     <use xlink:href=&quot;#ma9b75d665b&quot; x=&quot;373.581818&quot; y=&quot;196.56&quot; style=&quot;fill: #2ca02c; stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
     </g>
    </g>
-   <g id=&quot;maidr-af71f0b3-c96e-4b1f-b52f-605dba3ec455&quot;/>
-   <g id=&quot;maidr-5531e314-734b-4579-8e33-59dffe655b32&quot;/>
-   <g id=&quot;maidr-f89cf704-ea7a-4513-a5eb-ec93b5a978bb&quot;/>
-   <g id=&quot;maidr-97f6fab9-c9a6-4c79-bc99-96bfbc1c72e2&quot;>
+   <g id=&quot;maidr-46447ed4-6a47-4fb3-a905-27f6224fc93a&quot;/>
+   <g id=&quot;maidr-cb80949f-13a4-4ab0-b454-4b26ab806c6b&quot;/>
+   <g id=&quot;maidr-7a0b663b-b488-4a9f-a511-5de34b743548&quot;/>
+   <g id=&quot;maidr-d05ece6f-75df-4601-9bc9-bab025fab875&quot;>
     <path d=&quot;M 54 384.48  L 54 51.84  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-ba6bcc6f-0b46-4336-88c6-a86ad84fdbc9&quot;>
+   <g id=&quot;maidr-d24b79a4-6ca9-43c4-9924-132aefd34005&quot;>
     <path d=&quot;M 388.8 384.48  L 388.8 51.84  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-5c14e093-2b61-4b1d-bd30-f024f0848369&quot;>
+   <g id=&quot;maidr-dc63c91e-b167-420f-957d-85f7df09310d&quot;>
     <path d=&quot;M 54 384.48  L 388.8 384.48  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-abc31600-3c82-44f5-90d8-f1bec3cb3cd1&quot;>
+   <g id=&quot;maidr-2a62a826-5c52-479a-958d-27bbe6d5ec90&quot;>
     <path d=&quot;M 54 51.84  L 388.8 51.84  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
    <g id=&quot;text_19&quot;>
@@ -1773,7 +1783,7 @@ cookieconsent.run({
     </g>
    </g>
    <g id=&quot;legend_1&quot;>
-    <g id=&quot;maidr-648d0b6b-a9e3-4968-a3d8-d6df77b6fed8&quot;>
+    <g id=&quot;maidr-ca1698eb-638b-41b5-92a4-55ad3012726f&quot;>
      <path d=&quot;M 61 119.843125  L 133.29375 119.843125  Q 135.29375 119.843125 135.29375 117.843125  L 135.29375 58.84  Q 135.29375 56.84 133.29375 56.84  L 61 56.84  Q 59 56.84 59 58.84  L 59 117.843125  Q 59 119.843125 61 119.843125  z &quot; style=&quot;fill: #ffffff; opacity: 0.8; stroke: #cccccc; stroke-linejoin: miter&quot;/>
     </g>
     <g id=&quot;text_20&quot;>
@@ -1787,10 +1797,10 @@ cookieconsent.run({
       <use xlink:href=&quot;#DejaVuSans-56&quot; transform=&quot;translate(244.046875 0)&quot;/>
      </g>
     </g>
-    <g id=&quot;maidr-1574a47a-057c-451d-8f5a-03068992b96c&quot;>
+    <g id=&quot;maidr-2ef4040b-500a-49e5-8fef-94f1ba3e54a4&quot;>
      <path d=&quot;M 63 79.939219  L 73 79.939219  L 83 79.939219  &quot; style=&quot;fill: none; stroke: #1f77b4; stroke-width: 1.5; stroke-linecap: square&quot;/>
      <g>
-      <use xlink:href=&quot;#m6f818b7964&quot; x=&quot;73&quot; y=&quot;79.939219&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
+      <use xlink:href=&quot;#mcb0d715128&quot; x=&quot;73&quot; y=&quot;79.939219&quot; style=&quot;fill: #1f77b4; stroke: #ffffff; stroke-width: 0.75&quot;/>
      </g>
     </g>
     <g id=&quot;text_21&quot;>
@@ -1806,10 +1816,10 @@ cookieconsent.run({
       <use xlink:href=&quot;#DejaVuSans-14&quot; transform=&quot;translate(339.3125 0)&quot;/>
      </g>
     </g>
-    <g id=&quot;maidr-fbe75230-e178-473c-8526-c8aaaa410fa0&quot;>
+    <g id=&quot;maidr-c97aed0f-a97a-4664-83ae-f98564d85e45&quot;>
      <path d=&quot;M 63 94.94  L 73 94.94  L 83 94.94  &quot; style=&quot;fill: none; stroke-dasharray: 6,2.25; stroke-dashoffset: 0; stroke: #ff7f0e; stroke-width: 1.5&quot;/>
      <g>
-      <use xlink:href=&quot;#m38bc721a09&quot; x=&quot;73&quot; y=&quot;94.94&quot; style=&quot;fill: #ff7f0e; stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
+      <use xlink:href=&quot;#m44b48b7a23&quot; x=&quot;73&quot; y=&quot;94.94&quot; style=&quot;fill: #ff7f0e; stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
      </g>
     </g>
     <g id=&quot;text_22&quot;>
@@ -1825,10 +1835,10 @@ cookieconsent.run({
       <use xlink:href=&quot;#DejaVuSans-15&quot; transform=&quot;translate(339.3125 0)&quot;/>
      </g>
     </g>
-    <g id=&quot;maidr-4d412f3c-cedc-4596-8fc5-a80d86abe9c4&quot;>
+    <g id=&quot;maidr-55ade27d-be6d-46c3-9ebd-c2a84dcc7789&quot;>
      <path d=&quot;M 63 109.940781  L 73 109.940781  L 83 109.940781  &quot; style=&quot;fill: none; stroke-dasharray: 1.5,1.5; stroke-dashoffset: 0; stroke: #2ca02c; stroke-width: 1.5&quot;/>
      <g>
-      <use xlink:href=&quot;#m5d91a8e4cd&quot; x=&quot;73&quot; y=&quot;109.940781&quot; style=&quot;fill: #2ca02c; stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
+      <use xlink:href=&quot;#ma9b75d665b&quot; x=&quot;73&quot; y=&quot;109.940781&quot; style=&quot;fill: #2ca02c; stroke: #ffffff; stroke-width: 0.75; stroke-linejoin: miter&quot;/>
      </g>
     </g>
     <g id=&quot;text_23&quot;>
@@ -1848,7 +1858,7 @@ cookieconsent.run({
   </g>
  </g>
  <defs>
-  <clipPath id=&quot;p2830c8f022&quot;>
+  <clipPath id=&quot;pa99e018279&quot;>
    <rect x=&quot;54&quot; y=&quot;51.84&quot; width=&quot;334.8&quot; height=&quot;332.64&quot;/>
   </clipPath>
  </defs>
@@ -1856,7 +1866,7 @@ cookieconsent.run({
 </div>
 </div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
         function resizeIframe() {
-            let iframe = document.getElementById('iframe_8f705fa7-9cd9-4400-942c-f71f97f24d1e');
+            let iframe = document.getElementById('iframe_74f53f51-ee14-47f4-b797-7d5a7b204365');
             if (
                 iframe &amp;&amp; iframe.contentWindow &amp;&amp;
                 iframe.contentWindow.document
@@ -1920,7 +1930,7 @@ cookieconsent.run({
                 iframe.style.width = iframeDocument.body.scrollWidth + 'px';
             }
         }
-        let iframe = document.getElementById('iframe_8f705fa7-9cd9-4400-942c-f71f97f24d1e');
+        let iframe = document.getElementById('iframe_74f53f51-ee14-47f4-b797-7d5a7b204365');
         resizeIframe();
         iframe.onload = function() {
             resizeIframe();
@@ -1984,7 +1994,7 @@ cookieconsent.run({
 <h2 class="anchored" data-anchor-id="step-plot">Step Plot</h2>
 <p>A step plot is the right chart when the value is <em>piecewise constant</em>: it is held across an interval and then jumps, rather than sliding continuously between samples. <code>ax.step()</code> produces one, as does any <code>drawstyle="steps-*"</code> passed to <code>ax.plot()</code> or <code>sns.lineplot()</code>.</p>
 <p>The classic case is a <strong>hypnogram</strong> — an ordinal sleep stage against time. Plot the stages as numeric codes so they keep driving sonification, braille and the min/max bounds, then name the codes with <code>set_yticks(..., labels=...)</code>. maidr attaches the names to each point and announces “REM” instead of “3”.</p>
-<div id="a5433622" class="cell" data-execution_count="4">
+<div id="51fb0016" class="cell" data-execution_count="4">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4" data-source-line-numbers="nil" data-code-line-numbers="3,16,19,28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> maidr </span>
@@ -2014,7 +2024,7 @@ cookieconsent.run({
 <span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>plt.show() </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<iframe id="iframe_0ca65904-c041-44cb-9a75-f7cbdb59a308" title="Hypnogram
+<iframe id="iframe_e23c82b0-1503-4b20-8bf4-69828ab91602" title="Hypnogram
 Sleep stage across one night, accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
   <script type=&quot;text/javascript&quot;>
                 (function() {
@@ -2033,12 +2043,12 @@ Sleep stage across one night, accessible chart" data-maidr-chart="" allow="bluet
                     }
                 })();
             </script>
-  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;720pt&quot; height=&quot;360pt&quot; viewBox=&quot;0 0 720 360&quot; version=&quot;1.1&quot; id=&quot;992c8e82-7514-4fba-8cc0-c0d42ed0d2ad&quot; maidr=&quot;{&amp;quot;id&amp;quot;: &amp;quot;992c8e82-7514-4fba-8cc0-c0d42ed0d2ad&amp;quot;, &amp;quot;subplots&amp;quot;: [[{&amp;quot;id&amp;quot;: &amp;quot;be22f6ce-f581-446a-84d8-eec16c607718&amp;quot;, &amp;quot;layers&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;6392aea6-0f4e-4e80-a068-0694622201fe&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;step&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;Hypnogram\nSleep stage across one night&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Time asleep (hours)&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;type&amp;quot;: &amp;quot;fixed&amp;quot;, &amp;quot;decimals&amp;quot;: 1}}, &amp;quot;y&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Sleep stage&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;function&amp;quot;: &amp;quot;return String(value)&amp;quot;}}}, &amp;quot;data&amp;quot;: [[{&amp;quot;x&amp;quot;: 0.0, &amp;quot;y&amp;quot;: 4.0, &amp;quot;label&amp;quot;: &amp;quot;Awake&amp;quot;}, {&amp;quot;x&amp;quot;: 0.5, &amp;quot;y&amp;quot;: 3.0, &amp;quot;label&amp;quot;: &amp;quot;REM&amp;quot;}, {&amp;quot;x&amp;quot;: 1.0, &amp;quot;y&amp;quot;: 2.0, &amp;quot;label&amp;quot;: &amp;quot;N1&amp;quot;}, {&amp;quot;x&amp;quot;: 1.5, &amp;quot;y&amp;quot;: 1.0, &amp;quot;label&amp;quot;: &amp;quot;N2&amp;quot;}, {&amp;quot;x&amp;quot;: 2.0, &amp;quot;y&amp;quot;: 0.0, &amp;quot;label&amp;quot;: &amp;quot;N3&amp;quot;}, {&amp;quot;x&amp;quot;: 2.5, &amp;quot;y&amp;quot;: 0.0, &amp;quot;label&amp;quot;: &amp;quot;N3&amp;quot;}, {&amp;quot;x&amp;quot;: 3.0, &amp;quot;y&amp;quot;: 1.0, &amp;quot;label&amp;quot;: &amp;quot;N2&amp;quot;}, {&amp;quot;x&amp;quot;: 3.5, &amp;quot;y&amp;quot;: 3.0, &amp;quot;label&amp;quot;: &amp;quot;REM&amp;quot;}, {&amp;quot;x&amp;quot;: 4.0, &amp;quot;y&amp;quot;: 2.0, &amp;quot;label&amp;quot;: &amp;quot;N1&amp;quot;}, {&amp;quot;x&amp;quot;: 4.5, &amp;quot;y&amp;quot;: 1.0, &amp;quot;label&amp;quot;: &amp;quot;N2&amp;quot;}, {&amp;quot;x&amp;quot;: 5.0, &amp;quot;y&amp;quot;: 0.0, &amp;quot;label&amp;quot;: &amp;quot;N3&amp;quot;}, {&amp;quot;x&amp;quot;: 5.5, &amp;quot;y&amp;quot;: 1.0, &amp;quot;label&amp;quot;: &amp;quot;N2&amp;quot;}, {&amp;quot;x&amp;quot;: 6.0, &amp;quot;y&amp;quot;: 3.0, &amp;quot;label&amp;quot;: &amp;quot;REM&amp;quot;}, {&amp;quot;x&amp;quot;: 6.5, &amp;quot;y&amp;quot;: 2.0, &amp;quot;label&amp;quot;: &amp;quot;N1&amp;quot;}, {&amp;quot;x&amp;quot;: 7.0, &amp;quot;y&amp;quot;: 1.0, &amp;quot;label&amp;quot;: &amp;quot;N2&amp;quot;}, {&amp;quot;x&amp;quot;: 7.5, &amp;quot;y&amp;quot;: 3.0, &amp;quot;label&amp;quot;: &amp;quot;REM&amp;quot;}, {&amp;quot;x&amp;quot;: 8.0, &amp;quot;y&amp;quot;: 4.0, &amp;quot;label&amp;quot;: &amp;quot;Awake&amp;quot;}]], &amp;quot;selectors&amp;quot;: [&amp;quot;g[id='maidr-d7573cb0-6d96-4084-a303-7b86dcf27c43'] path&amp;quot;], &amp;quot;stepDirection&amp;quot;: &amp;quot;hv&amp;quot;}]}]]}&quot;>
+  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;720pt&quot; height=&quot;360pt&quot; viewBox=&quot;0 0 720 360&quot; version=&quot;1.1&quot; id=&quot;c000a4c9-156b-4e01-936c-e5cd2da8dacb&quot; maidr=&quot;{&amp;quot;id&amp;quot;: &amp;quot;c000a4c9-156b-4e01-936c-e5cd2da8dacb&amp;quot;, &amp;quot;subplots&amp;quot;: [[{&amp;quot;id&amp;quot;: &amp;quot;7321afb9-ca8e-4b85-b85f-c839b517201f&amp;quot;, &amp;quot;layers&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;2a606990-1496-414b-aa5f-07e38259793e&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;step&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;Hypnogram\nSleep stage across one night&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Time asleep (hours)&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;type&amp;quot;: &amp;quot;fixed&amp;quot;, &amp;quot;decimals&amp;quot;: 1}}, &amp;quot;y&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Sleep stage&amp;quot;, &amp;quot;format&amp;quot;: {&amp;quot;function&amp;quot;: &amp;quot;return String(value)&amp;quot;}}}, &amp;quot;data&amp;quot;: [[{&amp;quot;x&amp;quot;: 0.0, &amp;quot;y&amp;quot;: 4.0, &amp;quot;label&amp;quot;: &amp;quot;Awake&amp;quot;}, {&amp;quot;x&amp;quot;: 0.5, &amp;quot;y&amp;quot;: 3.0, &amp;quot;label&amp;quot;: &amp;quot;REM&amp;quot;}, {&amp;quot;x&amp;quot;: 1.0, &amp;quot;y&amp;quot;: 2.0, &amp;quot;label&amp;quot;: &amp;quot;N1&amp;quot;}, {&amp;quot;x&amp;quot;: 1.5, &amp;quot;y&amp;quot;: 1.0, &amp;quot;label&amp;quot;: &amp;quot;N2&amp;quot;}, {&amp;quot;x&amp;quot;: 2.0, &amp;quot;y&amp;quot;: 0.0, &amp;quot;label&amp;quot;: &amp;quot;N3&amp;quot;}, {&amp;quot;x&amp;quot;: 2.5, &amp;quot;y&amp;quot;: 0.0, &amp;quot;label&amp;quot;: &amp;quot;N3&amp;quot;}, {&amp;quot;x&amp;quot;: 3.0, &amp;quot;y&amp;quot;: 1.0, &amp;quot;label&amp;quot;: &amp;quot;N2&amp;quot;}, {&amp;quot;x&amp;quot;: 3.5, &amp;quot;y&amp;quot;: 3.0, &amp;quot;label&amp;quot;: &amp;quot;REM&amp;quot;}, {&amp;quot;x&amp;quot;: 4.0, &amp;quot;y&amp;quot;: 2.0, &amp;quot;label&amp;quot;: &amp;quot;N1&amp;quot;}, {&amp;quot;x&amp;quot;: 4.5, &amp;quot;y&amp;quot;: 1.0, &amp;quot;label&amp;quot;: &amp;quot;N2&amp;quot;}, {&amp;quot;x&amp;quot;: 5.0, &amp;quot;y&amp;quot;: 0.0, &amp;quot;label&amp;quot;: &amp;quot;N3&amp;quot;}, {&amp;quot;x&amp;quot;: 5.5, &amp;quot;y&amp;quot;: 1.0, &amp;quot;label&amp;quot;: &amp;quot;N2&amp;quot;}, {&amp;quot;x&amp;quot;: 6.0, &amp;quot;y&amp;quot;: 3.0, &amp;quot;label&amp;quot;: &amp;quot;REM&amp;quot;}, {&amp;quot;x&amp;quot;: 6.5, &amp;quot;y&amp;quot;: 2.0, &amp;quot;label&amp;quot;: &amp;quot;N1&amp;quot;}, {&amp;quot;x&amp;quot;: 7.0, &amp;quot;y&amp;quot;: 1.0, &amp;quot;label&amp;quot;: &amp;quot;N2&amp;quot;}, {&amp;quot;x&amp;quot;: 7.5, &amp;quot;y&amp;quot;: 3.0, &amp;quot;label&amp;quot;: &amp;quot;REM&amp;quot;}, {&amp;quot;x&amp;quot;: 8.0, &amp;quot;y&amp;quot;: 4.0, &amp;quot;label&amp;quot;: &amp;quot;Awake&amp;quot;}]], &amp;quot;selectors&amp;quot;: [&amp;quot;g[id='maidr-72f446c5-7b2d-4916-9c04-c99fde261877'] path&amp;quot;], &amp;quot;stepDirection&amp;quot;: &amp;quot;hv&amp;quot;}]}]]}&quot;>
  <metadata>
   <rdf:RDF xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot; xmlns:cc=&quot;http://creativecommons.org/ns#&quot; xmlns:rdf=&quot;http://www.w3.org/1999/02/22-rdf-syntax-ns#&quot;>
    <cc:Work>
     <dc:type rdf:resource=&quot;http://purl.org/dc/dcmitype/StillImage&quot;/>
-    <dc:date>2026-10-08T12:03:35.650209</dc:date>
+    <dc:date>2026-10-08T12:42:40.032543</dc:date>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
@@ -2052,21 +2062,21 @@ Sleep stage across one night, accessible chart" data-maidr-chart="" allow="bluet
   <style type=&quot;text/css&quot;>*{stroke-linejoin: round; stroke-linecap: butt}</style>
  </defs>
  <g id=&quot;figure_1&quot;>
-  <g id=&quot;maidr-d32f6752-7bc3-4275-b593-7c15e68e1697&quot;>
+  <g id=&quot;maidr-b349e78f-41ad-4fc0-9cb1-adfbe35f449c&quot;>
    <path d=&quot;M 0 360  L 720 360  L 720 0  L 0 0  z &quot; style=&quot;fill: #ffffff&quot;/>
   </g>
   <g id=&quot;axes_1&quot;>
-   <g id=&quot;maidr-dbef7005-65d8-44b8-b842-817b7fb7fc0c&quot;>
+   <g id=&quot;maidr-0b68d533-09e9-4a69-b895-7b1822d8f04b&quot;>
     <path d=&quot;M 90 320.4  L 648 320.4  L 648 43.2  L 90 43.2  z &quot; style=&quot;fill: #ffffff&quot;/>
    </g>
    <g id=&quot;matplotlib.axis_1&quot;>
     <g id=&quot;xtick_1&quot;>
-     <g id=&quot;maidr-07bd5509-6366-49c3-886a-6964fe43e730&quot;>
+     <g id=&quot;maidr-f1f66cbd-a85c-4154-83a0-11991c1074c6&quot;>
       <defs>
-       <path id=&quot;m3f30ac6b76&quot; d=&quot;M 0 0  L 0 3.5  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <path id=&quot;mf2a3587405&quot; d=&quot;M 0 0  L 0 3.5  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </defs>
       <g>
-       <use xlink:href=&quot;#m3f30ac6b76&quot; x=&quot;115.363636&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mf2a3587405&quot; x=&quot;115.363636&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_1&quot;>
@@ -2083,9 +2093,9 @@ Sleep stage across one night, accessible chart" data-maidr-chart="" allow="bluet
      </g>
     </g>
     <g id=&quot;xtick_2&quot;>
-     <g id=&quot;maidr-fdba2240-461e-44bb-8de0-245a788b11cd&quot;>
+     <g id=&quot;maidr-2a114747-261c-4f6a-9cf7-589407ad78e9&quot;>
       <g>
-       <use xlink:href=&quot;#m3f30ac6b76&quot; x=&quot;178.772727&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mf2a3587405&quot; x=&quot;178.772727&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_2&quot;>
@@ -2101,9 +2111,9 @@ Sleep stage across one night, accessible chart" data-maidr-chart="" allow="bluet
      </g>
     </g>
     <g id=&quot;xtick_3&quot;>
-     <g id=&quot;maidr-0065c4e1-2a90-4fc8-a374-9b6c43124db6&quot;>
+     <g id=&quot;maidr-4fdee4bd-65a2-497a-a192-b41625020cf2&quot;>
       <g>
-       <use xlink:href=&quot;#m3f30ac6b76&quot; x=&quot;242.181818&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mf2a3587405&quot; x=&quot;242.181818&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_3&quot;>
@@ -2119,9 +2129,9 @@ Sleep stage across one night, accessible chart" data-maidr-chart="" allow="bluet
      </g>
     </g>
     <g id=&quot;xtick_4&quot;>
-     <g id=&quot;maidr-dc9b1675-c12a-4d3a-91d0-d31cd3bdce7e&quot;>
+     <g id=&quot;maidr-8dc4c145-d75b-46c0-adf4-95c70cc538f4&quot;>
       <g>
-       <use xlink:href=&quot;#m3f30ac6b76&quot; x=&quot;305.590909&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mf2a3587405&quot; x=&quot;305.590909&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_4&quot;>
@@ -2137,9 +2147,9 @@ Sleep stage across one night, accessible chart" data-maidr-chart="" allow="bluet
      </g>
     </g>
     <g id=&quot;xtick_5&quot;>
-     <g id=&quot;maidr-3d41dd3e-1056-4644-9130-dc2417018aa4&quot;>
+     <g id=&quot;maidr-729480fa-7fb6-454c-b8ba-5bfcf48967ee&quot;>
       <g>
-       <use xlink:href=&quot;#m3f30ac6b76&quot; x=&quot;369&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mf2a3587405&quot; x=&quot;369&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_5&quot;>
@@ -2155,9 +2165,9 @@ Sleep stage across one night, accessible chart" data-maidr-chart="" allow="bluet
      </g>
     </g>
     <g id=&quot;xtick_6&quot;>
-     <g id=&quot;maidr-58de22ab-8eaf-4377-a168-0a8e337afbaf&quot;>
+     <g id=&quot;maidr-b70a5df3-c637-401b-bcac-38fe73e3cc07&quot;>
       <g>
-       <use xlink:href=&quot;#m3f30ac6b76&quot; x=&quot;432.409091&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mf2a3587405&quot; x=&quot;432.409091&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_6&quot;>
@@ -2173,9 +2183,9 @@ Sleep stage across one night, accessible chart" data-maidr-chart="" allow="bluet
      </g>
     </g>
     <g id=&quot;xtick_7&quot;>
-     <g id=&quot;maidr-830c20a8-bd12-4a99-8b9e-482540333ce3&quot;>
+     <g id=&quot;maidr-1eb94661-ff3a-4429-8e44-bcdf2766a338&quot;>
       <g>
-       <use xlink:href=&quot;#m3f30ac6b76&quot; x=&quot;495.818182&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mf2a3587405&quot; x=&quot;495.818182&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_7&quot;>
@@ -2191,9 +2201,9 @@ Sleep stage across one night, accessible chart" data-maidr-chart="" allow="bluet
      </g>
     </g>
     <g id=&quot;xtick_8&quot;>
-     <g id=&quot;maidr-fdb4dca2-5569-4818-b40c-8e5f08a0f260&quot;>
+     <g id=&quot;maidr-a0730910-a04d-4635-81d6-57a72c5e483a&quot;>
       <g>
-       <use xlink:href=&quot;#m3f30ac6b76&quot; x=&quot;559.227273&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mf2a3587405&quot; x=&quot;559.227273&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_8&quot;>
@@ -2209,9 +2219,9 @@ Sleep stage across one night, accessible chart" data-maidr-chart="" allow="bluet
      </g>
     </g>
     <g id=&quot;xtick_9&quot;>
-     <g id=&quot;maidr-0c3028ef-d5f1-4b5d-85c5-554a308e6a8e&quot;>
+     <g id=&quot;maidr-cb8aa4e3-bd52-4de8-9e36-e45bcc0c8d8f&quot;>
       <g>
-       <use xlink:href=&quot;#m3f30ac6b76&quot; x=&quot;622.636364&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#mf2a3587405&quot; x=&quot;622.636364&quot; y=&quot;320.4&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_9&quot;>
@@ -2270,12 +2280,12 @@ Sleep stage across one night, accessible chart" data-maidr-chart="" allow="bluet
    </g>
    <g id=&quot;matplotlib.axis_2&quot;>
     <g id=&quot;ytick_1&quot;>
-     <g id=&quot;maidr-2da1946c-4858-4de5-a8e7-c88fcd1e15cd&quot;>
+     <g id=&quot;maidr-d83f6595-3768-4e78-bb14-73e2a2e1610c&quot;>
       <defs>
-       <path id=&quot;m04f08c92bc&quot; d=&quot;M 0 0  L -3.5 0  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <path id=&quot;m345d48325b&quot; d=&quot;M 0 0  L -3.5 0  &quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </defs>
       <g>
-       <use xlink:href=&quot;#m04f08c92bc&quot; x=&quot;90&quot; y=&quot;307.8&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m345d48325b&quot; x=&quot;90&quot; y=&quot;307.8&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_11&quot;>
@@ -2290,9 +2300,9 @@ Sleep stage across one night, accessible chart" data-maidr-chart="" allow="bluet
      </g>
     </g>
     <g id=&quot;ytick_2&quot;>
-     <g id=&quot;maidr-17fb38ff-277f-422a-ba7c-abf5bb605f41&quot;>
+     <g id=&quot;maidr-3b447ffc-af2e-48d9-ab30-dfecf37a011a&quot;>
       <g>
-       <use xlink:href=&quot;#m04f08c92bc&quot; x=&quot;90&quot; y=&quot;244.8&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m345d48325b&quot; x=&quot;90&quot; y=&quot;244.8&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_12&quot;>
@@ -2304,9 +2314,9 @@ Sleep stage across one night, accessible chart" data-maidr-chart="" allow="bluet
      </g>
     </g>
     <g id=&quot;ytick_3&quot;>
-     <g id=&quot;maidr-5a06f26e-2e5b-4257-8a60-3362b5d8e7a6&quot;>
+     <g id=&quot;maidr-48e49f06-ff41-49c0-aa55-fe2a7925857b&quot;>
       <g>
-       <use xlink:href=&quot;#m04f08c92bc&quot; x=&quot;90&quot; y=&quot;181.8&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m345d48325b&quot; x=&quot;90&quot; y=&quot;181.8&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_13&quot;>
@@ -2318,9 +2328,9 @@ Sleep stage across one night, accessible chart" data-maidr-chart="" allow="bluet
      </g>
     </g>
     <g id=&quot;ytick_4&quot;>
-     <g id=&quot;maidr-12e830f7-b30f-44e1-9316-dd158838aee2&quot;>
+     <g id=&quot;maidr-7cfba26c-6085-4e9b-913e-e6cd53805364&quot;>
       <g>
-       <use xlink:href=&quot;#m04f08c92bc&quot; x=&quot;90&quot; y=&quot;118.8&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m345d48325b&quot; x=&quot;90&quot; y=&quot;118.8&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_14&quot;>
@@ -2338,9 +2348,9 @@ Sleep stage across one night, accessible chart" data-maidr-chart="" allow="bluet
      </g>
     </g>
     <g id=&quot;ytick_5&quot;>
-     <g id=&quot;maidr-70c6a117-d82c-410d-b7cc-58ab64af416a&quot;>
+     <g id=&quot;maidr-a868b6be-ffce-4b9c-a146-1737995120ba&quot;>
       <g>
-       <use xlink:href=&quot;#m04f08c92bc&quot; x=&quot;90&quot; y=&quot;55.8&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
+       <use xlink:href=&quot;#m345d48325b&quot; x=&quot;90&quot; y=&quot;55.8&quot; style=&quot;stroke: #000000; stroke-width: 0.8&quot;/>
       </g>
      </g>
      <g id=&quot;text_15&quot;>
@@ -2381,19 +2391,19 @@ Sleep stage across one night, accessible chart" data-maidr-chart="" allow="bluet
      </g>
     </g>
    </g>
-   <g id=&quot;maidr-d7573cb0-6d96-4084-a303-7b86dcf27c43&quot; maidr=&quot;056f39bf-26e5-45cc-a087-fcb7ca3c0383&quot;>
-    <path d=&quot;M 115.363636 55.8  L 147.068182 55.8  L 147.068182 118.8  L 178.772727 118.8  L 178.772727 181.8  L 210.477273 181.8  L 210.477273 244.8  L 242.181818 244.8  L 242.181818 307.8  L 273.886364 307.8  L 273.886364 307.8  L 305.590909 307.8  L 305.590909 244.8  L 337.295455 244.8  L 337.295455 118.8  L 369 118.8  L 369 181.8  L 400.704545 181.8  L 400.704545 244.8  L 432.409091 244.8  L 432.409091 307.8  L 464.113636 307.8  L 464.113636 244.8  L 495.818182 244.8  L 495.818182 118.8  L 527.522727 118.8  L 527.522727 181.8  L 559.227273 181.8  L 559.227273 244.8  L 590.931818 244.8  L 590.931818 118.8  L 622.636364 118.8  L 622.636364 55.8  &quot; clip-path=&quot;url(#pa5dea2d135)&quot; style=&quot;fill: none; stroke: #1f77b4; stroke-width: 1.5; stroke-linecap: square&quot;/>
+   <g id=&quot;maidr-72f446c5-7b2d-4916-9c04-c99fde261877&quot; maidr=&quot;94ec3bf2-586f-4333-b6e6-158e43e028e8&quot;>
+    <path d=&quot;M 115.363636 55.8  L 147.068182 55.8  L 147.068182 118.8  L 178.772727 118.8  L 178.772727 181.8  L 210.477273 181.8  L 210.477273 244.8  L 242.181818 244.8  L 242.181818 307.8  L 273.886364 307.8  L 273.886364 307.8  L 305.590909 307.8  L 305.590909 244.8  L 337.295455 244.8  L 337.295455 118.8  L 369 118.8  L 369 181.8  L 400.704545 181.8  L 400.704545 244.8  L 432.409091 244.8  L 432.409091 307.8  L 464.113636 307.8  L 464.113636 244.8  L 495.818182 244.8  L 495.818182 118.8  L 527.522727 118.8  L 527.522727 181.8  L 559.227273 181.8  L 559.227273 244.8  L 590.931818 244.8  L 590.931818 118.8  L 622.636364 118.8  L 622.636364 55.8  &quot; clip-path=&quot;url(#p2b991bd683)&quot; style=&quot;fill: none; stroke: #1f77b4; stroke-width: 1.5; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-80afd7ff-2e76-45f5-8c23-4a0f4276b18a&quot;>
+   <g id=&quot;maidr-94d59f47-c06b-446b-a0b5-ea8d97c9fe98&quot;>
     <path d=&quot;M 90 320.4  L 90 43.2  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-7e7c629d-2552-4d7f-9612-bb125a5053e6&quot;>
+   <g id=&quot;maidr-685c5702-82b5-4c47-8024-025653e78e75&quot;>
     <path d=&quot;M 648 320.4  L 648 43.2  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-5ab82398-7f9a-4044-a11e-4b8224ff3e11&quot;>
+   <g id=&quot;maidr-50770f17-3fe1-4006-9641-35e796449c94&quot;>
     <path d=&quot;M 90 320.4  L 648 320.4  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-4626086c-76ff-4e13-8de7-192cba585984&quot;>
+   <g id=&quot;maidr-3e33608c-fd9c-4946-9408-94d3fe8747d7&quot;>
     <path d=&quot;M 90 43.2  L 648 43.2  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
    <g id=&quot;text_17&quot;>
@@ -2452,7 +2462,7 @@ Sleep stage across one night, accessible chart" data-maidr-chart="" allow="bluet
   </g>
  </g>
  <defs>
-  <clipPath id=&quot;pa5dea2d135&quot;>
+  <clipPath id=&quot;p2b991bd683&quot;>
    <rect x=&quot;90&quot; y=&quot;43.2&quot; width=&quot;558&quot; height=&quot;277.2&quot;/>
   </clipPath>
  </defs>
@@ -2460,7 +2470,7 @@ Sleep stage across one night, accessible chart" data-maidr-chart="" allow="bluet
 </div>
 </div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
         function resizeIframe() {
-            let iframe = document.getElementById('iframe_0ca65904-c041-44cb-9a75-f7cbdb59a308');
+            let iframe = document.getElementById('iframe_e23c82b0-1503-4b20-8bf4-69828ab91602');
             if (
                 iframe &amp;&amp; iframe.contentWindow &amp;&amp;
                 iframe.contentWindow.document
@@ -2524,7 +2534,7 @@ Sleep stage across one night, accessible chart" data-maidr-chart="" allow="bluet
                 iframe.style.width = iframeDocument.body.scrollWidth + 'px';
             }
         }
-        let iframe = document.getElementById('iframe_0ca65904-c041-44cb-9a75-f7cbdb59a308');
+        let iframe = document.getElementById('iframe_e23c82b0-1503-4b20-8bf4-69828ab91602');
         resizeIframe();
         iframe.onload = function() {
             resizeIframe();

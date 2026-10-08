@@ -1,0 +1,1841 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.19">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
+<meta name="description" content="Make networkx drawings of directed graphs accessible with py-maidr: walk a graph node by node from the keyboard, hearing what feeds each node, what it feeds, and where the graph branches and merges.">
+
+<title>Accessible Directed Graphs in networkx – py-maidr</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../examples/dashboards.html" rel="next">
+<link href="../examples/pr-curve.html" rel="prev">
+<script src="../site_libs/cookie-consent/cookie-consent.js"></script>
+<link href="../site_libs/cookie-consent/cookie-consent.css" rel="stylesheet">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-bf27225e3a48a9273f3daa8f8e829971.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-d1b407a2afbd6680ea33db73888feb24.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/quarto-contrib/line-highlight-1.0.0/line-highlight.css" rel="stylesheet">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-TL8SVL5VRE"></script>
+
+<script type="text/plain" cookie-consent="tracking">
+
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-TL8SVL5VRE', { 'anonymize_ip': true});
+</script>
+
+<script type="text/javascript" charset="UTF-8">
+document.addEventListener('DOMContentLoaded', function () {
+cookieconsent.run({
+  "notice_banner_type":"simple",
+  "consent_type":"express",
+  "palette":"light",
+  "language":"en",
+  "page_load_consent_levels":["strictly-necessary"],
+  "notice_banner_reject_button_hide":false,
+  "preferences_center_close_button_hide":false,
+  "website_name":""
+  ,
+"language":"en"
+  });
+});
+</script> 
+  
+<script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+<script type="text/plain" cookie-consent="tracking">
+  (function(c,l,a,r,i,t,y){
+    c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+    t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+    y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+  })(window, document, "clarity", "script", "vwqybbep0i");
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://maidr.ai/#organization",
+      "name": "(x)Ability Design Lab",
+      "url": "https://xabilitylab.ischool.illinois.edu/",
+      "sameAs": [
+        "https://github.com/xability",
+        "https://xability.github.io/"
+      ],
+      "parentOrganization": {
+        "@type": "CollegeOrUniversity",
+        "name": "University of Illinois Urbana-Champaign",
+        "url": "https://illinois.edu/"
+      }
+    },
+    {
+      "@type": ["SoftwareSourceCode", "SoftwareApplication"],
+      "@id": "https://maidr.ai/#software",
+      "name": "MAIDR",
+      "url": "https://maidr.ai/",
+      "sameAs": ["https://github.com/xability/maidr"]
+    },
+    {
+      "@type": ["SoftwareSourceCode", "SoftwareApplication"],
+      "@id": "https://py.maidr.ai/#software",
+      "name": "py-maidr",
+      "alternateName": ["maidr (PyPI)"],
+      "description": "Python library that makes matplotlib, seaborn, Plotly, Bokeh, plotnine and Altair charts accessible to blind and low-vision users with sonification, braille, text and AI.",
+      "url": "https://py.maidr.ai/",
+      "codeRepository": "https://github.com/xability/py-maidr",
+      "downloadUrl": "https://pypi.org/project/maidr/",
+      "installUrl": "https://pypi.org/project/maidr/",
+      "applicationCategory": "DeveloperApplication",
+      "license": "https://www.gnu.org/licenses/gpl-3.0.html",
+      "isAccessibleForFree": true,
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "programmingLanguage": "Python",
+      "runtimePlatform": "Python",
+      "softwareRequirements": ["Python >= 3.9", "matplotlib"],
+      "softwareVersion": "1.26.0",
+      "operatingSystem": "Cross-platform",
+      "keywords": ["accessibility", "data visualization", "sonification", "braille", "blind", "low vision", "matplotlib", "seaborn", "plotly", "bokeh", "plotnine", "altair"],
+      "sameAs": [
+        "https://github.com/xability/py-maidr",
+        "https://pypi.org/project/maidr/"
+      ],
+      "author": {"@id": "https://maidr.ai/#organization"},
+      "isBasedOn": {"@id": "https://maidr.ai/#software"}
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://py.maidr.ai/#website",
+      "name": "py-maidr",
+      "url": "https://py.maidr.ai/",
+      "inLanguage": "en",
+      "publisher": {"@id": "https://maidr.ai/#organization"},
+      "about": {"@id": "https://py.maidr.ai/#software"}
+    }
+  ]
+}
+</script>
+
+
+<link rel="stylesheet" href="../styles.css">
+<meta property="og:title" content="Accessible Directed Graphs in networkx">
+<meta property="og:description" content="Make networkx drawings of directed graphs accessible with py-maidr: walk a graph node by node from the keyboard, hearing what feeds each node, what it feeds, and where the graph branches and merges.">
+<meta property="og:image" content="https://py.maidr.ai/media/logo.jpg">
+<meta property="og:site_name" content="py-maidr">
+<meta property="og:locale" content="en_US">
+<meta property="og:image:alt" content="MAIDR logo - Data Insight for All">
+<meta name="twitter:title" content="Accessible Directed Graphs in networkx">
+<meta name="twitter:description" content="Make networkx drawings of directed graphs accessible with py-maidr: walk a graph node by node from the keyboard, hearing what feeds each node, what it feeds, and where the graph branches and merges.">
+<meta name="twitter:image" content="https://py.maidr.ai/media/logo.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image:alt" content="MAIDR logo - Data Insight for All">
+<link rel="canonical" href="https://py.maidr.ai/examples/network-graph.html">
+<meta name="DC.title" content="Accessible Directed Graphs in networkx">
+<meta name="DC.creator" content="Seo, JooYoung">
+<meta name="DC.creator" content="Venkatesh, Saairam">
+<meta name="DC.publisher" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
+<meta name="DC.description" content="Make networkx drawings of directed graphs accessible with py-maidr: walk a graph node by node from the keyboard, hearing what feeds each node, what it feeds, and where the graph branches and merges.">
+<meta name="DC.identifier" content="https://py.maidr.ai/examples/network-graph.html">
+<meta name="DC.type" content="Text">
+<meta name="DC.format" content="text/html">
+<meta name="DC.language" content="en">
+<meta name="DC.rights" content="GPL-3.0-or-later">
+<meta name="DC.date" content="2026-10-08">
+</head>
+
+<body class="nav-sidebar docked nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="https://py.maidr.ai/">
+    <span class="navbar-title">py-maidr</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../index.html"> 
+<span class="menu-text">Welcome</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-examples" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Examples</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-examples">    
+        <li>
+    <a class="dropdown-item" href="../examples.html">
+ <span class="dropdown-text">Matplotlib / Seaborn (overview)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/bar.html">
+ <span class="dropdown-text">Bar, Count, Stacked and Dodged Bar Charts</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/pie-wordcloud.html">
+ <span class="dropdown-text">Pie Charts and Word Clouds [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/histogram-kde.html">
+ <span class="dropdown-text">Histograms and KDE Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/line-step.html">
+ <span class="dropdown-text">Line and Step Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/heatmap-hexbin-contour.html">
+ <span class="dropdown-text">Heatmaps, Hexbin [experimental] and Contour Plots [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/box-boxen-violin.html">
+ <span class="dropdown-text">Box, Boxen [experimental] and Violin Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/scatter-regression.html">
+ <span class="dropdown-text">Scatter and Regression Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/multi-layer-panel-facet.html">
+ <span class="dropdown-text">Multi-Layer, Multi-Panel and Facet Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/candlestick-gantt.html">
+ <span class="dropdown-text">Candlestick and Gantt Charts [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/dashboards.html">
+ <span class="dropdown-text">Shiny, Streamlit and Gradio Dashboards</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li class="dropdown-header">Experimental</li>
+        <li>
+    <a class="dropdown-item" href="../examples/area-errorbar-point-lollipop.html">
+ <span class="dropdown-text">Area [experimental], Error Bar [experimental], Point [experimental] and Lollipop Plots [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/roc.html">
+ <span class="dropdown-text">ROC Curves [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/pr-curve.html">
+ <span class="dropdown-text">Precision-Recall Curves [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/network-graph.html">
+ <span class="dropdown-text">Directed Graphs [experimental]</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li class="dropdown-header">Other libraries</li>
+        <li>
+    <a class="dropdown-item" href="../examples-plotly.html">
+ <span class="dropdown-text">Plotly</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples-bokeh.html">
+ <span class="dropdown-text">Bokeh [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples-plotnine.html">
+ <span class="dropdown-text">plotnine [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples-altair.html">
+ <span class="dropdown-text">Altair</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples-excel.html">
+ <span class="dropdown-text">Excel [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples-office.html">
+ <span class="dropdown-text">PowerPoint and Word [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples-tensorboard.html">
+ <span class="dropdown-text">TensorBoard [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples-keras.html">
+ <span class="dropdown-text">Keras [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples-wandb.html">
+ <span class="dropdown-text">Weights &amp; Biases [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples-mlflow.html">
+ <span class="dropdown-text">MLflow [experimental]</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="../stability.html"> 
+<span class="menu-text">Plot Type Stability</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../api/"> 
+<span class="menu-text">API Reference</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/xability/py-maidr"> <i class="bi bi-github" role="img" aria-label="GitHub">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../examples/area-errorbar-point-lollipop.html">Experimental plot families</a></li><li class="breadcrumb-item"><a href="../examples/network-graph.html">Directed Graphs [experimental]</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation docked overflow-auto">
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false">
+ <span class="menu-text">Plot families</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/bar.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Bar, Count, Stacked and Dodged Bar Charts</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/pie-wordcloud.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Pie Charts and Word Clouds [experimental]</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/histogram-kde.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Histograms and KDE Plots</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/line-step.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Line and Step Plots</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/heatmap-hexbin-contour.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Heatmaps, Hexbin [experimental] and Contour Plots [experimental]</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/box-boxen-violin.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Box, Boxen [experimental] and Violin Plots</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/scatter-regression.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Scatter and Regression Plots</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/multi-layer-panel-facet.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Multi-Layer, Multi-Panel and Facet Plots</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/candlestick-gantt.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Candlestick and Gantt Charts [experimental]</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Experimental plot families</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/area-errorbar-point-lollipop.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Area [experimental], Error Bar [experimental], Point [experimental] and Lollipop Plots [experimental]</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/roc.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ROC Curves [experimental]</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/pr-curve.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Precision-Recall Curves [experimental]</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/network-graph.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">Directed Graphs [experimental]</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/dashboards.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Accessible Shiny, Streamlit and Gradio Dashboards with py-maidr</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="false">
+ <span class="menu-text">Other libraries</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples-plotly.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Plotly Accessible Plot Examples</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples-bokeh.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Bokeh [experimental]</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples-plotnine.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">plotnine [experimental]</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples-altair.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Altair Accessible Plot Examples</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples-excel.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Excel [experimental]</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples-office.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">PowerPoint and Word [experimental]</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples-tensorboard.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">TensorBoard [experimental]</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples-keras.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Keras [experimental]</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples-wandb.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Weights &amp; Biases [experimental]</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples-mlflow.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">MLflow [experimental]</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#setup" id="toc-setup" class="nav-link active" data-scroll-target="#setup">Setup</a></li>
+  <li><a href="#a-pipeline" id="toc-a-pipeline" class="nav-link" data-scroll-target="#a-pipeline">A pipeline</a></li>
+  <li><a href="#labels-and-node-data" id="toc-labels-and-node-data" class="nav-link" data-scroll-target="#labels-and-node-data">Labels and node data</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/xability/py-maidr/issues/new/choose" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../examples/area-errorbar-point-lollipop.html">Experimental plot families</a></li><li class="breadcrumb-item"><a href="../examples/network-graph.html">Directed Graphs [experimental]</a></li></ol></nav>
+<div class="quarto-title">
+<h1 class="title">Accessible Directed Graphs in networkx with py-maidr</h1>
+</div>
+
+<div>
+  <div class="description">
+    Make networkx drawings of directed graphs accessible with py-maidr: walk a graph node by node from the keyboard, hearing what feeds each node, what it feeds, and where the graph branches and merges.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>A directed graph – a pipeline, a dependency graph, a workflow – is drawn in Python with networkx: <code>nx.draw()</code>, <code>nx.draw_networkx()</code> and the layout variants (<code>nx.draw_circular()</code>, <code>nx.draw_spring()</code>, …). Each draws every node as a point and every edge as an arrow, and the arrows are the whole content of the graph: what depends on what.</p>
+<p>Read as points, a graph says only where the layout algorithm happened to put each node, which is not data at all, and none of its edges. maidr reads the graph instead: Left and Right walk the nodes, and each one announces what feeds it, what it feeds, and whether it is an input or output of the whole graph, a branch point or a merge point, with the node outlined.</p>
+<p><code>DIRECTED_GRAPH</code> is <strong>experimental</strong> and may change without a deprecation period: see <a href="../stability.html">Plot Type Stability</a>. Only directed graphs are read this way – an undirected graph (<code>nx.Graph</code>) keeps the point reading it had, since an undirected edge has no direction to follow.</p>
+<div class="callout callout-style-default callout-warning callout-titled" title="Prototype">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Warning</span>Prototype
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>This is one of the experimental plot types. It has not been through a user study, and it may change without a deprecation period. See <a href="../stability.html">Plot type stability</a>.</p>
+</div>
+</div>
+<section id="setup" class="level2">
+<h2 class="anchored" data-anchor-id="setup">Setup</h2>
+<p>The examples on this page need networkx, which is an optional extra: <code>pip install maidr[networkx]</code>. Nothing in maidr imports it; the reading is wired up when your own code imports <code>networkx</code>.</p>
+<div id="af3326de" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" data-source-line-numbers="nil" data-code-line-numbers="3,4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Just import maidr package: plt.show() now renders accessible output </span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> maidr  </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<script src="https://cdn.jsdelivr.net/npm/maidr@4.14.0/dist/maidr.js"></script>
+</div>
+</div>
+</section>
+<section id="a-pipeline" class="level2">
+<h2 class="anchored" data-anchor-id="a-pipeline">A pipeline</h2>
+<div id="7c653c37" class="cell" data-execution_count="2">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" data-source-line-numbers="nil" data-code-line-numbers="4,19,21,24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> networkx <span class="im">as</span> nx</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> maidr  </span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>pipeline <span class="op">=</span> nx.DiGraph()</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>pipeline.add_edges_from(</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    [</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>        (<span class="st">"load"</span>, <span class="st">"clean"</span>),</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>        (<span class="st">"clean"</span>, <span class="st">"features"</span>),</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>        (<span class="st">"clean"</span>, <span class="st">"labels"</span>),</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>        (<span class="st">"features"</span>, <span class="st">"train"</span>),</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>        (<span class="st">"labels"</span>, <span class="st">"train"</span>),</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>        (<span class="st">"train"</span>, <span class="st">"evaluate"</span>),</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots()</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>nx.draw_networkx(  </span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>    pipeline, pos<span class="op">=</span>nx.spring_layout(pipeline, seed<span class="op">=</span><span class="dv">1</span>), ax<span class="op">=</span>ax, node_color<span class="op">=</span><span class="st">"lightblue"</span></span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>)  </span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>ax.set_title(<span class="st">"A training pipeline"</span>)</span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>plt.show()  </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<iframe id="iframe_9c8a7fe8-3210-4ba0-8307-4a538886a77e" title="A training pipeline, accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
+  <script type=&quot;text/javascript&quot;>
+                (function() {
+                    var existing = document.querySelector('script[src=&quot;https://cdn.jsdelivr.net/npm/maidr@4.14.0/dist/maidr.js&quot;]');
+                    if (!existing) {
+                        var s = document.createElement('script');
+                        s.src = 'https://cdn.jsdelivr.net/npm/maidr@4.14.0/dist/maidr.js';
+                        s.onload = function() { if (window.main) window.main(); };
+                        document.head.appendChild(s);
+                    } else {
+                        if (document.readyState === 'loading') {
+                            document.addEventListener('DOMContentLoaded', function() { if (window.main) window.main(); });
+                        } else {
+                            if (window.main) window.main();
+                        }
+                    }
+                })();
+            </script>
+  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;504pt&quot; height=&quot;360pt&quot; viewBox=&quot;0 0 504 360&quot; version=&quot;1.1&quot; id=&quot;eceb4eb1-c491-4ccc-87b6-89ee1e94a803&quot; maidr=&quot;{&amp;quot;id&amp;quot;: &amp;quot;eceb4eb1-c491-4ccc-87b6-89ee1e94a803&amp;quot;, &amp;quot;subplots&amp;quot;: [[{&amp;quot;id&amp;quot;: &amp;quot;28c4f228-f9c8-4c56-ac1a-b1076d0e17b5&amp;quot;, &amp;quot;layers&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;32a199ca-9c4f-47ce-963d-b885f825cffa&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;directed_graph&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;A training pipeline&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Node&amp;quot;}}, &amp;quot;data&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;load&amp;quot;, &amp;quot;label&amp;quot;: &amp;quot;load&amp;quot;, &amp;quot;inputs&amp;quot;: [], &amp;quot;attributes&amp;quot;: {}}, {&amp;quot;id&amp;quot;: &amp;quot;clean&amp;quot;, &amp;quot;label&amp;quot;: &amp;quot;clean&amp;quot;, &amp;quot;inputs&amp;quot;: [&amp;quot;load&amp;quot;], &amp;quot;attributes&amp;quot;: {}}, {&amp;quot;id&amp;quot;: &amp;quot;features&amp;quot;, &amp;quot;label&amp;quot;: &amp;quot;features&amp;quot;, &amp;quot;inputs&amp;quot;: [&amp;quot;clean&amp;quot;], &amp;quot;attributes&amp;quot;: {}}, {&amp;quot;id&amp;quot;: &amp;quot;labels&amp;quot;, &amp;quot;label&amp;quot;: &amp;quot;labels&amp;quot;, &amp;quot;inputs&amp;quot;: [&amp;quot;clean&amp;quot;], &amp;quot;attributes&amp;quot;: {}}, {&amp;quot;id&amp;quot;: &amp;quot;train&amp;quot;, &amp;quot;label&amp;quot;: &amp;quot;train&amp;quot;, &amp;quot;inputs&amp;quot;: [&amp;quot;features&amp;quot;, &amp;quot;labels&amp;quot;], &amp;quot;attributes&amp;quot;: {}}, {&amp;quot;id&amp;quot;: &amp;quot;evaluate&amp;quot;, &amp;quot;label&amp;quot;: &amp;quot;evaluate&amp;quot;, &amp;quot;inputs&amp;quot;: [&amp;quot;train&amp;quot;], &amp;quot;attributes&amp;quot;: {}}], &amp;quot;selectors&amp;quot;: [&amp;quot;g[id='maidr-a5b52b22-f084-4603-88b7-068595531085'] &amp;gt; g:only-of-type &amp;gt; use:nth-of-type(1), g[id='maidr-a5b52b22-f084-4603-88b7-068595531085'] &amp;gt; g:nth-of-type(1) &amp;gt; use:only-child, g[id='maidr-a5b52b22-f084-4603-88b7-068595531085'] &amp;gt; path:nth-of-type(1)&amp;quot;, &amp;quot;g[id='maidr-a5b52b22-f084-4603-88b7-068595531085'] &amp;gt; g:only-of-type &amp;gt; use:nth-of-type(2), g[id='maidr-a5b52b22-f084-4603-88b7-068595531085'] &amp;gt; g:nth-of-type(2) &amp;gt; use:only-child, g[id='maidr-a5b52b22-f084-4603-88b7-068595531085'] &amp;gt; path:nth-of-type(2)&amp;quot;, &amp;quot;g[id='maidr-a5b52b22-f084-4603-88b7-068595531085'] &amp;gt; g:only-of-type &amp;gt; use:nth-of-type(3), g[id='maidr-a5b52b22-f084-4603-88b7-068595531085'] &amp;gt; g:nth-of-type(3) &amp;gt; use:only-child, g[id='maidr-a5b52b22-f084-4603-88b7-068595531085'] &amp;gt; path:nth-of-type(3)&amp;quot;, &amp;quot;g[id='maidr-a5b52b22-f084-4603-88b7-068595531085'] &amp;gt; g:only-of-type &amp;gt; use:nth-of-type(4), g[id='maidr-a5b52b22-f084-4603-88b7-068595531085'] &amp;gt; g:nth-of-type(4) &amp;gt; use:only-child, g[id='maidr-a5b52b22-f084-4603-88b7-068595531085'] &amp;gt; path:nth-of-type(4)&amp;quot;, &amp;quot;g[id='maidr-a5b52b22-f084-4603-88b7-068595531085'] &amp;gt; g:only-of-type &amp;gt; use:nth-of-type(5), g[id='maidr-a5b52b22-f084-4603-88b7-068595531085'] &amp;gt; g:nth-of-type(5) &amp;gt; use:only-child, g[id='maidr-a5b52b22-f084-4603-88b7-068595531085'] &amp;gt; path:nth-of-type(5)&amp;quot;, &amp;quot;g[id='maidr-a5b52b22-f084-4603-88b7-068595531085'] &amp;gt; g:only-of-type &amp;gt; use:nth-of-type(6), g[id='maidr-a5b52b22-f084-4603-88b7-068595531085'] &amp;gt; g:nth-of-type(6) &amp;gt; use:only-child, g[id='maidr-a5b52b22-f084-4603-88b7-068595531085'] &amp;gt; path:nth-of-type(6)&amp;quot;]}]}]]}&quot;>
+ <metadata>
+  <rdf:RDF xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot; xmlns:cc=&quot;http://creativecommons.org/ns#&quot; xmlns:rdf=&quot;http://www.w3.org/1999/02/22-rdf-syntax-ns#&quot;>
+   <cc:Work>
+    <dc:type rdf:resource=&quot;http://purl.org/dc/dcmitype/StillImage&quot;/>
+    <dc:date>2026-10-08T12:42:07.865386</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.11.2, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type=&quot;text/css&quot;>*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id=&quot;figure_1&quot;>
+  <g id=&quot;maidr-7ae36fba-bdec-4df4-9e08-92442bcb17f0&quot;>
+   <path d=&quot;M 0 360  L 504 360  L 504 0  L 0 0  z &quot; style=&quot;fill: #ffffff&quot;/>
+  </g>
+  <g id=&quot;axes_1&quot;>
+   <g id=&quot;maidr-69786013-da31-49f3-890d-da87c3ec5576&quot;>
+    <path d=&quot;M 63 320.4  L 453.6 320.4  L 453.6 43.2  L 63 43.2  z &quot; style=&quot;fill: #ffffff&quot;/>
+   </g>
+   <g id=&quot;patch_1&quot;>
+    <path d=&quot;M 105.403655 294.741064  Q 206.792931 275.623025 307.083534 256.712154  &quot; clip-path=&quot;url(#pa7332efffe)&quot; style=&quot;fill: none; stroke: #000000; stroke-linecap: round&quot;/>
+    <path d=&quot;M 302.782212 255.48797  L 307.083534 256.712154  L 303.523394 259.418701  z &quot; clip-path=&quot;url(#pa7332efffe)&quot; style=&quot;stroke: #000000; stroke-linecap: round&quot;/>
+   </g>
+   <g id=&quot;patch_2&quot;>
+    <path d=&quot;M 323.127359 249.102591  Q 337.691415 235.984214 351.424748 223.6141  &quot; clip-path=&quot;url(#pa7332efffe)&quot; style=&quot;fill: none; stroke: #000000; stroke-linecap: round&quot;/>
+    <path d=&quot;M 347.114126 224.805124  L 351.424748 223.6141  L 349.791194 227.777212  z &quot; clip-path=&quot;url(#pa7332efffe)&quot; style=&quot;stroke: #000000; stroke-linecap: round&quot;/>
+   </g>
+   <g id=&quot;patch_3&quot;>
+    <path d=&quot;M 323.65371 249.756601  Q 368.195542 216.852175 411.838106 184.612066  &quot; clip-path=&quot;url(#pa7332efffe)&quot; style=&quot;fill: none; stroke: #000000; stroke-linecap: round&quot;/>
+    <path d=&quot;M 407.432421 185.38014  L 411.838106 184.612066  L 409.809153 188.597459  z &quot; clip-path=&quot;url(#pa7332efffe)&quot; style=&quot;stroke: #000000; stroke-linecap: round&quot;/>
+   </g>
+   <g id=&quot;patch_4&quot;>
+    <path d=&quot;M 355.203265 209.141237  Q 337.579329 169.088462 320.405683 130.059034  &quot; clip-path=&quot;url(#pa7332efffe)&quot; style=&quot;fill: none; stroke: #000000; stroke-linecap: round&quot;/>
+    <path d=&quot;M 320.186074 134.525774  L 320.405683 130.059034  L 323.84731 132.914765  z &quot; clip-path=&quot;url(#pa7332efffe)&quot; style=&quot;stroke: #000000; stroke-linecap: round&quot;/>
+   </g>
+   <g id=&quot;patch_5&quot;>
+    <path d=&quot;M 412.146728 174.576781  Q 368.086644 149.954495 325.002537 125.877619  &quot; clip-path=&quot;url(#pa7332efffe)&quot; style=&quot;fill: none; stroke: #000000; stroke-linecap: round&quot;/>
+    <path d=&quot;M 327.518637 129.574812  L 325.002537 125.877619  L 329.469952 126.083054  z &quot; clip-path=&quot;url(#pa7332efffe)&quot; style=&quot;stroke: #000000; stroke-linecap: round&quot;/>
+   </g>
+   <g id=&quot;patch_6&quot;>
+    <path d=&quot;M 308.541921 117.61196  Q 255.422473 94.181347 203.325966 71.201946  &quot; clip-path=&quot;url(#pa7332efffe)&quot; style=&quot;fill: none; stroke: #000000; stroke-linecap: round&quot;/>
+    <path d=&quot;M 206.178597 74.646143  L 203.325966 71.201946  L 207.792902 70.986359  z &quot; clip-path=&quot;url(#pa7332efffe)&quot; style=&quot;stroke: #000000; stroke-linecap: round&quot;/>
+   </g>
+   <g id=&quot;matplotlib.axis_1&quot;/>
+   <g id=&quot;matplotlib.axis_2&quot;/>
+   <g id=&quot;maidr-a5b52b22-f084-4603-88b7-068595531085&quot;>
+    <defs>
+     <path id=&quot;mf03f1e1a4f&quot; d=&quot;M 0 8.660254  C 2.296726 8.660254 4.499694 7.747755 6.123724 6.123724  C 7.747755 4.499694 8.660254 2.296726 8.660254 0  C 8.660254 -2.296726 7.747755 -4.499694 6.123724 -6.123724  C 4.499694 -7.747755 2.296726 -8.660254 0 -8.660254  C -2.296726 -8.660254 -4.499694 -7.747755 -6.123724 -6.123724  C -7.747755 -4.499694 -8.660254 -2.296726 -8.660254 0  C -8.660254 2.296726 -7.747755 4.499694 -6.123724 6.123724  C -4.499694 7.747755 -2.296726 8.660254 0 8.660254  z &quot; style=&quot;stroke: #add8e6&quot;/>
+    </defs>
+    <g clip-path=&quot;url(#pa7332efffe)&quot;>
+     <use xlink:href=&quot;#mf03f1e1a4f&quot; x=&quot;96.895041&quot; y=&quot;296.345455&quot; style=&quot;fill: #add8e6; stroke: #add8e6&quot;/>
+     <use xlink:href=&quot;#mf03f1e1a4f&quot; x=&quot;316.690285&quot; y=&quot;254.900697&quot; style=&quot;fill: #add8e6; stroke: #add8e6&quot;/>
+     <use xlink:href=&quot;#mf03f1e1a4f&quot; x=&quot;358.691484&quot; y=&quot;217.068686&quot; style=&quot;fill: #add8e6; stroke: #add8e6&quot;/>
+     <use xlink:href=&quot;#mf03f1e1a4f&quot; x=&quot;419.704959&quot; y=&quot;178.80058&quot; style=&quot;fill: #add8e6; stroke: #add8e6&quot;/>
+     <use xlink:href=&quot;#mf03f1e1a4f&quot; x=&quot;316.466896&quot; y=&quot;121.10761&quot; style=&quot;fill: #add8e6; stroke: #add8e6&quot;/>
+     <use xlink:href=&quot;#mf03f1e1a4f&quot; x=&quot;194.376829&quot; y=&quot;67.254545&quot; style=&quot;fill: #add8e6; stroke: #add8e6&quot;/>
+    </g>
+   </g>
+   <g id=&quot;maidr-b7cc202c-709c-4c61-bd14-73d2d600cdf7&quot;>
+    <path d=&quot;M 63 320.4  L 63 43.2  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
+   </g>
+   <g id=&quot;maidr-82b24446-658c-40f9-a822-b8211ccc8930&quot;>
+    <path d=&quot;M 453.6 320.4  L 453.6 43.2  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
+   </g>
+   <g id=&quot;maidr-6da61e40-0f56-4507-835f-9e79c5c1a339&quot;>
+    <path d=&quot;M 63 320.4  L 453.6 320.4  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
+   </g>
+   <g id=&quot;maidr-68681c60-98f5-498e-a132-e23bc0adf36f&quot;>
+    <path d=&quot;M 63 43.2  L 453.6 43.2  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
+   </g>
+   <g id=&quot;text_1&quot;>
+    <g clip-path=&quot;url(#pa7332efffe)&quot;>
+     <!-- load -->
+     <g transform=&quot;translate(84.070979 299.463111) scale(0.12 -0.12)&quot;>
+      <defs>
+       <path id=&quot;DejaVuSans-4f&quot; d=&quot;M 603 4863  L 1178 4863  L 1178 0  L 603 0  L 603 4863  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-52&quot; d=&quot;M 1959 3097  Q 1497 3097 1228 2736  Q 959 2375 959 1747  Q 959 1119 1226 758  Q 1494 397 1959 397  Q 2419 397 2687 759  Q 2956 1122 2956 1747  Q 2956 2369 2687 2733  Q 2419 3097 1959 3097  z M 1959 3584  Q 2709 3584 3137 3096  Q 3566 2609 3566 1747  Q 3566 888 3137 398  Q 2709 -91 1959 -91  Q 1206 -91 779 398  Q 353 888 353 1747  Q 353 2609 779 3096  Q 1206 3584 1959 3584  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-44&quot; d=&quot;M 2194 1759  Q 1497 1759 1228 1600  Q 959 1441 959 1056  Q 959 750 1161 570  Q 1363 391 1709 391  Q 2188 391 2477 730  Q 2766 1069 2766 1631  L 2766 1759  L 2194 1759  z M 3341 1997  L 3341 0  L 2766 0  L 2766 531  Q 2569 213 2275 61  Q 1981 -91 1556 -91  Q 1019 -91 701 211  Q 384 513 384 1019  Q 384 1609 779 1909  Q 1175 2209 1959 2209  L 2766 2209  L 2766 2266  Q 2766 2663 2505 2880  Q 2244 3097 1772 3097  Q 1472 3097 1187 3025  Q 903 2953 641 2809  L 641 3341  Q 956 3463 1253 3523  Q 1550 3584 1831 3584  Q 2591 3584 2966 3190  Q 3341 2797 3341 1997  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-47&quot; d=&quot;M 2906 2969  L 2906 4863  L 3481 4863  L 3481 0  L 2906 0  L 2906 525  Q 2725 213 2448 61  Q 2172 -91 1784 -91  Q 1150 -91 751 415  Q 353 922 353 1747  Q 353 2572 751 3078  Q 1150 3584 1784 3584  Q 2172 3584 2448 3432  Q 2725 3281 2906 2969  z M 947 1747  Q 947 1113 1208 752  Q 1469 391 1925 391  Q 2381 391 2643 752  Q 2906 1113 2906 1747  Q 2906 2381 2643 2742  Q 2381 3103 1925 3103  Q 1469 3103 1208 2742  Q 947 2381 947 1747  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      </defs>
+      <use xlink:href=&quot;#DejaVuSans-4f&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-52&quot; transform=&quot;translate(27.78125 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-44&quot; transform=&quot;translate(88.96875 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-47&quot; transform=&quot;translate(150.25 0)&quot;/>
+     </g>
+    </g>
+   </g>
+   <g id=&quot;text_2&quot;>
+    <g clip-path=&quot;url(#pa7332efffe)&quot;>
+     <!-- clean -->
+     <g transform=&quot;translate(300.553098 258.018354) scale(0.12 -0.12)&quot;>
+      <defs>
+       <path id=&quot;DejaVuSans-46&quot; d=&quot;M 3122 3366  L 3122 2828  Q 2878 2963 2633 3030  Q 2388 3097 2138 3097  Q 1578 3097 1268 2742  Q 959 2388 959 1747  Q 959 1106 1268 751  Q 1578 397 2138 397  Q 2388 397 2633 464  Q 2878 531 3122 666  L 3122 134  Q 2881 22 2623 -34  Q 2366 -91 2075 -91  Q 1284 -91 818 406  Q 353 903 353 1747  Q 353 2603 823 3093  Q 1294 3584 2113 3584  Q 2378 3584 2631 3529  Q 2884 3475 3122 3366  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-48&quot; d=&quot;M 3597 1894  L 3597 1613  L 953 1613  Q 991 1019 1311 708  Q 1631 397 2203 397  Q 2534 397 2845 478  Q 3156 559 3463 722  L 3463 178  Q 3153 47 2828 -22  Q 2503 -91 2169 -91  Q 1331 -91 842 396  Q 353 884 353 1716  Q 353 2575 817 3079  Q 1281 3584 2069 3584  Q 2775 3584 3186 3129  Q 3597 2675 3597 1894  z M 3022 2063  Q 3016 2534 2758 2815  Q 2500 3097 2075 3097  Q 1594 3097 1305 2825  Q 1016 2553 972 2059  L 3022 2063  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-51&quot; d=&quot;M 3513 2113  L 3513 0  L 2938 0  L 2938 2094  Q 2938 2591 2744 2837  Q 2550 3084 2163 3084  Q 1697 3084 1428 2787  Q 1159 2491 1159 1978  L 1159 0  L 581 0  L 581 3500  L 1159 3500  L 1159 2956  Q 1366 3272 1645 3428  Q 1925 3584 2291 3584  Q 2894 3584 3203 3211  Q 3513 2838 3513 2113  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      </defs>
+      <use xlink:href=&quot;#DejaVuSans-46&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-4f&quot; transform=&quot;translate(54.984375 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-48&quot; transform=&quot;translate(82.765625 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-44&quot; transform=&quot;translate(144.296875 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-51&quot; transform=&quot;translate(205.578125 0)&quot;/>
+     </g>
+    </g>
+   </g>
+   <g id=&quot;text_3&quot;>
+    <g clip-path=&quot;url(#pa7332efffe)&quot;>
+     <!-- features -->
+     <g transform=&quot;translate(333.903984 220.186342) scale(0.12 -0.12)&quot;>
+      <defs>
+       <path id=&quot;DejaVuSans-49&quot; d=&quot;M 2375 4863  L 2375 4384  L 1825 4384  Q 1516 4384 1395 4259  Q 1275 4134 1275 3809  L 1275 3500  L 2222 3500  L 2222 3053  L 1275 3053  L 1275 0  L 697 0  L 697 3053  L 147 3053  L 147 3500  L 697 3500  L 697 3744  Q 697 4328 969 4595  Q 1241 4863 1831 4863  L 2375 4863  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-57&quot; d=&quot;M 1172 4494  L 1172 3500  L 2356 3500  L 2356 3053  L 1172 3053  L 1172 1153  Q 1172 725 1289 603  Q 1406 481 1766 481  L 2356 481  L 2356 0  L 1766 0  Q 1100 0 847 248  Q 594 497 594 1153  L 594 3053  L 172 3053  L 172 3500  L 594 3500  L 594 4494  L 1172 4494  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-58&quot; d=&quot;M 544 1381  L 544 3500  L 1119 3500  L 1119 1403  Q 1119 906 1312 657  Q 1506 409 1894 409  Q 2359 409 2629 706  Q 2900 1003 2900 1516  L 2900 3500  L 3475 3500  L 3475 0  L 2900 0  L 2900 538  Q 2691 219 2414 64  Q 2138 -91 1772 -91  Q 1169 -91 856 284  Q 544 659 544 1381  z M 1991 3584  L 1991 3584  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-55&quot; d=&quot;M 2631 2963  Q 2534 3019 2420 3045  Q 2306 3072 2169 3072  Q 1681 3072 1420 2755  Q 1159 2438 1159 1844  L 1159 0  L 581 0  L 581 3500  L 1159 3500  L 1159 2956  Q 1341 3275 1631 3429  Q 1922 3584 2338 3584  Q 2397 3584 2469 3576  Q 2541 3569 2628 3553  L 2631 2963  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-56&quot; d=&quot;M 2834 3397  L 2834 2853  Q 2591 2978 2328 3040  Q 2066 3103 1784 3103  Q 1356 3103 1142 2972  Q 928 2841 928 2578  Q 928 2378 1081 2264  Q 1234 2150 1697 2047  L 1894 2003  Q 2506 1872 2764 1633  Q 3022 1394 3022 966  Q 3022 478 2636 193  Q 2250 -91 1575 -91  Q 1294 -91 989 -36  Q 684 19 347 128  L 347 722  Q 666 556 975 473  Q 1284 391 1588 391  Q 1994 391 2212 530  Q 2431 669 2431 922  Q 2431 1156 2273 1281  Q 2116 1406 1581 1522  L 1381 1569  Q 847 1681 609 1914  Q 372 2147 372 2553  Q 372 3047 722 3315  Q 1072 3584 1716 3584  Q 2034 3584 2315 3537  Q 2597 3491 2834 3397  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      </defs>
+      <use xlink:href=&quot;#DejaVuSans-49&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-48&quot; transform=&quot;translate(35.203125 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-44&quot; transform=&quot;translate(96.734375 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-57&quot; transform=&quot;translate(158.015625 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-58&quot; transform=&quot;translate(197.21875 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-55&quot; transform=&quot;translate(260.59375 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-48&quot; transform=&quot;translate(299.5 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-56&quot; transform=&quot;translate(361.03125 0)&quot;/>
+     </g>
+    </g>
+   </g>
+   <g id=&quot;text_4&quot;>
+    <g clip-path=&quot;url(#pa7332efffe)&quot;>
+     <!-- labels -->
+     <g transform=&quot;translate(402.067771 181.918236) scale(0.12 -0.12)&quot;>
+      <defs>
+       <path id=&quot;DejaVuSans-45&quot; d=&quot;M 3116 1747  Q 3116 2381 2855 2742  Q 2594 3103 2138 3103  Q 1681 3103 1420 2742  Q 1159 2381 1159 1747  Q 1159 1113 1420 752  Q 1681 391 2138 391  Q 2594 391 2855 752  Q 3116 1113 3116 1747  z M 1159 2969  Q 1341 3281 1617 3432  Q 1894 3584 2278 3584  Q 2916 3584 3314 3078  Q 3713 2572 3713 1747  Q 3713 922 3314 415  Q 2916 -91 2278 -91  Q 1894 -91 1617 61  Q 1341 213 1159 525  L 1159 0  L 581 0  L 581 4863  L 1159 4863  L 1159 2969  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      </defs>
+      <use xlink:href=&quot;#DejaVuSans-4f&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-44&quot; transform=&quot;translate(27.78125 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-45&quot; transform=&quot;translate(89.0625 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-48&quot; transform=&quot;translate(152.546875 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-4f&quot; transform=&quot;translate(214.078125 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-56&quot; transform=&quot;translate(241.859375 0)&quot;/>
+     </g>
+    </g>
+   </g>
+   <g id=&quot;text_5&quot;>
+    <g clip-path=&quot;url(#pa7332efffe)&quot;>
+     <!-- train -->
+     <g transform=&quot;translate(302.501896 124.225266) scale(0.12 -0.12)&quot;>
+      <defs>
+       <path id=&quot;DejaVuSans-4c&quot; d=&quot;M 603 3500  L 1178 3500  L 1178 0  L 603 0  L 603 3500  z M 603 4863  L 1178 4863  L 1178 4134  L 603 4134  L 603 4863  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      </defs>
+      <use xlink:href=&quot;#DejaVuSans-57&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-55&quot; transform=&quot;translate(39.203125 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-44&quot; transform=&quot;translate(80.3125 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-4c&quot; transform=&quot;translate(141.59375 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-51&quot; transform=&quot;translate(169.375 0)&quot;/>
+     </g>
+    </g>
+   </g>
+   <g id=&quot;text_6&quot;>
+    <g clip-path=&quot;url(#pa7332efffe)&quot;>
+     <!-- evaluate -->
+     <g transform=&quot;translate(168.266516 70.372202) scale(0.12 -0.12)&quot;>
+      <defs>
+       <path id=&quot;DejaVuSans-59&quot; d=&quot;M 191 3500  L 800 3500  L 1894 563  L 2988 3500  L 3597 3500  L 2284 0  L 1503 0  L 191 3500  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      </defs>
+      <use xlink:href=&quot;#DejaVuSans-48&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-59&quot; transform=&quot;translate(61.53125 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-44&quot; transform=&quot;translate(120.71875 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-4f&quot; transform=&quot;translate(182 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-58&quot; transform=&quot;translate(209.78125 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-44&quot; transform=&quot;translate(273.15625 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-57&quot; transform=&quot;translate(334.4375 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-48&quot; transform=&quot;translate(373.640625 0)&quot;/>
+     </g>
+    </g>
+   </g>
+   <g id=&quot;text_7&quot;>
+    <!-- A training pipeline -->
+    <g transform=&quot;translate(203.333438 37.2) scale(0.12 -0.12)&quot;>
+     <defs>
+      <path id=&quot;DejaVuSans-24&quot; d=&quot;M 2188 4044  L 1331 1722  L 3047 1722  L 2188 4044  z M 1831 4666  L 2547 4666  L 4325 0  L 3669 0  L 3244 1197  L 1141 1197  L 716 0  L 50 0  L 1831 4666  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      <path id=&quot;DejaVuSans-3&quot; transform=&quot;scale(0.015625)&quot;/>
+      <path id=&quot;DejaVuSans-4a&quot; d=&quot;M 2906 1791  Q 2906 2416 2648 2759  Q 2391 3103 1925 3103  Q 1463 3103 1205 2759  Q 947 2416 947 1791  Q 947 1169 1205 825  Q 1463 481 1925 481  Q 2391 481 2648 825  Q 2906 1169 2906 1791  z M 3481 434  Q 3481 -459 3084 -895  Q 2688 -1331 1869 -1331  Q 1566 -1331 1297 -1286  Q 1028 -1241 775 -1147  L 775 -588  Q 1028 -725 1275 -790  Q 1522 -856 1778 -856  Q 2344 -856 2625 -561  Q 2906 -266 2906 331  L 2906 616  Q 2728 306 2450 153  Q 2172 0 1784 0  Q 1141 0 747 490  Q 353 981 353 1791  Q 353 2603 747 3093  Q 1141 3584 1784 3584  Q 2172 3584 2450 3431  Q 2728 3278 2906 2969  L 2906 3500  L 3481 3500  L 3481 434  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      <path id=&quot;DejaVuSans-53&quot; d=&quot;M 1159 525  L 1159 -1331  L 581 -1331  L 581 3500  L 1159 3500  L 1159 2969  Q 1341 3281 1617 3432  Q 1894 3584 2278 3584  Q 2916 3584 3314 3078  Q 3713 2572 3713 1747  Q 3713 922 3314 415  Q 2916 -91 2278 -91  Q 1894 -91 1617 61  Q 1341 213 1159 525  z M 3116 1747  Q 3116 2381 2855 2742  Q 2594 3103 2138 3103  Q 1681 3103 1420 2742  Q 1159 2381 1159 1747  Q 1159 1113 1420 752  Q 1681 391 2138 391  Q 2594 391 2855 752  Q 3116 1113 3116 1747  z &quot; transform=&quot;scale(0.015625)&quot;/>
+     </defs>
+     <use xlink:href=&quot;#DejaVuSans-24&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-3&quot; transform=&quot;translate(68.40625 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-57&quot; transform=&quot;translate(100.1875 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-55&quot; transform=&quot;translate(139.390625 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-44&quot; transform=&quot;translate(180.5 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-4c&quot; transform=&quot;translate(241.78125 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-51&quot; transform=&quot;translate(269.5625 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-4c&quot; transform=&quot;translate(332.9375 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-51&quot; transform=&quot;translate(360.71875 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-4a&quot; transform=&quot;translate(424.09375 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-3&quot; transform=&quot;translate(487.578125 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-53&quot; transform=&quot;translate(519.359375 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-4c&quot; transform=&quot;translate(582.84375 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-53&quot; transform=&quot;translate(610.625 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-48&quot; transform=&quot;translate(674.109375 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-4f&quot; transform=&quot;translate(735.640625 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-4c&quot; transform=&quot;translate(763.421875 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-51&quot; transform=&quot;translate(791.203125 0)&quot;/>
+     <use xlink:href=&quot;#DejaVuSans-48&quot; transform=&quot;translate(854.578125 0)&quot;/>
+    </g>
+   </g>
+  </g>
+ </g>
+ <defs>
+  <clipPath id=&quot;pa7332efffe&quot;>
+   <rect x=&quot;63&quot; y=&quot;43.2&quot; width=&quot;390.6&quot; height=&quot;277.2&quot;/>
+  </clipPath>
+ </defs>
+</svg>
+</div>
+</div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
+        function resizeIframe() {
+            let iframe = document.getElementById('iframe_9c8a7fe8-3210-4ba0-8307-4a538886a77e');
+            if (
+                iframe &amp;&amp; iframe.contentWindow &amp;&amp;
+                iframe.contentWindow.document
+            ) {
+                let iframeDocument = iframe.contentWindow.document;
+                let body = iframeDocument.body;
+                let de = iframeDocument.documentElement;
+
+                iframe.style.height = 'auto';
+
+                // Use Math.max() across multiple DOM measurements (industry standard)
+                let height = Math.max(
+                    body.scrollHeight || 0,
+                    body.offsetHeight || 0,
+                    de.scrollHeight || 0,
+                    de.offsetHeight || 0,
+                    de.clientHeight || 0
+                );
+
+                // Scan specific MAIDR elements with getBoundingClientRect()
+                // This ensures elements with overflow:visible parents are included
+                let selectors = [
+                    '#maidr-rotor-area',
+                    '#maidr-text-container',
+                    '[id^=&quot;maidr-braille-textarea&quot;]',
+                    '.maidr-review-input'
+                ];
+                for (let i = 0; i < selectors.length; i++) {
+                    let el = iframeDocument.querySelector(selectors[i]);
+                    if (el) {
+                        let rect = el.getBoundingClientRect();
+                        let bottom = rect.bottom + (iframe.contentWindow.scrollY || 0);
+                        if (bottom > height) {
+                            height = bottom;
+                        }
+                    }
+                }
+
+                // Detect braille textarea by dynamic id prefix
+                let brailleContainer = iframeDocument.querySelector('[id^=&quot;maidr-braille-textarea&quot;]');
+                // Detect review input container by class name
+                let reviewInputContainer = iframeDocument.querySelector('.maidr-review-input');
+                // Consider braille active if it or any descendant has focus
+                let isBrailleActive = brailleContainer &amp;&amp; (
+                    brailleContainer === iframeDocument.activeElement ||
+                    (typeof brailleContainer.contains === 'function' &amp;&amp; brailleContainer.contains(iframeDocument.activeElement))
+                );
+                // Consider review input active if it or any descendant has focus
+                let isReviewInputActive = reviewInputContainer &amp;&amp; (
+                    reviewInputContainer === iframeDocument.activeElement ||
+                    (typeof reviewInputContainer.contains === 'function' &amp;&amp; reviewInputContainer.contains(iframeDocument.activeElement))
+                );
+
+                // Add buffer for active states (rotor-area height is measured directly above)
+                if (isBrailleActive) {
+                    height += 100;
+                } else if (isReviewInputActive) {
+                    height += 50;
+                }
+                iframe.style.height = (height) + 'px';
+                iframe.style.width = iframeDocument.body.scrollWidth + 'px';
+            }
+        }
+        let iframe = document.getElementById('iframe_9c8a7fe8-3210-4ba0-8307-4a538886a77e');
+        resizeIframe();
+        iframe.onload = function() {
+            resizeIframe();
+            iframe.contentWindow.addEventListener('resize', resizeIframe);
+        };
+        // Delegate focus events for braille textarea (by id prefix)
+        iframe.contentWindow.document.addEventListener('focusin', (e) => {
+            try {
+                const t = e &amp;&amp; e.target ? e.target : null;
+                if (t &amp;&amp; typeof t.id === 'string' &amp;&amp; t.id.startsWith('maidr-braille-textarea')) resizeIframe();
+            } catch (_) { resizeIframe(); }
+        }, true);
+        iframe.contentWindow.document.addEventListener('focusout', (e) => {
+            try {
+                const t = e &amp;&amp; e.target ? e.target : null;
+                if (t &amp;&amp; typeof t.id === 'string' &amp;&amp; t.id.startsWith('maidr-braille-textarea')) resizeIframe();
+            } catch (_) { resizeIframe(); }
+        }, true);
+        // Delegate focus events for review input container (by class name)
+        iframe.contentWindow.document.addEventListener('focusin', (e) => {
+            try {
+                const t = e &amp;&amp; e.target ? e.target : null;
+                if (t &amp;&amp; t.classList &amp;&amp; t.classList.contains('maidr-review-input')) resizeIframe();
+            } catch (_) { resizeIframe(); }
+        }, true);
+        iframe.contentWindow.document.addEventListener('focusout', (e) => {
+            try {
+                const t = e &amp;&amp; e.target ? e.target : null;
+                if (t &amp;&amp; t.classList &amp;&amp; t.classList.contains('maidr-review-input')) resizeIframe();
+            } catch (_) { resizeIframe(); }
+        }, true);
+        // Modern resize detection: ResizeObserver with MutationObserver fallback
+        try {
+            let rafId = 0;
+            let scheduleResize = function() {
+                cancelAnimationFrame(rafId);
+                rafId = requestAnimationFrame(function() {
+                    resizeIframe();
+                });
+            };
+
+            // Try ResizeObserver first (modern, more efficient)
+            if (typeof iframe.contentWindow.ResizeObserver !== 'undefined') {
+                new iframe.contentWindow.ResizeObserver(scheduleResize).observe(
+                    iframe.contentWindow.document.body
+                );
+            } else {
+                // Fallback to MutationObserver (observe entire document for all changes)
+                new MutationObserver(scheduleResize).observe(
+                    iframe.contentWindow.document.body,
+                    { childList: true, subtree: true, characterData: true, attributes: true }
+                );
+            }
+        } catch (_) {}
+    "></iframe>
+</div>
+</div>
+<p>Each stop announces the node and its connections: <code>clean</code> is fed by <code>load</code> and feeds <code>features</code> and <code>labels</code>, so it is announced as a branch point, and <code>train</code>, fed by both, as a merge point.</p>
+</section>
+<section id="labels-and-node-data" class="level2">
+<h2 class="anchored" data-anchor-id="labels-and-node-data">Labels and node data</h2>
+<div id="96f7f081" class="cell" data-execution_count="3">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" data-source-line-numbers="nil" data-code-line-numbers="4,11,19,21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> networkx <span class="im">as</span> nx</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> maidr  </span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>tasks <span class="op">=</span> nx.DiGraph([(<span class="st">"fetch"</span>, <span class="st">"parse"</span>), (<span class="st">"parse"</span>, <span class="st">"store"</span>), (<span class="st">"parse"</span>, <span class="st">"index"</span>)])</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>tasks.nodes[<span class="st">"fetch"</span>][<span class="st">"retries"</span>] <span class="op">=</span> <span class="dv">3</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>tasks.nodes[<span class="st">"store"</span>][<span class="st">"backend"</span>] <span class="op">=</span> <span class="st">"postgres"</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots()</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>nx.draw_circular(  </span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>    tasks,</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>    ax<span class="op">=</span>ax,</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>    with_labels<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>    labels<span class="op">=</span>{<span class="st">"fetch"</span>: <span class="st">"Fetch pages"</span>, <span class="st">"parse"</span>: <span class="st">"Parse HTML"</span>,</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>            <span class="st">"store"</span>: <span class="st">"Store rows"</span>, <span class="st">"index"</span>: <span class="st">"Build index"</span>},</span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>    node_size<span class="op">=</span><span class="dv">1800</span>,</span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>    node_color<span class="op">=</span><span class="st">"wheat"</span>,</span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>)  </span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>plt.show()  </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<iframe id="iframe_4dbd5469-9a4b-436e-97b3-7befff3013f1" title="Accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
+  <script type=&quot;text/javascript&quot;>
+                (function() {
+                    var existing = document.querySelector('script[src=&quot;https://cdn.jsdelivr.net/npm/maidr@4.14.0/dist/maidr.js&quot;]');
+                    if (!existing) {
+                        var s = document.createElement('script');
+                        s.src = 'https://cdn.jsdelivr.net/npm/maidr@4.14.0/dist/maidr.js';
+                        s.onload = function() { if (window.main) window.main(); };
+                        document.head.appendChild(s);
+                    } else {
+                        if (document.readyState === 'loading') {
+                            document.addEventListener('DOMContentLoaded', function() { if (window.main) window.main(); });
+                        } else {
+                            if (window.main) window.main();
+                        }
+                    }
+                })();
+            </script>
+  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;504pt&quot; height=&quot;360pt&quot; viewBox=&quot;0 0 504 360&quot; version=&quot;1.1&quot; id=&quot;7a2dea83-fa2d-416d-be98-129a6420df4b&quot; maidr=&quot;{&amp;quot;id&amp;quot;: &amp;quot;7a2dea83-fa2d-416d-be98-129a6420df4b&amp;quot;, &amp;quot;subplots&amp;quot;: [[{&amp;quot;id&amp;quot;: &amp;quot;55e75a7b-bfb9-485f-aed6-6808808573e5&amp;quot;, &amp;quot;layers&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;906a49f9-8aef-4473-8999-e5ea408d2d2d&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;directed_graph&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Node&amp;quot;}}, &amp;quot;data&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;fetch&amp;quot;, &amp;quot;label&amp;quot;: &amp;quot;Fetch pages&amp;quot;, &amp;quot;inputs&amp;quot;: [], &amp;quot;attributes&amp;quot;: {&amp;quot;retries&amp;quot;: 3}}, {&amp;quot;id&amp;quot;: &amp;quot;parse&amp;quot;, &amp;quot;label&amp;quot;: &amp;quot;Parse HTML&amp;quot;, &amp;quot;inputs&amp;quot;: [&amp;quot;fetch&amp;quot;], &amp;quot;attributes&amp;quot;: {}}, {&amp;quot;id&amp;quot;: &amp;quot;store&amp;quot;, &amp;quot;label&amp;quot;: &amp;quot;Store rows&amp;quot;, &amp;quot;inputs&amp;quot;: [&amp;quot;parse&amp;quot;], &amp;quot;attributes&amp;quot;: {&amp;quot;backend&amp;quot;: &amp;quot;postgres&amp;quot;}}, {&amp;quot;id&amp;quot;: &amp;quot;index&amp;quot;, &amp;quot;label&amp;quot;: &amp;quot;Build index&amp;quot;, &amp;quot;inputs&amp;quot;: [&amp;quot;parse&amp;quot;], &amp;quot;attributes&amp;quot;: {}}], &amp;quot;selectors&amp;quot;: [&amp;quot;g[id='maidr-def6f2fc-6e52-43e6-a7e5-4b6770e69dd0'] &amp;gt; g:only-of-type &amp;gt; use:nth-of-type(1), g[id='maidr-def6f2fc-6e52-43e6-a7e5-4b6770e69dd0'] &amp;gt; g:nth-of-type(1) &amp;gt; use:only-child, g[id='maidr-def6f2fc-6e52-43e6-a7e5-4b6770e69dd0'] &amp;gt; path:nth-of-type(1)&amp;quot;, &amp;quot;g[id='maidr-def6f2fc-6e52-43e6-a7e5-4b6770e69dd0'] &amp;gt; g:only-of-type &amp;gt; use:nth-of-type(2), g[id='maidr-def6f2fc-6e52-43e6-a7e5-4b6770e69dd0'] &amp;gt; g:nth-of-type(2) &amp;gt; use:only-child, g[id='maidr-def6f2fc-6e52-43e6-a7e5-4b6770e69dd0'] &amp;gt; path:nth-of-type(2)&amp;quot;, &amp;quot;g[id='maidr-def6f2fc-6e52-43e6-a7e5-4b6770e69dd0'] &amp;gt; g:only-of-type &amp;gt; use:nth-of-type(3), g[id='maidr-def6f2fc-6e52-43e6-a7e5-4b6770e69dd0'] &amp;gt; g:nth-of-type(3) &amp;gt; use:only-child, g[id='maidr-def6f2fc-6e52-43e6-a7e5-4b6770e69dd0'] &amp;gt; path:nth-of-type(3)&amp;quot;, &amp;quot;g[id='maidr-def6f2fc-6e52-43e6-a7e5-4b6770e69dd0'] &amp;gt; g:only-of-type &amp;gt; use:nth-of-type(4), g[id='maidr-def6f2fc-6e52-43e6-a7e5-4b6770e69dd0'] &amp;gt; g:nth-of-type(4) &amp;gt; use:only-child, g[id='maidr-def6f2fc-6e52-43e6-a7e5-4b6770e69dd0'] &amp;gt; path:nth-of-type(4)&amp;quot;]}]}]]}&quot;>
+ <metadata>
+  <rdf:RDF xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot; xmlns:cc=&quot;http://creativecommons.org/ns#&quot; xmlns:rdf=&quot;http://www.w3.org/1999/02/22-rdf-syntax-ns#&quot;>
+   <cc:Work>
+    <dc:type rdf:resource=&quot;http://purl.org/dc/dcmitype/StillImage&quot;/>
+    <dc:date>2026-10-08T12:42:07.919361</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.11.2, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type=&quot;text/css&quot;>*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id=&quot;figure_1&quot;>
+  <g id=&quot;maidr-f3d1a916-84be-48f6-932c-372188d5d2d5&quot;>
+   <path d=&quot;M 0 360  L 504 360  L 504 0  L 0 0  z &quot; style=&quot;fill: #ffffff&quot;/>
+  </g>
+  <g id=&quot;axes_1&quot;>
+   <g id=&quot;patch_1&quot;>
+    <path d=&quot;M 402.403477 169.52153  Q 339.000891 124.526148 276.510069 80.177824  &quot; clip-path=&quot;url(#p9635514901)&quot; style=&quot;fill: none; stroke: #000000; stroke-linecap: round&quot;/>
+    <path d=&quot;M 278.614603 84.123827  L 276.510069 80.177824  L 280.929591 80.861798  z &quot; clip-path=&quot;url(#p9635514901)&quot; style=&quot;stroke: #000000; stroke-linecap: round&quot;/>
+   </g>
+   <g id=&quot;patch_2&quot;>
+    <path d=&quot;M 240.998513 79.533017  Q 177.595932 124.528403 115.105116 168.87673  &quot; clip-path=&quot;url(#p9635514901)&quot; style=&quot;fill: none; stroke: #000000; stroke-linecap: round&quot;/>
+    <path d=&quot;M 119.524638 168.192756  L 115.105116 168.87673  L 117.20965 164.930727  z &quot; clip-path=&quot;url(#p9635514901)&quot; style=&quot;stroke: #000000; stroke-linecap: round&quot;/>
+   </g>
+   <g id=&quot;patch_3&quot;>
+    <path d=&quot;M 258.299994 88.469644  Q 258.299997 181.802191 258.300001 274.016704  &quot; clip-path=&quot;url(#p9635514901)&quot; style=&quot;fill: none; stroke: #000000; stroke-linecap: round&quot;/>
+    <path d=&quot;M 260.300001 270.016704  L 258.300001 274.016704  L 256.300001 270.016704  z &quot; clip-path=&quot;url(#p9635514901)&quot; style=&quot;stroke: #000000; stroke-linecap: round&quot;/>
+   </g>
+   <g id=&quot;maidr-def6f2fc-6e52-43e6-a7e5-4b6770e69dd0&quot;>
+    <defs>
+     <path id=&quot;m657b41d56e&quot; d=&quot;M 0 21.213203  C 5.625807 21.213203 11.021954 18.978047 15 15  C 18.978047 11.021954 21.213203 5.625807 21.213203 0  C 21.213203 -5.625807 18.978047 -11.021954 15 -15  C 11.021954 -18.978047 5.625807 -21.213203 0 -21.213203  C -5.625807 -21.213203 -11.021954 -18.978047 -15 -15  C -18.978047 -11.021954 -21.213203 -5.625807 -21.213203 0  C -21.213203 5.625807 -18.978047 11.021954 -15 15  C -11.021954 18.978047 -5.625807 21.213203 0 21.213203  z &quot; style=&quot;stroke: #f5deb3&quot;/>
+    </defs>
+    <g clip-path=&quot;url(#p9635514901)&quot;>
+     <use xlink:href=&quot;#m657b41d56e&quot; x=&quot;419.704959&quot; y=&quot;181.8&quot; style=&quot;fill: #f5deb3; stroke: #f5deb3&quot;/>
+     <use xlink:href=&quot;#m657b41d56e&quot; x=&quot;258.299993&quot; y=&quot;67.254545&quot; style=&quot;fill: #f5deb3; stroke: #f5deb3&quot;/>
+     <use xlink:href=&quot;#m657b41d56e&quot; x=&quot;96.895041&quot; y=&quot;181.80001&quot; style=&quot;fill: #f5deb3; stroke: #f5deb3&quot;/>
+     <use xlink:href=&quot;#m657b41d56e&quot; x=&quot;258.300002&quot; y=&quot;296.345455&quot; style=&quot;fill: #f5deb3; stroke: #f5deb3&quot;/>
+    </g>
+   </g>
+   <g id=&quot;text_1&quot;>
+    <g clip-path=&quot;url(#p9635514901)&quot;>
+     <!-- Fetch pages -->
+     <g transform=&quot;translate(383.417146 184.917656) scale(0.12 -0.12)&quot;>
+      <defs>
+       <path id=&quot;DejaVuSans-29&quot; d=&quot;M 628 4666  L 3309 4666  L 3309 4134  L 1259 4134  L 1259 2759  L 3109 2759  L 3109 2228  L 1259 2228  L 1259 0  L 628 0  L 628 4666  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-48&quot; d=&quot;M 3597 1894  L 3597 1613  L 953 1613  Q 991 1019 1311 708  Q 1631 397 2203 397  Q 2534 397 2845 478  Q 3156 559 3463 722  L 3463 178  Q 3153 47 2828 -22  Q 2503 -91 2169 -91  Q 1331 -91 842 396  Q 353 884 353 1716  Q 353 2575 817 3079  Q 1281 3584 2069 3584  Q 2775 3584 3186 3129  Q 3597 2675 3597 1894  z M 3022 2063  Q 3016 2534 2758 2815  Q 2500 3097 2075 3097  Q 1594 3097 1305 2825  Q 1016 2553 972 2059  L 3022 2063  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-57&quot; d=&quot;M 1172 4494  L 1172 3500  L 2356 3500  L 2356 3053  L 1172 3053  L 1172 1153  Q 1172 725 1289 603  Q 1406 481 1766 481  L 2356 481  L 2356 0  L 1766 0  Q 1100 0 847 248  Q 594 497 594 1153  L 594 3053  L 172 3053  L 172 3500  L 594 3500  L 594 4494  L 1172 4494  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-46&quot; d=&quot;M 3122 3366  L 3122 2828  Q 2878 2963 2633 3030  Q 2388 3097 2138 3097  Q 1578 3097 1268 2742  Q 959 2388 959 1747  Q 959 1106 1268 751  Q 1578 397 2138 397  Q 2388 397 2633 464  Q 2878 531 3122 666  L 3122 134  Q 2881 22 2623 -34  Q 2366 -91 2075 -91  Q 1284 -91 818 406  Q 353 903 353 1747  Q 353 2603 823 3093  Q 1294 3584 2113 3584  Q 2378 3584 2631 3529  Q 2884 3475 3122 3366  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-4b&quot; d=&quot;M 3513 2113  L 3513 0  L 2938 0  L 2938 2094  Q 2938 2591 2744 2837  Q 2550 3084 2163 3084  Q 1697 3084 1428 2787  Q 1159 2491 1159 1978  L 1159 0  L 581 0  L 581 4863  L 1159 4863  L 1159 2956  Q 1366 3272 1645 3428  Q 1925 3584 2291 3584  Q 2894 3584 3203 3211  Q 3513 2838 3513 2113  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-3&quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-53&quot; d=&quot;M 1159 525  L 1159 -1331  L 581 -1331  L 581 3500  L 1159 3500  L 1159 2969  Q 1341 3281 1617 3432  Q 1894 3584 2278 3584  Q 2916 3584 3314 3078  Q 3713 2572 3713 1747  Q 3713 922 3314 415  Q 2916 -91 2278 -91  Q 1894 -91 1617 61  Q 1341 213 1159 525  z M 3116 1747  Q 3116 2381 2855 2742  Q 2594 3103 2138 3103  Q 1681 3103 1420 2742  Q 1159 2381 1159 1747  Q 1159 1113 1420 752  Q 1681 391 2138 391  Q 2594 391 2855 752  Q 3116 1113 3116 1747  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-44&quot; d=&quot;M 2194 1759  Q 1497 1759 1228 1600  Q 959 1441 959 1056  Q 959 750 1161 570  Q 1363 391 1709 391  Q 2188 391 2477 730  Q 2766 1069 2766 1631  L 2766 1759  L 2194 1759  z M 3341 1997  L 3341 0  L 2766 0  L 2766 531  Q 2569 213 2275 61  Q 1981 -91 1556 -91  Q 1019 -91 701 211  Q 384 513 384 1019  Q 384 1609 779 1909  Q 1175 2209 1959 2209  L 2766 2209  L 2766 2266  Q 2766 2663 2505 2880  Q 2244 3097 1772 3097  Q 1472 3097 1187 3025  Q 903 2953 641 2809  L 641 3341  Q 956 3463 1253 3523  Q 1550 3584 1831 3584  Q 2591 3584 2966 3190  Q 3341 2797 3341 1997  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-4a&quot; d=&quot;M 2906 1791  Q 2906 2416 2648 2759  Q 2391 3103 1925 3103  Q 1463 3103 1205 2759  Q 947 2416 947 1791  Q 947 1169 1205 825  Q 1463 481 1925 481  Q 2391 481 2648 825  Q 2906 1169 2906 1791  z M 3481 434  Q 3481 -459 3084 -895  Q 2688 -1331 1869 -1331  Q 1566 -1331 1297 -1286  Q 1028 -1241 775 -1147  L 775 -588  Q 1028 -725 1275 -790  Q 1522 -856 1778 -856  Q 2344 -856 2625 -561  Q 2906 -266 2906 331  L 2906 616  Q 2728 306 2450 153  Q 2172 0 1784 0  Q 1141 0 747 490  Q 353 981 353 1791  Q 353 2603 747 3093  Q 1141 3584 1784 3584  Q 2172 3584 2450 3431  Q 2728 3278 2906 2969  L 2906 3500  L 3481 3500  L 3481 434  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-56&quot; d=&quot;M 2834 3397  L 2834 2853  Q 2591 2978 2328 3040  Q 2066 3103 1784 3103  Q 1356 3103 1142 2972  Q 928 2841 928 2578  Q 928 2378 1081 2264  Q 1234 2150 1697 2047  L 1894 2003  Q 2506 1872 2764 1633  Q 3022 1394 3022 966  Q 3022 478 2636 193  Q 2250 -91 1575 -91  Q 1294 -91 989 -36  Q 684 19 347 128  L 347 722  Q 666 556 975 473  Q 1284 391 1588 391  Q 1994 391 2212 530  Q 2431 669 2431 922  Q 2431 1156 2273 1281  Q 2116 1406 1581 1522  L 1381 1569  Q 847 1681 609 1914  Q 372 2147 372 2553  Q 372 3047 722 3315  Q 1072 3584 1716 3584  Q 2034 3584 2315 3537  Q 2597 3491 2834 3397  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      </defs>
+      <use xlink:href=&quot;#DejaVuSans-29&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-48&quot; transform=&quot;translate(52.046875 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-57&quot; transform=&quot;translate(113.578125 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-46&quot; transform=&quot;translate(152.78125 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-4b&quot; transform=&quot;translate(207.765625 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-3&quot; transform=&quot;translate(271.140625 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-53&quot; transform=&quot;translate(302.921875 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-44&quot; transform=&quot;translate(366.40625 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-4a&quot; transform=&quot;translate(427.6875 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-48&quot; transform=&quot;translate(491.171875 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-56&quot; transform=&quot;translate(552.703125 0)&quot;/>
+     </g>
+    </g>
+   </g>
+   <g id=&quot;text_2&quot;>
+    <g clip-path=&quot;url(#p9635514901)&quot;>
+     <!-- Parse HTML -->
+     <g transform=&quot;translate(223.386555 70.371733) scale(0.12 -0.12)&quot;>
+      <defs>
+       <path id=&quot;DejaVuSans-33&quot; d=&quot;M 1259 4147  L 1259 2394  L 2053 2394  Q 2494 2394 2734 2622  Q 2975 2850 2975 3272  Q 2975 3691 2734 3919  Q 2494 4147 2053 4147  L 1259 4147  z M 628 4666  L 2053 4666  Q 2838 4666 3239 4311  Q 3641 3956 3641 3272  Q 3641 2581 3239 2228  Q 2838 1875 2053 1875  L 1259 1875  L 1259 0  L 628 0  L 628 4666  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-55&quot; d=&quot;M 2631 2963  Q 2534 3019 2420 3045  Q 2306 3072 2169 3072  Q 1681 3072 1420 2755  Q 1159 2438 1159 1844  L 1159 0  L 581 0  L 581 3500  L 1159 3500  L 1159 2956  Q 1341 3275 1631 3429  Q 1922 3584 2338 3584  Q 2397 3584 2469 3576  Q 2541 3569 2628 3553  L 2631 2963  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-2b&quot; d=&quot;M 628 4666  L 1259 4666  L 1259 2753  L 3553 2753  L 3553 4666  L 4184 4666  L 4184 0  L 3553 0  L 3553 2222  L 1259 2222  L 1259 0  L 628 0  L 628 4666  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-37&quot; d=&quot;M -19 4666  L 3928 4666  L 3928 4134  L 2272 4134  L 2272 0  L 1638 0  L 1638 4134  L -19 4134  L -19 4666  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-30&quot; d=&quot;M 628 4666  L 1569 4666  L 2759 1491  L 3956 4666  L 4897 4666  L 4897 0  L 4281 0  L 4281 4097  L 3078 897  L 2444 897  L 1241 4097  L 1241 0  L 628 0  L 628 4666  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-2f&quot; d=&quot;M 628 4666  L 1259 4666  L 1259 531  L 3531 531  L 3531 0  L 628 0  L 628 4666  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      </defs>
+      <use xlink:href=&quot;#DejaVuSans-33&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-44&quot; transform=&quot;translate(55.8125 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-55&quot; transform=&quot;translate(117.09375 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-56&quot; transform=&quot;translate(158.203125 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-48&quot; transform=&quot;translate(210.296875 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-3&quot; transform=&quot;translate(271.828125 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-2b&quot; transform=&quot;translate(303.609375 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-37&quot; transform=&quot;translate(378.8125 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-30&quot; transform=&quot;translate(439.890625 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-2f&quot; transform=&quot;translate(526.171875 0)&quot;/>
+     </g>
+    </g>
+   </g>
+   <g id=&quot;text_3&quot;>
+    <g clip-path=&quot;url(#p9635514901)&quot;>
+     <!-- Store rows -->
+     <g transform=&quot;translate(65.091291 184.917198) scale(0.12 -0.12)&quot;>
+      <defs>
+       <path id=&quot;DejaVuSans-36&quot; d=&quot;M 3425 4513  L 3425 3897  Q 3066 4069 2747 4153  Q 2428 4238 2131 4238  Q 1616 4238 1336 4038  Q 1056 3838 1056 3469  Q 1056 3159 1242 3001  Q 1428 2844 1947 2747  L 2328 2669  Q 3034 2534 3370 2195  Q 3706 1856 3706 1288  Q 3706 609 3251 259  Q 2797 -91 1919 -91  Q 1588 -91 1214 -16  Q 841 59 441 206  L 441 856  Q 825 641 1194 531  Q 1563 422 1919 422  Q 2459 422 2753 634  Q 3047 847 3047 1241  Q 3047 1584 2836 1778  Q 2625 1972 2144 2069  L 1759 2144  Q 1053 2284 737 2584  Q 422 2884 422 3419  Q 422 4038 858 4394  Q 1294 4750 2059 4750  Q 2388 4750 2728 4690  Q 3069 4631 3425 4513  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-52&quot; d=&quot;M 1959 3097  Q 1497 3097 1228 2736  Q 959 2375 959 1747  Q 959 1119 1226 758  Q 1494 397 1959 397  Q 2419 397 2687 759  Q 2956 1122 2956 1747  Q 2956 2369 2687 2733  Q 2419 3097 1959 3097  z M 1959 3584  Q 2709 3584 3137 3096  Q 3566 2609 3566 1747  Q 3566 888 3137 398  Q 2709 -91 1959 -91  Q 1206 -91 779 398  Q 353 888 353 1747  Q 353 2609 779 3096  Q 1206 3584 1959 3584  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-5a&quot; d=&quot;M 269 3500  L 844 3500  L 1563 769  L 2278 3500  L 2956 3500  L 3675 769  L 4391 3500  L 4966 3500  L 4050 0  L 3372 0  L 2619 2869  L 1863 0  L 1184 0  L 269 3500  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      </defs>
+      <use xlink:href=&quot;#DejaVuSans-36&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-57&quot; transform=&quot;translate(63.484375 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-52&quot; transform=&quot;translate(102.6875 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-55&quot; transform=&quot;translate(163.875 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-48&quot; transform=&quot;translate(202.78125 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-3&quot; transform=&quot;translate(264.3125 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-55&quot; transform=&quot;translate(296.09375 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-52&quot; transform=&quot;translate(335 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-5a&quot; transform=&quot;translate(396.1875 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-56&quot; transform=&quot;translate(477.96875 0)&quot;/>
+     </g>
+    </g>
+   </g>
+   <g id=&quot;text_4&quot;>
+    <g clip-path=&quot;url(#p9635514901)&quot;>
+     <!-- Build index -->
+     <g transform=&quot;translate(224.914689 299.463111) scale(0.12 -0.12)&quot;>
+      <defs>
+       <path id=&quot;DejaVuSans-25&quot; d=&quot;M 1259 2228  L 1259 519  L 2272 519  Q 2781 519 3026 730  Q 3272 941 3272 1375  Q 3272 1813 3026 2020  Q 2781 2228 2272 2228  L 1259 2228  z M 1259 4147  L 1259 2741  L 2194 2741  Q 2656 2741 2882 2914  Q 3109 3088 3109 3444  Q 3109 3797 2882 3972  Q 2656 4147 2194 4147  L 1259 4147  z M 628 4666  L 2241 4666  Q 2963 4666 3353 4366  Q 3744 4066 3744 3513  Q 3744 3084 3544 2831  Q 3344 2578 2956 2516  Q 3422 2416 3680 2098  Q 3938 1781 3938 1306  Q 3938 681 3513 340  Q 3088 0 2303 0  L 628 0  L 628 4666  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-58&quot; d=&quot;M 544 1381  L 544 3500  L 1119 3500  L 1119 1403  Q 1119 906 1312 657  Q 1506 409 1894 409  Q 2359 409 2629 706  Q 2900 1003 2900 1516  L 2900 3500  L 3475 3500  L 3475 0  L 2900 0  L 2900 538  Q 2691 219 2414 64  Q 2138 -91 1772 -91  Q 1169 -91 856 284  Q 544 659 544 1381  z M 1991 3584  L 1991 3584  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-4c&quot; d=&quot;M 603 3500  L 1178 3500  L 1178 0  L 603 0  L 603 3500  z M 603 4863  L 1178 4863  L 1178 4134  L 603 4134  L 603 4863  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-4f&quot; d=&quot;M 603 4863  L 1178 4863  L 1178 0  L 603 0  L 603 4863  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-47&quot; d=&quot;M 2906 2969  L 2906 4863  L 3481 4863  L 3481 0  L 2906 0  L 2906 525  Q 2725 213 2448 61  Q 2172 -91 1784 -91  Q 1150 -91 751 415  Q 353 922 353 1747  Q 353 2572 751 3078  Q 1150 3584 1784 3584  Q 2172 3584 2448 3432  Q 2725 3281 2906 2969  z M 947 1747  Q 947 1113 1208 752  Q 1469 391 1925 391  Q 2381 391 2643 752  Q 2906 1113 2906 1747  Q 2906 2381 2643 2742  Q 2381 3103 1925 3103  Q 1469 3103 1208 2742  Q 947 2381 947 1747  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-51&quot; d=&quot;M 3513 2113  L 3513 0  L 2938 0  L 2938 2094  Q 2938 2591 2744 2837  Q 2550 3084 2163 3084  Q 1697 3084 1428 2787  Q 1159 2491 1159 1978  L 1159 0  L 581 0  L 581 3500  L 1159 3500  L 1159 2956  Q 1366 3272 1645 3428  Q 1925 3584 2291 3584  Q 2894 3584 3203 3211  Q 3513 2838 3513 2113  z &quot; transform=&quot;scale(0.015625)&quot;/>
+       <path id=&quot;DejaVuSans-5b&quot; d=&quot;M 3513 3500  L 2247 1797  L 3578 0  L 2900 0  L 1881 1375  L 863 0  L 184 0  L 1544 1831  L 300 3500  L 978 3500  L 1906 2253  L 2834 3500  L 3513 3500  z &quot; transform=&quot;scale(0.015625)&quot;/>
+      </defs>
+      <use xlink:href=&quot;#DejaVuSans-25&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-58&quot; transform=&quot;translate(68.609375 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-4c&quot; transform=&quot;translate(131.984375 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-4f&quot; transform=&quot;translate(159.765625 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-47&quot; transform=&quot;translate(187.546875 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-3&quot; transform=&quot;translate(251.03125 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-4c&quot; transform=&quot;translate(282.8125 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-51&quot; transform=&quot;translate(310.59375 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-47&quot; transform=&quot;translate(373.96875 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-48&quot; transform=&quot;translate(437.453125 0)&quot;/>
+      <use xlink:href=&quot;#DejaVuSans-5b&quot; transform=&quot;translate(497.234375 0)&quot;/>
+     </g>
+    </g>
+   </g>
+  </g>
+ </g>
+ <defs>
+  <clipPath id=&quot;p9635514901&quot;>
+   <rect x=&quot;63&quot; y=&quot;43.2&quot; width=&quot;390.6&quot; height=&quot;277.2&quot;/>
+  </clipPath>
+ </defs>
+</svg>
+</div>
+</div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
+        function resizeIframe() {
+            let iframe = document.getElementById('iframe_4dbd5469-9a4b-436e-97b3-7befff3013f1');
+            if (
+                iframe &amp;&amp; iframe.contentWindow &amp;&amp;
+                iframe.contentWindow.document
+            ) {
+                let iframeDocument = iframe.contentWindow.document;
+                let body = iframeDocument.body;
+                let de = iframeDocument.documentElement;
+
+                iframe.style.height = 'auto';
+
+                // Use Math.max() across multiple DOM measurements (industry standard)
+                let height = Math.max(
+                    body.scrollHeight || 0,
+                    body.offsetHeight || 0,
+                    de.scrollHeight || 0,
+                    de.offsetHeight || 0,
+                    de.clientHeight || 0
+                );
+
+                // Scan specific MAIDR elements with getBoundingClientRect()
+                // This ensures elements with overflow:visible parents are included
+                let selectors = [
+                    '#maidr-rotor-area',
+                    '#maidr-text-container',
+                    '[id^=&quot;maidr-braille-textarea&quot;]',
+                    '.maidr-review-input'
+                ];
+                for (let i = 0; i < selectors.length; i++) {
+                    let el = iframeDocument.querySelector(selectors[i]);
+                    if (el) {
+                        let rect = el.getBoundingClientRect();
+                        let bottom = rect.bottom + (iframe.contentWindow.scrollY || 0);
+                        if (bottom > height) {
+                            height = bottom;
+                        }
+                    }
+                }
+
+                // Detect braille textarea by dynamic id prefix
+                let brailleContainer = iframeDocument.querySelector('[id^=&quot;maidr-braille-textarea&quot;]');
+                // Detect review input container by class name
+                let reviewInputContainer = iframeDocument.querySelector('.maidr-review-input');
+                // Consider braille active if it or any descendant has focus
+                let isBrailleActive = brailleContainer &amp;&amp; (
+                    brailleContainer === iframeDocument.activeElement ||
+                    (typeof brailleContainer.contains === 'function' &amp;&amp; brailleContainer.contains(iframeDocument.activeElement))
+                );
+                // Consider review input active if it or any descendant has focus
+                let isReviewInputActive = reviewInputContainer &amp;&amp; (
+                    reviewInputContainer === iframeDocument.activeElement ||
+                    (typeof reviewInputContainer.contains === 'function' &amp;&amp; reviewInputContainer.contains(iframeDocument.activeElement))
+                );
+
+                // Add buffer for active states (rotor-area height is measured directly above)
+                if (isBrailleActive) {
+                    height += 100;
+                } else if (isReviewInputActive) {
+                    height += 50;
+                }
+                iframe.style.height = (height) + 'px';
+                iframe.style.width = iframeDocument.body.scrollWidth + 'px';
+            }
+        }
+        let iframe = document.getElementById('iframe_4dbd5469-9a4b-436e-97b3-7befff3013f1');
+        resizeIframe();
+        iframe.onload = function() {
+            resizeIframe();
+            iframe.contentWindow.addEventListener('resize', resizeIframe);
+        };
+        // Delegate focus events for braille textarea (by id prefix)
+        iframe.contentWindow.document.addEventListener('focusin', (e) => {
+            try {
+                const t = e &amp;&amp; e.target ? e.target : null;
+                if (t &amp;&amp; typeof t.id === 'string' &amp;&amp; t.id.startsWith('maidr-braille-textarea')) resizeIframe();
+            } catch (_) { resizeIframe(); }
+        }, true);
+        iframe.contentWindow.document.addEventListener('focusout', (e) => {
+            try {
+                const t = e &amp;&amp; e.target ? e.target : null;
+                if (t &amp;&amp; typeof t.id === 'string' &amp;&amp; t.id.startsWith('maidr-braille-textarea')) resizeIframe();
+            } catch (_) { resizeIframe(); }
+        }, true);
+        // Delegate focus events for review input container (by class name)
+        iframe.contentWindow.document.addEventListener('focusin', (e) => {
+            try {
+                const t = e &amp;&amp; e.target ? e.target : null;
+                if (t &amp;&amp; t.classList &amp;&amp; t.classList.contains('maidr-review-input')) resizeIframe();
+            } catch (_) { resizeIframe(); }
+        }, true);
+        iframe.contentWindow.document.addEventListener('focusout', (e) => {
+            try {
+                const t = e &amp;&amp; e.target ? e.target : null;
+                if (t &amp;&amp; t.classList &amp;&amp; t.classList.contains('maidr-review-input')) resizeIframe();
+            } catch (_) { resizeIframe(); }
+        }, true);
+        // Modern resize detection: ResizeObserver with MutationObserver fallback
+        try {
+            let rafId = 0;
+            let scheduleResize = function() {
+                cancelAnimationFrame(rafId);
+                rafId = requestAnimationFrame(function() {
+                    resizeIframe();
+                });
+            };
+
+            // Try ResizeObserver first (modern, more efficient)
+            if (typeof iframe.contentWindow.ResizeObserver !== 'undefined') {
+                new iframe.contentWindow.ResizeObserver(scheduleResize).observe(
+                    iframe.contentWindow.document.body
+                );
+            } else {
+                // Fallback to MutationObserver (observe entire document for all changes)
+                new MutationObserver(scheduleResize).observe(
+                    iframe.contentWindow.document.body,
+                    { childList: true, subtree: true, characterData: true, attributes: true }
+                );
+            }
+        } catch (_) {}
+    "></iframe>
+</div>
+</div>
+<p>A node is announced by the label it is drawn with (<code>labels=</code>), and the node’s own data – strings, numbers and flags, such as <code>retries</code> and <code>backend</code> here – is announced with it. Only the nodes and edges drawn are read: pass <code>nodelist=</code> or <code>edgelist=</code> and the reading follows them.</p>
+<p>Keras model graphs drawn by <a href="../examples-keras.html"><code>maidr.keras.plot_model()</code></a> and <a href="../examples-tensorboard.html"><code>maidr.read_tensorboard_graph()</code></a> are read the same way.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("^(?:http:|https:)");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+            // default icon
+            link.classList.add("external");
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../examples/pr-curve.html" class="pagination-link" aria-label="Precision-Recall Curves [experimental]">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Precision-Recall Curves [experimental]</span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../examples/dashboards.html" class="pagination-link" aria-label="Accessible Shiny, Streamlit and Gradio Dashboards with py-maidr">
+        <span class="nav-page-text">Accessible Shiny, Streamlit and Gradio Dashboards with py-maidr</span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>© (x)Ability Design Lab, University of Illinois Urbana-Champaign</p>
+</div>   
+    <div class="nav-footer-center">
+<p><a href="https://maidr.ai/">maidr.ai</a> | <a href="https://r.maidr.ai/">r.maidr.ai</a> | <a href="https://pypi.org/project/maidr/">PyPI</a></p>
+<div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/xability/py-maidr/issues/new/choose" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div><div class="cookie-consent-footer"><a href="#" id="open_preferences_center">Cookie Preferences</a></div></div>
+    <div class="nav-footer-right">
+<p><a href="https://github.com/xability/py-maidr">GitHub</a></p>
+</div>
+  </div>
+</footer>
+
+
+
+
+<script src="../site_libs/quarto-contrib/line-highlight-1.0.0/line-highlight.js" defer="true"></script>
+</body></html>
