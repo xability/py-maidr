@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 import uuid
+from numbers import Real
 from typing import Any
 
 import matplotlib.pyplot as plt
@@ -324,7 +325,9 @@ def _median_percentile_width(kwargs: dict) -> float | None:
         percentile interval.
     """
     estimator = kwargs.get("estimator")
-    if not (estimator == "median" or estimator is np.median):
+    if not (
+        (isinstance(estimator, str) and estimator == "median") or estimator is np.median
+    ):
         return None
     errorbar = kwargs.get("errorbar")
     if errorbar == "pi":
@@ -333,8 +336,8 @@ def _median_percentile_width(kwargs: dict) -> float | None:
         isinstance(errorbar, tuple)
         and len(errorbar) == 2
         and errorbar[0] == "pi"
-        and isinstance(errorbar[1], (int, float))
-        and not isinstance(errorbar[1], bool)
+        and isinstance(errorbar[1], Real)
+        and not isinstance(errorbar[1], (bool, np.bool_))
         and 0 < errorbar[1] < 100
     ):
         return float(errorbar[1])

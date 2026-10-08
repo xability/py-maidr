@@ -90,6 +90,8 @@ def test_one_selector_for_the_band_then_one_for_the_median(draws):
         {"estimator": "mean", "errorbar": ("pi", 80)},
         {"estimator": "median", "errorbar": ("ci", 95)},
         {"estimator": "median", "errorbar": ("pi", 80), "hue": "store"},
+        {"estimator": "median", "errorbar": ("pi", 80), "style": "store"},
+        {"estimator": "median", "errorbar": ("pi", 80), "size": "store"},
     ],
 )
 def test_anything_else_keeps_the_line_reading(draws, kwargs):
@@ -105,3 +107,45 @@ def test_a_single_observation_per_x_draws_no_band_and_stays_a_line():
     )
 
     assert [layer.type for layer in layers(ax)] == [PlotType.LINE]
+
+
+def test_a_numpy_width_names_the_levels_too(draws):
+    ax = sns.lineplot(
+        data=draws,
+        x="week",
+        y="sales",
+        estimator="median",
+        errorbar=("pi", np.int64(50)),
+    )
+
+    (layer,) = layers(ax)
+    levels = [q["level"] for q in layer.schema[MaidrKey.DATA][0]["quantiles"]]
+    assert levels == [0.25, 0.5, 0.75]
+
+
+def test_a_date_axis_keeps_the_line_reading(draws):
+    draws["day"] = pd.Timestamp("2026-01-01") + pd.to_timedelta(
+        draws["week"] * 7, unit="D"
+    )
+    ax = sns.lineplot(
+        data=draws, x="day", y="sales", estimator="median", errorbar=("pi", 80)
+    )
+
+    assert [layer.type for layer in layers(ax)] == [PlotType.LINE]
+
+
+def test_a_band_beside_a_line_on_one_axes_is_each_its_own_layer(draws):
+    fig, ax = plt.subplots()
+    sns.lineplot(data=draws, x="week", y="sales", ax=ax)
+    sns.lineplot(
+        data=draws,
+        x="week",
+        y="sales",
+        estimator="median",
+        errorbar=("pi", 80),
+        ax=ax,
+    )
+
+    line, band = layers(ax)
+    assert (line.type, band.type) == (PlotType.LINE, PlotType.PERCENTILE_BAND)
+    assert len(line.schema[MaidrKey.DATA]) == 1
