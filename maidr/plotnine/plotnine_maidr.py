@@ -24,9 +24,11 @@ Limitations
 * Experimental as a whole: see ``docs/stability.qmd#plotnine-support``.
 * The geoms read are ``geom_bar``, ``geom_col``, ``geom_histogram``,
   ``geom_point``, ``geom_line``, ``geom_smooth``, ``geom_boxplot`` and
-  ``geom_tile``, on ``coord_cartesian``, and ``geom_path`` only as a
-  precision-recall curve. Anything else is left out with a warning naming it,
-  and a chart with nothing read is drawn as a static image.
+  ``geom_tile``, on ``coord_cartesian``; ``geom_path`` only as a
+  precision-recall curve, and ``geom_ribbon`` only as the
+  ``stat_summary(fun_data="median_hilow")`` band around a median line drawn
+  with it. Anything else is left out with a warning naming it, and a chart
+  with nothing read is drawn as a static image.
 * A ``ggplot`` shown through plotnine itself -- ``p.show()``, or a notebook's
   own display of ``p`` -- is not read; ``maidr.show(p)`` is the entry point.
 """
@@ -47,6 +49,7 @@ from maidr.plotnine.layers import (
     draw,
     read_layer,
     read_panels,
+    read_percentile_bands,
     unreadable_coord,
 )
 from maidr.util.caller_warning import warn_at_caller
@@ -216,7 +219,12 @@ def _read(built: Any, drawn: list) -> tuple[list[PlotnineLayer], dict]:
         )
         return layers, {}
 
-    for layer, groups in zip(built.layers, drawn):
+    bands, paired = read_percentile_bands(built.layers, drawn, panels, labels)
+    for index, (layer, groups) in enumerate(zip(built.layers, drawn)):
+        if index in bands:
+            layers.extend(bands[index])
+        if index in paired:
+            continue
         try:
             layers.extend(read_layer(layer, groups, panels, labels))
         except Unreadable as reason:

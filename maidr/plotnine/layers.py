@@ -25,6 +25,7 @@ import copy
 import types
 import uuid
 from dataclasses import dataclass
+from numbers import Real
 from typing import Any, Callable
 
 import numpy as np
@@ -919,6 +920,204 @@ _READERS: dict[str, Callable[..., PlotnineLayer]] = {
     "geom_tile": _tiles,
     "geom_smooth": _smooth,
 }
+
+
+# --------------------------------------------------------------------------
+# Percentile bands: a band layer and its median line, read as one
+# --------------------------------------------------------------------------
+
+
+def read_percentile_bands(
+    layers: Any, drawn: list[list[DrawnGroup]], panels: dict[int, Panel], labels: Any
+) -> tuple[dict[int, list[PlotnineLayer]], set[int]]:
+    """
+    Every median band whose median line is drawn beside it, as one layer each.
+
+    ``stat_summary(fun_data="median_hilow", geom="ribbon")`` draws, at each
+    x, the band between the quantiles ``(1 - w) / 2`` and ``(1 + w) / 2`` of
+    the observations there, ``w`` being its ``confidence_interval`` (0.95
+    unless ``fun_args`` says otherwise); a ``stat_summary`` line of their
+    median drawn over it -- ``fun_y=np.median``, or ``median_hilow`` again --
+    is the median the band surrounds. The two are maidr.js's
+    ``percentile_band``: the reader enters each x on the median and moves up
+    and down to the bounds, each announced with the band it bounds.
+
+    The two layers are paired only where the plot states it exactly: the same
+    ``x`` and ``y`` columns, one group per panel in each, the line's median
+    the band's own at every x, and a linear y scale -- the quantiles are taken
+    of the transformed values, which a log scale does not take back to the
+    quantiles of the data. A band alone is not read: the trace is entered on
+    the median, and a ribbon carries one only as a column nobody drew. Any
+    layer not paired is read, or declined, as it would be on its own.
+
+    Parameters
+    ----------
+    layers : plotnine.layer.Layers
+        The drawn plot's layers.
+    drawn : list of list of DrawnGroup
+        What each layer's geom drew, as :func:`draw` recorded it.
+    panels : dict
+        :func:`read_panels` of the drawn plot.
+    labels : plotnine.labels_view
+        The drawn plot's labels.
+
+    Returns
+    -------
+    tuple
+        The band layers, keyed by the index of the earlier of the two layers
+        they replace, and the indices of every layer they replace.
+    """
+    bands: dict[int, list[PlotnineLayer]] = {}
+    paired: set[int] = set()
+    layers = list(layers)
+    for b, band in enumerate(layers):
+        width = _median_band_width(band)
+        if width is None:
+            continue
+        for m, median in enumerate(layers):
+            if m in paired or not _draws_median_line(median, band):
+                continue
+            read = _percentile_band(
+                band, drawn[b], drawn[m], width, panels, labels
+            )
+            if read is not None:
+                bands[min(b, m)] = read
+                paired.update((b, m))
+                break
+    return bands, paired
+
+
+def _summary_params(layer: Any) -> dict | None:
+    """A ``stat_summary`` layer's parameters, placed as drawn, else None."""
+    if (
+        type(layer.stat).__name__ != "stat_summary"
+        or type(layer.position).__name__ != "position_identity"
+    ):
+        return None
+    return dict(layer.stat.params)
+
+
+def _summarises_with_median_hilow(params: dict) -> bool:
+    """Whether ``median_hilow`` is the summary that computed the layer.
+
+    ``fun_y``, ``fun_ymin`` or ``fun_ymax`` replaces ``fun_data`` entirely.
+    """
+    from plotnine.stats.stat_summary import median_hilow
+
+    if any(params.get(key) is not None for key in ("fun_y", "fun_ymin", "fun_ymax")):
+        return False
+    fun = params.get("fun_data")
+    return fun == "median_hilow" if isinstance(fun, str) else fun is median_hilow
+
+
+def _median_band_width(layer: Any) -> float | None:
+    """The share a ``median_hilow`` ribbon holds, or None for any other layer."""
+    params = _summary_params(layer)
+    if (
+        params is None
+        or type(layer.geom).__name__ != "geom_ribbon"
+        or not _summarises_with_median_hilow(params)
+    ):
+        return None
+    width = (params.get("fun_args") or {}).get("confidence_interval", 0.95)
+    if isinstance(width, (bool, np.bool_)) or not isinstance(width, Real):
+        return None
+    return float(width) if 0 < width < 1 else None
+
+
+def _draws_median_line(layer: Any, band: Any) -> bool:
+    """Whether ``layer`` is a ``stat_summary`` median line of ``band`` 's columns."""
+    params = _summary_params(layer)
+    if params is None or type(layer.geom).__name__ != "geom_line":
+        return False
+    if not (params.get("fun_y") is np.median or _summarises_with_median_hilow(params)):
+        return False
+    ours, theirs = dict(layer.mapping or {}), dict(band.mapping or {})
+    return all(
+        ae in ours and ae in theirs and repr(ours[ae]) == repr(theirs[ae])
+        for ae in ("x", "y")
+    )
+
+
+def _percentile_band(
+    band: Any,
+    band_drawn: list[DrawnGroup],
+    line_drawn: list[DrawnGroup],
+    width: float,
+    panels: dict[int, Panel],
+    labels: Any,
+) -> list[PlotnineLayer] | None:
+    """One ``percentile_band`` layer per panel, or None if one cannot be read."""
+    context = _context(band, panels, labels)
+    bands, lines = _by_panel(band_drawn), _by_panel(line_drawn)
+    if not bands or set(bands) != set(lines):
+        return None
+    low, high = round((1 - width) / 2, 12), round((1 + width) / 2, 12)
+
+    read = []
+    for number in sorted(bands):
+        panel = panels[number]
+        if not panel.y.linear or len(bands[number]) != 1 or len(lines[number]) != 1:
+            return None
+        (ribbon,), (line,) = bands[number], lines[number]
+        polys = [a for a in ribbon.artists if isinstance(a, PolyCollection)]
+        strokes = [a for a in line.artists if isinstance(a, Line2D)]
+        if (
+            len(polys) != 1
+            or len(strokes) != 1
+            or ribbon.data["group"].nunique() != 1
+            or line.data["group"].nunique() != 1
+        ):
+            return None
+        edges = ribbon.data.sort_values("x", kind="stable")
+        middle = line.data.sort_values("x", kind="stable")
+        xs = edges["x"].to_numpy(float)
+        if (
+            len(edges) != len(middle)
+            or not np.array_equal(xs, middle["x"].to_numpy(float))
+            or not np.allclose(
+                edges["y"].to_numpy(float),
+                middle["y"].to_numpy(float),
+                equal_nan=True,
+            )
+        ):
+            return None
+
+        values = {
+            level: panel.y.values(edges[column].to_numpy(float))
+            for level, column in ((low, "ymin"), (0.5, "y"), (high, "ymax"))
+        }
+        data = []
+        for i, x in enumerate(panel.x.values(xs)):
+            quantiles = [
+                {"level": level, "value": values[level][i]}
+                for level in (low, 0.5, high)
+                if values[level][i] is not None
+            ]
+            if quantiles:
+                data.append({MaidrKey.X: x, "quantiles": quantiles})
+        if not data:
+            return None
+
+        poly = _gid(polys[0])
+        read.append(
+            PlotnineLayer(
+                panel.ax,
+                PlotType.PERCENTILE_BAND,
+                panel=panel,
+                title=context.title(panel),
+                axes=context.axes(),
+                data=data,
+                # The band, then the median's line: one selector per band and
+                # one more for the median, which the trace reads as such. A
+                # collection is written as a path, or as a `<use>` of one.
+                selectors=[
+                    f"g[id='{poly}'] > path, g[id='{poly}'] > g > use",
+                    f"g[id='{_gid(strokes[0])}'] path",
+                ],
+            )
+        )
+    return read
 
 
 # --------------------------------------------------------------------------

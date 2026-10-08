@@ -39,6 +39,7 @@ from plotnine import (  # noqa: E402
     labs,
     scale_x_log10,
     scale_y_log10,
+    stat_summary,
 )
 
 import maidr  # noqa: E402
@@ -511,6 +512,114 @@ def test_any_other_path_is_still_declined():
 
     assert any("geom_path" in m for m in _warnings_of(plot))
     assert [layer["type"] for layer in _layers(_read(plot)[0])] == ["point"]
+
+
+# --------------------------------------------------------------------------
+# Percentile bands
+# --------------------------------------------------------------------------
+
+#: Eleven observations at each of three steps, 0 to 10 apart from a shift, so
+#: every quantile `median_hilow` takes is known exactly.
+SPREAD = pd.DataFrame(
+    {
+        "step": np.repeat([1.0, 2.0, 3.0], 11),
+        "v": np.concatenate([np.arange(11.0) + shift for shift in (0, 5, 20)]),
+    }
+)
+
+
+def _band(width=None, line=None, frame=SPREAD):
+    """A ``median_hilow`` ribbon, then a median line drawn with it."""
+    args = {} if width is None else {"fun_args": {"confidence_interval": width}}
+    plot = ggplot(frame, aes("step", "v")) + stat_summary(
+        fun_data="median_hilow", geom="ribbon", alpha=0.3, **args
+    )
+    return plot + (line or stat_summary(fun_y=np.median, geom="line"))
+
+
+def test_a_median_hilow_ribbon_and_its_median_line_are_one_percentile_band():
+    schema, root = _read(_band(0.8))
+    layer = _only(schema)
+
+    assert layer["type"] == "percentile_band"
+    assert layer["axes"] == {"x": {"label": "step"}, "y": {"label": "v"}}
+    # The 10th, 50th and 90th percentiles of 0..10, shifted at each step.
+    assert layer["data"] == [
+        {
+            "x": step,
+            "quantiles": [
+                {"level": 0.1, "value": pytest.approx(1.0 + shift)},
+                {"level": 0.5, "value": pytest.approx(5.0 + shift)},
+                {"level": 0.9, "value": pytest.approx(9.0 + shift)},
+            ],
+        }
+        for step, shift in ((1.0, 0), (2.0, 5), (3.0, 20))
+    ]
+    band, median = layer["selectors"]
+    assert len(CSSSelector(band)(root)) == 1
+    assert len(_points_of(_one(root, median))) == 3
+
+
+def test_the_default_band_is_the_middle_95_percent():
+    layer = _only(_read(_band())[0])
+
+    levels = [q["level"] for q in layer["data"][0]["quantiles"]]
+    assert levels == [0.025, 0.5, 0.975]
+
+
+def test_the_median_line_may_be_median_hilow_drawn_first():
+    line = stat_summary(fun_data="median_hilow", geom="line")
+    plot = (
+        ggplot(SPREAD, aes("step", "v"))
+        + line
+        + stat_summary(fun_data="median_hilow", geom="ribbon")
+        + geom_point()
+    )
+    layers = _layers(_read(plot)[0])
+
+    assert [layer["type"] for layer in layers] == ["percentile_band", "point"]
+
+
+def test_each_facet_panel_is_a_band_of_its_own():
+    frame = pd.concat([SPREAD.assign(k="a"), SPREAD.assign(k="b", v=-SPREAD["v"])])
+    schema, _ = _read(_band(frame=frame) + facet_wrap("k"))
+
+    assert [
+        [[layer["type"] for layer in cell["layers"]] for cell in row]
+        for row in schema["subplots"]
+    ] == [[["percentile_band"], ["percentile_band"]]]
+
+
+@pytest.mark.parametrize(
+    "plot",
+    [
+        # A mean is not the median the band surrounds.
+        _band(line=stat_summary(fun_y=np.mean, geom="line")),
+        # Several groups are several bands, which one layer does not hold.
+        ggplot(
+            SPREAD.assign(k=np.tile(["a", "b", "c"], 11)),
+            aes("step", "v", color="k"),
+        )
+        + stat_summary(fun_data="median_hilow", geom="ribbon")
+        + stat_summary(fun_y=np.median, geom="line"),
+        # Quantiles of the logarithms are not the logarithms of the quantiles.
+        _band() + scale_y_log10(),
+    ],
+    ids=["mean", "groups", "log"],
+)
+def test_a_band_not_stated_exactly_leaves_the_line_a_line(plot):
+    messages = _warnings_of(plot)
+
+    assert any("geom_ribbon" in m for m in messages)
+    assert {layer["type"] for layer in _layers(_read(plot)[0])} == {"line"}
+
+
+def test_a_band_without_its_median_line_is_still_declined():
+    plot = ggplot(SPREAD, aes("step", "v")) + stat_summary(
+        fun_data="median_hilow", geom="ribbon"
+    )
+
+    assert any("geom_ribbon" in m for m in _warnings_of(plot))
 
 
 # --------------------------------------------------------------------------

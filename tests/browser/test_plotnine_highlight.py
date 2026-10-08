@@ -107,6 +107,14 @@ def frames():
                 "model": ["a"] * 3 + ["b"] * 3,
             }
         ),
+        # 0..10 at each step, shifted: the 10th, 50th and 90th percentiles
+        # are 1, 5 and 9 above the shift.
+        "spread": pd.DataFrame(
+            {
+                "step": [s for s in (1, 2) for _ in range(11)],
+                "v": [float(v + shift) for shift in (0, 5) for v in range(11)],
+            }
+        ),
     }
 
 
@@ -248,6 +256,44 @@ def test_a_pr_curve_is_walked_from_low_recall_up(browser, frames, tmp_path):
         spoken = _step(page, "ArrowDown")
         assert "is b" in spoken and "precision is 0.6" in spoken, spoken
         assert page.evaluate(_OUTLINED) == 1
+        assert not errors, errors
+    finally:
+        page.close()
+
+
+def test_a_median_hilow_band_is_entered_on_its_median(browser, frames, tmp_path):
+    import numpy as np
+    from plotnine import aes, ggplot, stat_summary
+
+    chart = _save(
+        ggplot(frames["spread"], aes("step", "v"))
+        + stat_summary(
+            fun_data="median_hilow",
+            fun_args={"confidence_interval": 0.8},
+            geom="ribbon",
+            alpha=0.3,
+        )
+        + stat_summary(fun_y=np.median, geom="line"),
+        tmp_path,
+        "band",
+    )
+    page, errors = _open(browser, chart)
+    try:
+        spoken = _step(page, "ArrowRight")
+        assert "step is 1, Median v is 5" in spoken, spoken
+        assert "Middle 80% is 1 to 9" in spoken, spoken
+        assert page.evaluate(_OUTLINED) == 1
+
+        spoken = _step(page, "ArrowUp")
+        assert "90th percentile v is 9" in spoken, spoken
+        assert page.evaluate(_OUTLINED) == 1
+
+        _step(page, "ArrowDown")
+        spoken = _step(page, "ArrowDown")
+        assert "10th percentile v is 1" in spoken, spoken
+
+        spoken = _step(page, "ArrowRight")
+        assert "step is 2" in spoken and "is 10" in spoken, spoken
         assert not errors, errors
     finally:
         page.close()

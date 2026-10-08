@@ -213,6 +213,7 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
         "Faceted Plot": [["point", "point", "point"]],
         "Normalized Stacked Bar Plot [experimental]": [["stacked_normalized_bar"]],
         "PR Curve [experimental]": [["pr_curve"]],
+        "Percentile Band [experimental]": [["percentile_band"]],
     },
     "examples-excel.qmd": {
         "Clustered Column Chart": [["dodged_bar"]],
@@ -906,6 +907,23 @@ def test_plotnine_pr_curves_are_named_and_read_from_low_recall_up(
     for curve in curves:
         recall = [p[MaidrKey.X] for p in curve]
         assert recall == sorted(recall)
+
+
+def test_plotnine_percentile_band_is_the_10th_median_and_90th(
+    gallery: _Gallery,
+) -> None:
+    """examples-plotnine.qmd: "the band between the 10th and 90th percentiles
+    of the observations at each month ... and the line is their median"."""
+    layer = gallery.shown(
+        "examples-plotnine.qmd", "Percentile Band [experimental]"
+    ).layer(PlotType.PERCENTILE_BAND)
+
+    assert len(layer[MaidrKey.DATA]) == 12
+    for point in layer[MaidrKey.DATA]:
+        levels = [q["level"] for q in point["quantiles"]]
+        values = [q["value"] for q in point["quantiles"]]
+        assert levels == pytest.approx([0.1, 0.5, 0.9])
+        assert values == sorted(values)
 
 
 def test_excel_untitled_axis_is_named_after_its_header(gallery: _Gallery) -> None:
