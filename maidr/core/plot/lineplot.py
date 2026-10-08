@@ -8,6 +8,7 @@ from maidr.core.plot.scatterplot import _rgba
 from maidr.util.artist_label import series_name
 from maidr.util.legend_names import legend_of, names_for
 from maidr.util.confidence_band import band_edges_at
+from maidr.util.named_pr_curve import named_pr_curve
 from maidr.core.enum.plot_type import PlotType
 from maidr.core.plot.maidr_plot import MaidrPlot
 from maidr.exception.extraction_error import ExtractionError
@@ -66,7 +67,6 @@ def _has_position(x: object) -> bool:
         return True
 
 
-
 def _reading(y: object) -> object:
     """
     A sample's value, or ``None`` where it was positioned but never measured.
@@ -102,7 +102,6 @@ def _reading(y: object) -> object:
         return y if math.isfinite(y) else None  # type: ignore[arg-type]
     except TypeError:
         return y
-
 
 
 def _drew_something(line: Line2D) -> bool:
@@ -347,6 +346,30 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
 
         return selectors
 
+    def render(self) -> dict:
+        """
+        The line schema, emitted as a ``pr_curve`` when it is one by its names.
+
+        A precision-recall curve drawn by hand -- ``ax.plot(recall,
+        precision)`` or the ``ax.step(..., where="post")`` scikit-learn's
+        examples drew before ``PrecisionRecallDisplay`` -- carries no evidence
+        of what it is except its axis titles. Titled exactly ``Recall`` and
+        ``Precision``, with every value a fraction of one, those titles are
+        the claim, as the column names ``recall`` and ``precision`` are in
+        r-maidr; the layer is then maidr.js's ``pr_curve``, whose data is the
+        line's own shape, and a reader hears each point against the baseline
+        and the average precision of each curve. Nothing else is read as one.
+
+        Returns
+        -------
+        dict
+            The layer schema.
+        """
+        schema = super().render()
+        if self.type in (PlotType.LINE, PlotType.STEP) and named_pr_curve(schema):
+            schema[MaidrKey.TYPE] = PlotType.PR_CURVE
+        return schema
+
     def _extract_plot_data(self) -> Union[List[List[dict]], None]:
         data = self._extract_line_data()
 
@@ -449,7 +472,9 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
             # swatch claims, a swatch naming two lines, or fewer than two
             # lines to tell apart. Position is the fallback for all of those,
             # so nothing that was named before stops being named.
-            by_color = names_for(ax_legend_source, [_rgba(line.get_color()) for line in all_lines])
+            by_color = names_for(
+                ax_legend_source, [_rgba(line.get_color()) for line in all_lines]
+            )
             if any(name is not None for name in by_color):
                 # A line no swatch claimed is recorded as `None` rather than
                 # filtered out, because the lookup below falls through to the
@@ -557,8 +582,10 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
             return
 
         lower, upper, region = band_edges_at(
-            self.ax, np.asarray(positions, dtype=float),
-            np.asarray(values, dtype=float), tuple(claimed),
+            self.ax,
+            np.asarray(positions, dtype=float),
+            np.asarray(values, dtype=float),
+            tuple(claimed),
         )
         if region is None:
             return
@@ -600,3 +627,4 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
         for point, low, high in zip(line_data, lower.tolist(), upper.tolist()):
             point[_Y_MIN] = low
             point[_Y_MAX] = high
+

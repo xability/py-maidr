@@ -13,6 +13,7 @@ import numpy as np
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
+from maidr.util.named_pr_curve import named_pr_curve
 
 # This is the import that makes the cycle: `step_shape` reads its trace arrays
 # through `as_list`, defined below, and so imports this module back. It does so
@@ -152,6 +153,12 @@ class PlotlyPlot(ABC):
         selector = self._get_selector()
         if selector:
             schema[MaidrKey.SELECTOR] = selector
+        # A line titled Recall against Precision is a precision-recall curve
+        # by its own names, as on the matplotlib path; see `named_pr_curve`.
+        # So is a single area, which is how plotly's own documentation draws
+        # one (`px.area(x=recall, y=precision)`): its data is the same shape.
+        if self.type in (PlotType.LINE, PlotType.AREA) and named_pr_curve(schema):
+            schema[MaidrKey.TYPE] = PlotType.PR_CURVE
         return schema
 
     def _subplot_css_prefix(self) -> str:

@@ -122,6 +122,45 @@ or the `name=` passed to the display -- rather than by the legend entry, which
 wraps the average precision around the name. The description lists the
 average precision of every curve and names the highest.
 
+## Drawn by hand
+
+A curve drawn straight from `precision_recall_curve` with `ax.plot()` or
+`ax.step()` is read the same way when its axes are titled exactly `Recall`
+and `Precision` and every value is a fraction of one: those titles are what
+says the line is a precision-recall curve. It carries no share of positives,
+so its points are not read against a baseline; the average precision is
+measured from the points. A plotly line, or the `px.area(x=recall,
+y=precision)` plotly's own documentation draws, is read the same way under
+the same titles.
+
+```{python}
+#| warning: false
+#| fig-alt: A precision-recall curve drawn by hand as a step line
+
+import matplotlib.pyplot as plt
+from sklearn.datasets import make_classification
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import precision_recall_curve
+from sklearn.model_selection import train_test_split
+
+import maidr  #<<
+
+X, y = make_classification(
+    n_samples=600, n_informative=4, weights=[0.8], random_state=0
+)
+X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0)
+scores = LogisticRegression(max_iter=500).fit(X_train, y_train).decision_function(X_test)
+precision, recall, _ = precision_recall_curve(y_test, scores)
+
+fig, ax = plt.subplots()
+ax.step(recall, precision, where="post")
+ax.set_xlabel("Recall")  #<<
+ax.set_ylabel("Precision")  #<<
+ax.set_title("A precision-recall curve drawn by hand")
+
+plt.show()  #<<
+```
+
 The precision-recall curves `maidr.keras.plot_pr_curve()` and
 `maidr.read_tensorboard_pr_curves()` draw are read the same way; see the
 [Keras](../examples-keras.qmd) and [TensorBoard](../examples-tensorboard.qmd)

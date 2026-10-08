@@ -72,7 +72,9 @@ class StepPlot(MultiLinePlot):
         # axes in between reached the sweep -- a box plot added after the step
         # line was enough to make the drawstyles "disagree" and drop the field.
         direction = resolve_step_direction(self._series())
-        if direction is not None:
+        # A step titled as a precision-recall curve was emitted as one, and
+        # the PR trace reads its points as they are.
+        if direction is not None and schema[MaidrKey.TYPE] != PlotType.PR_CURVE:
             schema[MaidrKey.STEP_DIRECTION] = direction
 
         self._attach_level_labels(schema.get(MaidrKey.DATA))
