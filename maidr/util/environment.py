@@ -111,6 +111,9 @@ class Environment:
         ``QUARTO_FIG_WIDTH``, ``QUARTO_FIG_HEIGHT`` and ``QUARTO_FIG_DPI``, in
         the environment of the kernel it renders with, and has since at least
         Quarto 1.3. A kernel started by a notebook frontend has none of them.
+        Were a Quarto release to stop setting it, a render would be handled
+        as a notebook again: a bundle copy per chart and the bundled version,
+        larger but still working.
 
         Returns
         -------
