@@ -1,9 +1,11 @@
 """
-Every iframed render delegates Web Bluetooth and Web Serial to the chart frame.
+Every iframed render delegates Web Bluetooth, Web Serial and WebHID to the chart
+frame.
 
-maidr.js can draw a chart onto a refreshable tactile display -- a Dot Pad --
-so a blind reader feels the plot rather than only hearing it. It reaches the
-device over Bluetooth or over USB, and both APIs are Permissions-Policy gated.
+maidr.js can draw a chart onto a tactile graphics display so a blind reader
+feels the plot rather than only hearing it. It reaches a Dot Pad over Bluetooth
+or over USB, and a Monarch, in its Braille Terminal, over WebHID; all three APIs
+are Permissions-Policy gated.
 A frame denied a feature is not told so at the call: the browser may keep the
 API object and refuse every request, or drop the object altogether -- Chromium
 does one to ``navigator.serial`` and the other to ``navigator.bluetooth`` --
@@ -17,10 +19,11 @@ need it -- Colab, and any host serving notebook output from a separate origin.
 Since both wrappers produce frames that end up in both kinds of page, both
 carry the attribute.
 
-Both features are asserted, not just one. They are gated independently, so
+Every feature is asserted, not just one. They are gated independently, so
 granting only Bluetooth would leave a reader on a cable unable to connect for
 a reason nothing on the page explains -- and USB is the faster path by a wide
-margin, so it is not the marginal case.
+margin, so it is not the marginal case -- and leaving out WebHID would leave a
+reader with a Monarch no way in at all.
 
 Asserted on the rendered HTML rather than on a constant, because the constant
 holding the right string is not the claim -- the claim is that the attribute
@@ -117,20 +120,20 @@ class TestTheFrameMayReachATactileDisplay:
     """The attribute reaches the tag, by both wrappers."""
 
     @pytest.mark.parametrize("wrap", WRAPPERS)
-    def test_the_chart_frame_is_allowed_bluetooth_and_serial(self, wrap) -> None:
+    def test_the_chart_frame_is_allowed_bluetooth_serial_and_hid(self, wrap) -> None:
         rendered = _html(wrap(tags.div("chart"), "Body mass by species"))
 
         features = _allowed_features(rendered)
 
-        # Both, and nothing else. They are independently gated, so dropping
-        # one leaves that path dead for a reason nothing on the page
+        # These three, and nothing else. They are independently gated, so
+        # dropping one leaves that path dead for a reason nothing on the page
         # explains; and delegating a feature cannot exceed what the embedding
         # page holds, but the list should still be the shortest that works --
-        # maidr scans for a display over Bluetooth and over serial only, so
-        # `usb`, `hid`, `camera` and the rest have no business here. Compared
-        # as parsed features rather than as the exact string, so reformatting
-        # the list cannot quietly lose one.
-        assert features == {"bluetooth", "serial"}
+        # maidr reaches a Dot Pad over Bluetooth or serial and a Monarch over
+        # HID only, so `usb`, `camera` and the rest have no business here.
+        # Compared as parsed features rather than as the exact string, so
+        # reformatting the list cannot quietly lose one.
+        assert features == {"bluetooth", "serial", "hid"}
 
     @pytest.mark.parametrize("wrap", WRAPPERS)
     def test_an_untitled_chart_is_allowed_them_too(self, wrap) -> None:
@@ -138,7 +141,7 @@ class TestTheFrameMayReachATactileDisplay:
         # reader with a tactile display should not lose it for want of one.
         features = _allowed_features(_html(wrap(tags.div("chart"))))
 
-        assert features == {"bluetooth", "serial"}
+        assert features == {"bluetooth", "serial", "hid"}
 
     @pytest.mark.parametrize("wrap", WRAPPERS)
     def test_the_frame_is_not_sandboxed_into_an_opaque_origin(self, wrap) -> None:
@@ -173,7 +176,8 @@ class TestNothingElseIsDelegated:
         # substring over the rendered string would report features nobody
         # granted -- and would do it only once the fixture grew realistic,
         # long after the test was written. Content that says these words is
-        # the case that pins the difference.
+        # the case that pins the difference -- for `usb` and the rest now that
+        # `hid` is granted in its own right.
         loaded = tags.div(
             "chart",
             tags.span("aria-hidden usb camera microphone geolocation"),
@@ -181,7 +185,7 @@ class TestNothingElseIsDelegated:
 
         features = _allowed_features(_html(wrap(loaded, "Body mass by species")))
 
-        assert features == {"bluetooth", "serial"}
+        assert features == {"bluetooth", "serial", "hid"}
 
 
 class TestWhatTheGrantCannotBeTurnedAgainst:
