@@ -76,3 +76,50 @@ def test_the_median_and_its_bounds_are_read_and_outlined(browser, page_path):
         assert not errors, errors
     finally:
         page.close()
+
+
+@pytest.fixture
+def objects_page_path(tmp_path) -> Path:
+    so = pytest.importorskip("seaborn.objects")
+    import numpy as np
+    import pandas as pd
+
+    import maidr
+
+    rng = np.random.default_rng(0)
+    frame = pd.DataFrame({"week": np.repeat(np.arange(1, 7), 200)})
+    frame["sales"] = rng.normal(frame["week"], frame["week"] / 2)
+    figure = (
+        so.Plot(frame, x="week", y="sales")
+        .add(so.Band(), so.Est("median", errorbar=("pi", 80)))
+        .add(so.Line(), so.Agg("median"))
+        .plot()
+        ._figure
+    )
+    path = tmp_path / "objects_band.html"
+    maidr.save_html(figure, file=str(path), use_cdn=False)
+    maidr.close(figure)
+    return path
+
+
+def test_the_objects_spelling_is_read_and_outlined_the_same(browser, objects_page_path):
+    page = browser.new_page()
+    errors: list[str] = []
+    page.on("pageerror", lambda e: errors.append(str(e).splitlines()[0]))
+    page.goto(objects_page_path.as_uri(), wait_until="load")
+    page.wait_for_function(_BUNDLE_READY, timeout=_PARSE_TIMEOUT_MS)
+    page.click("svg[maidr]", force=True)
+    page.keyboard.press("Enter")
+    page.wait_for_timeout(1_500)
+    try:
+        spoken = _step(page, "ArrowRight")
+        assert "Median sales is 1.02" in spoken, spoken
+        assert "Middle 80% is 0.36 to 1.66" in spoken, spoken
+        assert page.evaluate(_OUTLINED) == 1
+
+        spoken = _step(page, "ArrowUp")
+        assert "90th percentile sales is 1.66" in spoken, spoken
+        assert page.evaluate(_OUTLINED) == 1
+        assert not errors, errors
+    finally:
+        page.close()

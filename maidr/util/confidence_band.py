@@ -174,8 +174,9 @@ def edges_of(collection, x_data: np.ndarray, y_data: np.ndarray) -> tuple | None
 
     Parameters
     ----------
-    collection : matplotlib.collections.PolyCollection
-        A shaded region on the axes.
+    collection : matplotlib.collections.PolyCollection or matplotlib.patches.Polygon
+        A shaded region on the axes. A ``Polygon`` is what ``so.Band()``
+        draws: one path, in data coordinates, folded the same way.
     x_data : numpy.ndarray
         The x positions the series is emitted at.
     y_data : numpy.ndarray
@@ -187,7 +188,11 @@ def edges_of(collection, x_data: np.ndarray, y_data: np.ndarray) -> tuple | None
         Lower and upper bounds at each x, or ``None`` when this region is not
         this series' band.
     """
-    paths = collection.get_paths()
+    paths = (
+        collection.get_paths()
+        if hasattr(collection, "get_paths")
+        else [collection.get_path()]
+    )
     if not paths:
         return None
     # Every path, not only the first: `fill_between(..., where=...)` draws one

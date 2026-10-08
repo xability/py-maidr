@@ -119,8 +119,9 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
         "Single Line Plot": [["line"]],
         "Multiline Plot": [["line"]],
         "Step Plot": [["step"]],
-        # A median with a percentile interval names its quantiles.
-        "Percentile Band [experimental]": [["percentile_band"]],
+        # A median with a percentile interval names its quantiles, in
+        # `sns.lineplot` and in its `seaborn.objects` spelling.
+        "Percentile Band [experimental]": [["percentile_band"], ["percentile_band"]],
     },
     "examples/multi-layer-panel-facet.qmd": {
         "Multi-Layered Plot": [["bar + line"]],
