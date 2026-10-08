@@ -156,3 +156,42 @@ def test_a_graph_on_the_current_axes_is_read():
     nx.draw_networkx(pipeline())
 
     assert [plot.type for plot in layers(plt.gcf())] == [PlotType.DIRECTED_GRAPH]
+
+
+def test_generators_for_nodelist_and_edgelist_still_reach_networkx():
+    fig, ax = plt.subplots()
+    nx.draw_networkx(
+        pipeline(),
+        ax=ax,
+        nodelist=(n for n in ["load", "clean", "features"]),
+        edgelist=(e for e in [("load", "clean"), ("clean", "features")]),
+    )
+
+    nodes = {node["id"]: node["inputs"] for node in schema(fig)["data"]}
+
+    assert nodes == {"load": [], "clean": ["load"], "features": ["clean"]}
+    (collection,) = ax.collections
+    assert len(collection.get_offsets()) == 3
+
+
+def test_a_graph_drawn_without_axes_on_a_figure_of_several_is_found():
+    fig, (left, right) = plt.subplots(1, 2)
+    left.scatter([1, 2], [3, 4])
+    plt.sca(right)
+    nx.draw_networkx(pipeline())
+
+    assert [plot.type for plot in layers(fig)] == [
+        PlotType.SCATTER,
+        PlotType.DIRECTED_GRAPH,
+    ]
+    assert layers(fig)[1].ax is right
+
+
+def test_the_selector_names_each_form_matplotlib_writes_a_collection_in():
+    from maidr.patch.network_graph import _node_selector
+
+    assert _node_selector("g1", 2) == (
+        "g[id='g1'] > g:only-of-type > use:nth-of-type(3), "
+        "g[id='g1'] > g:nth-of-type(3) > use:only-child, "
+        "g[id='g1'] > path:nth-of-type(3)"
+    )

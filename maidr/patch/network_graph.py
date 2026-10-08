@@ -61,16 +61,22 @@ def draw_networkx(wrapped, instance, args, kwargs) -> Any:
     if ContextManager.is_internal_context() or not _is_directed(graph):
         return wrapped(*args, **kwargs)
 
+    # Read once and handed on as lists: a generator given as `nodelist` or
+    # `edgelist` would otherwise be spent here and reach networkx empty.
+    for key in ("nodelist", "edgelist"):
+        if kwargs.get(key) is not None and not isinstance(kwargs[key], list):
+            kwargs[key] = list(kwargs[key])
+
     nodes = _nodes_of(graph, kwargs)
     if nodes is None:
         return wrapped(*args, **kwargs)
 
-    ax = kwargs.get("ax")
-    before = set(map(id, ax.collections)) if ax is not None else None
+    figure = _target_figure(kwargs.get("ax"))
+    before = _collections_of(figure)
     with ContextManager.set_internal_context():
         result = _draw_quietly(wrapped, args, kwargs)
 
-    drawn = _node_collection(ax, before)
+    drawn = _node_collection(figure, before)
     if drawn is None or len(drawn.get_offsets()) != len(nodes):
         return result
 
@@ -170,28 +176,46 @@ def _attributes(data: Any) -> dict:
     return plain
 
 
-def _node_collection(ax: Any, before: set | None) -> PathCollection | None:
+def _target_figure(ax: Any) -> Any:
+    """
+    The figure ``draw_networkx`` will draw on.
+
+    The axes' own when one is given; otherwise the current figure, which is
+    where networkx draws -- ``plt.gca()`` for the nodes, and ``nx.draw`` adds
+    axes to ``plt.gcf()`` when it has none.
+    """
+    if ax is not None:
+        return ax.get_figure()
+    import matplotlib.pyplot as plt
+
+    return plt.gcf()
+
+
+def _collections_of(figure: Any) -> set:
+    """The ids of every collection on a figure's axes, before the draw."""
+    if figure is None:
+        return set()
+    return {id(c) for axes in figure.axes for c in axes.collections}
+
+
+def _node_collection(figure: Any, before: set) -> PathCollection | None:
     """
     The collection ``draw_networkx`` drew the nodes as.
 
-    The nodes are the one ``PathCollection`` the call added: edges are arrow
-    patches on a directed graph, and labels are text. Without the axes in
-    hand -- ``draw_networkx`` drawing on the current one -- it is the current
-    axes' newest collection.
+    The nodes are the one ``PathCollection`` the call added to the figure:
+    edges are arrow patches on a directed graph, and labels are text. Looked
+    for on every axes of the figure, so a draw onto an axes other than the
+    current one is found too, and only one new collection is taken as the
+    nodes -- anything else leaves the graph unread rather than misread.
     """
-    if ax is None:
-        import matplotlib.pyplot as plt
-
-        ax = plt.gca()
-        before = None
+    if figure is None:
+        return None
     added = [
         collection
-        for collection in ax.collections
-        if isinstance(collection, PathCollection)
-        and (before is None or id(collection) not in before)
+        for axes in figure.axes
+        for collection in axes.collections
+        if isinstance(collection, PathCollection) and id(collection) not in before
     ]
-    if before is None:
-        return added[-1] if added else None
     return added[0] if len(added) == 1 else None
 
 
