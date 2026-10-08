@@ -182,3 +182,41 @@ label that is itself a number (`"3"`, `"1,000"`, or the rescaled `"0.0"` a
 default axis prints for y = 1000000) carries no ordinal information and is not
 emitted, so a purely numeric step plot is announced by its numbers as usual.
 :::
+
+## Percentile Band [experimental] {#percentile-band}
+
+A median drawn with a percentile interval -- `sns.lineplot(estimator="median",
+errorbar=("pi", 80))` -- shows, at each x, the middle of the observations
+there and the band between their 10th and 90th percentiles. The arguments
+name those quantiles exactly, so maidr reads the chart as a percentile band
+rather than a line: Left and Right move along x, each x is entered on the
+median, and Up and Down move to the band's bounds, each announced with the
+band it bounds ("Middle 80% is 0.36 to 1.66").
+
+Only one series is read this way: a mean, a confidence interval, or a `hue`,
+`style`, `size` or `units` split keeps the line reading above. `PERCENTILE_BAND`
+is **experimental** and may change without a deprecation period: see
+[Plot Type Stability](../stability.qmd).
+
+```{python}
+#| warning: false
+#| fig-alt: Median weekly sales with the band between their 10th and 90th percentiles
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
+
+import maidr  #<<
+
+rng = np.random.default_rng(0)
+sales = pd.DataFrame({"week": np.repeat(np.arange(1, 9), 200)})
+sales["units"] = rng.normal(10 + 2 * sales["week"], sales["week"])
+
+ax = sns.lineplot(  #<<
+    data=sales, x="week", y="units", estimator="median", errorbar=("pi", 80)  #<<
+)  #<<
+ax.set_title("Median weekly sales, 10th to 90th percentile")
+
+plt.show()  #<<
+```
