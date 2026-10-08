@@ -664,7 +664,7 @@ cookieconsent.run({
 <section id="setup" class="level2">
 <h2 class="anchored" data-anchor-id="setup">Setup</h2>
 <p>The examples on this page need networkx, which is an optional extra: <code>pip install maidr[networkx]</code>. Nothing in maidr imports it; the reading is wired up when your own code imports <code>networkx</code>.</p>
-<div id="8ff78036" class="cell" data-execution_count="1">
+<div id="bd272e4c" class="cell" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" data-source-line-numbers="nil" data-code-line-numbers="3,4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Just import maidr package: plt.show() now renders accessible output </span></span>
@@ -676,7 +676,7 @@ cookieconsent.run({
 </section>
 <section id="a-pipeline" class="level2">
 <h2 class="anchored" data-anchor-id="a-pipeline">A pipeline</h2>
-<div id="4c640ff9" class="cell" data-execution_count="2">
+<div id="d13f3def" class="cell" data-execution_count="2">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" data-source-line-numbers="nil" data-code-line-numbers="4,19,21,24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> networkx <span class="im">as</span> nx</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -702,7 +702,7 @@ cookieconsent.run({
 <span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>plt.show()  </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<iframe id="iframe_4456d59a-bb4f-4981-90f9-9fee3a3f36ee" title="A training pipeline, accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
+<iframe id="iframe_fd1d9548-29d7-4dbd-a325-8da8a2720eb7" title="A training pipeline, accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
   <script type=&quot;text/javascript&quot;>
                 (function() {
                     var existing = document.querySelector('script[src=&quot;https://cdn.jsdelivr.net/npm/maidr@4.14.0/dist/maidr.js&quot;]');
@@ -720,12 +720,12 @@ cookieconsent.run({
                     }
                 })();
             </script>
-  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;504pt&quot; height=&quot;360pt&quot; viewBox=&quot;0 0 504 360&quot; version=&quot;1.1&quot; id=&quot;b2662f83-4c70-49b2-805f-648aa224067d&quot; maidr=&quot;{&amp;quot;id&amp;quot;: &amp;quot;b2662f83-4c70-49b2-805f-648aa224067d&amp;quot;, &amp;quot;subplots&amp;quot;: [[{&amp;quot;id&amp;quot;: &amp;quot;704aa213-471e-400c-9402-b93b8ef3bd34&amp;quot;, &amp;quot;layers&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;a70568f2-3171-4304-ad44-682ef3468f85&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;directed_graph&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;A training pipeline&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Node&amp;quot;}}, &amp;quot;data&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;load&amp;quot;, &amp;quot;label&amp;quot;: &amp;quot;load&amp;quot;, &amp;quot;inputs&amp;quot;: [], &amp;quot;attributes&amp;quot;: {}}, {&amp;quot;id&amp;quot;: &amp;quot;clean&amp;quot;, &amp;quot;label&amp;quot;: &amp;quot;clean&amp;quot;, &amp;quot;inputs&amp;quot;: [&amp;quot;load&amp;quot;], &amp;quot;attributes&amp;quot;: {}}, {&amp;quot;id&amp;quot;: &amp;quot;features&amp;quot;, &amp;quot;label&amp;quot;: &amp;quot;features&amp;quot;, &amp;quot;inputs&amp;quot;: [&amp;quot;clean&amp;quot;], &amp;quot;attributes&amp;quot;: {}}, {&amp;quot;id&amp;quot;: &amp;quot;labels&amp;quot;, &amp;quot;label&amp;quot;: &amp;quot;labels&amp;quot;, &amp;quot;inputs&amp;quot;: [&amp;quot;clean&amp;quot;], &amp;quot;attributes&amp;quot;: {}}, {&amp;quot;id&amp;quot;: &amp;quot;train&amp;quot;, &amp;quot;label&amp;quot;: &amp;quot;train&amp;quot;, &amp;quot;inputs&amp;quot;: [&amp;quot;features&amp;quot;, &amp;quot;labels&amp;quot;], &amp;quot;attributes&amp;quot;: {}}, {&amp;quot;id&amp;quot;: &amp;quot;evaluate&amp;quot;, &amp;quot;label&amp;quot;: &amp;quot;evaluate&amp;quot;, &amp;quot;inputs&amp;quot;: [&amp;quot;train&amp;quot;], &amp;quot;attributes&amp;quot;: {}}], &amp;quot;selectors&amp;quot;: [&amp;quot;g[id='maidr-0aeda7b6-03c2-4be4-914e-7928818ee8e7'] &amp;gt; g:only-of-type &amp;gt; use:nth-of-type(1), g[id='maidr-0aeda7b6-03c2-4be4-914e-7928818ee8e7'] &amp;gt; g:nth-of-type(1) &amp;gt; use:only-child, g[id='maidr-0aeda7b6-03c2-4be4-914e-7928818ee8e7'] &amp;gt; path:nth-of-type(1)&amp;quot;, &amp;quot;g[id='maidr-0aeda7b6-03c2-4be4-914e-7928818ee8e7'] &amp;gt; g:only-of-type &amp;gt; use:nth-of-type(2), g[id='maidr-0aeda7b6-03c2-4be4-914e-7928818ee8e7'] &amp;gt; g:nth-of-type(2) &amp;gt; use:only-child, g[id='maidr-0aeda7b6-03c2-4be4-914e-7928818ee8e7'] &amp;gt; path:nth-of-type(2)&amp;quot;, &amp;quot;g[id='maidr-0aeda7b6-03c2-4be4-914e-7928818ee8e7'] &amp;gt; g:only-of-type &amp;gt; use:nth-of-type(3), g[id='maidr-0aeda7b6-03c2-4be4-914e-7928818ee8e7'] &amp;gt; g:nth-of-type(3) &amp;gt; use:only-child, g[id='maidr-0aeda7b6-03c2-4be4-914e-7928818ee8e7'] &amp;gt; path:nth-of-type(3)&amp;quot;, &amp;quot;g[id='maidr-0aeda7b6-03c2-4be4-914e-7928818ee8e7'] &amp;gt; g:only-of-type &amp;gt; use:nth-of-type(4), g[id='maidr-0aeda7b6-03c2-4be4-914e-7928818ee8e7'] &amp;gt; g:nth-of-type(4) &amp;gt; use:only-child, g[id='maidr-0aeda7b6-03c2-4be4-914e-7928818ee8e7'] &amp;gt; path:nth-of-type(4)&amp;quot;, &amp;quot;g[id='maidr-0aeda7b6-03c2-4be4-914e-7928818ee8e7'] &amp;gt; g:only-of-type &amp;gt; use:nth-of-type(5), g[id='maidr-0aeda7b6-03c2-4be4-914e-7928818ee8e7'] &amp;gt; g:nth-of-type(5) &amp;gt; use:only-child, g[id='maidr-0aeda7b6-03c2-4be4-914e-7928818ee8e7'] &amp;gt; path:nth-of-type(5)&amp;quot;, &amp;quot;g[id='maidr-0aeda7b6-03c2-4be4-914e-7928818ee8e7'] &amp;gt; g:only-of-type &amp;gt; use:nth-of-type(6), g[id='maidr-0aeda7b6-03c2-4be4-914e-7928818ee8e7'] &amp;gt; g:nth-of-type(6) &amp;gt; use:only-child, g[id='maidr-0aeda7b6-03c2-4be4-914e-7928818ee8e7'] &amp;gt; path:nth-of-type(6)&amp;quot;]}]}]]}&quot;>
+  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;504pt&quot; height=&quot;360pt&quot; viewBox=&quot;0 0 504 360&quot; version=&quot;1.1&quot; id=&quot;1ea6a1f5-0dba-49cd-b4f4-0cfae2337b9e&quot; maidr=&quot;{&amp;quot;id&amp;quot;: &amp;quot;1ea6a1f5-0dba-49cd-b4f4-0cfae2337b9e&amp;quot;, &amp;quot;subplots&amp;quot;: [[{&amp;quot;id&amp;quot;: &amp;quot;ce925920-d9cb-4a3c-8179-40d0f0097736&amp;quot;, &amp;quot;layers&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;e8c87660-adcc-4a34-8427-0f72a05bebbc&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;directed_graph&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;A training pipeline&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Node&amp;quot;}}, &amp;quot;data&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;load&amp;quot;, &amp;quot;label&amp;quot;: &amp;quot;load&amp;quot;, &amp;quot;inputs&amp;quot;: [], &amp;quot;attributes&amp;quot;: {}}, {&amp;quot;id&amp;quot;: &amp;quot;clean&amp;quot;, &amp;quot;label&amp;quot;: &amp;quot;clean&amp;quot;, &amp;quot;inputs&amp;quot;: [&amp;quot;load&amp;quot;], &amp;quot;attributes&amp;quot;: {}}, {&amp;quot;id&amp;quot;: &amp;quot;features&amp;quot;, &amp;quot;label&amp;quot;: &amp;quot;features&amp;quot;, &amp;quot;inputs&amp;quot;: [&amp;quot;clean&amp;quot;], &amp;quot;attributes&amp;quot;: {}}, {&amp;quot;id&amp;quot;: &amp;quot;labels&amp;quot;, &amp;quot;label&amp;quot;: &amp;quot;labels&amp;quot;, &amp;quot;inputs&amp;quot;: [&amp;quot;clean&amp;quot;], &amp;quot;attributes&amp;quot;: {}}, {&amp;quot;id&amp;quot;: &amp;quot;train&amp;quot;, &amp;quot;label&amp;quot;: &amp;quot;train&amp;quot;, &amp;quot;inputs&amp;quot;: [&amp;quot;features&amp;quot;, &amp;quot;labels&amp;quot;], &amp;quot;attributes&amp;quot;: {}}, {&amp;quot;id&amp;quot;: &amp;quot;evaluate&amp;quot;, &amp;quot;label&amp;quot;: &amp;quot;evaluate&amp;quot;, &amp;quot;inputs&amp;quot;: [&amp;quot;train&amp;quot;], &amp;quot;attributes&amp;quot;: {}}], &amp;quot;selectors&amp;quot;: [&amp;quot;g[id='maidr-b3292d0c-b5ff-42cf-8696-b559b8a6ab93'] &amp;gt; g:only-of-type &amp;gt; use:nth-of-type(1), g[id='maidr-b3292d0c-b5ff-42cf-8696-b559b8a6ab93'] &amp;gt; g:nth-of-type(1) &amp;gt; use:only-child, g[id='maidr-b3292d0c-b5ff-42cf-8696-b559b8a6ab93'] &amp;gt; path:nth-of-type(1)&amp;quot;, &amp;quot;g[id='maidr-b3292d0c-b5ff-42cf-8696-b559b8a6ab93'] &amp;gt; g:only-of-type &amp;gt; use:nth-of-type(2), g[id='maidr-b3292d0c-b5ff-42cf-8696-b559b8a6ab93'] &amp;gt; g:nth-of-type(2) &amp;gt; use:only-child, g[id='maidr-b3292d0c-b5ff-42cf-8696-b559b8a6ab93'] &amp;gt; path:nth-of-type(2)&amp;quot;, &amp;quot;g[id='maidr-b3292d0c-b5ff-42cf-8696-b559b8a6ab93'] &amp;gt; g:only-of-type &amp;gt; use:nth-of-type(3), g[id='maidr-b3292d0c-b5ff-42cf-8696-b559b8a6ab93'] &amp;gt; g:nth-of-type(3) &amp;gt; use:only-child, g[id='maidr-b3292d0c-b5ff-42cf-8696-b559b8a6ab93'] &amp;gt; path:nth-of-type(3)&amp;quot;, &amp;quot;g[id='maidr-b3292d0c-b5ff-42cf-8696-b559b8a6ab93'] &amp;gt; g:only-of-type &amp;gt; use:nth-of-type(4), g[id='maidr-b3292d0c-b5ff-42cf-8696-b559b8a6ab93'] &amp;gt; g:nth-of-type(4) &amp;gt; use:only-child, g[id='maidr-b3292d0c-b5ff-42cf-8696-b559b8a6ab93'] &amp;gt; path:nth-of-type(4)&amp;quot;, &amp;quot;g[id='maidr-b3292d0c-b5ff-42cf-8696-b559b8a6ab93'] &amp;gt; g:only-of-type &amp;gt; use:nth-of-type(5), g[id='maidr-b3292d0c-b5ff-42cf-8696-b559b8a6ab93'] &amp;gt; g:nth-of-type(5) &amp;gt; use:only-child, g[id='maidr-b3292d0c-b5ff-42cf-8696-b559b8a6ab93'] &amp;gt; path:nth-of-type(5)&amp;quot;, &amp;quot;g[id='maidr-b3292d0c-b5ff-42cf-8696-b559b8a6ab93'] &amp;gt; g:only-of-type &amp;gt; use:nth-of-type(6), g[id='maidr-b3292d0c-b5ff-42cf-8696-b559b8a6ab93'] &amp;gt; g:nth-of-type(6) &amp;gt; use:only-child, g[id='maidr-b3292d0c-b5ff-42cf-8696-b559b8a6ab93'] &amp;gt; path:nth-of-type(6)&amp;quot;]}]}]]}&quot;>
  <metadata>
   <rdf:RDF xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot; xmlns:cc=&quot;http://creativecommons.org/ns#&quot; xmlns:rdf=&quot;http://www.w3.org/1999/02/22-rdf-syntax-ns#&quot;>
    <cc:Work>
     <dc:type rdf:resource=&quot;http://purl.org/dc/dcmitype/StillImage&quot;/>
-    <dc:date>2026-10-08T14:35:53.940896</dc:date>
+    <dc:date>2026-10-08T15:17:24.922013</dc:date>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
@@ -739,66 +739,66 @@ cookieconsent.run({
   <style type=&quot;text/css&quot;>*{stroke-linejoin: round; stroke-linecap: butt}</style>
  </defs>
  <g id=&quot;figure_1&quot;>
-  <g id=&quot;maidr-ba027612-0bdb-4e41-b8a3-38b29e9a8bb2&quot;>
+  <g id=&quot;maidr-0888b2b5-d696-47b7-8424-712d66749d03&quot;>
    <path d=&quot;M 0 360  L 504 360  L 504 0  L 0 0  z &quot; style=&quot;fill: #ffffff&quot;/>
   </g>
   <g id=&quot;axes_1&quot;>
-   <g id=&quot;maidr-1316a228-b8dd-421e-8af5-d0ae8bf4f84e&quot;>
+   <g id=&quot;maidr-476059f8-637b-4aba-b7c7-abe49659fc45&quot;>
     <path d=&quot;M 63 320.4  L 453.6 320.4  L 453.6 43.2  L 63 43.2  z &quot; style=&quot;fill: #ffffff&quot;/>
    </g>
    <g id=&quot;patch_1&quot;>
-    <path d=&quot;M 105.403655 294.741064  Q 206.792931 275.623025 307.083534 256.712154  &quot; clip-path=&quot;url(#p7371a6a8ed)&quot; style=&quot;fill: none; stroke: #000000; stroke-linecap: round&quot;/>
-    <path d=&quot;M 302.782212 255.48797  L 307.083534 256.712154  L 303.523394 259.418701  z &quot; clip-path=&quot;url(#p7371a6a8ed)&quot; style=&quot;stroke: #000000; stroke-linecap: round&quot;/>
+    <path d=&quot;M 105.403655 294.741064  Q 206.792931 275.623025 307.083534 256.712154  &quot; clip-path=&quot;url(#p53c7539e68)&quot; style=&quot;fill: none; stroke: #000000; stroke-linecap: round&quot;/>
+    <path d=&quot;M 302.782212 255.48797  L 307.083534 256.712154  L 303.523394 259.418701  z &quot; clip-path=&quot;url(#p53c7539e68)&quot; style=&quot;stroke: #000000; stroke-linecap: round&quot;/>
    </g>
    <g id=&quot;patch_2&quot;>
-    <path d=&quot;M 323.127359 249.102591  Q 337.691415 235.984214 351.424748 223.6141  &quot; clip-path=&quot;url(#p7371a6a8ed)&quot; style=&quot;fill: none; stroke: #000000; stroke-linecap: round&quot;/>
-    <path d=&quot;M 347.114126 224.805124  L 351.424748 223.6141  L 349.791194 227.777212  z &quot; clip-path=&quot;url(#p7371a6a8ed)&quot; style=&quot;stroke: #000000; stroke-linecap: round&quot;/>
+    <path d=&quot;M 323.127359 249.102591  Q 337.691415 235.984214 351.424748 223.6141  &quot; clip-path=&quot;url(#p53c7539e68)&quot; style=&quot;fill: none; stroke: #000000; stroke-linecap: round&quot;/>
+    <path d=&quot;M 347.114126 224.805124  L 351.424748 223.6141  L 349.791194 227.777212  z &quot; clip-path=&quot;url(#p53c7539e68)&quot; style=&quot;stroke: #000000; stroke-linecap: round&quot;/>
    </g>
    <g id=&quot;patch_3&quot;>
-    <path d=&quot;M 323.65371 249.756601  Q 368.195542 216.852175 411.838106 184.612066  &quot; clip-path=&quot;url(#p7371a6a8ed)&quot; style=&quot;fill: none; stroke: #000000; stroke-linecap: round&quot;/>
-    <path d=&quot;M 407.432421 185.38014  L 411.838106 184.612066  L 409.809153 188.597459  z &quot; clip-path=&quot;url(#p7371a6a8ed)&quot; style=&quot;stroke: #000000; stroke-linecap: round&quot;/>
+    <path d=&quot;M 323.65371 249.756601  Q 368.195542 216.852175 411.838106 184.612066  &quot; clip-path=&quot;url(#p53c7539e68)&quot; style=&quot;fill: none; stroke: #000000; stroke-linecap: round&quot;/>
+    <path d=&quot;M 407.432421 185.38014  L 411.838106 184.612066  L 409.809153 188.597459  z &quot; clip-path=&quot;url(#p53c7539e68)&quot; style=&quot;stroke: #000000; stroke-linecap: round&quot;/>
    </g>
    <g id=&quot;patch_4&quot;>
-    <path d=&quot;M 355.203265 209.141237  Q 337.579329 169.088462 320.405683 130.059034  &quot; clip-path=&quot;url(#p7371a6a8ed)&quot; style=&quot;fill: none; stroke: #000000; stroke-linecap: round&quot;/>
-    <path d=&quot;M 320.186074 134.525774  L 320.405683 130.059034  L 323.84731 132.914765  z &quot; clip-path=&quot;url(#p7371a6a8ed)&quot; style=&quot;stroke: #000000; stroke-linecap: round&quot;/>
+    <path d=&quot;M 355.203265 209.141237  Q 337.579329 169.088462 320.405683 130.059034  &quot; clip-path=&quot;url(#p53c7539e68)&quot; style=&quot;fill: none; stroke: #000000; stroke-linecap: round&quot;/>
+    <path d=&quot;M 320.186074 134.525774  L 320.405683 130.059034  L 323.84731 132.914765  z &quot; clip-path=&quot;url(#p53c7539e68)&quot; style=&quot;stroke: #000000; stroke-linecap: round&quot;/>
    </g>
    <g id=&quot;patch_5&quot;>
-    <path d=&quot;M 412.146728 174.576781  Q 368.086644 149.954495 325.002537 125.877619  &quot; clip-path=&quot;url(#p7371a6a8ed)&quot; style=&quot;fill: none; stroke: #000000; stroke-linecap: round&quot;/>
-    <path d=&quot;M 327.518637 129.574812  L 325.002537 125.877619  L 329.469952 126.083054  z &quot; clip-path=&quot;url(#p7371a6a8ed)&quot; style=&quot;stroke: #000000; stroke-linecap: round&quot;/>
+    <path d=&quot;M 412.146728 174.576781  Q 368.086644 149.954495 325.002537 125.877619  &quot; clip-path=&quot;url(#p53c7539e68)&quot; style=&quot;fill: none; stroke: #000000; stroke-linecap: round&quot;/>
+    <path d=&quot;M 327.518637 129.574812  L 325.002537 125.877619  L 329.469952 126.083054  z &quot; clip-path=&quot;url(#p53c7539e68)&quot; style=&quot;stroke: #000000; stroke-linecap: round&quot;/>
    </g>
    <g id=&quot;patch_6&quot;>
-    <path d=&quot;M 308.541921 117.61196  Q 255.422473 94.181347 203.325966 71.201946  &quot; clip-path=&quot;url(#p7371a6a8ed)&quot; style=&quot;fill: none; stroke: #000000; stroke-linecap: round&quot;/>
-    <path d=&quot;M 206.178597 74.646143  L 203.325966 71.201946  L 207.792902 70.986359  z &quot; clip-path=&quot;url(#p7371a6a8ed)&quot; style=&quot;stroke: #000000; stroke-linecap: round&quot;/>
+    <path d=&quot;M 308.541921 117.61196  Q 255.422473 94.181347 203.325966 71.201946  &quot; clip-path=&quot;url(#p53c7539e68)&quot; style=&quot;fill: none; stroke: #000000; stroke-linecap: round&quot;/>
+    <path d=&quot;M 206.178597 74.646143  L 203.325966 71.201946  L 207.792902 70.986359  z &quot; clip-path=&quot;url(#p53c7539e68)&quot; style=&quot;stroke: #000000; stroke-linecap: round&quot;/>
    </g>
    <g id=&quot;matplotlib.axis_1&quot;/>
    <g id=&quot;matplotlib.axis_2&quot;/>
-   <g id=&quot;maidr-0aeda7b6-03c2-4be4-914e-7928818ee8e7&quot;>
+   <g id=&quot;maidr-b3292d0c-b5ff-42cf-8696-b559b8a6ab93&quot;>
     <defs>
-     <path id=&quot;m9584210620&quot; d=&quot;M 0 8.660254  C 2.296726 8.660254 4.499694 7.747755 6.123724 6.123724  C 7.747755 4.499694 8.660254 2.296726 8.660254 0  C 8.660254 -2.296726 7.747755 -4.499694 6.123724 -6.123724  C 4.499694 -7.747755 2.296726 -8.660254 0 -8.660254  C -2.296726 -8.660254 -4.499694 -7.747755 -6.123724 -6.123724  C -7.747755 -4.499694 -8.660254 -2.296726 -8.660254 0  C -8.660254 2.296726 -7.747755 4.499694 -6.123724 6.123724  C -4.499694 7.747755 -2.296726 8.660254 0 8.660254  z &quot; style=&quot;stroke: #add8e6&quot;/>
+     <path id=&quot;m13c0860284&quot; d=&quot;M 0 8.660254  C 2.296726 8.660254 4.499694 7.747755 6.123724 6.123724  C 7.747755 4.499694 8.660254 2.296726 8.660254 0  C 8.660254 -2.296726 7.747755 -4.499694 6.123724 -6.123724  C 4.499694 -7.747755 2.296726 -8.660254 0 -8.660254  C -2.296726 -8.660254 -4.499694 -7.747755 -6.123724 -6.123724  C -7.747755 -4.499694 -8.660254 -2.296726 -8.660254 0  C -8.660254 2.296726 -7.747755 4.499694 -6.123724 6.123724  C -4.499694 7.747755 -2.296726 8.660254 0 8.660254  z &quot; style=&quot;stroke: #add8e6&quot;/>
     </defs>
-    <g clip-path=&quot;url(#p7371a6a8ed)&quot;>
-     <use xlink:href=&quot;#m9584210620&quot; x=&quot;96.895041&quot; y=&quot;296.345455&quot; style=&quot;fill: #add8e6; stroke: #add8e6&quot;/>
-     <use xlink:href=&quot;#m9584210620&quot; x=&quot;316.690285&quot; y=&quot;254.900697&quot; style=&quot;fill: #add8e6; stroke: #add8e6&quot;/>
-     <use xlink:href=&quot;#m9584210620&quot; x=&quot;358.691484&quot; y=&quot;217.068686&quot; style=&quot;fill: #add8e6; stroke: #add8e6&quot;/>
-     <use xlink:href=&quot;#m9584210620&quot; x=&quot;419.704959&quot; y=&quot;178.80058&quot; style=&quot;fill: #add8e6; stroke: #add8e6&quot;/>
-     <use xlink:href=&quot;#m9584210620&quot; x=&quot;316.466896&quot; y=&quot;121.10761&quot; style=&quot;fill: #add8e6; stroke: #add8e6&quot;/>
-     <use xlink:href=&quot;#m9584210620&quot; x=&quot;194.376829&quot; y=&quot;67.254545&quot; style=&quot;fill: #add8e6; stroke: #add8e6&quot;/>
+    <g clip-path=&quot;url(#p53c7539e68)&quot;>
+     <use xlink:href=&quot;#m13c0860284&quot; x=&quot;96.895041&quot; y=&quot;296.345455&quot; style=&quot;fill: #add8e6; stroke: #add8e6&quot;/>
+     <use xlink:href=&quot;#m13c0860284&quot; x=&quot;316.690285&quot; y=&quot;254.900697&quot; style=&quot;fill: #add8e6; stroke: #add8e6&quot;/>
+     <use xlink:href=&quot;#m13c0860284&quot; x=&quot;358.691484&quot; y=&quot;217.068686&quot; style=&quot;fill: #add8e6; stroke: #add8e6&quot;/>
+     <use xlink:href=&quot;#m13c0860284&quot; x=&quot;419.704959&quot; y=&quot;178.80058&quot; style=&quot;fill: #add8e6; stroke: #add8e6&quot;/>
+     <use xlink:href=&quot;#m13c0860284&quot; x=&quot;316.466896&quot; y=&quot;121.10761&quot; style=&quot;fill: #add8e6; stroke: #add8e6&quot;/>
+     <use xlink:href=&quot;#m13c0860284&quot; x=&quot;194.376829&quot; y=&quot;67.254545&quot; style=&quot;fill: #add8e6; stroke: #add8e6&quot;/>
     </g>
    </g>
-   <g id=&quot;maidr-f545cf7d-92dd-431f-9d32-ff26ac3bf492&quot;>
+   <g id=&quot;maidr-36602c08-8a3b-4066-91fc-1454523799ad&quot;>
     <path d=&quot;M 63 320.4  L 63 43.2  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-7bbfaea6-a5db-433a-b64c-bd31964471df&quot;>
+   <g id=&quot;maidr-6a26e3dc-b7bc-461c-a4ff-8d79c2ad659a&quot;>
     <path d=&quot;M 453.6 320.4  L 453.6 43.2  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-1aed4ff7-6333-4f28-a234-aa4ef99e0e1b&quot;>
+   <g id=&quot;maidr-c09059ac-b59a-41fc-aeae-2da9b2f4aab6&quot;>
     <path d=&quot;M 63 320.4  L 453.6 320.4  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
-   <g id=&quot;maidr-d6bcc007-c06f-4ccf-ae41-de114e740e70&quot;>
+   <g id=&quot;maidr-8abbc9d2-03b5-4951-945d-9f05b2a984d6&quot;>
     <path d=&quot;M 63 43.2  L 453.6 43.2  &quot; style=&quot;fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square&quot;/>
    </g>
    <g id=&quot;text_1&quot;>
-    <g clip-path=&quot;url(#p7371a6a8ed)&quot;>
+    <g clip-path=&quot;url(#p53c7539e68)&quot;>
      <!-- load -->
      <g transform=&quot;translate(84.070979 299.463111) scale(0.12 -0.12)&quot;>
       <defs>
@@ -815,7 +815,7 @@ cookieconsent.run({
     </g>
    </g>
    <g id=&quot;text_2&quot;>
-    <g clip-path=&quot;url(#p7371a6a8ed)&quot;>
+    <g clip-path=&quot;url(#p53c7539e68)&quot;>
      <!-- clean -->
      <g transform=&quot;translate(300.553098 258.018354) scale(0.12 -0.12)&quot;>
       <defs>
@@ -832,7 +832,7 @@ cookieconsent.run({
     </g>
    </g>
    <g id=&quot;text_3&quot;>
-    <g clip-path=&quot;url(#p7371a6a8ed)&quot;>
+    <g clip-path=&quot;url(#p53c7539e68)&quot;>
      <!-- features -->
      <g transform=&quot;translate(333.903984 220.186342) scale(0.12 -0.12)&quot;>
       <defs>
@@ -854,7 +854,7 @@ cookieconsent.run({
     </g>
    </g>
    <g id=&quot;text_4&quot;>
-    <g clip-path=&quot;url(#p7371a6a8ed)&quot;>
+    <g clip-path=&quot;url(#p53c7539e68)&quot;>
      <!-- labels -->
      <g transform=&quot;translate(402.067771 181.918236) scale(0.12 -0.12)&quot;>
       <defs>
@@ -870,7 +870,7 @@ cookieconsent.run({
     </g>
    </g>
    <g id=&quot;text_5&quot;>
-    <g clip-path=&quot;url(#p7371a6a8ed)&quot;>
+    <g clip-path=&quot;url(#p53c7539e68)&quot;>
      <!-- train -->
      <g transform=&quot;translate(302.501896 124.225266) scale(0.12 -0.12)&quot;>
       <defs>
@@ -885,7 +885,7 @@ cookieconsent.run({
     </g>
    </g>
    <g id=&quot;text_6&quot;>
-    <g clip-path=&quot;url(#p7371a6a8ed)&quot;>
+    <g clip-path=&quot;url(#p53c7539e68)&quot;>
      <!-- evaluate -->
      <g transform=&quot;translate(168.266516 70.372202) scale(0.12 -0.12)&quot;>
       <defs>
@@ -935,7 +935,7 @@ cookieconsent.run({
   </g>
  </g>
  <defs>
-  <clipPath id=&quot;p7371a6a8ed&quot;>
+  <clipPath id=&quot;p53c7539e68&quot;>
    <rect x=&quot;63&quot; y=&quot;43.2&quot; width=&quot;390.6&quot; height=&quot;277.2&quot;/>
   </clipPath>
  </defs>
@@ -943,7 +943,7 @@ cookieconsent.run({
 </div>
 </div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
         function resizeIframe() {
-            let iframe = document.getElementById('iframe_4456d59a-bb4f-4981-90f9-9fee3a3f36ee');
+            let iframe = document.getElementById('iframe_fd1d9548-29d7-4dbd-a325-8da8a2720eb7');
             if (
                 iframe &amp;&amp; iframe.contentWindow &amp;&amp;
                 iframe.contentWindow.document
@@ -1007,7 +1007,7 @@ cookieconsent.run({
                 iframe.style.width = iframeDocument.body.scrollWidth + 'px';
             }
         }
-        let iframe = document.getElementById('iframe_4456d59a-bb4f-4981-90f9-9fee3a3f36ee');
+        let iframe = document.getElementById('iframe_fd1d9548-29d7-4dbd-a325-8da8a2720eb7');
         resizeIframe();
         iframe.onload = function() {
             resizeIframe();
@@ -1069,7 +1069,7 @@ cookieconsent.run({
 </section>
 <section id="labels-and-node-data" class="level2">
 <h2 class="anchored" data-anchor-id="labels-and-node-data">Labels and node data</h2>
-<div id="fd07b1f8" class="cell" data-execution_count="3">
+<div id="560ae865" class="cell" data-execution_count="3">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" data-source-line-numbers="nil" data-code-line-numbers="4,11,19,21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> networkx <span class="im">as</span> nx</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -1092,7 +1092,7 @@ cookieconsent.run({
 <span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>plt.show()  </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display">
-<iframe id="iframe_0d96b2bb-86b0-4207-9055-5d2de201688c" title="Accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
+<iframe id="iframe_cc0c0317-b23a-4ccf-b6d0-281b78e690c2" title="Accessible chart" data-maidr-chart="" allow="bluetooth; serial; hid" srcdoc="<div>
   <script type=&quot;text/javascript&quot;>
                 (function() {
                     var existing = document.querySelector('script[src=&quot;https://cdn.jsdelivr.net/npm/maidr@4.14.0/dist/maidr.js&quot;]');
@@ -1110,12 +1110,12 @@ cookieconsent.run({
                     }
                 })();
             </script>
-  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;504pt&quot; height=&quot;360pt&quot; viewBox=&quot;0 0 504 360&quot; version=&quot;1.1&quot; id=&quot;aa364e67-5f73-4821-81f6-bc36b81d4e1d&quot; maidr=&quot;{&amp;quot;id&amp;quot;: &amp;quot;aa364e67-5f73-4821-81f6-bc36b81d4e1d&amp;quot;, &amp;quot;subplots&amp;quot;: [[{&amp;quot;id&amp;quot;: &amp;quot;f4567ab5-c9b6-4f15-b781-935f49c05d5b&amp;quot;, &amp;quot;layers&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;269b8b0f-a866-4dd4-98b3-2c65f15b6652&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;directed_graph&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Node&amp;quot;}}, &amp;quot;data&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;fetch&amp;quot;, &amp;quot;label&amp;quot;: &amp;quot;Fetch pages&amp;quot;, &amp;quot;inputs&amp;quot;: [], &amp;quot;attributes&amp;quot;: {&amp;quot;retries&amp;quot;: 3}}, {&amp;quot;id&amp;quot;: &amp;quot;parse&amp;quot;, &amp;quot;label&amp;quot;: &amp;quot;Parse HTML&amp;quot;, &amp;quot;inputs&amp;quot;: [&amp;quot;fetch&amp;quot;], &amp;quot;attributes&amp;quot;: {}}, {&amp;quot;id&amp;quot;: &amp;quot;store&amp;quot;, &amp;quot;label&amp;quot;: &amp;quot;Store rows&amp;quot;, &amp;quot;inputs&amp;quot;: [&amp;quot;parse&amp;quot;], &amp;quot;attributes&amp;quot;: {&amp;quot;backend&amp;quot;: &amp;quot;postgres&amp;quot;}}, {&amp;quot;id&amp;quot;: &amp;quot;index&amp;quot;, &amp;quot;label&amp;quot;: &amp;quot;Build index&amp;quot;, &amp;quot;inputs&amp;quot;: [&amp;quot;parse&amp;quot;], &amp;quot;attributes&amp;quot;: {}}], &amp;quot;selectors&amp;quot;: [&amp;quot;g[id='maidr-526b769e-6c85-46f0-8b8f-b86b9276867e'] &amp;gt; g:only-of-type &amp;gt; use:nth-of-type(1), g[id='maidr-526b769e-6c85-46f0-8b8f-b86b9276867e'] &amp;gt; g:nth-of-type(1) &amp;gt; use:only-child, g[id='maidr-526b769e-6c85-46f0-8b8f-b86b9276867e'] &amp;gt; path:nth-of-type(1)&amp;quot;, &amp;quot;g[id='maidr-526b769e-6c85-46f0-8b8f-b86b9276867e'] &amp;gt; g:only-of-type &amp;gt; use:nth-of-type(2), g[id='maidr-526b769e-6c85-46f0-8b8f-b86b9276867e'] &amp;gt; g:nth-of-type(2) &amp;gt; use:only-child, g[id='maidr-526b769e-6c85-46f0-8b8f-b86b9276867e'] &amp;gt; path:nth-of-type(2)&amp;quot;, &amp;quot;g[id='maidr-526b769e-6c85-46f0-8b8f-b86b9276867e'] &amp;gt; g:only-of-type &amp;gt; use:nth-of-type(3), g[id='maidr-526b769e-6c85-46f0-8b8f-b86b9276867e'] &amp;gt; g:nth-of-type(3) &amp;gt; use:only-child, g[id='maidr-526b769e-6c85-46f0-8b8f-b86b9276867e'] &amp;gt; path:nth-of-type(3)&amp;quot;, &amp;quot;g[id='maidr-526b769e-6c85-46f0-8b8f-b86b9276867e'] &amp;gt; g:only-of-type &amp;gt; use:nth-of-type(4), g[id='maidr-526b769e-6c85-46f0-8b8f-b86b9276867e'] &amp;gt; g:nth-of-type(4) &amp;gt; use:only-child, g[id='maidr-526b769e-6c85-46f0-8b8f-b86b9276867e'] &amp;gt; path:nth-of-type(4)&amp;quot;]}]}]]}&quot;>
+  <div><svg xmlns:xlink=&quot;http://www.w3.org/1999/xlink&quot; xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;504pt&quot; height=&quot;360pt&quot; viewBox=&quot;0 0 504 360&quot; version=&quot;1.1&quot; id=&quot;6326899a-cff5-484d-8112-37673b4f8881&quot; maidr=&quot;{&amp;quot;id&amp;quot;: &amp;quot;6326899a-cff5-484d-8112-37673b4f8881&amp;quot;, &amp;quot;subplots&amp;quot;: [[{&amp;quot;id&amp;quot;: &amp;quot;2f11fddf-7798-4fef-9f87-060375e878f6&amp;quot;, &amp;quot;layers&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;737c3fc8-f3d2-491e-9ac9-f7b236f2804e&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;directed_graph&amp;quot;, &amp;quot;title&amp;quot;: &amp;quot;&amp;quot;, &amp;quot;axes&amp;quot;: {&amp;quot;x&amp;quot;: {&amp;quot;label&amp;quot;: &amp;quot;Node&amp;quot;}}, &amp;quot;data&amp;quot;: [{&amp;quot;id&amp;quot;: &amp;quot;fetch&amp;quot;, &amp;quot;label&amp;quot;: &amp;quot;Fetch pages&amp;quot;, &amp;quot;inputs&amp;quot;: [], &amp;quot;attributes&amp;quot;: {&amp;quot;retries&amp;quot;: 3}}, {&amp;quot;id&amp;quot;: &amp;quot;parse&amp;quot;, &amp;quot;label&amp;quot;: &amp;quot;Parse HTML&amp;quot;, &amp;quot;inputs&amp;quot;: [&amp;quot;fetch&amp;quot;], &amp;quot;attributes&amp;quot;: {}}, {&amp;quot;id&amp;quot;: &amp;quot;store&amp;quot;, &amp;quot;label&amp;quot;: &amp;quot;Store rows&amp;quot;, &amp;quot;inputs&amp;quot;: [&amp;quot;parse&amp;quot;], &amp;quot;attributes&amp;quot;: {&amp;quot;backend&amp;quot;: &amp;quot;postgres&amp;quot;}}, {&amp;quot;id&amp;quot;: &amp;quot;index&amp;quot;, &amp;quot;label&amp;quot;: &amp;quot;Build index&amp;quot;, &amp;quot;inputs&amp;quot;: [&amp;quot;parse&amp;quot;], &amp;quot;attributes&amp;quot;: {}}], &amp;quot;selectors&amp;quot;: [&amp;quot;g[id='maidr-b099fd60-34fc-44fa-9e22-ebfe16fb2217'] &amp;gt; g:only-of-type &amp;gt; use:nth-of-type(1), g[id='maidr-b099fd60-34fc-44fa-9e22-ebfe16fb2217'] &amp;gt; g:nth-of-type(1) &amp;gt; use:only-child, g[id='maidr-b099fd60-34fc-44fa-9e22-ebfe16fb2217'] &amp;gt; path:nth-of-type(1)&amp;quot;, &amp;quot;g[id='maidr-b099fd60-34fc-44fa-9e22-ebfe16fb2217'] &amp;gt; g:only-of-type &amp;gt; use:nth-of-type(2), g[id='maidr-b099fd60-34fc-44fa-9e22-ebfe16fb2217'] &amp;gt; g:nth-of-type(2) &amp;gt; use:only-child, g[id='maidr-b099fd60-34fc-44fa-9e22-ebfe16fb2217'] &amp;gt; path:nth-of-type(2)&amp;quot;, &amp;quot;g[id='maidr-b099fd60-34fc-44fa-9e22-ebfe16fb2217'] &amp;gt; g:only-of-type &amp;gt; use:nth-of-type(3), g[id='maidr-b099fd60-34fc-44fa-9e22-ebfe16fb2217'] &amp;gt; g:nth-of-type(3) &amp;gt; use:only-child, g[id='maidr-b099fd60-34fc-44fa-9e22-ebfe16fb2217'] &amp;gt; path:nth-of-type(3)&amp;quot;, &amp;quot;g[id='maidr-b099fd60-34fc-44fa-9e22-ebfe16fb2217'] &amp;gt; g:only-of-type &amp;gt; use:nth-of-type(4), g[id='maidr-b099fd60-34fc-44fa-9e22-ebfe16fb2217'] &amp;gt; g:nth-of-type(4) &amp;gt; use:only-child, g[id='maidr-b099fd60-34fc-44fa-9e22-ebfe16fb2217'] &amp;gt; path:nth-of-type(4)&amp;quot;]}]}]]}&quot;>
  <metadata>
   <rdf:RDF xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot; xmlns:cc=&quot;http://creativecommons.org/ns#&quot; xmlns:rdf=&quot;http://www.w3.org/1999/02/22-rdf-syntax-ns#&quot;>
    <cc:Work>
     <dc:type rdf:resource=&quot;http://purl.org/dc/dcmitype/StillImage&quot;/>
-    <dc:date>2026-10-08T14:35:53.985505</dc:date>
+    <dc:date>2026-10-08T15:17:24.983531</dc:date>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
@@ -1129,35 +1129,35 @@ cookieconsent.run({
   <style type=&quot;text/css&quot;>*{stroke-linejoin: round; stroke-linecap: butt}</style>
  </defs>
  <g id=&quot;figure_1&quot;>
-  <g id=&quot;maidr-917b1d9c-5e73-431d-82e5-c192bd4e3e77&quot;>
+  <g id=&quot;maidr-b7e30132-2d6e-4232-beea-f5508871ca85&quot;>
    <path d=&quot;M 0 360  L 504 360  L 504 0  L 0 0  z &quot; style=&quot;fill: #ffffff&quot;/>
   </g>
   <g id=&quot;axes_1&quot;>
    <g id=&quot;patch_1&quot;>
-    <path d=&quot;M 402.403477 169.52153  Q 339.000891 124.526148 276.510069 80.177824  &quot; clip-path=&quot;url(#p922124af63)&quot; style=&quot;fill: none; stroke: #000000; stroke-linecap: round&quot;/>
-    <path d=&quot;M 278.614603 84.123827  L 276.510069 80.177824  L 280.929591 80.861798  z &quot; clip-path=&quot;url(#p922124af63)&quot; style=&quot;stroke: #000000; stroke-linecap: round&quot;/>
+    <path d=&quot;M 402.403477 169.52153  Q 339.000891 124.526148 276.510069 80.177824  &quot; clip-path=&quot;url(#p522c2d98ca)&quot; style=&quot;fill: none; stroke: #000000; stroke-linecap: round&quot;/>
+    <path d=&quot;M 278.614603 84.123827  L 276.510069 80.177824  L 280.929591 80.861798  z &quot; clip-path=&quot;url(#p522c2d98ca)&quot; style=&quot;stroke: #000000; stroke-linecap: round&quot;/>
    </g>
    <g id=&quot;patch_2&quot;>
-    <path d=&quot;M 240.998513 79.533017  Q 177.595932 124.528403 115.105116 168.87673  &quot; clip-path=&quot;url(#p922124af63)&quot; style=&quot;fill: none; stroke: #000000; stroke-linecap: round&quot;/>
-    <path d=&quot;M 119.524638 168.192756  L 115.105116 168.87673  L 117.20965 164.930727  z &quot; clip-path=&quot;url(#p922124af63)&quot; style=&quot;stroke: #000000; stroke-linecap: round&quot;/>
+    <path d=&quot;M 240.998513 79.533017  Q 177.595932 124.528403 115.105116 168.87673  &quot; clip-path=&quot;url(#p522c2d98ca)&quot; style=&quot;fill: none; stroke: #000000; stroke-linecap: round&quot;/>
+    <path d=&quot;M 119.524638 168.192756  L 115.105116 168.87673  L 117.20965 164.930727  z &quot; clip-path=&quot;url(#p522c2d98ca)&quot; style=&quot;stroke: #000000; stroke-linecap: round&quot;/>
    </g>
    <g id=&quot;patch_3&quot;>
-    <path d=&quot;M 258.299994 88.469644  Q 258.299997 181.802191 258.300001 274.016704  &quot; clip-path=&quot;url(#p922124af63)&quot; style=&quot;fill: none; stroke: #000000; stroke-linecap: round&quot;/>
-    <path d=&quot;M 260.300001 270.016704  L 258.300001 274.016704  L 256.300001 270.016704  z &quot; clip-path=&quot;url(#p922124af63)&quot; style=&quot;stroke: #000000; stroke-linecap: round&quot;/>
+    <path d=&quot;M 258.299994 88.469644  Q 258.299997 181.802191 258.300001 274.016704  &quot; clip-path=&quot;url(#p522c2d98ca)&quot; style=&quot;fill: none; stroke: #000000; stroke-linecap: round&quot;/>
+    <path d=&quot;M 260.300001 270.016704  L 258.300001 274.016704  L 256.300001 270.016704  z &quot; clip-path=&quot;url(#p522c2d98ca)&quot; style=&quot;stroke: #000000; stroke-linecap: round&quot;/>
    </g>
-   <g id=&quot;maidr-526b769e-6c85-46f0-8b8f-b86b9276867e&quot;>
+   <g id=&quot;maidr-b099fd60-34fc-44fa-9e22-ebfe16fb2217&quot;>
     <defs>
-     <path id=&quot;md9411b17bd&quot; d=&quot;M 0 21.213203  C 5.625807 21.213203 11.021954 18.978047 15 15  C 18.978047 11.021954 21.213203 5.625807 21.213203 0  C 21.213203 -5.625807 18.978047 -11.021954 15 -15  C 11.021954 -18.978047 5.625807 -21.213203 0 -21.213203  C -5.625807 -21.213203 -11.021954 -18.978047 -15 -15  C -18.978047 -11.021954 -21.213203 -5.625807 -21.213203 0  C -21.213203 5.625807 -18.978047 11.021954 -15 15  C -11.021954 18.978047 -5.625807 21.213203 0 21.213203  z &quot; style=&quot;stroke: #f5deb3&quot;/>
+     <path id=&quot;md7e312b38f&quot; d=&quot;M 0 21.213203  C 5.625807 21.213203 11.021954 18.978047 15 15  C 18.978047 11.021954 21.213203 5.625807 21.213203 0  C 21.213203 -5.625807 18.978047 -11.021954 15 -15  C 11.021954 -18.978047 5.625807 -21.213203 0 -21.213203  C -5.625807 -21.213203 -11.021954 -18.978047 -15 -15  C -18.978047 -11.021954 -21.213203 -5.625807 -21.213203 0  C -21.213203 5.625807 -18.978047 11.021954 -15 15  C -11.021954 18.978047 -5.625807 21.213203 0 21.213203  z &quot; style=&quot;stroke: #f5deb3&quot;/>
     </defs>
-    <g clip-path=&quot;url(#p922124af63)&quot;>
-     <use xlink:href=&quot;#md9411b17bd&quot; x=&quot;419.704959&quot; y=&quot;181.8&quot; style=&quot;fill: #f5deb3; stroke: #f5deb3&quot;/>
-     <use xlink:href=&quot;#md9411b17bd&quot; x=&quot;258.299993&quot; y=&quot;67.254545&quot; style=&quot;fill: #f5deb3; stroke: #f5deb3&quot;/>
-     <use xlink:href=&quot;#md9411b17bd&quot; x=&quot;96.895041&quot; y=&quot;181.80001&quot; style=&quot;fill: #f5deb3; stroke: #f5deb3&quot;/>
-     <use xlink:href=&quot;#md9411b17bd&quot; x=&quot;258.300002&quot; y=&quot;296.345455&quot; style=&quot;fill: #f5deb3; stroke: #f5deb3&quot;/>
+    <g clip-path=&quot;url(#p522c2d98ca)&quot;>
+     <use xlink:href=&quot;#md7e312b38f&quot; x=&quot;419.704959&quot; y=&quot;181.8&quot; style=&quot;fill: #f5deb3; stroke: #f5deb3&quot;/>
+     <use xlink:href=&quot;#md7e312b38f&quot; x=&quot;258.299993&quot; y=&quot;67.254545&quot; style=&quot;fill: #f5deb3; stroke: #f5deb3&quot;/>
+     <use xlink:href=&quot;#md7e312b38f&quot; x=&quot;96.895041&quot; y=&quot;181.80001&quot; style=&quot;fill: #f5deb3; stroke: #f5deb3&quot;/>
+     <use xlink:href=&quot;#md7e312b38f&quot; x=&quot;258.300002&quot; y=&quot;296.345455&quot; style=&quot;fill: #f5deb3; stroke: #f5deb3&quot;/>
     </g>
    </g>
    <g id=&quot;text_1&quot;>
-    <g clip-path=&quot;url(#p922124af63)&quot;>
+    <g clip-path=&quot;url(#p522c2d98ca)&quot;>
      <!-- Fetch pages -->
      <g transform=&quot;translate(383.417146 184.917656) scale(0.12 -0.12)&quot;>
       <defs>
@@ -1187,7 +1187,7 @@ cookieconsent.run({
     </g>
    </g>
    <g id=&quot;text_2&quot;>
-    <g clip-path=&quot;url(#p922124af63)&quot;>
+    <g clip-path=&quot;url(#p522c2d98ca)&quot;>
      <!-- Parse HTML -->
      <g transform=&quot;translate(223.386555 70.371733) scale(0.12 -0.12)&quot;>
       <defs>
@@ -1212,7 +1212,7 @@ cookieconsent.run({
     </g>
    </g>
    <g id=&quot;text_3&quot;>
-    <g clip-path=&quot;url(#p922124af63)&quot;>
+    <g clip-path=&quot;url(#p522c2d98ca)&quot;>
      <!-- Store rows -->
      <g transform=&quot;translate(65.091291 184.917198) scale(0.12 -0.12)&quot;>
       <defs>
@@ -1234,7 +1234,7 @@ cookieconsent.run({
     </g>
    </g>
    <g id=&quot;text_4&quot;>
-    <g clip-path=&quot;url(#p922124af63)&quot;>
+    <g clip-path=&quot;url(#p522c2d98ca)&quot;>
      <!-- Build index -->
      <g transform=&quot;translate(224.914689 299.463111) scale(0.12 -0.12)&quot;>
       <defs>
@@ -1263,7 +1263,7 @@ cookieconsent.run({
   </g>
  </g>
  <defs>
-  <clipPath id=&quot;p922124af63&quot;>
+  <clipPath id=&quot;p522c2d98ca&quot;>
    <rect x=&quot;63&quot; y=&quot;43.2&quot; width=&quot;390.6&quot; height=&quot;277.2&quot;/>
   </clipPath>
  </defs>
@@ -1271,7 +1271,7 @@ cookieconsent.run({
 </div>
 </div>" width="100%" height="100%" scrolling="no" style="background-color: #fff; position: relative; border: none" frameborder="0" onload="
         function resizeIframe() {
-            let iframe = document.getElementById('iframe_0d96b2bb-86b0-4207-9055-5d2de201688c');
+            let iframe = document.getElementById('iframe_cc0c0317-b23a-4ccf-b6d0-281b78e690c2');
             if (
                 iframe &amp;&amp; iframe.contentWindow &amp;&amp;
                 iframe.contentWindow.document
@@ -1335,7 +1335,7 @@ cookieconsent.run({
                 iframe.style.width = iframeDocument.body.scrollWidth + 'px';
             }
         }
-        let iframe = document.getElementById('iframe_0d96b2bb-86b0-4207-9055-5d2de201688c');
+        let iframe = document.getElementById('iframe_cc0c0317-b23a-4ccf-b6d0-281b78e690c2');
         resizeIframe();
         iframe.onload = function() {
             resizeIframe();

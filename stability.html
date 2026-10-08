@@ -241,7 +241,7 @@ cookieconsent.run({
 <meta name="DC.format" content="text/html">
 <meta name="DC.language" content="en">
 <meta name="DC.rights" content="GPL-3.0-or-later">
-<meta name="DC.date" content="2026-10-05">
+<meta name="DC.date" content="2026-10-08">
 </head>
 
 <body class="nav-fixed quarto-light">
@@ -703,7 +703,7 @@ cookieconsent.run({
 </section>
 <section id="plotnine-support" class="level2">
 <h2 class="anchored" data-anchor-id="plotnine-support">plotnine support</h2>
-<p>plotnine charts (<code>maidr.show(p)</code> on a <code>ggplot</code>) are read by an adapter that is itself <strong>experimental</strong>, whatever plot type it emits: a plotnine bar chart emits the stable <code>bar</code> type, but which geoms, stats and positions are read as what, how a facet panel is titled, and what is skipped may change without a deprecation period, including in a patch release. It reads each layer’s data as plotnine computed it rather than the shapes it drew, and each facet panel becomes a subplot; a geom, a position such as a jitter, or a coordinate system it does not read is left out with a warning naming it. See the <a href="./examples-plotnine.html">plotnine gallery</a> for what it reads today (<a href="https://github.com/xability/py-maidr/issues/814">#814</a>). Install it with <code>pip install "maidr[plotnine]"</code>.</p>
+<p>plotnine charts (<code>maidr.show(p)</code> on a <code>ggplot</code>) are read by an adapter that is itself <strong>experimental</strong>, whatever plot type it emits: a plotnine bar chart emits the stable <code>bar</code> type, but which geoms, stats and positions are read as what, how a facet panel is titled, and what is skipped may change without a deprecation period, including in a patch release. It reads each layer’s data as plotnine computed it rather than the shapes it drew, and each facet panel becomes a subplot; a geom, a position such as a jitter, or a coordinate system it does not read is left out with a warning naming it. A <code>geom_line</code> of recall against precision, which it read as a <code>line</code> before, emits the experimental <code>pr_curve</code>, as does such a <code>geom_path</code>; a <code>stat_summary(fun_data="median_hilow")</code> ribbon and the median line drawn with it, a <code>line</code> before, emit the experimental <code>percentile_band</code> together. See the <a href="./examples-plotnine.html">plotnine gallery</a> for what it reads today (<a href="https://github.com/xability/py-maidr/issues/814">#814</a>). Install it with <code>pip install "maidr[plotnine]"</code>.</p>
 </section>
 <section id="excel-support" class="level2">
 <h2 class="anchored" data-anchor-id="excel-support">Excel support</h2>
