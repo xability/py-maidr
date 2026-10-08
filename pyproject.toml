@@ -121,6 +121,15 @@ sklearn = [
     # the package the ROC tests need in order not to skip.
     "scikit-learn>=1.3",
 ]
+networkx = [
+    # Optional, and reached through a post-import hook rather than an
+    # import: `maidr/patch/network_graph.py` wraps `draw_networkx` only once
+    # the user imports networkx, so nothing in maidr imports it and a user
+    # without it is unaffected. Listed so `pip install maidr[networkx]` gets
+    # a working pair, and so CI installs the package the graph tests need in
+    # order not to skip.
+    "networkx>=3.0",
+]
 tensorboard = [
     # Optional, and imported only by TensorBoard itself: the `maidr` tab is
     # `maidr/tensorboard/plugin.py`, which TensorBoard loads through the
