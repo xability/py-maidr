@@ -66,7 +66,6 @@ def _has_position(x: object) -> bool:
         return True
 
 
-
 def _reading(y: object) -> object:
     """
     A sample's value, or ``None`` where it was positioned but never measured.
@@ -102,7 +101,6 @@ def _reading(y: object) -> object:
         return y if math.isfinite(y) else None  # type: ignore[arg-type]
     except TypeError:
         return y
-
 
 
 def _drew_something(line: Line2D) -> bool:
@@ -347,6 +345,30 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
 
         return selectors
 
+    def render(self) -> dict:
+        """
+        The line schema, emitted as a ``pr_curve`` when it is one by its names.
+
+        A precision-recall curve drawn by hand -- ``ax.plot(recall,
+        precision)`` or the ``ax.step(..., where="post")`` scikit-learn's
+        examples drew before ``PrecisionRecallDisplay`` -- carries no evidence
+        of what it is except its axis titles. Titled exactly ``Recall`` and
+        ``Precision``, with every value a fraction of one, those titles are
+        the claim, as the column names ``recall`` and ``precision`` are in
+        r-maidr; the layer is then maidr.js's ``pr_curve``, whose data is the
+        line's own shape, and a reader hears each point against the baseline
+        and the average precision of each curve. Nothing else is read as one.
+
+        Returns
+        -------
+        dict
+            The layer schema.
+        """
+        schema = super().render()
+        if self.type in (PlotType.LINE, PlotType.STEP) and _named_pr_curve(schema):
+            schema[MaidrKey.TYPE] = PlotType.PR_CURVE
+        return schema
+
     def _extract_plot_data(self) -> Union[List[List[dict]], None]:
         data = self._extract_line_data()
 
@@ -449,7 +471,9 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
             # swatch claims, a swatch naming two lines, or fewer than two
             # lines to tell apart. Position is the fallback for all of those,
             # so nothing that was named before stops being named.
-            by_color = names_for(ax_legend_source, [_rgba(line.get_color()) for line in all_lines])
+            by_color = names_for(
+                ax_legend_source, [_rgba(line.get_color()) for line in all_lines]
+            )
             if any(name is not None for name in by_color):
                 # A line no swatch claimed is recorded as `None` rather than
                 # filtered out, because the lookup below falls through to the
@@ -557,8 +581,10 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
             return
 
         lower, upper, region = band_edges_at(
-            self.ax, np.asarray(positions, dtype=float),
-            np.asarray(values, dtype=float), tuple(claimed),
+            self.ax,
+            np.asarray(positions, dtype=float),
+            np.asarray(values, dtype=float),
+            tuple(claimed),
         )
         if region is None:
             return
@@ -600,3 +626,43 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
         for point, low, high in zip(line_data, lower.tolist(), upper.tolist()):
             point[_Y_MIN] = low
             point[_Y_MAX] = high
+
+
+def _named_pr_curve(schema: dict) -> bool:
+    """
+    Whether a line schema is a precision-recall curve by its axis titles.
+
+    Parameters
+    ----------
+    schema : dict
+        A rendered line or step layer.
+
+    Returns
+    -------
+    bool
+        True when the x axis is titled ``Recall`` and the y axis
+        ``Precision`` (any case, surrounding space ignored) and every point
+        is a pair of numbers from 0 to 1.
+    """
+    axes = schema.get(MaidrKey.AXES) or {}
+
+    def title(axis: MaidrKey) -> str:
+        label = (axes.get(axis) or {}).get(MaidrKey.LABEL)
+        return label.strip().lower() if isinstance(label, str) else ""
+
+    if title(MaidrKey.X) != "recall" or title(MaidrKey.Y) != "precision":
+        return False
+    data = schema.get(MaidrKey.DATA)
+    if not isinstance(data, list) or not data:
+        return False
+    for series in data:
+        if not isinstance(series, list) or not series:
+            return False
+        for point in series:
+            for key in (MaidrKey.X, MaidrKey.Y):
+                value = point.get(key) if isinstance(point, dict) else None
+                if isinstance(value, bool) or not isinstance(value, (int, float)):
+                    return False
+                if not 0 <= value <= 1:
+                    return False
+    return True

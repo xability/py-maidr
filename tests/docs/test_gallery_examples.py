@@ -140,6 +140,8 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
         # chance level `plot_chance_level=True` draws is not a curve.
         "One classifier": [["pr_curve"]],
         "Comparing classifiers": [["pr_curve"]],
+        # A step titled Recall against Precision is read as one by its titles.
+        "Drawn by hand": [["pr_curve"]],
     },
     "examples/roc.qmd": {
         # Two classifiers on one axes are two curves of one layer, and the
