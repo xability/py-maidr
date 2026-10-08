@@ -367,36 +367,19 @@ class Maidr:
             * ``"auto"`` (default): attempt the CDN first and fall back
               to the bundled copy client-side if the CDN request fails.
         """
-        # Proactively inject the bundled ``maidr.js`` and its KaTeX
-        # stylesheet into the *current* notebook cell right before the
-        # iframe is emitted.
-        # The auto-call at ``import maidr`` time is not sufficient in
-        # several real-world scenarios:
-        #
-        #   * The user cleared the notebook's output (the import cell's
-        #     ``<script>`` is removed from the DOM even though the Python
-        #     ``_NOTEBOOK_LOADED`` flag stays ``True``).
-        #   * Cell-isolated frontends (Google Colab, Databricks) sandbox
-        #     each cell's output so ``window.__maidrJsSource`` set by
-        #     one cell is not visible to later cells.
-        #   * The notebook was re-opened without re-running the import.
-        #
-        # ``force=True`` bypasses the idempotence guard so each plot
-        # cell becomes self-contained (bundle ``<script>`` + iframe in
-        # the same output).  This mirrors Bokeh's per-output emission
-        # strategy and is only enabled when the user opted out of the
-        # CDN — callers with ``use_cdn=True`` still get the single
-        # ``<script src>`` reference.
-        if use_cdn is not True and Environment.is_notebook():
-            try:
-                from maidr.api import init_notebook
+        # Stash the bundled ``maidr.js`` and its KaTeX stylesheet on the
+        # page right before the iframe is emitted: in a notebook it is the
+        # frame's offline fallback (its only source under use_cdn=False).
+        # ``_init_notebook_for_show`` says when a chart stashes its own copy.
+        try:
+            from maidr.api import _init_notebook_for_show
 
-                init_notebook(use_cdn=use_cdn, force=True)
-            except Exception:
-                # Never block show() on notebook init; the iframe
-                # bootstrap will surface a helpful console warning if
-                # the bundle is unreachable.
-                pass
+            _init_notebook_for_show(use_cdn)
+        except Exception:
+            # Never block show() on notebook init; the iframe
+            # bootstrap will surface a helpful console warning if
+            # the bundle is unreachable.
+            pass
 
         # Use the passed renderer parameter, fallback to auto-detection
         if renderer == "auto":

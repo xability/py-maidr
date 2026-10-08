@@ -1503,16 +1503,15 @@ class PlotlyMaidr:
         # matplotlib ``Maidr.show()`` behavior (see ``maidr/core/maidr.py``)
         # and is required because ``Tag.get_html_string()`` drops any
         # ``HTMLDependency`` children during iframe serialization.
-        if use_cdn is not True and Environment.is_notebook():
-            try:
-                from maidr.api import init_notebook
+        try:
+            from maidr.api import _init_notebook_for_show
 
-                init_notebook(use_cdn=use_cdn, force=True)
-            except Exception:
-                # Never block show() on notebook init; the iframe
-                # bootstrap will surface a helpful console warning if
-                # the bundle is unreachable.
-                pass
+            _init_notebook_for_show(use_cdn)
+        except Exception:
+            # Never block show() on notebook init; the iframe
+            # bootstrap will surface a helpful console warning if
+            # the bundle is unreachable.
+            pass
 
         if renderer == "auto":
             _renderer = cast(Literal["ipython", "browser"], Environment.get_renderer())

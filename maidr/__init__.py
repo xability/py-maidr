@@ -278,10 +278,13 @@ _activate_backend()
 # ``init_notebook()`` from user code is optional because we do it
 # implicitly here.  In non-notebook contexts (``Environment.is_notebook()``
 # returns False) ``init_notebook()`` is a no-op, so this has zero cost
-# for scripts.  Users who prefer to defer the injection can set
-# ``MAIDR_USE_CDN=1`` so the bundle is never embedded.
+# for scripts, and in a Quarto render the first chart does it instead (see
+# ``_init_notebook_on_import``).  Users who prefer to defer the injection
+# can set ``MAIDR_USE_CDN=1`` so the bundle is never embedded.
 try:
-    init_notebook()
+    from .api import _init_notebook_on_import  # noqa: E402
+
+    _init_notebook_on_import()
 except Exception:  # pragma: no cover - never block import on notebook setup
     _logger.debug("init_notebook() raised during import", exc_info=True)
 

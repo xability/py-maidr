@@ -162,13 +162,12 @@ class BokehMaidr:
         """
         # Stash the bundle on the notebook ``window`` for the iframe loader;
         # see ``PlotlyMaidr.show``, which this mirrors.
-        if use_cdn is not True and Environment.is_notebook():
-            try:
-                from maidr.api import init_notebook
+        try:
+            from maidr.api import _init_notebook_for_show
 
-                init_notebook(use_cdn=use_cdn, force=True)
-            except Exception:
-                pass
+            _init_notebook_for_show(use_cdn)
+        except Exception:
+            pass
 
         if renderer == "auto":
             _renderer = cast(Literal["ipython", "browser"], Environment.get_renderer())
