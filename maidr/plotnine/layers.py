@@ -1002,12 +1002,17 @@ def _summarises_with_median_hilow(params: dict) -> bool:
 
     ``fun_y``, ``fun_ymin`` or ``fun_ymax`` replaces ``fun_data`` entirely.
     """
-    from plotnine.stats.stat_summary import median_hilow
+    try:
+        from plotnine.stats.stat_summary import median_hilow
+    except ImportError:  # moved in a plotnine this was not written against
+        median_hilow = None
 
     if any(params.get(key) is not None for key in ("fun_y", "fun_ymin", "fun_ymax")):
         return False
     fun = params.get("fun_data")
-    return fun == "median_hilow" if isinstance(fun, str) else fun is median_hilow
+    if isinstance(fun, str):
+        return fun == "median_hilow"
+    return median_hilow is not None and fun is median_hilow
 
 
 def _median_band_width(layer: Any) -> float | None:
