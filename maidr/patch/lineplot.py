@@ -1,16 +1,22 @@
 from __future__ import annotations
 
+import math
+import uuid
 from typing import Any
 
 import matplotlib.pyplot as plt
+import numpy as np
 import wrapt
 from matplotlib.axes import Axes
+from matplotlib.collections import PolyCollection
 from matplotlib.lines import Line2D
 
 from maidr.core.enum import PlotType
 from maidr.patch.common import _draw_quietly, common, wrap_seaborn
 from maidr.core.context_manager import ContextManager
 from maidr.core.figure_manager import FigureManager
+from maidr.core.plot.prebuilt import PrebuiltPlot
+from maidr.util.confidence_band import edges_of
 from maidr.util.step_utils import is_step_layer
 
 #: The attribute the accumulated series live on. A layer describes the lines
@@ -239,8 +245,183 @@ def line(wrapped, instance, args, kwargs) -> Axes | list[Line2D]:
 wrapt.wrap_function_wrapper(Axes, "plot", line)
 
 
+def seaborn_line(wrapped, instance, args, kwargs) -> Any:
+    """
+    Wrap ``seaborn.lineplot``, reading a median with a percentile interval as one.
+
+    ``sns.lineplot(estimator="median", errorbar=("pi", 80))`` draws, at each
+    x, the median of the observations there and the band between their 10th
+    and 90th percentiles -- a percentile band, whose quantiles the arguments
+    name exactly. One such series, with no ``hue``, ``style``, ``size`` or
+    ``units`` split, is registered as maidr.js's ``percentile_band``: the
+    reader enters each x on the median and moves up and down to the bounds,
+    each announced with the band it bounds. Anything else -- a mean, a
+    confidence interval, several series -- is the line it always was, and so
+    is a call that did not draw exactly one line and one band.
+
+    Parameters
+    ----------
+    wrapped : Callable
+        ``seaborn.lineplot``.
+    instance : Any
+        Unused; a module-level function.
+    args, kwargs : Any
+        As passed by the caller.
+
+    Returns
+    -------
+    Any
+        Whatever ``seaborn.lineplot`` returned.
+    """
+    width = _median_percentile_width(kwargs)
+    if (
+        width is None
+        or ContextManager.is_internal_context()
+        or any(kwargs.get(split) is not None for split in _SPLITS)
+    ):
+        return line(wrapped, instance, args, kwargs)
+
+    target = kwargs.get("ax")
+    if not isinstance(target, Axes):
+        target = plt.gca()
+    lines_before = {id(drawn) for drawn in target.get_lines()}
+    collections_before = {id(drawn) for drawn in target.collections}
+    with ContextManager.set_internal_context():
+        plot = _draw_quietly(wrapped, args, kwargs)
+
+    ax = FigureManager.get_axes(plot) or target
+    lines = [
+        drawn
+        for drawn in ax.get_lines()
+        if id(drawn) not in lines_before and drawn.get_xydata().size
+    ]
+    bands = [
+        drawn
+        for drawn in ax.collections
+        if id(drawn) not in collections_before and isinstance(drawn, PolyCollection)
+    ]
+    band = _percentile_band(ax, lines, bands, width)
+    if band is None:
+        _register_lines(ax, lines, plot, instance, args, kwargs)
+    else:
+        FigureManager.add_plot(band)
+    return plot
+
+
+#: The ``seaborn.lineplot`` arguments that split it into several series.
+_SPLITS = ("hue", "style", "size", "units")
+
+
+def _median_percentile_width(kwargs: dict) -> float | None:
+    """
+    The interval width a median-and-percentile ``lineplot`` call names.
+
+    Returns
+    -------
+    float or None
+        The width in percent -- ``errorbar="pi"`` is seaborn's 95 -- or
+        None when the estimator is not the median or the error bar not a
+        percentile interval.
+    """
+    estimator = kwargs.get("estimator")
+    if not (estimator == "median" or estimator is np.median):
+        return None
+    errorbar = kwargs.get("errorbar")
+    if errorbar == "pi":
+        return 95.0
+    if (
+        isinstance(errorbar, tuple)
+        and len(errorbar) == 2
+        and errorbar[0] == "pi"
+        and isinstance(errorbar[1], (int, float))
+        and not isinstance(errorbar[1], bool)
+        and 0 < errorbar[1] < 100
+    ):
+        return float(errorbar[1])
+    return None
+
+
+def _percentile_band(
+    ax: Axes, lines: list, bands: list, width: float
+) -> PrebuiltPlot | None:
+    """
+    The ``percentile_band`` layer of one median line and its band, or None.
+
+    The band is read at the line's own positions, as a line's confidence
+    band is (:func:`maidr.util.confidence_band.edges_of`). A numeric x axis
+    only: a date or category axis keeps the line reading, which formats its
+    positions for announcement.
+    """
+    # `get_converter()` from matplotlib 3.10; the attribute before it.
+    axis = ax.xaxis
+    converter = (
+        axis.get_converter() if hasattr(axis, "get_converter") else axis.converter
+    )
+    if len(lines) != 1 or len(bands) != 1 or converter is not None:
+        return None
+    (median,), (band,) = lines, bands
+    x, y = (np.asarray(values, dtype=float) for values in median.get_data())
+    if x.size == 0 or not np.isfinite(x).all():
+        return None
+    edges = edges_of(band, x, y)
+    if edges is None:
+        return None
+    lower, upper = edges
+    low, high = (100 - width) / 200, (100 + width) / 200
+    data = []
+    for at, mid, lo, hi in zip(x.tolist(), y.tolist(), lower, upper):
+        quantiles = [
+            {"level": level, "value": float(value)}
+            for level, value in ((low, lo), (0.5, mid), (high, hi))
+            if value is not None and math.isfinite(value)
+        ]
+        if quantiles:
+            data.append({"x": at, "quantiles": quantiles})
+    if not data:
+        return None
+    for mark in (band, median):
+        if mark.get_gid() is None:
+            mark.set_gid(f"maidr-{uuid.uuid4()}")
+    return PrebuiltPlot(
+        ax,
+        PlotType.PERCENTILE_BAND,
+        labels={"x": ax.get_xlabel(), "y": ax.get_ylabel()},
+        data=data,
+        # One band, then the median's line: the shape the trace reads as
+        # one element per band. A collection is written either as a path or
+        # as a `<use>` of a path hoisted into `<defs>`, by how often matplotlib
+        # judges the path reused, so the band names both forms.
+        selectors=[
+            f"g[id='{band.get_gid()}'] > path, g[id='{band.get_gid()}'] > g > use",
+            f"g[id='{median.get_gid()}'] > path",
+        ],
+    )
+
+
+def _register_lines(ax, lines, plot, instance, args, kwargs) -> None:
+    """Register the lines a ``seaborn.lineplot`` call drew, as ``line()`` does."""
+    if not lines:
+        return
+    series = getattr(ax, DRAWN_SERIES, None)
+    if series is None:
+        series = []
+        setattr(ax, DRAWN_SERIES, series)
+    listed = {id(drawn) for drawn in series}
+    series.extend(drawn for drawn in lines if id(drawn) not in listed)
+    if not hasattr(ax, PLOT_CREATED):
+        plot_type = PlotType.STEP if is_step_layer(series) else PlotType.LINE
+        common(
+            plot_type,
+            lambda *a, **k: plot,
+            instance,
+            args,
+            dict(kwargs, lines=series),
+        )
+        setattr(ax, PLOT_CREATED, True)
+
+
 @wrapt.when_imported("seaborn")
 def _patch_seaborn(_seaborn: Any) -> None:
     """Patch seaborn once it is imported; see ``maidr/patch/__init__.py``."""
     # Patch seaborn function.
-    wrap_seaborn("lineplot", line)
+    wrap_seaborn("lineplot", seaborn_line)
