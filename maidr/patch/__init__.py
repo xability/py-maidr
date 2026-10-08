@@ -58,3 +58,7 @@ from . import (  # noqa: E402, F401
     network_graph,
     wordcloud,
 )
+
+# Records the Bokeh graphs `from_networkx` makes from a directed graph, read
+# by `maidr/bokeh/layers.py`; a post-import hook, so Bokeh stays unimported.
+from maidr.bokeh import graph as _bokeh_graph  # noqa: E402, F401

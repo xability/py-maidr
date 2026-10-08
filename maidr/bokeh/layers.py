@@ -63,6 +63,7 @@ from maidr.bokeh.data import (
     to_native,
     visible_indices,
 )
+from maidr.bokeh.graph import NODE_LABEL, is_directed, read_graph
 from maidr.bokeh.utils import warn
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
@@ -255,9 +256,15 @@ class PlotReader:
         from bokeh.models import ColumnDataSource, GlyphRenderer
 
         readable = []
+        graphs: list[BokehLayer] = []
         for renderer in self._plot.renderers:
             if not getattr(renderer, "visible", True):
                 continue
+            if is_directed(renderer):
+                graph = self._directed_graph(renderer)
+                if graph is not None:
+                    graphs.append(graph)
+                    continue
             if not isinstance(renderer, GlyphRenderer):
                 warn(
                     f"maidr does not read Bokeh {type(renderer).__name__} "
@@ -335,7 +342,45 @@ class PlotReader:
                 layer.y_range_name = renderers[0].y_range_name
                 layer.renderers = list(renderers)
                 layers.append(layer)
-        return layers
+        # A graph is one renderer of its own kind, read apart from the glyph
+        # groups above; its layer follows theirs.
+        return layers + graphs
+
+    def _directed_graph(self, renderer: Any) -> BokehLayer | None:
+        """
+        A ``GraphRenderer`` made from a directed networkx graph, read as one.
+
+        Parameters
+        ----------
+        renderer : bokeh.models.GraphRenderer
+            The graph, as ``from_networkx`` made it.
+
+        Returns
+        -------
+        BokehLayer or None
+            A ``directed_graph`` layer whose highlight selects each node's
+            row of the node renderer's source, or None when the sources do
+            not read as a graph.
+        """
+        read = read_graph(renderer)
+        if read is None:
+            return None
+        nodes, cells = read
+        schema = {
+            MaidrKey.ID: str(uuid.uuid4()),
+            MaidrKey.TYPE: PlotType.DIRECTED_GRAPH,
+            MaidrKey.TITLE: self.title,
+            MaidrKey.AXES: {MaidrKey.X: {"label": NODE_LABEL}},
+            MaidrKey.DATA: nodes,
+        }
+        # The core reports a graph node as its index into the layer's data,
+        # as it reports a point of a cloud; see ``NavigateCallback``.
+        highlight = {"kind": "points", "points": cells}
+        layer = BokehLayer(schema, self._plot, highlight)
+        layer.x_range_name = renderer.node_renderer.x_range_name
+        layer.y_range_name = renderer.node_renderer.y_range_name
+        layer.renderers = [renderer.node_renderer]
+        return layer
 
     def _group_key(self, renderer: Any) -> tuple | None:
         """Which layer a renderer belongs to, or ``None`` if unsupported."""
@@ -403,9 +448,7 @@ class PlotReader:
     #  Bars                                                                #
     # ------------------------------------------------------------------ #
 
-    def _bar_values(
-        self, renderer: Any
-    ) -> tuple[bool, list[tuple[Any, Any, int]]]:
+    def _bar_values(self, renderer: Any) -> tuple[bool, list[tuple[Any, Any, int]]]:
         """
         One bar per drawn row: ``(position, magnitude, source row)``.
 
@@ -481,9 +524,7 @@ class PlotReader:
         grid = [[[renderer.id, index] for _, _, index in bars]]
         return BokehLayer(schema, self._plot, {"kind": "select", "grid": grid})
 
-    def _segmented(
-        self, renderers: list, plot_type: PlotType
-    ) -> BokehLayer | None:
+    def _segmented(self, renderers: list, plot_type: PlotType) -> BokehLayer | None:
         """
         One row per renderer, aligned on the categories they share.
 
@@ -637,9 +678,10 @@ class PlotReader:
         rows = visible_indices(renderer, source_length(data))
         if not rows:
             return None
-        horizontal = len({to_native(left[i]) for i in rows}) == 1 and len(
-            {to_native(bottom[i]) for i in rows}
-        ) > 1
+        horizontal = (
+            len({to_native(left[i]) for i in rows}) == 1
+            and len({to_native(bottom[i]) for i in rows}) > 1
+        )
         start, end = (bottom, top) if horizontal else (left, right)
         low, high = (left, right) if horizontal else (bottom, top)
         dates = self._y_dates if horizontal else self._x_dates
@@ -1682,8 +1724,11 @@ class PlotReader:
             if is_missing(qs[index]) or is_missing(rs[index]):
                 continue
             x, y = axial_to_cartesian(
-                float(qs[index]), float(rs[index]),
-                glyph.size, glyph.orientation, glyph.aspect_scale,
+                float(qs[index]),
+                float(rs[index]),
+                glyph.size,
+                glyph.orientation,
+                glyph.aspect_scale,
             )
             rows.setdefault(_clean(y), []).append((_clean(x), index))
         if not rows:
@@ -1864,9 +1909,7 @@ def resolve_column(data: dict, name: str | None) -> list | None:
     return list(column.to_numpy()) if hasattr(column, "to_numpy") else list(column)
 
 
-def mark_anchor(
-    renderer: Any, index: int, columns: dict | None = None
-) -> list | None:
+def mark_anchor(renderer: Any, index: int, columns: dict | None = None) -> list | None:
     """
     Where to put a cursor on one mark a selection highlight would pick out.
 
