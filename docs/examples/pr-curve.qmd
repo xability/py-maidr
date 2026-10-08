@@ -129,7 +129,9 @@ A curve drawn straight from `precision_recall_curve` with `ax.plot()` or
 and `Precision` and every value is a fraction of one: those titles are what
 says the line is a precision-recall curve. It carries no share of positives,
 so its points are not read against a baseline; the average precision is
-measured from the points.
+measured from the points. A plotly line, or the `px.area(x=recall,
+y=precision)` plotly's own documentation draws, is read the same way under
+the same titles.
 
 ```{python}
 #| warning: false
