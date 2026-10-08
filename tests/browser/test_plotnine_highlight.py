@@ -98,6 +98,23 @@ def frames():
         "boxes": pd.DataFrame(
             {"g": ["p"] * 7, "y": [1, 2, 3, 4, 5, 20, -10]}
         ),
+        # Two curves as `precision_recall_curve` answers them: high recall
+        # first, so the path is drawn right to left.
+        "pr": pd.DataFrame(
+            {
+                "recall": [1.0, 0.5, 0.0] * 2,
+                "precision": [0.4, 0.8, 1.0, 0.3, 0.6, 0.9],
+                "model": ["a"] * 3 + ["b"] * 3,
+            }
+        ),
+        # 0..10 at each step, shifted: the 10th, 50th and 90th percentiles
+        # are 1, 5 and 9 above the shift.
+        "spread": pd.DataFrame(
+            {
+                "step": [s for s in (1, 2) for _ in range(11)],
+                "v": [float(v + shift) for shift in (0, 5) for v in range(11)],
+            }
+        ),
     }
 
 
@@ -209,6 +226,74 @@ def test_a_box_outlines_the_whisker_it_announces(browser, frames, tmp_path):
             spoken = _step(page, "ArrowUp")
         assert "Maximum" in spoken and "5" in spoken, spoken
         assert page.evaluate(_HIGHLIGHTED) == [upper["d"]]
+        assert not errors, errors
+    finally:
+        page.close()
+
+
+#: How many outlines the core is showing.
+_OUTLINED = "() => document.querySelectorAll('[id^=maidr-highlight]').length"
+
+
+def test_a_pr_curve_is_walked_from_low_recall_up(browser, frames, tmp_path):
+    from plotnine import aes, geom_path, ggplot
+
+    chart = _save(
+        ggplot(frames["pr"], aes("recall", "precision", color="model"))
+        + geom_path(),
+        tmp_path,
+        "pr",
+    )
+    page, errors = _open(browser, chart)
+    try:
+        spoken = _step(page, "ArrowRight")
+        assert "recall is 0," in spoken and "precision is 1" in spoken, spoken
+        assert page.evaluate(_OUTLINED) == 1
+
+        spoken = _step(page, "ArrowRight")
+        assert "recall is 0.5" in spoken and "precision is 0.8" in spoken, spoken
+
+        spoken = _step(page, "ArrowDown")
+        assert "is b" in spoken and "precision is 0.6" in spoken, spoken
+        assert page.evaluate(_OUTLINED) == 1
+        assert not errors, errors
+    finally:
+        page.close()
+
+
+def test_a_median_hilow_band_is_entered_on_its_median(browser, frames, tmp_path):
+    import numpy as np
+    from plotnine import aes, ggplot, stat_summary
+
+    chart = _save(
+        ggplot(frames["spread"], aes("step", "v"))
+        + stat_summary(
+            fun_data="median_hilow",
+            fun_args={"confidence_interval": 0.8},
+            geom="ribbon",
+            alpha=0.3,
+        )
+        + stat_summary(fun_y=np.median, geom="line"),
+        tmp_path,
+        "band",
+    )
+    page, errors = _open(browser, chart)
+    try:
+        spoken = _step(page, "ArrowRight")
+        assert "step is 1, Median v is 5" in spoken, spoken
+        assert "Middle 80% is 1 to 9" in spoken, spoken
+        assert page.evaluate(_OUTLINED) == 1
+
+        spoken = _step(page, "ArrowUp")
+        assert "90th percentile v is 9" in spoken, spoken
+        assert page.evaluate(_OUTLINED) == 1
+
+        _step(page, "ArrowDown")
+        spoken = _step(page, "ArrowDown")
+        assert "10th percentile v is 1" in spoken, spoken
+
+        spoken = _step(page, "ArrowRight")
+        assert "step is 2" in spoken and "is 10" in spoken, spoken
         assert not errors, errors
     finally:
         page.close()

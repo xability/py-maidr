@@ -25,6 +25,7 @@ import copy
 import types
 import uuid
 from dataclasses import dataclass
+from numbers import Real
 from typing import Any, Callable
 
 import numpy as np
@@ -35,6 +36,7 @@ from matplotlib.lines import Line2D
 from maidr.core.context_manager import ContextManager
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot.maidr_plot import MaidrPlot
+from maidr.util.named_pr_curve import named_pr_curve
 
 #: Prefix of the columns that carry an aesthetic's value from before its scale
 #: mapped it: ``fill`` is a colour by the time it is drawn, and a heatmap cell
@@ -308,6 +310,7 @@ class _Context:
     panels: dict[int, Panel]
     labels: Any
     single_panel_title: str | None
+    mapping: dict[str, str]
 
     def title(self, panel: Panel) -> str:
         if self.single_panel_title is not None:
@@ -317,6 +320,10 @@ class _Context:
     def label(self, name: str, fallback: str = "") -> str:
         value = self.labels.get(name, None)
         return fallback if value is None or str(value) == "" else str(value)
+
+    def mapped(self, aesthetic: str) -> str:
+        """The column an aesthetic maps by name, or ``""`` for an expression."""
+        return self.mapping.get(aesthetic, "")
 
     def axes(self, z: str | None = None) -> dict:
         axes = {
@@ -369,20 +376,36 @@ def read_layer(
     if reader is None:
         raise Unreadable(f"{geom} is not one of the geoms maidr reads")
 
+    context = _context(layer, panels, labels)
+    by_panel = _by_panel(drawn)
+    return [
+        reader(by_panel[number], context.panels[number], context, position)
+        for number in sorted(by_panel)
+    ]
+
+
+def _context(layer: Any, panels: dict[int, Panel], labels: Any) -> _Context:
+    """What a reader of ``layer`` needs besides its drawn groups."""
     single = len(panels) == 1
     title = labels.get("title", None) if single else None
-    context = _Context(panels, labels, (title or "") if single else None)
+    # The inherited aesthetics are part of a built layer's own mapping; an
+    # expression or an `after_stat` is no column name, and is left out.
+    mapping = {
+        str(ae): value.strip()
+        for ae, value in dict(layer.mapping or {}).items()
+        if isinstance(value, str)
+    }
+    return _Context(panels, labels, (title or "") if single else None, mapping)
 
+
+def _by_panel(drawn: list[DrawnGroup]) -> dict[int, list[DrawnGroup]]:
+    """The drawn groups that drew something, keyed by plotnine's panel number."""
     by_panel: dict[int, list[DrawnGroup]] = {}
     for group in drawn:
         if len(group.data) == 0:
             continue
         by_panel.setdefault(int(group.data["PANEL"].iloc[0]), []).append(group)
-
-    return [
-        reader(by_panel[number], context.panels[number], context, position)
-        for number in sorted(by_panel)
-    ]
+    return by_panel
 
 
 # --------------------------------------------------------------------------
@@ -608,10 +631,37 @@ def _points(
 def _lines(
     groups: list[DrawnGroup], panel: Panel, context: _Context, position: str
 ) -> PlotnineLayer:
-    """``geom_line``: one series per group, in the order of ``x``."""
+    """``geom_line``: one series per group, in the order of ``x``.
+
+    A line of recall against precision is a precision-recall curve; see
+    :func:`_names_pr_curve`.
+    """
     if position != "position_identity":
         raise Unreadable(f"lines placed with {position} are not read")
     return _series_layer(groups, panel, context, PlotType.LINE, band=False)
+
+
+def _paths(
+    groups: list[DrawnGroup], panel: Panel, context: _Context, position: str
+) -> PlotnineLayer:
+    """``geom_path``: read only as a precision-recall curve.
+
+    A path joins its rows in the order of the data, so it can double back
+    and is no function of ``x``: read as a line, it would be announced in an
+    order no reader can follow. A precision-recall curve is the exception --
+    ``precision_recall_curve`` answers its points from high recall down, and
+    ``geom_path`` is how they are drawn as computed -- and is read from low
+    recall up, as every precision-recall curve is.
+    """
+    if position != "position_identity":
+        raise Unreadable(f"paths placed with {position} are not read")
+    layer = _series_layer(groups, panel, context, PlotType.LINE, band=False)
+    if layer.type != PlotType.PR_CURVE:
+        raise Unreadable(
+            "a geom_path is read only as a precision-recall curve, of a "
+            "recall x against a precision y"
+        )
+    return layer
 
 
 def _smooth(
@@ -670,6 +720,15 @@ def _series_layer(
             points.append(point)
         rows.append(points)
 
+    if plot_type == PlotType.LINE and _names_pr_curve(context, rows):
+        plot_type = PlotType.PR_CURVE
+        # From low recall up, the higher precision first where a recall
+        # repeats: the order `PrCurvePlot` and the TensorBoard reader give.
+        rows = [
+            sorted(points, key=lambda p: (p[MaidrKey.X], -p[MaidrKey.Y]))
+            for points in rows
+        ]
+
     z = _series_label(context, groups) if named else None
     return PlotnineLayer(
         panel.ax,
@@ -680,6 +739,33 @@ def _series_layer(
         data=rows,
         selectors=selectors if highlight else None,
     )
+
+
+def _names_pr_curve(context: _Context, rows: list[list[dict]]) -> bool:
+    """
+    Whether a line layer is a precision-recall curve by its own names.
+
+    The claim the matplotlib and Plotly paths read off the axis titles
+    (:func:`~maidr.util.named_pr_curve.named_pr_curve`), and r-maidr off the
+    column names: ``x`` titled -- or mapping a column named -- ``recall`` and
+    ``y`` ``precision``, any case, with every point a pair of fractions of
+    one. plotnine titles an axis by the column it maps unless ``labs`` says
+    otherwise, so the two names usually agree; either is enough.
+    """
+    for x, y in (
+        (context.label("x"), context.label("y")),
+        (context.mapped("x"), context.mapped("y")),
+    ):
+        schema = {
+            MaidrKey.AXES: {
+                MaidrKey.X: {MaidrKey.LABEL: x},
+                MaidrKey.Y: {MaidrKey.LABEL: y},
+            },
+            MaidrKey.DATA: rows,
+        }
+        if named_pr_curve(schema):
+            return True
+    return False
 
 
 def _boxes(
@@ -829,10 +915,214 @@ def _tiles(
 _READERS: dict[str, Callable[..., PlotnineLayer]] = {
     "geom_point": _points,
     "geom_line": _lines,
+    "geom_path": _paths,
     "geom_boxplot": _boxes,
     "geom_tile": _tiles,
     "geom_smooth": _smooth,
 }
+
+
+# --------------------------------------------------------------------------
+# Percentile bands: a band layer and its median line, read as one
+# --------------------------------------------------------------------------
+
+
+def read_percentile_bands(
+    layers: Any, drawn: list[list[DrawnGroup]], panels: dict[int, Panel], labels: Any
+) -> tuple[dict[int, list[PlotnineLayer]], set[int]]:
+    """
+    Every median band whose median line is drawn beside it, as one layer each.
+
+    ``stat_summary(fun_data="median_hilow", geom="ribbon")`` draws, at each
+    x, the band between the quantiles ``(1 - w) / 2`` and ``(1 + w) / 2`` of
+    the observations there, ``w`` being its ``confidence_interval`` (0.95
+    unless ``fun_args`` says otherwise); a ``stat_summary`` line of their
+    median drawn over it -- ``fun_y=np.median``, or ``median_hilow`` again --
+    is the median the band surrounds. The two are maidr.js's
+    ``percentile_band``: the reader enters each x on the median and moves up
+    and down to the bounds, each announced with the band it bounds.
+
+    The two layers are paired only where the plot states it exactly: the same
+    ``x`` and ``y`` columns, one group per panel in each, the line's median
+    the band's own at every x, and a linear y scale -- the quantiles are taken
+    of the transformed values, which a log scale does not take back to the
+    quantiles of the data. A band alone is not read: the trace is entered on
+    the median, and a ribbon carries one only as a column nobody drew. Any
+    layer not paired is read, or declined, as it would be on its own.
+
+    Parameters
+    ----------
+    layers : plotnine.layer.Layers
+        The drawn plot's layers.
+    drawn : list of list of DrawnGroup
+        What each layer's geom drew, as :func:`draw` recorded it.
+    panels : dict
+        :func:`read_panels` of the drawn plot.
+    labels : plotnine.labels_view
+        The drawn plot's labels.
+
+    Returns
+    -------
+    tuple
+        The band layers, keyed by the index of the earlier of the two layers
+        they replace, and the indices of every layer they replace.
+    """
+    bands: dict[int, list[PlotnineLayer]] = {}
+    paired: set[int] = set()
+    layers = list(layers)
+    for b, band in enumerate(layers):
+        width = _median_band_width(band)
+        if width is None:
+            continue
+        for m, median in enumerate(layers):
+            if m in paired or not _draws_median_line(median, band):
+                continue
+            read = _percentile_band(
+                band, drawn[b], drawn[m], width, panels, labels
+            )
+            if read is not None:
+                bands[min(b, m)] = read
+                paired.update((b, m))
+                break
+    return bands, paired
+
+
+def _summary_params(layer: Any) -> dict | None:
+    """A ``stat_summary`` layer's parameters, placed as drawn, else None."""
+    if (
+        type(layer.stat).__name__ != "stat_summary"
+        or type(layer.position).__name__ != "position_identity"
+    ):
+        return None
+    return dict(layer.stat.params)
+
+
+def _summarises_with_median_hilow(params: dict) -> bool:
+    """Whether ``median_hilow`` is the summary that computed the layer.
+
+    ``fun_y``, ``fun_ymin`` or ``fun_ymax`` replaces ``fun_data`` entirely.
+    """
+    try:
+        from plotnine.stats.stat_summary import median_hilow
+    except ImportError:  # moved in a plotnine this was not written against
+        median_hilow = None
+
+    if any(params.get(key) is not None for key in ("fun_y", "fun_ymin", "fun_ymax")):
+        return False
+    fun = params.get("fun_data")
+    if isinstance(fun, str):
+        return fun == "median_hilow"
+    return median_hilow is not None and fun is median_hilow
+
+
+def _median_band_width(layer: Any) -> float | None:
+    """The share a ``median_hilow`` ribbon holds, or None for any other layer."""
+    params = _summary_params(layer)
+    if (
+        params is None
+        or type(layer.geom).__name__ != "geom_ribbon"
+        or not _summarises_with_median_hilow(params)
+    ):
+        return None
+    width = (params.get("fun_args") or {}).get("confidence_interval", 0.95)
+    if isinstance(width, (bool, np.bool_)) or not isinstance(width, Real):
+        return None
+    return float(width) if 0 < width < 1 else None
+
+
+def _draws_median_line(layer: Any, band: Any) -> bool:
+    """Whether ``layer`` is a ``stat_summary`` median line of ``band`` 's columns."""
+    params = _summary_params(layer)
+    if params is None or type(layer.geom).__name__ != "geom_line":
+        return False
+    if not (params.get("fun_y") is np.median or _summarises_with_median_hilow(params)):
+        return False
+    ours, theirs = dict(layer.mapping or {}), dict(band.mapping or {})
+    return all(
+        ae in ours and ae in theirs and repr(ours[ae]) == repr(theirs[ae])
+        for ae in ("x", "y")
+    )
+
+
+def _percentile_band(
+    band: Any,
+    band_drawn: list[DrawnGroup],
+    line_drawn: list[DrawnGroup],
+    width: float,
+    panels: dict[int, Panel],
+    labels: Any,
+) -> list[PlotnineLayer] | None:
+    """One ``percentile_band`` layer per panel, or None if one cannot be read."""
+    context = _context(band, panels, labels)
+    bands, lines = _by_panel(band_drawn), _by_panel(line_drawn)
+    if not bands or set(bands) != set(lines):
+        return None
+    low, high = round((1 - width) / 2, 12), round((1 + width) / 2, 12)
+
+    read = []
+    for number in sorted(bands):
+        panel = panels[number]
+        if not panel.y.linear or len(bands[number]) != 1 or len(lines[number]) != 1:
+            return None
+        (ribbon,), (line,) = bands[number], lines[number]
+        polys = [a for a in ribbon.artists if isinstance(a, PolyCollection)]
+        strokes = [a for a in line.artists if isinstance(a, Line2D)]
+        if (
+            len(polys) != 1
+            or len(strokes) != 1
+            or ribbon.data["group"].nunique() != 1
+            or line.data["group"].nunique() != 1
+        ):
+            return None
+        edges = ribbon.data.sort_values("x", kind="stable")
+        middle = line.data.sort_values("x", kind="stable")
+        xs = edges["x"].to_numpy(float)
+        if (
+            len(edges) != len(middle)
+            or not np.array_equal(xs, middle["x"].to_numpy(float))
+            or not np.allclose(
+                edges["y"].to_numpy(float),
+                middle["y"].to_numpy(float),
+                equal_nan=True,
+            )
+        ):
+            return None
+
+        values = {
+            level: panel.y.values(edges[column].to_numpy(float))
+            for level, column in ((low, "ymin"), (0.5, "y"), (high, "ymax"))
+        }
+        data = []
+        for i, x in enumerate(panel.x.values(xs)):
+            quantiles = [
+                {"level": level, "value": values[level][i]}
+                for level in (low, 0.5, high)
+                if values[level][i] is not None
+            ]
+            if quantiles:
+                data.append({MaidrKey.X: x, "quantiles": quantiles})
+        if not data:
+            return None
+
+        poly = _gid(polys[0])
+        read.append(
+            PlotnineLayer(
+                panel.ax,
+                PlotType.PERCENTILE_BAND,
+                panel=panel,
+                title=context.title(panel),
+                axes=context.axes(),
+                data=data,
+                # The band, then the median's line: one selector per band and
+                # one more for the median, which the trace reads as such. A
+                # collection is written as a path, or as a `<use>` of one.
+                selectors=[
+                    f"g[id='{poly}'] > path, g[id='{poly}'] > g > use",
+                    f"g[id='{_gid(strokes[0])}'] path",
+                ],
+            )
+        )
+    return read
 
 
 # --------------------------------------------------------------------------

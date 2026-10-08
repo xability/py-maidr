@@ -1,6 +1,6 @@
 ---
 title: "plotnine Accessible Plot Examples"
-description: "Code examples showing how to make plotnine (ggplot2 grammar) bar charts, stacked and dodged bars, histograms, scatter, line, smooth and box plots, heatmaps and faceted plots accessible with py-maidr."
+description: "Code examples showing how to make plotnine (ggplot2 grammar) bar charts, stacked and dodged bars, histograms, scatter, line, smooth and box plots, heatmaps, faceted plots, precision-recall curves and percentile bands accessible with py-maidr."
 jupyter: python3
 html-table-processing: none
 filters:
@@ -45,6 +45,8 @@ outlined on the plotnine drawing itself.
 | `geom_tile` with a numeric `fill` | heatmap |
 | `facet_wrap`, `facet_grid` | one subplot per panel |
 | `geom_bar`, `geom_col` with `position="fill"` | normalized stacked bar [experimental] |
+| `geom_line`, `geom_path` of recall against precision | precision-recall curve [experimental] |
+| `stat_summary(fun_data="median_hilow", geom="ribbon")` with its median line | percentile band [experimental] |
 
 Any other geom, a jittered point, or a chart on a coordinate system other than
 `coord_cartesian` is left out with a warning naming it, and a chart with
@@ -332,6 +334,83 @@ maidr.show(p)  #<<
 
 Each segment is announced as its share of the bar, so the segments of one bar
 add up to 1.
+
+### PR Curve [experimental]
+
+```{python}
+#| warning: false
+#| fig-alt: Precision-recall curves of a logistic regression and a naive Bayes classifier
+
+import pandas as pd
+from plotnine import aes, geom_path, ggplot, labs
+from sklearn.datasets import make_classification
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import precision_recall_curve
+from sklearn.naive_bayes import GaussianNB
+
+import maidr  #<<
+
+X, y = make_classification(n_samples=600, weights=[0.8], random_state=0)
+X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0)
+curves = []
+for name, model in [("Logistic regression", LogisticRegression()),
+                    ("Naive Bayes", GaussianNB())]:
+    scores = model.fit(X_train, y_train).predict_proba(X_test)[:, 1]
+    precision, recall, _ = precision_recall_curve(y_test, scores)
+    curves.append(pd.DataFrame({"recall": recall, "precision": precision,
+                                "model": name}))
+
+p = (
+    ggplot(pd.concat(curves), aes("recall", "precision", color="model"))
+    + geom_path()
+    + labs(title="Precision-Recall Curves", x="Recall", y="Precision")
+)
+
+maidr.show(p)  #<<
+```
+
+A `geom_line` or `geom_path` whose x is recall and whose y is precision --
+by the columns it maps or by its axis titles, with every value from 0 to 1 --
+is read as a precision-recall curve, one curve per group named as the lines
+of a multi-line plot are, each read from low recall up. Any other
+`geom_path` is left out, since a path need not move left to right.
+
+### Percentile Band [experimental]
+
+```{python}
+#| warning: false
+#| fig-alt: The median of 200 simulated sales paths over twelve months, with the band holding the middle 80% of them
+
+import numpy as np
+import pandas as pd
+from plotnine import aes, ggplot, labs, stat_summary
+
+import maidr  #<<
+
+rng = np.random.default_rng(1)
+months = np.arange(1, 13)
+paths = 100 + np.cumsum(rng.normal(2, 5, size=(200, months.size)), axis=1)
+sales = pd.DataFrame({"month": np.tile(months, 200), "sales": paths.ravel()})
+
+p = (
+    ggplot(sales, aes("month", "sales"))
+    + stat_summary(fun_data="median_hilow", geom="ribbon", alpha=0.3,
+                   fun_args={"confidence_interval": 0.8})
+    + stat_summary(fun_y=np.median, geom="line")
+    + labs(title="Simulated Sales", x="Month", y="Sales")
+)
+
+maidr.show(p)  #<<
+```
+
+`median_hilow` draws the band between the 10th and 90th percentiles of the
+observations at each month (the middle 95% unless `confidence_interval` says
+otherwise), and the line is their median. Together they are one percentile
+band: each month is entered on the median, announced with the band around it,
+and Up and Down move to the 90th and 10th percentiles. The band is read only
+with its median line, from one group per panel on a linear y scale; a ribbon
+on its own is left out.
 
 ## Saving and embedding
 
