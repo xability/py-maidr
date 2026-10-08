@@ -41,11 +41,17 @@ class DirectedGraphPlot(MaidrPlot):
     node_label : str
         What a node is, such as ``"Layer"``: the trace announces it as the
         node noun.
+    selectors : sequence of str, optional
+        One selector per node, in the same order as ``nodes``, for a drawing
+        whose nodes are not each an artist of their own -- networkx draws
+        every node as one point of a single collection. Given, ``boxes`` is
+        ignored.
 
     Raises
     ------
     ValueError
-        If ``nodes`` and ``boxes`` differ in length, or two nodes share an id.
+        If ``nodes`` and ``boxes`` (or ``selectors``) differ in length, or
+        two nodes share an id.
     """
 
     def __init__(
@@ -55,10 +61,16 @@ class DirectedGraphPlot(MaidrPlot):
         nodes: Sequence[Mapping[str, object]],
         boxes: Sequence[Artist],
         node_label: str,
+        selectors: Sequence[str] | None = None,
     ) -> None:
         super().__init__(ax, PlotType.DIRECTED_GRAPH)
-        if len(nodes) != len(boxes):
+        if selectors is not None:
+            if len(nodes) != len(selectors):
+                raise ValueError("a directed graph needs one selector per node")
+            boxes = ()
+        elif len(nodes) != len(boxes):
             raise ValueError("a directed graph needs one box per node")
+        self._selectors = list(selectors) if selectors is not None else None
         self._nodes = [_node(node) for node in nodes]
         ids = [node["id"] for node in self._nodes]
         if len(set(ids)) != len(ids):
@@ -95,6 +107,8 @@ class DirectedGraphPlot(MaidrPlot):
 
     def _get_selector(self) -> list[str]:  # type: ignore[override]
         """One selector per node, in declared order, each naming its box."""
+        if self._selectors is not None:
+            return list(self._selectors)
         return [f"g[id='{gid}'] > path" for gid in self._gids]
 
 

@@ -29,7 +29,11 @@ UNCLASSIFIED_PAGES = {"examples-altair.qmd"}
 #: Pages that are about one experimental type throughout, whose section
 #: headings ("One classifier") name no type. The mark is carried by the page:
 #: its navigation label, and a Prototype callout before the first section.
-WHOLE_PAGE_EXPERIMENTAL = {"examples/roc.qmd", "examples/pr-curve.qmd"}
+WHOLE_PAGE_EXPERIMENTAL = {
+    "examples/roc.qmd",
+    "examples/pr-curve.qmd",
+    "examples/network-graph.qmd",
+}
 
 EXPERIMENTAL = {PlotType[name].value for name in _members("Experimental")}
 STABLE = {PlotType[name].value for name in _members("Stable")}

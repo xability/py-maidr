@@ -1,0 +1,121 @@
+---
+title: "Accessible Directed Graphs in networkx with py-maidr"
+pagetitle: "Accessible Directed Graphs in networkx"
+description: "Make networkx drawings of directed graphs accessible with py-maidr: walk a graph node by node from the keyboard, hearing what feeds each node, what it feeds, and where the graph branches and merges."
+jupyter: python3
+html-table-processing: none
+filters:
+  - line-highlight
+---
+
+A directed graph -- a pipeline, a dependency graph, a workflow -- is drawn in
+Python with networkx: `nx.draw()`, `nx.draw_networkx()` and the layout
+variants (`nx.draw_circular()`, `nx.draw_spring()`, ...). Each draws every
+node as a point and every edge as an arrow, and the arrows are the whole
+content of the graph: what depends on what.
+
+Read as points, a graph says only where the layout algorithm happened to put
+each node, which is not data at all, and none of its edges. maidr reads the
+graph instead: Left and Right walk the nodes, and each one announces what
+feeds it, what it feeds, and whether it is an input or output of the whole
+graph, a branch point or a merge point, with the node outlined.
+
+`DIRECTED_GRAPH` is **experimental** and may change without a deprecation
+period: see [Plot Type Stability](../stability.qmd). Only directed graphs
+are read this way -- an undirected graph (`nx.Graph`) keeps the point
+reading it had, since an undirected edge has no direction to follow.
+
+::: {.callout-warning title="Prototype"}
+This is one of the experimental plot types. It has not been through a user
+study, and it may change without a deprecation period. See
+[Plot type stability](../stability.qmd).
+:::
+
+## Setup
+
+The examples on this page need networkx, which is an optional extra:
+`pip install maidr[networkx]`. Nothing in maidr imports it; the reading is
+wired up when your own code imports `networkx`.
+
+```{python}
+#| warning: false
+
+import matplotlib.pyplot as plt
+
+# Just import maidr package: plt.show() now renders accessible output #<<
+import maidr  #<<
+```
+
+## A pipeline
+
+```{python}
+#| warning: false
+#| fig-alt: A directed graph of a machine learning pipeline, from loading the data to evaluating the model
+
+import matplotlib.pyplot as plt
+import networkx as nx
+
+import maidr  #<<
+
+pipeline = nx.DiGraph()
+pipeline.add_edges_from(
+    [
+        ("load", "clean"),
+        ("clean", "features"),
+        ("clean", "labels"),
+        ("features", "train"),
+        ("labels", "train"),
+        ("train", "evaluate"),
+    ]
+)
+
+fig, ax = plt.subplots()
+nx.draw_networkx(  #<<
+    pipeline, pos=nx.spring_layout(pipeline, seed=1), ax=ax, node_color="lightblue"
+)  #<<
+ax.set_title("A training pipeline")
+
+plt.show()  #<<
+```
+
+Each stop announces the node and its connections: `clean` is fed by `load`
+and feeds `features` and `labels`, so it is announced as a branch point, and
+`train`, fed by both, as a merge point.
+
+## Labels and node data
+
+```{python}
+#| warning: false
+#| fig-alt: A directed graph of four tasks, each labelled with its full name
+
+import matplotlib.pyplot as plt
+import networkx as nx
+
+import maidr  #<<
+
+tasks = nx.DiGraph([("fetch", "parse"), ("parse", "store"), ("parse", "index")])
+tasks.nodes["fetch"]["retries"] = 3
+tasks.nodes["store"]["backend"] = "postgres"
+
+fig, ax = plt.subplots()
+nx.draw_circular(  #<<
+    tasks,
+    ax=ax,
+    with_labels=True,
+    labels={"fetch": "Fetch pages", "parse": "Parse HTML",
+            "store": "Store rows", "index": "Build index"},
+    node_size=1800,
+    node_color="wheat",
+)  #<<
+
+plt.show()  #<<
+```
+
+A node is announced by the label it is drawn with (`labels=`), and the
+node's own data -- strings, numbers and flags, such as `retries` and
+`backend` here -- is announced with it. Only the nodes and edges drawn are
+read: pass `nodelist=` or `edgelist=` and the reading follows them.
+
+Keras model graphs drawn by [`maidr.keras.plot_model()`](../examples-keras.qmd)
+and [`maidr.read_tensorboard_graph()`](../examples-tensorboard.qmd) are read
+the same way.
