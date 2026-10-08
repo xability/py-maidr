@@ -669,6 +669,27 @@ class PlotlyMaidr:
             # pie in the figure.
             merged: set[int] = {id(t) for t in scatter_family if not marks[id(t)]}
 
+            # What a trace declares in `meta.maidr` beats every reading below,
+            # as it does in maidr.js's own Plotly adapter: a precision-recall
+            # curve and a fan chart are plain and filled lines, and the block
+            # is the one thing that says what they are. The traces a
+            # declaration takes are kept out of the line grouping.
+            from maidr.plotly.declared import declared_layers
+
+            declared, consumed = declared_layers(
+                connected_traces,
+                [t for t in scatter_family if marks[id(t)]],
+                position_of,
+                layout,
+                **axis_kwargs,
+            )
+            for plot in declared:
+                plot.row_index = row
+                plot.col_index = col
+                self._plots.append(plot)
+            merged.update(consumed)
+            connected_traces = [t for t in connected_traces if id(t) not in consumed]
+
             # `barnorm` only means anything for a stack: plotly scales each
             # category's segments to a common total, so the values are shares
             # rather than counts. Read as a plain `stacked_bar` a reader is

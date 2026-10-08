@@ -177,6 +177,9 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
         "Facet Combined Plot (Line + Bar)": [
             ["point", "bar", "point", "bar", "point", "bar"]
         ],
+        # Declared in each trace's `meta.maidr`, as maidr.js reads plotly.
+        "Precision-Recall Curve [experimental]": [["pr_curve"]],
+        "Percentile Band [experimental]": [["percentile_band"]],
     },
     "examples-bokeh.qmd": {
         "Bar Plot": [["bar"]],
@@ -923,6 +926,23 @@ def test_plotnine_percentile_band_is_the_10th_median_and_90th(
         levels = [q["level"] for q in point["quantiles"]]
         values = [q["value"] for q in point["quantiles"]]
         assert levels == pytest.approx([0.1, 0.5, 0.9])
+        assert values == sorted(values)
+
+
+def test_plotly_declared_fan_is_the_5th_25th_median_75th_and_95th(
+    gallery: _Gallery,
+) -> None:
+    """examples-plotly.qmd: the median "naming each band's filled trace ... and
+    the two levels its edges are" reads as one percentile band."""
+    layer = gallery.shown(
+        "examples-plotly.qmd", "Percentile Band [experimental]"
+    ).layer(PlotType.PERCENTILE_BAND)
+
+    assert len(layer[MaidrKey.DATA]) == 8
+    for point in layer[MaidrKey.DATA]:
+        levels = [q["level"] for q in point["quantiles"]]
+        values = [q["value"] for q in point["quantiles"]]
+        assert levels == pytest.approx([0.05, 0.25, 0.5, 0.75, 0.95])
         assert values == sorted(values)
 
 

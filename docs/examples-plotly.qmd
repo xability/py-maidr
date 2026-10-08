@@ -1,6 +1,6 @@
 ---
 title: "Plotly Accessible Plot Examples"
-description: "Code examples showing how to make Plotly bar charts, histograms, line charts, box plots, heatmaps, and scatter plots accessible with py-maidr."
+description: "Code examples showing how to make Plotly bar charts, histograms, line charts, box plots, heatmaps, scatter plots, precision-recall curves and percentile bands accessible with py-maidr."
 jupyter: python3
 html-table-processing: none
 filters:
@@ -933,6 +933,129 @@ fig.update_layout(
     title="Facet Plot Example with Shared Y-Axes",
     height=300 * num_rows,
     showlegend=False,
+)
+
+maidr.show(fig)  #<<
+```
+
+### Precision-Recall Curve [experimental] {#pr-curve}
+
+A precision-recall curve is drawn as an ordinary line, so a trace says it is
+one in its `meta`, the slot plotly keeps for your own metadata:
+`meta={"maidr": {"type": "pr_curve"}}`. This is the declaration maidr.js reads
+on a plotly chart in the browser too. Every other line on the subplot joins the
+chart as a further curve, unless the block says `"merge": False`. The block can
+name the `customdata` key holding each point's decision `threshold`, and give
+the share of positives (`prevalence`) and the average precision (`ap`), both as
+fractions of one. Each point is then announced with its threshold and how far
+its precision sits above the share of positives; see the
+[precision-recall page](examples/pr-curve.qmd) for the reading.
+`PR_CURVE` is **experimental**: see [Plot Type Stability](stability.qmd).
+
+```{python}
+#| warning: false
+#| fig-alt: Precision-recall curves of two classifiers, declared in the trace meta
+
+import plotly.graph_objects as go
+
+import maidr  #<<
+
+recall = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+thresholds = [0.95, 0.8, 0.6, 0.45, 0.3, 0.1]
+
+fig = go.Figure(
+    [
+        go.Scatter(
+            x=recall,
+            y=[1.0, 0.94, 0.88, 0.79, 0.66, 0.42],
+            name="Gradient boosting",
+            mode="lines",
+            customdata=[{"threshold": t} for t in thresholds],
+            meta={  #<<
+                "maidr": {"type": "pr_curve", "prevalence": 0.3, "ap": 0.81}  #<<
+            },  #<<
+        ),
+        go.Scatter(
+            x=recall,
+            y=[1.0, 0.85, 0.74, 0.63, 0.52, 0.38],
+            name="Logistic regression",
+            mode="lines",
+        ),
+    ],
+    layout=go.Layout(
+        title="Precision-recall curves",
+        xaxis=dict(title="Recall"),
+        yaxis=dict(title="Precision"),
+    ),
+)
+
+maidr.show(fig)  #<<
+```
+
+### Percentile Band [experimental] {#percentile-band}
+
+plotly has no fan chart of its own: a band is a trace filled `"tonexty"` to
+the trace before it, and nothing says which quantiles its edges are. The median
+says so in its `meta`, naming each band's filled trace by its `name` or `uid`
+and the two levels its edges are. The traces become one percentile band: Left
+and Right move along x, each x is entered on the median, and Up and Down move
+out to each band's bounds, announced with the share of the distribution they
+hold ("Middle 90% is ..."). The bands must nest, each inside the next wider
+one. `PERCENTILE_BAND` is **experimental**: see
+[Plot Type Stability](stability.qmd).
+
+```{python}
+#| warning: false
+#| fig-alt: A demand forecast with its median and its 50% and 90% bands
+
+import plotly.graph_objects as go
+
+import maidr  #<<
+
+weeks = list(range(1, 9))
+median = [120, 126, 131, 135, 142, 147, 150, 156]
+
+
+def edge(spread, name, fill=None):
+    return go.Scatter(
+        x=weeks,
+        y=[m + spread * week for m, week in zip(median, weeks)],
+        name=name,
+        mode="lines",
+        line_width=0,
+        fill=fill,
+        fillcolor="rgba(31, 119, 180, 0.2)",
+        showlegend=fill is not None,
+    )
+
+
+fig = go.Figure(
+    [
+        edge(-3.3, "5th percentile"),
+        edge(3.3, "90% band", fill="tonexty"),
+        edge(-1.4, "25th percentile"),
+        edge(1.4, "50% band", fill="tonexty"),
+        go.Scatter(
+            x=weeks,
+            y=median,
+            name="Median",
+            mode="lines",
+            meta={  #<<
+                "maidr": {  #<<
+                    "type": "percentile_band",  #<<
+                    "bands": [  #<<
+                        {"series": "90% band", "lower": 0.05, "upper": 0.95},  #<<
+                        {"series": "50% band", "lower": 0.25, "upper": 0.75},  #<<
+                    ],  #<<
+                }  #<<
+            },  #<<
+        ),
+    ],
+    layout=go.Layout(
+        title="Weekly demand forecast",
+        xaxis=dict(title="Week"),
+        yaxis=dict(title="Units"),
+    ),
 )
 
 maidr.show(fig)  #<<
