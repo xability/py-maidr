@@ -1,6 +1,6 @@
 ---
 title: "Altair Accessible Plot Examples"
-description: "Code examples showing how to make Altair (Vega-Lite) bar, box, line, scatter, heatmap, histogram, KDE, and regression charts accessible with py-maidr."
+description: "Code examples showing how to make Altair (Vega-Lite) bar, box, line, scatter, heatmap, histogram, KDE, regression, precision-recall and percentile band charts accessible with py-maidr."
 jupyter: python3
 html-table-processing: none
 filters:
@@ -646,6 +646,93 @@ chart = (scatter + smooth).properties(
     title="Altair: Scatter with LOESS Smooth Line",
     width=400,
     height=300,
+)
+
+maidr.show(chart)  #<<
+```
+
+### Precision-Recall Curve [experimental] {#pr-curve}
+
+A line whose x axis is titled `Recall` and whose y axis is titled `Precision`,
+with every value a fraction of one, is read as a precision-recall curve: each
+point is announced with its recall and precision, and the description gives
+the average precision and the point with the best F1 score. A chart can also
+say so outright, with `.properties(usermeta={"maidr": {"type": "pr_curve"}})`,
+which can name the column holding each point's `threshold` and give the share
+of positives (`prevalence`) as a fraction of one. The reading is the upstream
+Vega-Lite adapter's, so it needs the maidr.js release after 4.14.0, which the
+Altair adapter loads from the CDN once it is published. `PR_CURVE` is
+**experimental**: see [Plot Type Stability](stability.qmd).
+
+```{python}
+#| warning: false
+#| fig-alt: Altair precision-recall curve of a classifier, one point per threshold
+
+import altair as alt
+import pandas as pd
+
+import maidr  #<<
+
+curve = pd.DataFrame(
+    {
+        "recall": [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
+        "precision": [1.0, 0.94, 0.88, 0.79, 0.66, 0.42],
+        "threshold": [0.95, 0.8, 0.6, 0.45, 0.3, 0.1],
+    }
+)
+
+chart = (
+    alt.Chart(curve)
+    .mark_line()
+    .encode(
+        x=alt.X("recall:Q", title="Recall"),  #<<
+        y=alt.Y("precision:Q", title="Precision"),  #<<
+    )
+    .properties(
+        title="Precision-recall curve",
+        usermeta={"maidr": {"type": "pr_curve", "prevalence": 0.3}},  #<<
+    )
+)
+
+maidr.show(chart)  #<<
+```
+
+### Percentile Band [experimental] {#percentile-band}
+
+Vega-Lite's own recipe for a band around a centre line is a layer of an
+`errorband` and a `line`. When the band is the interquartile range
+(`extent="iqr"`) and the line is the `median` of the same column over the same
+x, the pair is one percentile band -- the 25th percentile, the median and the
+75th at every x -- and is read as one: Left and Right move along x, each x is
+entered on the median, and Up and Down move to the quartiles. Like the curve
+above, this needs the maidr.js release after 4.14.0. A band with levels of its
+own cannot be declared from Altair: Vega-Lite takes `usermeta` only on the
+top-level chart, and Altair refuses it on a layer. `PERCENTILE_BAND` is
+**experimental**: see [Plot Type Stability](stability.qmd).
+
+```{python}
+#| warning: false
+#| fig-alt: Altair median training loss per epoch with the band between its quartiles
+
+import altair as alt
+import numpy as np
+import pandas as pd
+
+import maidr  #<<
+
+rng = np.random.default_rng(0)
+runs = pd.DataFrame({"epoch": np.repeat(np.arange(1, 11), 30)})
+runs["loss"] = rng.normal(2.5 / runs["epoch"], 0.15)
+
+band = (
+    alt.Chart(runs)
+    .mark_errorband(extent="iqr")  #<<
+    .encode(x=alt.X("epoch:Q", title="Epoch"), y=alt.Y("loss:Q", title="Loss"))
+)
+median = alt.Chart(runs).mark_line().encode(x="epoch:Q", y="median(loss):Q")  #<<
+
+chart = alt.layer(band, median).properties(
+    title="Median loss across 30 runs, with its quartiles"
 )
 
 maidr.show(chart)  #<<

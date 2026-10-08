@@ -282,6 +282,10 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
         "Scatter Plot": [["point"]],
         "Multi-Layered Plot": [["bar + line"]],
         "Regression (Scatter + LOESS Smooth)": [["point + line"]],
+        # Read by the upstream Vega-Lite adapter, which types them pr_curve
+        # and percentile_band in the maidr.js release after 4.14.0.
+        "Precision-Recall Curve [experimental]": [["line"]],
+        "Percentile Band [experimental]": [["errorband + line"]],
     },
 }
 

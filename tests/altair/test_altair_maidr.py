@@ -226,3 +226,36 @@ class TestTheFrameIsNamed:
         )
 
         assert 'title="Accessible chart"' in rendered
+
+
+class TestDeclarationReachesTheAdapter:
+    """A ``usermeta.maidr`` block is the upstream adapter's to read, so the
+    embedded spec has to carry it unchanged."""
+
+    def test_usermeta_is_embedded_unchanged(self):
+        block = {"type": "pr_curve", "prevalence": 0.3}
+        df = pd.DataFrame({"recall": [0, 0.5, 1], "precision": [1, 0.8, 0.4]})
+        chart = (
+            alt.Chart(df)
+            .mark_line()
+            .encode(x="recall:Q", y="precision:Q")
+            .properties(usermeta={"maidr": block})
+        )
+
+        assert AltairMaidr(chart)._spec["usermeta"] == {"maidr": block}
+        assert "usermeta" in str(AltairMaidr(chart).render())
+
+    def test_altair_refuses_usermeta_on_a_layer(self):
+        """Why a fan chart's bands cannot be declared from Altair: Vega-Lite
+        takes ``usermeta`` on the top-level chart only."""
+        df = pd.DataFrame({"x": [1, 2], "y": [1, 2]})
+        line = (
+            alt.Chart(df)
+            .mark_line()
+            .encode(x="x:Q", y="y:Q")
+            .properties(usermeta={"maidr": {"type": "percentile_band"}})
+        )
+        area = alt.Chart(df).mark_area().encode(x="x:Q", y="y:Q")
+
+        with pytest.raises(alt.utils.schemapi.SchemaValidationError):
+            alt.layer(area, line).to_dict()
