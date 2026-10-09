@@ -213,6 +213,21 @@ def wrap_in_iframe_matplotlib(base_html: Tag, chart_title: str | None = None) ->
                 let body = iframeDocument.body;
                 let de = iframeDocument.documentElement;
 
+                // The width comes first, so the height below is measured at
+                // the width the frame keeps. body.scrollWidth is never less
+                // than the body's own width, so the frame is narrowed to
+                // nothing before it is read, and the content alone sets it.
+                // It is measured from the body's edge, so the body's margins
+                // are added back; without them the frame cut 8px, and the
+                // focus outline, off the chart's right side (#893).
+                let bodyStyle = iframe.contentWindow.getComputedStyle(body);
+                iframe.style.width = '0px';
+                iframe.style.width = (
+                    body.scrollWidth
+                    + (parseFloat(bodyStyle.marginLeft) || 0)
+                    + (parseFloat(bodyStyle.marginRight) || 0)
+                ) + 'px';
+
                 iframe.style.height = 'auto';
 
                 // Use Math.max() across multiple DOM measurements (industry standard)
@@ -265,7 +280,6 @@ def wrap_in_iframe_matplotlib(base_html: Tag, chart_title: str | None = None) ->
                     height += 50;
                 }}
                 iframe.style.height = (height) + 'px';
-                iframe.style.width = iframeDocument.body.scrollWidth + 'px';
             }}
         }}
         let iframe = document.getElementById('{unique_id}');
