@@ -24,6 +24,19 @@
   height: auto;
 }
 
+/* A Quarto figure's fig-align: centred by default, which centred an
+ * inline-block frame and does not centre a block. */
+.quarto-figure-center .maidr-inline,
+.quarto-figure-right .maidr-inline {
+  width: fit-content;
+}
+.quarto-figure-center .maidr-inline {
+  margin-inline: auto;
+}
+.quarto-figure-right .maidr-inline {
+  margin-inline-start: auto;
+}
+
 /* A visible focus (WCAG 2.4.7) that survives a page that removes every
  * outline (*:focus { outline: none !important }): this selector is more
  * specific. The ring is drawn inside the chart, because a cell's output box
@@ -87,6 +100,14 @@ html.maidr-inline-contrast body {
   max-height: calc((100vh - 64px) / var(--maidr-inline-zoom, 1));
 }
 
+/* reveal.js 5 scales its slides with a transform rather than a zoom, which
+ * makes the slides the box a fixed dialog is placed in and scales the
+ * dialog with them: a dialog as tall as the window, scaled up, ran off it.
+ * It is kept to the box it is placed in as well. */
+.reveal .maidr-inline .MuiDialog-paper {
+  max-height: min(calc(100% - 64px), calc((100vh - 64px) / var(--maidr-inline-zoom, 1)));
+}
+
 /* A reveal.js slide, and the slides around it, set a perspective, which
  * makes the slide the box a fixed dialog is placed in rather than the
  * window: a slide taller than the window put the dialog's buttons out of
@@ -101,6 +122,21 @@ html.maidr-inline-contrast body {
  * theme gives them, in the rem inline.js measured for the dialog's text. */
 .maidr-inline [role="dialog"] {
   text-align: start;
+  font-size: var(--maidr-inline-rem, 1rem);
+  line-height: 1.5;
+}
+.maidr-inline [role="dialog"] :is(h1, h2, h3, h4, h5, h6):not([class*="MuiTypography-"]) {
+  font-size: inherit !important;
+  line-height: inherit !important;
+  margin: 0 !important;
+}
+.maidr-inline [role="dialog"] .MuiTypography-caption {
+  font-size: calc(0.75 * var(--maidr-inline-rem, 1rem)) !important;
+  line-height: 1.66 !important;
+}
+.maidr-inline [role="dialog"] :is(ul, ol) {
+  display: block !important;
+  margin: 0 !important;
 }
 .maidr-inline [role="dialog"] :is(h1, h2, h3, h4, h5, h6) {
   font-family: "Roboto", "Helvetica", "Arial", sans-serif !important;

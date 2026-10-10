@@ -66,25 +66,43 @@
 
   // --- Names ---------------------------------------------------------------
 
-  // Until maidr.js has put its focusable element around a chart, the svg is
-  // a named picture, so a reader whose maidr.js never loaded still hears
-  // what it is. Once that element is there, maidr.js names it, and the svg
-  // leaves the accessibility tree: reveal.js reads a slide's text aloud when
-  // it is shown, and would read the chart's. The chart's title, which named
-  // its frame (#453), describes the element instead, after the caption of a
-  // Quarto figure around it.
+  // Until maidr.js has put its focusable element around a chart, the
+  // wrapper is a named picture, so a reader whose maidr.js never loaded
+  // still hears what it is. The svg is hidden from the start: reveal.js
+  // reads a slide's text aloud when it is shown, and a chart drawn with
+  // svg.fonttype 'none' has its tick labels as text. Once maidr's element
+  // is there, maidr.js names it and the wrapper's name goes. The chart's
+  // title, which named its frame (#453), describes the element instead,
+  // after the caption of a Quarto figure around it.
   function settle() {
-    var svgs = document.querySelectorAll('svg[data-maidr-inline]');
-    for (var i = 0; i < svgs.length; i++) {
-      var svg = svgs[i];
-      var plot = svg.closest(PLOT);
+    var wrappers = document.querySelectorAll('.maidr-inline[data-maidr-inline]');
+    for (var i = 0; i < wrappers.length; i++) {
+      var wrapper = wrappers[i];
+      var plot = wrapper.querySelector(PLOT);
       if (!plot) continue;
-      svg.removeAttribute('data-maidr-inline');
-      svg.removeAttribute('role');
-      svg.removeAttribute('aria-label');
-      svg.setAttribute('aria-hidden', 'true');
+      wrapper.removeAttribute('data-maidr-inline');
+      wrapper.removeAttribute('role');
+      wrapper.removeAttribute('aria-label');
       describe(plot);
-      fitChart(wrapperOf(plot));
+      fitChart(wrapper);
+    }
+    liftStyles();
+  }
+
+  // Each chart carries its stylesheets, so that a cell whose output is
+  // hidden takes nothing from the next. In the page they move to the head,
+  // one copy of the shared one: reveal.js's search walks the text of a
+  // slide, <style> included, and rewrites the words it finds there.
+  function liftStyles() {
+    var styles = document.querySelectorAll('.maidr-inline > style');
+    for (var i = 0; i < styles.length; i++) {
+      var style = styles[i];
+      if (style.hasAttribute('data-maidr-inline-css') &&
+          document.head.querySelector('style[data-maidr-inline-css]')) {
+        style.remove();
+      } else {
+        document.head.appendChild(style);
+      }
     }
   }
 
@@ -399,6 +417,91 @@
     }
   }
 
+  // --- An output shown twice -------------------------------------------------
+
+  // A page can hold one chart's output twice -- a cell embedded twice, or a
+  // chart displayed twice -- and then holds its ids twice, so each copy's
+  // selectors find the other copy's marks. The second copy is given ids of
+  // its own before maidr.js binds it: held when it is added, and renamed
+  // once all of it is there, which its own loader below it says; or at once
+  // when it arrives whole, after the page has loaded.
+  var HELD = 'data-maidr-inline-held';
+  var UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g;
+
+  function hold(svg) {
+    if (!svg.id || document.querySelectorAll('[id="' + svg.id + '"]').length < 2) {
+      return false;
+    }
+    svg.setAttribute(HELD, svg.getAttribute('maidr'));
+    svg.removeAttribute('maidr');
+    return true;
+  }
+
+  function hex(length) {
+    var bytes = new Uint8Array(length);
+    window.crypto.getRandomValues(bytes);
+    var out = '';
+    for (var i = 0; i < length; i++) out += (bytes[i] % 16).toString(16);
+    return out;
+  }
+
+  function freshUuid() {
+    var h = hex(32);
+    return h.slice(0, 8) + '-' + h.slice(8, 12) + '-4' + h.slice(13, 16) + '-a' +
+      h.slice(17, 20) + '-' + h.slice(20);
+  }
+
+  // py-maidr's ids are uuids or carry the chart's key, so a fresh value for
+  // each, written wherever it occurs in the copy -- ids, references, the
+  // schema held for maidr.js -- gives the copy ids of its own.
+  function rekey(svg) {
+    var tokens = {};
+    var key = /maidr-inline-(m[0-9a-f]{12})/.exec(svg.getAttribute('class') || '');
+    if (key) tokens[key[1]] = 'm' + hex(12);
+    var named = [svg].concat(Array.prototype.slice.call(svg.querySelectorAll('[id], [maidr]')));
+    for (var i = 0; i < named.length; i++) {
+      var found = (named[i].id + ' ' + (named[i] === svg ? '' : named[i].getAttribute('maidr') || ''))
+        .match(UUID) || [];
+      for (var j = 0; j < found.length; j++) {
+        if (!tokens[found[j]]) tokens[found[j]] = freshUuid();
+      }
+    }
+    var pattern = new RegExp(Object.keys(tokens).join('|'), 'g');
+    var swap = function (value) {
+      return value.replace(pattern, function (token) { return tokens[token]; });
+    };
+    var elements = [svg].concat(Array.prototype.slice.call(svg.querySelectorAll('*')));
+    for (var k = 0; k < elements.length; k++) {
+      var attributes = Array.prototype.slice.call(elements[k].attributes);
+      for (var m = 0; m < attributes.length; m++) {
+        // Not the class: it names the chart's style, which every copy shares.
+        if (attributes[m].name === 'class') continue;
+        var swapped = swap(attributes[m].value);
+        if (swapped !== attributes[m].value) elements[k].setAttribute(attributes[m].name, swapped);
+      }
+    }
+    var wrapper = wrapperOf(svg);
+    var title = wrapper && wrapper.querySelector(':scope > .maidr-inline-title[id]');
+    if (title) title.id = swap(title.id);
+    var schema = svg.getAttribute(HELD);
+    svg.removeAttribute(HELD);
+    svg.setAttribute('maidr', schema);
+  }
+
+  window.__maidrInlineClaim = function (script) {
+    var wrapper = wrapperOf(script);
+    var svg = wrapper && wrapper.querySelector('svg[' + HELD + ']');
+    if (svg) rekey(svg);
+  };
+
+  function holdCopies(node) {
+    var svgs = node.matches('.maidr-inline svg[maidr]') ? [node]
+      : node.querySelectorAll('.maidr-inline svg[maidr]');
+    for (var i = 0; i < svgs.length; i++) {
+      if (hold(svgs[i]) && document.readyState !== 'loading') rekey(svgs[i]);
+    }
+  }
+
   // --- Start -----------------------------------------------------------------
 
   var settling = false;
@@ -426,7 +529,11 @@
           }
           var root = node.closest('[data-tippy-root]') ||
             (node.querySelector && node.querySelector('[data-tippy-root]'));
-          if (root) quietPreview(root);
+          if (root) {
+            quietPreview(root);
+            continue;
+          }
+          holdCopies(node);
         }
       }
       settleSoon();
@@ -437,6 +544,13 @@
     if (!focusInChart()) return;
     shimHosts();
     handOff(event);
+    // reveal.js's search plugin opens on Ctrl+Shift+F (Cmd on a Mac) from a
+    // listener of its own, which keyboardCondition does not reach. maidr.js
+    // binds no such key, so it goes no further.
+    if ((event.ctrlKey || event.metaKey) && event.shiftKey &&
+        (event.key === 'F' || event.key === 'f')) {
+      event.stopPropagation();
+    }
   }, true);
 
   document.addEventListener('focusin', function (event) {

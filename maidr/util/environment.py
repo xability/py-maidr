@@ -10,9 +10,18 @@ from typing import Optional, Union
 #: pages, so a chart for one of them is not written into a page either.
 _QUARTO_PAGE_WRITERS = frozenset({"html", "html4", "html5", "revealjs"})
 
-#: The writer :meth:`Environment.quarto_writer` last read, keyed on the file
-#: it read it from as it stood then.
-_quarto_writer_cache: "dict[tuple[str, int, int], Optional[str]]" = {}
+#: What a ``QUARTO_EXECUTE_INFO`` file said, by its path: the pandoc writer,
+#: and the figure format the render set the kernel up with. Kept after the
+#: file is gone; see :meth:`Environment.quarto_writer`.
+_quarto_info: "dict[str, tuple[Optional[str], Optional[str]]]" = {}
+
+#: Where a kernel keeps how many Quarto renders it has run charts in, on its
+#: shell, which outlives the ``%reset`` each render starts with.
+_RUNS_ATTRIBUTE = "_maidr_quarto_runs"
+
+#: Set in the namespace of a render once it is counted; cleared by the
+#: ``%reset`` the next render starts with.
+_RUN_SENTINEL = "_maidr_quarto_run"
 
 
 class Environment:
@@ -143,32 +152,79 @@ class Environment:
         dashboard reads ``html`` here, a deck ``revealjs``, and a notebook
         target ``ipynb``.
 
-        The file is read again whenever it changes: ``quarto preview`` keeps
-        one kernel, and one file, across renders, and a format switched in
-        between has to be seen.
+        The variable is set once, when the kernel starts. Quarto keeps a
+        kernel alive between renders -- its default in a terminal, in
+        RStudio and in VS Code, and always under ``quarto preview`` -- and a
+        later render in it still finds the first render's file: deleted
+        once that render ended, or, when one ``quarto render`` builds
+        several formats, describing the format before. So the file is
+        trusted outright only in the first render this kernel runs charts
+        in. In a later one it is trusted only when the figure format the
+        render set the kernel up with (its setup cell's
+        ``set_matplotlib_formats``) is the one the file names, and what a
+        deleted file said is remembered for that. Anything else is None,
+        which keeps the iframe.
 
         Returns
         -------
         str or None
             ``format.pandoc.to``, or None outside such a render, under an
-            older Quarto, or when the file cannot be read.
+            older Quarto, or when the render cannot be told apart from
+            another.
         """
         path = os.environ.get("QUARTO_EXECUTE_INFO")
         if not path or not Environment.is_quarto():
             return None
         try:
-            stat = os.stat(path)
-            key = (path, stat.st_mtime_ns, stat.st_size)
-            if key not in _quarto_writer_cache:
-                with open(path, encoding="utf-8") as f:
-                    writer = json.load(f)["format"]["pandoc"]["to"]
-                _quarto_writer_cache.clear()
-                _quarto_writer_cache[key] = writer if isinstance(writer, str) else None
-            return _quarto_writer_cache[key]
+            info = Environment._read_quarto_info(path)
+            if Environment._quarto_run() <= 1:
+                return info[0] if info else None
+            info = info or _quarto_info.get(path)
+            if info and info[1] is not None and info[1] == _figure_format():
+                return info[0]
+            return None
         except Exception:
             # Broad on purpose, as in is_shiny: a probe must never be why a
-            # render fails, and an answer of None keeps today's iframe.
+            # render fails, and an answer of None keeps the iframe.
             return None
+
+    @staticmethod
+    def _read_quarto_info(path: str) -> "Optional[tuple[Optional[str], Optional[str]]]":
+        """The writer and figure format a ``QUARTO_EXECUTE_INFO`` file names."""
+        try:
+            with open(path, encoding="utf-8") as f:
+                document_format = json.load(f)["format"]
+        except (OSError, ValueError):
+            return None
+        writer = document_format["pandoc"]["to"]
+        figure_format = document_format.get("execute", {}).get("fig-format")
+        info = (
+            writer if isinstance(writer, str) else None,
+            figure_format if isinstance(figure_format, str) else None,
+        )
+        _quarto_info[path] = info
+        return info
+
+    @staticmethod
+    def _quarto_run() -> int:
+        """Which Quarto render, counting from 1, this kernel runs charts in now.
+
+        Counted on the kernel's shell when a chart first asks in a render:
+        each render starts with ``%reset``, which clears the mark the count
+        leaves in the namespace. Without a shell there is one render.
+        """
+        if sys.modules.get("IPython") is None:
+            return 1
+        from IPython import get_ipython
+
+        shell = get_ipython()
+        if shell is None:
+            return 1
+        if not shell.user_ns.get(_RUN_SENTINEL):
+            runs = getattr(shell, _RUNS_ATTRIBUTE, 0) + 1
+            setattr(shell, _RUNS_ATTRIBUTE, runs)
+            shell.push({_RUN_SENTINEL: runs}, interactive=False)
+        return getattr(shell, _RUNS_ATTRIBUTE, 1)
 
     @staticmethod
     def is_quarto_page() -> bool:
@@ -401,3 +457,40 @@ class Environment:
                 return "browser"
         except ImportError:
             return "browser"
+
+
+def _figure_format() -> Optional[str]:
+    """The figure format a Quarto render set the kernel up with, or None.
+
+    Quarto's setup cell calls ``set_matplotlib_formats(fig_format)`` at the
+    start of every render, which leaves exactly one display formatter for a
+    matplotlib figure: ``retina_figure`` for ``retina``, ``print_figure``
+    for the others, under the format's MIME type.
+    """
+    from IPython import get_ipython
+    from matplotlib.figure import Figure
+
+    shell = get_ipython()
+    if shell is None:
+        return None
+    names = {
+        "image/png": "png",
+        "image/svg+xml": "svg",
+        "application/pdf": "pdf",
+        "image/jpeg": "jpeg",
+    }
+    found = []
+    for mime, formatter in shell.display_formatter.formatters.items():
+        try:
+            printer = formatter.lookup_by_type(Figure)
+        except KeyError:
+            continue
+        # A function, or a ``functools.partial`` of one.
+        name = getattr(printer, "__name__", "") or getattr(
+            getattr(printer, "func", None), "__name__", ""
+        )
+        if mime == "image/png" and name == "retina_figure":
+            found.append("retina")
+        elif mime in names:
+            found.append(names[mime])
+    return found[0] if len(found) == 1 else None

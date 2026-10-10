@@ -62,6 +62,7 @@ from maidr.util.inline_chart import (
     in_quarto_render,
     inline_applies,
     loader_js,
+    showing,
 )
 
 #: Layer classes a segmented bar layer on the same axes can supersede.
@@ -424,9 +425,12 @@ class Maidr:
         if _renderer == "browser" and not Environment.is_notebook():
             return self._open_plot_in_browser(use_cdn=use_cdn)
 
-        html = self._create_html_tag(
-            use_iframe=True, use_cdn=use_cdn
-        )  # Always use iframe for display
+        # Displayed now, so the copy of the bundle it may carry is in the page
+        # for the render's later charts; see ``maidr.api._quarto_stash``.
+        with showing():
+            html = self._create_html_tag(
+                use_iframe=True, use_cdn=use_cdn
+            )  # Always use iframe for display
 
         if clear_fig:
             # This figure, not pyplot's current one: `plt.close()` with no
@@ -1622,8 +1626,10 @@ class Maidr:
                 cdn_url = bundled_cdn_url(MAIDR_JS_FILENAME)
         else:
             cdn_url = maidr_js_cdn_url()
+            # Under ``True`` as well: the loader falls back to a copy another
+            # chart stashed in the page, and that copy is the bundled one.
+            locale_fallback = locale_fallback_js()
             if use_cdn == "auto":
-                locale_fallback = locale_fallback_js()
                 warn_if_bundle_is_stale(bundle_is_primary=False)
 
         before_runtime: list[Any] = [

@@ -590,6 +590,10 @@ def _quarto_stash(use_cdn: bool | Literal["auto"] | None) -> str | None:
     subfigure of a ``fig-`` cell, and which a chart written into the page
     (#895) would be loaded without.
 
+    Only a chart ``show()`` displays counts as that first chart. One from
+    ``render()`` carries a copy while none has been put in the page, but its
+    caller may never put it there, so the next chart carries one too.
+
     Parameters
     ----------
     use_cdn : bool, {"auto"}, or None
@@ -603,6 +607,7 @@ def _quarto_stash(use_cdn: bool | Literal["auto"] | None) -> str | None:
         said.
     """
     from maidr.util.bundle_freshness import warn_bundle_unreadable
+    from maidr.util.inline_chart import is_showing
 
     mode = _resolve_use_cdn(use_cdn)
     if mode is True:
@@ -619,7 +624,7 @@ def _quarto_stash(use_cdn: bool | Literal["auto"] | None) -> str | None:
         if mode is False:
             warn_bundle_unreadable()
         return None
-    if shell is not None:
+    if shell is not None and is_showing():
         # Hidden from ``%who``, and cleared with the rest of the namespace.
         shell.push({_QUARTO_STASHED: True}, interactive=False)
     return stash

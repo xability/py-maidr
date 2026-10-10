@@ -93,6 +93,33 @@ _STANDALONE: contextvars.ContextVar[bool] = contextvars.ContextVar(
 )
 
 
+#: Set while ``show()`` renders a chart it is about to display.
+_SHOWING: contextvars.ContextVar[bool] = contextvars.ContextVar(
+    "maidr_showing", default=False
+)
+
+
+@contextlib.contextmanager
+def showing() -> Iterator[None]:
+    """Render charts that are displayed in the page as soon as they are made.
+
+    ``show()`` displays what it renders; ``render()`` returns it, and its
+    caller may never put it in the page. Only a chart rendered here may
+    count as the one that put the bundle in the page for the rest of a
+    render (``maidr.api._quarto_stash``).
+    """
+    token = _SHOWING.set(True)
+    try:
+        yield
+    finally:
+        _SHOWING.reset(token)
+
+
+def is_showing() -> bool:
+    """Whether the chart being rendered is displayed as soon as it is made."""
+    return _SHOWING.get()
+
+
 class InlineUnsupported(Exception):
     """A chart's SVG holds something that cannot be scoped to it on a page."""
 
@@ -268,10 +295,10 @@ class InlineScope:
                 filter(None, [svg.get("class"), "maidr-inline-svg", self.css_class])
             ),
         )
-        svg.set("role", "img")
-        svg.set("aria-label", self.name)
-        # inline.js takes the stand-in name off once maidr.js has named the chart.
-        svg.set("data-maidr-inline", "")
+        # Hidden from the start: a deck reads a slide's text aloud, and a
+        # chart drawn with svg.fonttype "none" has its labels as text. The
+        # wrapper is named in its place until maidr.js names the chart.
+        svg.set("aria-hidden", "true")
         return self._scope_value(schema)
 
     def _rename(self, element: Any) -> None:
@@ -470,29 +497,28 @@ def loader_js(
     """
     body = [
         "(function () {",
+        # A copy of an output already on the page is given ids of its own
+        # first; see inline.js. This script comes after the chart's svg.
+        "  if (window.__maidrInlineClaim) "
+        "window.__maidrInlineClaim(document.currentScript);",
         "  if (window.maidrLive || window.__maidrInlineLoader) return;",
         "  window.__maidrInlineLoader = true;",
         "  var noAmd = window.__maidrInlineWithoutAmd || function () {};",
         _REPORT,
+        _FROM_STASH % {"locale": "" if use_cdn is False else locale_fallback},
     ]
     url = json.dumps(cdn_url or "").replace("<", "\\u003c")
-    if use_cdn is not True:
-        body.append(
-            _FROM_STASH % {"locale": locale_fallback if use_cdn == "auto" else ""}
-        )
     if use_cdn is False:
         body.append("  fromStash('the page has no copy of the bundle');")
     else:
+        # Under ``True`` too: a page holds a copy only because one of its
+        # charts asked for it, and that chart must not be left without it by
+        # a chart before it that loads from the CDN alone.
         body.append(_FROM_URL)
-        if use_cdn is True:
-            body.append(
-                f"  fromUrl({url}, function () {{ fail('it did not load from ' + {url}); }});"
-            )
-        else:
-            body.append(
-                f"  fromUrl({url}, function () {{ fromStash('the CDN was unreachable and "
-                "the page has no copy of the bundle'); });"
-            )
+        body.append(
+            f"  fromUrl({url}, function () {{ fromStash('it did not load from ' + "
+            f"{url} + ' and the page has no copy of the bundle'); }});"
+        )
     body.append("})();")
     return "\n".join(body)
 
@@ -531,7 +557,10 @@ def chart_tag(
         The chart's ``<div class="maidr-inline">``.
     """
     title = (chart_title or "").strip()
-    children: list[Any] = [tags.style(HTML(_asset("inline.css")))]
+    children: list[Any] = [
+        # Marked so that inline.js keeps one copy of it in the page's head.
+        tags.style(HTML(_asset("inline.css")), **{"data-maidr-inline-css": ""})
+    ]
     if scope.css:
         children.append(tags.style(HTML(scope.css)))
     children.append(svg)
@@ -547,4 +576,11 @@ def chart_tag(
     children.append(tags.script(HTML(_asset("inline.js"))))
     children.extend(child for child in before_runtime if child is not None)
     children.append(tags.script(HTML(loader)))
-    return tags.div(*children, class_="maidr-inline")
+    # Named until maidr.js names the chart; inline.js takes the name off then.
+    return tags.div(
+        *children,
+        class_="maidr-inline",
+        role="img",
+        aria_label=scope.name,
+        **{"data-maidr-inline": ""},
+    )

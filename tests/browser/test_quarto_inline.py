@@ -68,6 +68,14 @@ _HEAD = """
     };
   })();
 
+  // reveal.js's search plugin: Ctrl+Shift+F, from a listener of its own.
+  window.__searchPlugin = 0;
+  document.addEventListener('keydown', function (event) {
+    if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === 'f') {
+      window.__searchPlugin += 1;
+    }
+  });
+
   // A Quarto website's search: opens on s, looked up when the key is let go.
   window.__searches = 0;
   window.quartoOpenSearch = function () { window.__searches += 1; };
@@ -86,11 +94,25 @@ def _line(title: str):
     return fig
 
 
+class _Kernel:
+    """The part of a kernel's IPython shell a render reads and writes."""
+
+    def __init__(self) -> None:
+        self.user_ns: dict = {}
+
+    def push(self, variables: dict, interactive: bool = True) -> None:
+        self.user_ns.update(variables)
+
+
 def _outputs(tmp_path: Path) -> list[str]:
     """Two charts, rendered as the kernel of a Quarto ``html`` render does."""
     info = tmp_path / "info.json"
-    info.write_text(json.dumps({"format": {"pandoc": {"to": "html"}}}))
-    kernel = mock.Mock(user_ns={})
+    info.write_text(
+        json.dumps(
+            {"format": {"pandoc": {"to": "html"}, "execute": {"fig-format": "retina"}}}
+        )
+    )
+    kernel = _Kernel()
     env = {"QUARTO_FIG_FORMAT": "png", "QUARTO_EXECUTE_INFO": str(info)}
     outputs = []
     with (
@@ -124,7 +146,8 @@ def _page(browser: Browser, tmp_path: Path, body: str) -> Page:
     page.on("console", lambda m: page.__dict__.setdefault("logs", []).append(m.text))
     page.goto(path.as_uri(), wait_until="load")
     page.wait_for_function(
-        "() => document.querySelectorAll('svg[data-maidr-inline]').length === 0"
+        "() => document.querySelectorAll('.maidr-inline[data-maidr-inline]').length"
+        " === 0"
         " && document.querySelectorAll('article[id^=maidr-article-]').length > 0",
         timeout=_PARSE_TIMEOUT_MS,
     )
@@ -199,6 +222,26 @@ def test_the_sites_search_stays_shut_while_a_chart_has_the_keys(page):
     assert page.evaluate("window.__searches") == 1
 
 
+def test_reveal_search_stays_shut_while_a_chart_has_the_keys(page):
+    _press_in(page, 0, "Control+Shift+F")
+    assert page.evaluate("window.__searchPlugin") == 0
+
+    page.locator("#after").focus()
+    page.keyboard.press("Control+Shift+F")
+    assert page.evaluate("window.__searchPlugin") == 1
+
+
+def test_the_charts_stylesheets_are_in_the_head_once(page):
+    """Not in the slide, where reveal.js's search rewrites the words it finds."""
+    placed = page.evaluate(
+        """() => ({
+             inCharts: document.querySelectorAll('.maidr-inline style').length,
+             shared: document.head.querySelectorAll('style[data-maidr-inline-css]').length,
+           })"""
+    )
+    assert placed == {"inCharts": 0, "shared": 1}
+
+
 def test_the_focus_ring_survives_a_page_that_removes_them(page):
     page.locator(_PLOT).first.focus()
     outline = page.evaluate(
@@ -226,6 +269,11 @@ def test_maidr_names_the_chart_and_its_title_describes_it(page):
         assert d["label"].startswith("This is a maidr plot")
         assert d["svgHidden"] == "true"
         assert d["svgRole"] is None
+    # The wrapper's stand-in name went once maidr.js named the chart.
+    assert page.evaluate(
+        "[...document.querySelectorAll('.maidr-inline')]"
+        ".map(w => w.getAttribute('role') || w.getAttribute('aria-label'))"
+    ) == [None, None]
 
 
 def test_shift_tab_from_the_first_chart_hands_the_reader_to_its_slide(page):
@@ -295,3 +343,43 @@ def test_a_chart_whose_neighbour_was_hidden_still_works(browser, tmp_path, outpu
         assert _announced(page)
     finally:
         page.close()
+
+
+def _highlights_own(page: Page, charts: int) -> None:
+    for chart in range(charts):
+        _press_in(page, chart, "ArrowRight")
+        owner = page.evaluate(
+            """() => {
+                 const svgs = [...document.querySelectorAll('figure[id^="maidr-figure"] svg')];
+                 return [...document.querySelectorAll('[id^="maidr-highlight-"]')]
+                   .map(m => svgs.indexOf(m.closest('svg')));
+               }"""
+        )
+        assert owner and set(owner) == {chart}, f"chart {chart} highlighted {owner}"
+
+
+def test_an_output_shown_twice_gets_ids_of_its_own(browser, tmp_path, outputs):
+    """One cell's output twice on a page: each copy highlights its own marks."""
+    body = f"<section>{outputs[0]}</section><section>{outputs[0]}</section>"
+    page = _page(browser, tmp_path, body)
+    try:
+        ids = page.evaluate(
+            "[...document.querySelectorAll('figure[id^=maidr-figure] svg')].map(s => s.id)"
+        )
+        assert len(ids) == 2 and ids[0] != ids[1]
+        _highlights_own(page, 2)
+        assert not [log for log in getattr(page, "logs", []) if "resolved to no" in log]
+    finally:
+        page.close()
+
+
+def test_an_output_added_again_after_load_gets_ids_of_its_own(page, outputs):
+    """Its scripts do not run then; the copy is renamed as it arrives."""
+    page.evaluate(
+        "(html) => document.body.insertAdjacentHTML('beforeend', html)", outputs[0]
+    )
+    page.wait_for_function(
+        "() => document.querySelectorAll('article[id^=maidr-article-]').length === 3",
+        timeout=_PARSE_TIMEOUT_MS,
+    )
+    _highlights_own(page, 3)

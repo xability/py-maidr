@@ -1062,6 +1062,14 @@ the kernel what it is rendering to. With an older Quarto, and for any format
 that is not a web page, a chart keeps the iframe it had before. Plotly, Altair
 and Bokeh charts keep theirs in every format.
 
+Quarto keeps a kernel running between renders when you render from a terminal,
+RStudio or VS Code, and under `quarto preview`, and it tells that kernel what
+it renders to only when it starts it. In a later render the kernel tells
+formats apart by the figure format (`fig-format`) each one sets up, so a
+document rendered to `html` and `ipynb` in one go keeps its iframes in the
+notebook. If two of those formats share one `fig-format`, render each in its
+own `quarto render` with `--no-execute-daemon`.
+
 A chart in the page still has what its iframe gave it:
 
 * **Its keys.** While the focus is in a chart, the keys it reads are kept from

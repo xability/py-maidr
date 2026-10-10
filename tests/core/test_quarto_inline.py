@@ -49,8 +49,14 @@ class _Kernel:
 def _execute_info(tmp_path, writer: str) -> str:
     """A file shaped like the one ``QUARTO_EXECUTE_INFO`` names."""
     path = tmp_path / f"info-{writer}.json"
+    # The figure format is each writer's default in Quarto 1.10.
+    figure_format = "retina" if writer in ("html", "revealjs") else "png"
+    document_format = {
+        "pandoc": {"to": writer},
+        "execute": {"fig-format": figure_format},
+    }
     path.write_text(
-        json.dumps({"document-path": "doc.qmd", "format": {"pandoc": {"to": writer}}}),
+        json.dumps({"document-path": "doc.qmd", "format": document_format}),
         encoding="utf-8",
     )
     return str(path)
@@ -92,6 +98,12 @@ def _render(fig, use_cdn="auto") -> str:
         return str(FigureManager.get_maidr(fig).render(use_cdn=use_cdn))
     finally:
         plt.close(fig)
+
+
+def _shown(fig, use_cdn="auto") -> str:
+    """A chart as ``show()`` renders it: displayed in the page at once."""
+    with inline_chart.showing():
+        return _render(fig, use_cdn)
 
 
 def _svg(html: str):
@@ -190,6 +202,71 @@ def test_the_file_is_read_again_when_it_changes(monkeypatch, tmp_path):
 
     path.write_text(json.dumps({"format": {"pandoc": {"to": "ipynb"}}}))
     assert Environment.quarto_writer() == "ipynb"
+
+
+def _later_render(kernel) -> None:
+    """What a kept-alive kernel goes through between two renders: ``%reset``."""
+    kernel.user_ns.clear()
+
+
+def test_a_kept_alive_kernel_trusts_the_file_while_its_format_is_this_renders(
+    quarto, monkeypatch
+):
+    """``quarto preview`` and a second render in the same format."""
+    from maidr.util import environment
+
+    kernel = quarto("html")
+    assert Environment.quarto_writer() == "html"
+
+    _later_render(kernel)
+    monkeypatch.setattr(environment, "_figure_format", lambda: "retina")
+    assert Environment.quarto_writer() == "html"
+
+
+def test_a_kept_alive_kernel_remembers_a_file_quarto_has_deleted(quarto, monkeypatch):
+    """A second ``quarto render`` deletes the first render's file, not the variable."""
+    import os
+
+    from maidr.util import environment
+
+    kernel = quarto("html")
+    assert Environment.quarto_writer() == "html"
+
+    _later_render(kernel)
+    os.remove(os.environ["QUARTO_EXECUTE_INFO"])
+    monkeypatch.setattr(environment, "_figure_format", lambda: "retina")
+    assert Environment.quarto_writer() == "html"
+
+
+def test_a_kept_alive_kernel_serving_another_format_keeps_the_iframe(
+    quarto, monkeypatch
+):
+    """One ``quarto render`` of html then ipynb: the file still names html."""
+    from maidr.util import environment
+
+    kernel = quarto("html")
+    assert Environment.quarto_writer() == "html"
+
+    _later_render(kernel)
+    monkeypatch.setattr(environment, "_figure_format", lambda: "png")
+    assert Environment.quarto_writer() is None
+    assert "<iframe" in _render(_bar())
+
+
+def test_the_figure_format_quarto_set_up_is_read_off_the_display_formatter():
+    """The setup cell's ``set_matplotlib_formats`` is what is left of it."""
+    pytest.importorskip("matplotlib_inline")
+    from IPython.core.interactiveshell import InteractiveShell
+    from matplotlib_inline.backend_inline import set_matplotlib_formats
+
+    from maidr.util import environment
+
+    shell = InteractiveShell.instance()
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr("IPython.get_ipython", lambda: shell)
+        for figure_format in ("retina", "png", "svg"):
+            set_matplotlib_formats(figure_format)
+            assert environment._figure_format() == figure_format
 
 
 def test_a_page_gets_the_chart_itself(quarto):
@@ -400,6 +477,18 @@ def test_a_style_names_the_charts_own_definitions():
     assert f"url(#grad-{scope.key})" in scope.css
 
 
+def test_an_id_that_starts_another_is_renamed_on_its_own():
+    markup = f'<svg xmlns="{SVG}" id="{SVG_ID}"><g id="series"/><g id="series2"/></svg>'
+    scope, schema = _scope(
+        markup, {"selectors": ["g[id='series'] path", "g[id='series2'] path"]}
+    )
+
+    assert schema["selectors"] == [
+        f"g[id='series-{scope.key}'] path",
+        f"g[id='series2-{scope.key}'] path",
+    ]
+
+
 def test_selector_commas_inside_brackets_and_parentheses_are_not_split():
     parts = inline_chart._split_selector(
         "g[id='a,b'] > :nth-child(n+2 of use, path), g[maidr='x']"
@@ -509,14 +598,22 @@ def test_a_chart_that_cannot_be_scoped_is_framed_as_before(quarto, monkeypatch):
 # --- Names -------------------------------------------------------------------
 
 
+def _wrapper(html: str) -> str:
+    return html[: html.index(">") + 1]
+
+
 def test_the_chart_is_named_until_maidr_js_names_it(quarto):
+    """On the wrapper: the svg is hidden, since a deck reads its text aloud."""
     quarto("html")
     html = _render(_bar(title="Sales"))
     svg = _svg(html)
 
-    assert svg.get("role") == "img"
-    assert svg.get("aria-label") == "Sales, accessible chart"
-    assert svg.get("data-maidr-inline") == ""
+    assert _wrapper(html) == (
+        '<div class="maidr-inline" role="img" aria-label="Sales, accessible chart"'
+        ' data-maidr-inline="">'
+    )
+    assert svg.get("aria-hidden") == "true"
+    assert svg.get("role") is None
 
 
 def test_the_title_stays_as_a_description(quarto):
@@ -536,7 +633,7 @@ def test_an_untitled_chart_has_no_description_to_carry(quarto):
     html = _render(_bar(title=""))
 
     assert 'class="maidr-inline-title"' not in html
-    assert _svg(html).get("aria-label") == "Accessible chart"
+    assert 'aria-label="Accessible chart"' in _wrapper(html)
 
 
 # --- maidr.js and the bundle -------------------------------------------------
@@ -548,24 +645,33 @@ def _copies(html: str) -> int:
 
 def test_auto_stashes_the_bundle_once_per_render(quarto):
     kernel = quarto("html")
-    outputs = [_render(_bar()) for _ in range(3)]
+    outputs = [_shown(_bar()) for _ in range(3)]
 
     assert [_copies(html) for html in outputs] == [1, 0, 0]
 
     kernel.user_ns.clear()  # Quarto's ``%reset`` after a render
+    assert _copies(_shown(_bar())) == 1
+
+
+def test_a_render_that_may_never_be_displayed_takes_the_stash_from_no_one(quarto):
+    """``render()`` returns the chart; only ``show()`` is sure it reaches the page."""
+    quarto("html")
+
     assert _copies(_render(_bar())) == 1
+    assert _copies(_shown(_bar())) == 1
+    assert _copies(_shown(_bar())) == 0
 
 
 def test_offline_every_chart_carries_the_bundle(quarto):
     quarto("html")
-    outputs = [_render(_bar(), use_cdn=False) for _ in range(2)]
+    outputs = [_shown(_bar(), use_cdn=False) for _ in range(2)]
 
     assert [_copies(html) for html in outputs] == [1, 1]
 
 
 def test_the_cdn_alone_needs_no_bundle(quarto):
     kernel = quarto("html")
-    html = _render(_bar(), use_cdn=True)
+    html = _shown(_bar(), use_cdn=True)
 
     assert _copies(html) == 0
     assert maidr_api._QUARTO_STASHED not in kernel.user_ns
@@ -575,7 +681,7 @@ def test_an_unreadable_bundle_is_not_marked_as_stashed(quarto, monkeypatch):
     """A Plotly frame later in the render must not count on a copy never made."""
     kernel = quarto("html")
     monkeypatch.setattr(maidr_api, "_bundle_stash_script", lambda: None)
-    html = _render(_bar())
+    html = _shown(_bar())
 
     assert _copies(html) == 0
     assert maidr_api._QUARTO_STASHED not in kernel.user_ns
@@ -596,7 +702,7 @@ def test_offline_with_an_unreadable_bundle_loads_the_same_version_by_url(
 def test_every_chart_carries_the_guards_and_a_loader(quarto):
     """So a chart whose cell hides its output takes nothing from the next."""
     quarto("html")
-    outputs = [_render(_bar()) for _ in range(2)]
+    outputs = [_shown(_bar()) for _ in range(2)]
 
     for html in outputs:
         assert "window.__maidrInline = true" in html
@@ -640,14 +746,29 @@ def test_a_render_puts_no_second_maidr_js_in_the_page(quarto, monkeypatch):
 def test_the_loader_in_each_mode():
     url = "https://cdn.jsdelivr.net/npm/maidr@1.2.3/dist/maidr.js"
     offline = inline_chart.loader_js(False, None, "")
-    online = inline_chart.loader_js(True, url, "")
+    online = inline_chart.loader_js(True, url, "window.maidrLocaleBaseUrl = 'x';")
     auto = inline_chart.loader_js("auto", url, "window.maidrLocaleBaseUrl = 'x';")
 
-    assert "fromStash('" in offline and "fromUrl(" not in offline
-    assert f'fromUrl("{url}"' in online and "fromStash(" not in online
-    assert f'fromUrl("{url}"' in auto and "fromStash('" in auto
-    assert "window.maidrLocaleBaseUrl = 'x';" in auto
+    assert "fromStash('the page" in offline and "fromUrl(" not in offline
+    for loader in (online, auto):
+        assert f'fromUrl("{url}"' in loader
+        assert "window.maidrLocaleBaseUrl = 'x';" in loader
     assert "window.maidrLocaleBaseUrl" not in offline
+
+
+def test_a_chart_on_the_cdn_alone_falls_back_to_a_copy_another_chart_put_there():
+    """A ``use_cdn=False`` chart after it must not be left without its runtime."""
+    loader = inline_chart.loader_js(True, "https://x/maidr.js", "")
+    on_error = loader[loader.index("fromUrl(") :]
+
+    assert "fromStash(" in on_error
+
+
+def test_every_loader_lets_a_copy_of_an_output_claim_ids_of_its_own():
+    for mode in (False, True, "auto"):
+        loader = inline_chart.loader_js(mode, "https://x/maidr.js", "")
+        claim = loader.index("__maidrInlineClaim(document.currentScript)")
+        assert claim < loader.index("if (window.maidrLive")
 
 
 def test_a_url_cannot_close_the_loaders_script():
