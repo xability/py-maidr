@@ -56,6 +56,7 @@ _DECK = """
   window.Reveal = (function () {
     var config = {}, ready = false, onReady = [];
     window.__slide = 0;
+    window.__configured = 0;
     document.addEventListener('keydown', function (event) {
       var condition = config.keyboardCondition;
       if (typeof condition === 'function' && condition(event) === false) return;
@@ -66,7 +67,10 @@ _DECK = """
       onReady.forEach(function (f) { f(); });
     });
     return {
-      configure: function (c) { for (var k in c) config[k] = c[k]; },
+      configure: function (c) {
+        window.__configured += 1;
+        for (var k in c) config[k] = c[k];
+      },
       getConfig: function () { return config; },
       hasPlugin: function (id) { return id === 'search'; },
       isReady: function () { return ready; },
@@ -88,7 +92,9 @@ _PAGE_KEYS = """
 
   // A Quarto website's search: opens on s, looked up when the key is let go.
   window.__searches = 0;
-  window.quartoOpenSearch = function () { window.__searches += 1; };
+  window.quartoOpenSearch = window.__pageSearch = function () {
+    window.__searches += 1;
+  };
   document.addEventListener('keyup', function (event) {
     if (event.key === 's') window.quartoOpenSearch();
   });
@@ -97,6 +103,22 @@ _PAGE_KEYS = """
   document.addEventListener('keydown', function (event) {
     if (event.key === 'Tab') window.__tabPrevented = event.defaultPrevented;
   });
+"""
+
+# A maidr.js that keeps the page's shortcuts off a chart's keys itself says
+# so in ``maidrLive.features``. The bundled one is made to say it.
+_NATIVE_GUARDS = """
+  (function () {
+    var live;
+    Object.defineProperty(window, 'maidrLive', {
+      configurable: true,
+      get: function () { return live; },
+      set: function (value) {
+        value.features = Object.freeze({ hostGuards: 1 });
+        live = value;
+      }
+    });
+  })();
 """
 
 
@@ -421,6 +443,32 @@ def test_the_braille_and_review_fields_keep_to_a_narrow_column(
             )
             assert fits == {"inWrapper": True, "noScroll": True}, (key, fits)
             page.keyboard.press(key)
+    finally:
+        page.close()
+
+
+def test_a_maidr_js_that_guards_the_page_itself_is_left_to_it(
+    browser, tmp_path, outputs
+):
+    """Told so by ``maidrLive.features``, inline.js wraps nothing of the page's.
+
+    What is wrapped, if anything, is maidr.js's own, which marks it.
+    """
+    head = _head(_NATIVE_GUARDS, _AMD, _DECK, _PAGE_KEYS)
+    page = _page(browser, tmp_path, _deck(outputs), head=head)
+    try:
+        assert page.evaluate("window.maidrLive.features.hostGuards") == 1
+        for key in ("ArrowRight", "s", "Control+Shift+F", "Shift+Tab"):
+            _press_in(page, 0, key)
+        wrapped_here = page.evaluate(
+            """() => ({
+                 configured: window.__configured,
+                 reveal: !!Reveal.__maidrInline && !Reveal.__maidrHostGuard,
+                 search: window.quartoOpenSearch !== window.__pageSearch
+                   && !window.quartoOpenSearch.__maidrHostGuard,
+               })"""
+        )
+        assert wrapped_here == {"configured": 0, "reveal": False, "search": False}
     finally:
         page.close()
 

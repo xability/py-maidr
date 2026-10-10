@@ -12,7 +12,8 @@
  * no listener of this script can keep a key from the page without keeping it
  * from maidr.js too. The page's shortcuts are held off where the page asks
  * whether to act -- reveal.js's keyboardCondition, Quarto's search, a bslib
- * card's Escape -- and only while the focus is in a chart. */
+ * card's Escape -- and only while the focus is in a chart, by a maidr.js that
+ * does not do so itself. */
 (function () {
   'use strict';
   if (window.__maidrInline) return;
@@ -272,11 +273,25 @@
 
   // --- Host page shortcuts ---------------------------------------------------
 
+  // A maidr.js that keeps the page's shortcuts off a chart's keys itself --
+  // these guards, the Shift+Tab hand-off and reveal.js's search key below --
+  // says so in maidrLive.features, and is left to it. It marks what it wraps
+  // with __maidrHostGuard, and honours this script's __maidrInline, so that
+  // whichever of the two comes first wraps an object and the other leaves it.
+  function nativeGuards() {
+    var live = window.maidrLive;
+    return !!(live && live.features && live.features.hostGuards >= 1);
+  }
+
+  function isGuarded(target) {
+    return !!(target.__maidrInline || target.__maidrHostGuard);
+  }
+
   // reveal.js (Quarto revealjs) reads keyboardCondition on every keydown;
   // whatever the deck set is kept.
   function shimReveal() {
     var reveal = window.Reveal;
-    if (!reveal || reveal.__maidrInline || typeof reveal.configure !== 'function' ||
+    if (!reveal || isGuarded(reveal) || typeof reveal.configure !== 'function' ||
         typeof reveal.getConfig !== 'function') {
       return;
     }
@@ -305,7 +320,7 @@
   // field, through window.quartoOpenSearch, looked up when the key is let go.
   function shimQuartoSearch() {
     var open = window.quartoOpenSearch;
-    if (typeof open !== 'function' || open.__maidrInline) return;
+    if (typeof open !== 'function' || isGuarded(open)) return;
     var guarded = function () {
       if (focusInChart()) return;
       return open.apply(this, arguments);
@@ -326,7 +341,7 @@
   function shimCard(card) {
     var Card = window[BSLIB] && window[BSLIB].Card;
     var instance = Card && typeof Card.getInstance === 'function' && Card.getInstance(card);
-    if (!instance || instance.__maidrInline || typeof instance._exitFullScreenOnEscape !== 'function') {
+    if (!instance || isGuarded(instance) || typeof instance._exitFullScreenOnEscape !== 'function') {
       return;
     }
     instance.__maidrInline = true;
@@ -343,6 +358,7 @@
   }
 
   function shimCards(node) {
+    if (nativeGuards()) return;
     for (var card = node.closest('.' + BSLIB + '-card'); card;
       card = card.parentElement && card.parentElement.closest('.' + BSLIB + '-card')) {
       shimCard(card);
@@ -350,6 +366,7 @@
   }
 
   function shimHosts() {
+    if (nativeGuards()) return;
     shimReveal();
     shimQuartoSearch();
   }
@@ -361,7 +378,7 @@
   // a command of maidr's.
   function shimRevealSearch(event) {
     if (!(event.ctrlKey || event.metaKey) || !event.shiftKey ||
-        (event.key !== 'F' && event.key !== 'f')) {
+        (event.key !== 'F' && event.key !== 'f') || nativeGuards()) {
       return;
     }
     var reveal = window.Reveal;
@@ -401,7 +418,7 @@
 
   function handOff(event) {
     if (event.key !== 'Tab' || !event.shiftKey || event.altKey || event.ctrlKey ||
-        event.metaKey || event.defaultPrevented || !window.Reveal) {
+        event.metaKey || event.defaultPrevented || !window.Reveal || nativeGuards()) {
       return;
     }
     var active = document.activeElement;
