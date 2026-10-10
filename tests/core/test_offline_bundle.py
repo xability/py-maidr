@@ -513,7 +513,7 @@ def test_init_notebook_false_injects_bundled_source(mocker, reset_notebook_loade
 
 
 def test_init_notebook_true_injects_cdn_only(mocker, reset_notebook_loaded):
-    """``init_notebook(use_cdn=True)`` emits CDN tags and no bundle."""
+    """``init_notebook(use_cdn=True)`` prefetches the CDN copy, no bundle."""
     from unittest.mock import MagicMock
 
     mocker.patch("maidr.util.environment.Environment.is_notebook", return_value=True)
@@ -531,14 +531,18 @@ def test_init_notebook_true_injects_cdn_only(mocker, reset_notebook_loaded):
 
     html_arg = fake_html_cls.call_args[0][0]
     assert "cdn.jsdelivr.net/npm/maidr" in html_arg
+    # Fetched into the cache the frames load it from, never run in the
+    # notebook's own page; see ``tests/core/test_notebook_page.py``.
+    assert html_arg.startswith('<link rel="prefetch" as="script" ')
+    assert "<script" not in html_arg
     assert "window.__maidrJsSource" not in html_arg
-    # The script tag's URL is what maidr.js resolves maidr-math.css
-    # against, so a stylesheet link would be a request for nothing.
+    # Each frame's maidr.js resolves maidr-math.css against the URL it
+    # loaded from, so a stylesheet link would be a request for nothing.
     assert "dist/maidr.css" not in html_arg
 
 
 def test_init_notebook_auto_emits_both(mocker, reset_notebook_loaded):
-    """``init_notebook(use_cdn='auto')`` ships both the bundle and the CDN."""
+    """``init_notebook(use_cdn='auto')`` stashes the bundle, prefetches the CDN."""
     from unittest.mock import MagicMock
 
     mocker.patch("maidr.util.environment.Environment.is_notebook", return_value=True)
@@ -558,6 +562,7 @@ def test_init_notebook_auto_emits_both(mocker, reset_notebook_loaded):
     assert "window.__maidrJsSource" in html_arg
     assert "window.__maidrMathCssSource" in html_arg
     assert "cdn.jsdelivr.net/npm/maidr" in html_arg
+    assert '<link rel="prefetch" as="script" ' in html_arg
     assert "dist/maidr.css" not in html_arg
 
 
