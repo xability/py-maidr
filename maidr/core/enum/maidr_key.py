@@ -7,6 +7,10 @@ class MaidrKey(str, Enum):
     ORIENTATION = "orientation"
     SELECTOR = "selectors"
     TYPE = "type"
+    #: The chart's starting value for the reader's Hover Mode setting:
+    #: "pointermove", "click" or "off". Top-level only, and left out unless
+    #: the author set one; see :mod:`maidr.util.hover_mode`.
+    HOVER_MODE = "hoverMode"
 
     # Plot data keys.
     AXES = "axes"

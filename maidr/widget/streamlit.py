@@ -68,6 +68,7 @@ from __future__ import annotations
 import warnings
 from typing import Any, Literal, Optional, Union
 
+from maidr.util.hover_mode import HoverMode
 from maidr.util.iframe_utils import iframe_title
 from maidr.widget._document import render as render_document
 
@@ -85,7 +86,11 @@ _LEGACY_FALLBACK_HEIGHT = 600
 
 
 def maidr_html(
-    plot: Any = None, *, use_cdn: UseCdn = None, _stacklevel: int = 3
+    plot: Any = None,
+    *,
+    use_cdn: UseCdn = None,
+    hover_mode: Optional[HoverMode] = None,
+    _stacklevel: int = 3,
 ) -> str:
     """
     Return an accessible chart as a self-contained HTML string.
@@ -102,6 +107,9 @@ def maidr_html(
     use_cdn : bool, {"auto"}, or None, default None
         Where the chart loads ``maidr.js`` from; see :func:`maidr.render`.
         ``None`` defers to the process-wide default.
+    hover_mode : {"pointermove", "click", "off"} or None, default None
+        The chart's starting value for the reader's Hover Mode setting; see
+        :func:`maidr.render`. ``None`` leaves maidr.js's default.
     _stacklevel : int, default 3
         Internal. Frames to skip when warning, so a warning points at the
         caller's own line; :func:`render_maidr` raises it by one because it
@@ -145,11 +153,17 @@ def maidr_html(
     drops :class:`htmltools.HTMLDependency` children on the way, so a
     reference to the bundle would not survive; the source itself has to.
     """
-    html, _title = _render(plot, use_cdn, _stacklevel + 1)
+    html, _title = _render(plot, use_cdn, _stacklevel + 1, hover_mode=hover_mode)
     return html
 
 
-def _render(plot: Any, use_cdn: UseCdn, stacklevel: int) -> tuple[str, str]:
+def _render(
+    plot: Any,
+    use_cdn: UseCdn,
+    stacklevel: int,
+    *,
+    hover_mode: Optional[HoverMode] = None,
+) -> tuple[str, str]:
     """
     Render a chart to HTML, and report the title it is known by.
 
@@ -166,6 +180,8 @@ def _render(plot: Any, use_cdn: UseCdn, stacklevel: int) -> tuple[str, str]:
         As for :func:`maidr_html`.
     stacklevel : int
         As ``_stacklevel`` on :func:`maidr_html`, counted from here.
+    hover_mode : {"pointermove", "click", "off"} or None, default None
+        As for :func:`maidr_html`.
 
     Returns
     -------
@@ -194,7 +210,7 @@ def _render(plot: Any, use_cdn: UseCdn, stacklevel: int) -> tuple[str, str]:
             stacklevel=stacklevel - 1,
         )
     # One frame further in, so one more to skip.
-    return render_document(plot, use_cdn, stacklevel + 1)
+    return render_document(plot, use_cdn, stacklevel + 1, hover_mode=hover_mode)
 
 
 def render_maidr(
@@ -204,6 +220,7 @@ def render_maidr(
     width: Size = "stretch",
     tab_index: Optional[int] = None,
     use_cdn: UseCdn = None,
+    hover_mode: Optional[HoverMode] = None,
 ) -> None:
     """
     Draw an accessible MAIDR chart in a Streamlit app.
@@ -240,6 +257,9 @@ def render_maidr(
         over :func:`maidr.set_use_cdn`: the setter writes process-wide
         state, and Streamlit runs sessions on separate threads, so one
         session calling it changes what every other session renders.
+    hover_mode : {"pointermove", "click", "off"} or None, default None
+        The chart's starting value for the reader's Hover Mode setting; see
+        :func:`maidr.render`. ``None`` leaves maidr.js's default.
 
     Returns
     -------
@@ -278,7 +298,7 @@ def render_maidr(
 
     # Called at the depth ``maidr_html`` sits at, so it takes the number
     # ``render_maidr`` used to pass that: one past the default.
-    html, chart_title = _render(plot, use_cdn, stacklevel=4)
+    html, chart_title = _render(plot, use_cdn, stacklevel=4, hover_mode=hover_mode)
 
     # Streamlit builds this frame itself, so maidr cannot put an ``allow``
     # attribute on it the way the notebook wrappers do (see

@@ -54,6 +54,7 @@ from maidr.plotnine.layers import (
 )
 from maidr.util.caller_warning import warn_at_caller
 from maidr.util.fallback import fallback_tag
+from maidr.util.hover_mode import HoverMode
 
 #: The oldest plotnine :mod:`maidr.plotnine.layers` was measured against, and
 #: the newest that installs on Python 3.9. Nothing older was measured, and the
@@ -102,22 +103,31 @@ class PlotnineMaidr:
         """The matplotlib figure plotnine drew."""
         return self._figure
 
-    def render(self, use_cdn: bool | Literal["auto"] = "auto") -> Tag:
+    def render(
+        self,
+        use_cdn: bool | Literal["auto"] = "auto",
+        *,
+        hover_mode: HoverMode | None = None,
+    ) -> Tag:
         """Return the accessible plot inside an iframe.
 
         Parameters
         ----------
         use_cdn : bool or {"auto"}, default="auto"
             Where ``maidr.js`` is loaded from; see :func:`maidr.render`.
+        hover_mode : {"pointermove", "click", "off"} or None, default=None
+            The chart's starting hover mode; see :func:`maidr.render`.
         """
         if not self._maidr.plots:
             return fallback_tag(self._figure, _NOTHING_READ)
-        return self._maidr.render(use_cdn=use_cdn)
+        return self._maidr.render(use_cdn=use_cdn, hover_mode=hover_mode)
 
     def show(
         self,
         renderer: Literal["auto", "ipython", "browser"] = "auto",
         use_cdn: bool | Literal["auto"] = "auto",
+        *,
+        hover_mode: HoverMode | None = None,
     ) -> object:
         """Display the accessible plot.
 
@@ -127,10 +137,14 @@ class PlotnineMaidr:
             Renderer to use.
         use_cdn : bool or {"auto"}, default="auto"
             See :meth:`render`.
+        hover_mode : {"pointermove", "click", "off"} or None, default=None
+            The chart's starting hover mode; see :func:`maidr.render`.
         """
         if not self._maidr.plots:
             return fallback_tag(self._figure, _NOTHING_READ).show()
-        return self._maidr.show(renderer, clear_fig=True, use_cdn=use_cdn)
+        return self._maidr.show(
+            renderer, clear_fig=True, use_cdn=use_cdn, hover_mode=hover_mode
+        )
 
     def save_html(
         self,
@@ -140,6 +154,7 @@ class PlotnineMaidr:
         include_version: bool = True,
         data_in_svg: bool = True,
         use_cdn: bool | Literal["auto"] = "auto",
+        hover_mode: HoverMode | None = None,
     ) -> str:
         """Save the accessible plot as an HTML file.
 
@@ -156,6 +171,8 @@ class PlotnineMaidr:
             :meth:`maidr.core.maidr.Maidr.save_html`.
         use_cdn : bool or {"auto"}, default="auto"
             See :meth:`render`.
+        hover_mode : {"pointermove", "click", "off"} or None, default=None
+            The chart's starting hover mode; see :func:`maidr.render`.
         """
         if not self._maidr.plots:
             return fallback_tag(self._figure, _NOTHING_READ).save_html(file)
@@ -165,6 +182,7 @@ class PlotnineMaidr:
             include_version=include_version,
             data_in_svg=data_in_svg,
             use_cdn=use_cdn,
+            hover_mode=hover_mode,
         )
 
     def _flatten_maidr(self) -> dict:

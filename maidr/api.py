@@ -20,6 +20,7 @@ from maidr.util.metric_chart import MetricChart
 from maidr.exception.unsupported_plot_error import UnsupportedPlotError
 from maidr.util.environment import Environment
 from maidr.util.fallback import fallback_tag, warn_unsupported
+from maidr.util.hover_mode import HoverMode, check_hover_mode
 from maidr.util.pyodide_display import warn_no_page
 
 
@@ -325,6 +326,39 @@ def _warn_altair_ignores_use_cdn(
         f"published on a CDN, so the page still loads {_listed()} remotely "
         "and will not initialize without network access. Render the "
         "same data through matplotlib or seaborn for an offline chart.",
+        stacklevel=stacklevel,
+    )
+
+
+def _warn_altair_ignores_hover_mode(
+    hover_mode: HoverMode | None, *, stacklevel: int
+) -> None:
+    """Say that ``hover_mode`` cannot be honored for an Altair chart.
+
+    The Altair path builds no schema in Python: the upstream Vega-Lite
+    adapter builds it in the browser, from the spec, and the options its
+    ``embed`` takes (``id``, ``title``, ``domOrder``) do not reach the
+    schema's top-level fields. So there is nowhere to put ``hoverMode``,
+    and the chart starts in maidr.js's default mode whatever was asked.
+
+    Parameters
+    ----------
+    hover_mode : {"pointermove", "click", "off"} or None
+        The caller's value, already checked. ``None`` asks for nothing and
+        does not warn.
+    stacklevel : int
+        Passed through to :func:`warnings.warn`; see
+        :func:`_warn_altair_ignores_use_cdn`.
+    """
+    if hover_mode is None:
+        return
+
+    warnings.warn(
+        f"maidr: hover_mode={hover_mode!r} cannot be honored for an Altair "
+        "chart. That path renders through the upstream Vega-Lite adapter, "
+        "which builds the chart's schema in the browser and takes no hover "
+        "mode, so the chart starts in maidr.js's default mode. A reader can "
+        "still change Hover Mode in the chart's settings.",
         stacklevel=stacklevel,
     )
 
@@ -769,6 +803,8 @@ def _figure_or_raise(plot: Any) -> Figure:
 def render(
     plot: Any | None = None,
     use_cdn: bool | Literal["auto"] | None = None,
+    *,
+    hover_mode: HoverMode | None = None,
 ) -> Tag:
     """
     Render a MAIDR plot to HTML.
@@ -799,31 +835,55 @@ def render(
         Altair charts always use the CDN — this argument is not
         plumbed through that adapter, so ``False`` warns rather than
         taking effect (#521).
+    hover_mode : {"pointermove", "click", "off"} or None, default=None
+        The chart's starting value for the reader's Hover Mode setting,
+        written to the MAIDR schema as ``hoverMode``:
+
+        * ``"pointermove"``: moving the pointer over the chart moves the
+          reader's position and highlights what is under it (maidr.js's
+          default).
+        * ``"click"``: the position moves only when the reader clicks.
+        * ``"off"``: the pointer is ignored; the chart is keyboard only.
+        * ``None`` (default): leave ``hoverMode`` out, so maidr.js uses its
+          default.
+
+        A reader who has changed Hover Mode in the chart's settings keeps
+        their own choice. A maidr.js release older than the field ignores
+        it. Altair charts do not support it -- their schema is built by the
+        upstream Vega-Lite adapter -- so a value other than ``None`` warns
+        there and has no effect.
 
     Returns
     -------
     htmltools.Tag
         The rendered HTML representation of the plot.
+
+    Raises
+    ------
+    ValueError
+        If ``hover_mode`` is not one of the values above.
     """
+    hover_mode = check_hover_mode(hover_mode)
     if _is_altair_chart(plot):
         from maidr.altair import AltairMaidr
 
         _warn_altair_ignores_use_cdn(use_cdn, stacklevel=3)
+        _warn_altair_ignores_hover_mode(hover_mode, stacklevel=3)
 
         return AltairMaidr(plot).render()
 
     use_cdn = _resolve_use_cdn(use_cdn)
     if plot is not None and _is_plotly_figure(plot):
-        return _get_plotly_maidr(plot).render(use_cdn=use_cdn)
+        return _get_plotly_maidr(plot).render(use_cdn=use_cdn, hover_mode=hover_mode)
     if plot is not None and _is_bokeh_model(plot):
-        return _get_bokeh_maidr(plot).render(use_cdn=use_cdn)
+        return _get_bokeh_maidr(plot).render(use_cdn=use_cdn, hover_mode=hover_mode)
     if plot is not None and _is_plotnine_plot(plot):
-        return _get_plotnine_maidr(plot).render(use_cdn=use_cdn)
+        return _get_plotnine_maidr(plot).render(use_cdn=use_cdn, hover_mode=hover_mode)
 
     fig = _figure_or_raise(_get_plot_or_current(plot))
     try:
         maidr = FigureManager.get_maidr(fig)
-        return maidr.render(use_cdn=use_cdn)
+        return maidr.render(use_cdn=use_cdn, hover_mode=hover_mode)
     except UnsupportedPlotError as error:
         warn_unsupported(error, stacklevel=3)
         return fallback_tag(error.fig, error.message)
@@ -834,6 +894,8 @@ def show(
     renderer: Literal["auto", "ipython", "browser"] = "auto",
     clear_fig: bool = True,
     use_cdn: bool | Literal["auto"] | None = None,
+    *,
+    hover_mode: HoverMode | None = None,
 ) -> object:
     """
     Display a MAIDR plot.
@@ -858,11 +920,20 @@ def show(
         bounded by ``MAIDR_CDN_TIMEOUT``; ``MAIDR_CDN_VERSION`` skips it.
         ``False`` makes no request.  Altair charts always use the CDN —
         this argument is not plumbed through that adapter.
+    hover_mode : {"pointermove", "click", "off"} or None, default=None
+        The chart's starting hover mode, written to the schema as
+        ``hoverMode``. See :func:`render` for the values. ``None`` leaves
+        it out; Altair charts warn and ignore it.
 
     Returns
     -------
     object
         The display result.
+
+    Raises
+    ------
+    ValueError
+        If ``hover_mode`` is not one of the values :func:`render` lists.
 
     Notes
     -----
@@ -875,6 +946,7 @@ def show(
     # every renderer below would end in `webbrowser.open`, which raises
     # there. Nothing is drawn or closed, so the figure is still there for
     # the `maidr.render` the warning points to.
+    hover_mode = check_hover_mode(hover_mode)
     if Environment.is_pyodide_without_page():
         return warn_no_page()
 
@@ -882,21 +954,30 @@ def show(
         from maidr.altair import AltairMaidr
 
         _warn_altair_ignores_use_cdn(use_cdn, stacklevel=3)
+        _warn_altair_ignores_hover_mode(hover_mode, stacklevel=3)
 
         return AltairMaidr(plot).show(renderer)
 
     use_cdn = _resolve_use_cdn(use_cdn)
     if plot is not None and _is_plotly_figure(plot):
-        return _get_plotly_maidr(plot).show(renderer, use_cdn=use_cdn)
+        return _get_plotly_maidr(plot).show(
+            renderer, use_cdn=use_cdn, hover_mode=hover_mode
+        )
     if plot is not None and _is_bokeh_model(plot):
-        return _get_bokeh_maidr(plot).show(renderer, use_cdn=use_cdn)
+        return _get_bokeh_maidr(plot).show(
+            renderer, use_cdn=use_cdn, hover_mode=hover_mode
+        )
     if plot is not None and _is_plotnine_plot(plot):
-        return _get_plotnine_maidr(plot).show(renderer, use_cdn=use_cdn)
+        return _get_plotnine_maidr(plot).show(
+            renderer, use_cdn=use_cdn, hover_mode=hover_mode
+        )
 
     fig = _figure_or_raise(_get_plot_or_current(plot))
     try:
         maidr = FigureManager.get_maidr(fig)
-        return maidr.show(renderer, clear_fig=clear_fig, use_cdn=use_cdn)
+        return maidr.show(
+            renderer, clear_fig=clear_fig, use_cdn=use_cdn, hover_mode=hover_mode
+        )
     except UnsupportedPlotError as error:
         warn_unsupported(error, stacklevel=3)
         return fallback_tag(error.fig, error.message).show()
@@ -910,6 +991,7 @@ def save_html(
     include_version: bool = True,
     data_in_svg: bool = True,
     use_cdn: bool | Literal["auto"] | None = None,
+    hover_mode: HoverMode | None = None,
 ) -> str:
     """
     Save a MAIDR plot as HTML file.
@@ -952,6 +1034,10 @@ def save_html(
         bounded by ``MAIDR_CDN_TIMEOUT``; ``MAIDR_CDN_VERSION`` skips it.
         ``False`` makes no request.  Altair charts always use the CDN —
         this argument is not plumbed through that adapter.
+    hover_mode : {"pointermove", "click", "off"} or None, default=None
+        The chart's starting hover mode, written to the schema as
+        ``hoverMode``. See :func:`render` for the values. ``None`` leaves
+        it out; Altair charts warn and ignore it.
 
     Returns
     -------
@@ -962,6 +1048,8 @@ def save_html(
     ------
     TypeError
         If ``file`` is not given.
+    ValueError
+        If ``hover_mode`` is not one of the values :func:`render` lists.
     """
     # `file` has a default only so that it can follow the optional `plot`
     # positionally; it is no less required than it was as a keyword-only
@@ -969,11 +1057,13 @@ def save_html(
     # `None` path would raise from inside htmltools.
     if file is None:
         raise TypeError("save_html() missing required argument: 'file'")
+    hover_mode = check_hover_mode(hover_mode)
 
     if _is_altair_chart(plot):
         from maidr.altair import AltairMaidr
 
         _warn_altair_ignores_use_cdn(use_cdn, stacklevel=3)
+        _warn_altair_ignores_hover_mode(hover_mode, stacklevel=3)
 
         return AltairMaidr(plot).save_html(
             file,
@@ -989,6 +1079,7 @@ def save_html(
             lib_dir=lib_dir,
             include_version=include_version,
             use_cdn=use_cdn,
+            hover_mode=hover_mode,
         )
     if plot is not None and _is_bokeh_model(plot):
         return _get_bokeh_maidr(plot).save_html(
@@ -996,6 +1087,7 @@ def save_html(
             lib_dir=lib_dir,
             include_version=include_version,
             use_cdn=use_cdn,
+            hover_mode=hover_mode,
         )
     if plot is not None and _is_plotnine_plot(plot):
         return _get_plotnine_maidr(plot).save_html(
@@ -1004,6 +1096,7 @@ def save_html(
             include_version=include_version,
             data_in_svg=data_in_svg,
             use_cdn=use_cdn,
+            hover_mode=hover_mode,
         )
 
     # Resolved to the figure once. The Figure form -- which includes the
@@ -1019,6 +1112,7 @@ def save_html(
             include_version=include_version,
             data_in_svg=data_in_svg,
             use_cdn=use_cdn,
+            hover_mode=hover_mode,
         )
     except UnsupportedPlotError as error:
         # A file still gets written, holding the image and the reason. Raising

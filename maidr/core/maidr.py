@@ -26,6 +26,7 @@ from maidr.core.plot.barplot import BarPlot
 from maidr.core.plot.grouped_barplot import GroupedBarPlot
 from maidr.util.caller_warning import warn_at_caller
 from maidr.util.figure_lock import figure_lock
+from maidr.util.hover_mode import HoverMode, with_hover_mode
 from maidr.util.pyodide_display import show_in_page
 from maidr.util.render_census import artist_census, warn_if_figure_changed
 from maidr.util.bundle_capability import (
@@ -264,7 +265,12 @@ class Maidr:
         """Return the list of plots extracted from the ``fig``."""
         return self._plots
 
-    def render(self, use_cdn: bool | Literal["auto"] = "auto") -> Tag:
+    def render(
+        self,
+        use_cdn: bool | Literal["auto"] = "auto",
+        *,
+        hover_mode: HoverMode | None = None,
+    ) -> Tag:
         """Return the maidr plot inside an iframe.
 
         Parameters
@@ -294,8 +300,15 @@ class Maidr:
                deployment use ``use_cdn=False``, which inlines the
                bundle. The browser console says so if the fallback is
                ever reached (#455).
+        hover_mode : {"pointermove", "click", "off"} or None, default=None
+            The chart's starting value for the reader's Hover Mode setting,
+            written to the schema as ``hoverMode``. ``None`` leaves it out,
+            so maidr.js uses its default, ``"pointermove"``. See
+            :func:`maidr.render`.
         """
-        return self._create_html_tag(use_iframe=True, use_cdn=use_cdn)
+        return self._create_html_tag(
+            use_iframe=True, use_cdn=use_cdn, hover_mode=hover_mode
+        )
 
     def save_html(
         self,
@@ -305,6 +318,7 @@ class Maidr:
         include_version: bool = True,
         data_in_svg: bool = True,
         use_cdn: bool | Literal["auto"] = "auto",
+        hover_mode: HoverMode | None = None,
     ) -> str:
         """
         Save the HTML representation of the figure with MAIDR to a file.
@@ -332,6 +346,11 @@ class Maidr:
               to the bundled copy client-side if the CDN request fails.
               The bundled files are still copied alongside the HTML so
               the fallback works offline.
+        hover_mode : {"pointermove", "click", "off"} or None, default=None
+            The chart's starting value for the reader's Hover Mode setting,
+            written to the schema as ``hoverMode``. ``None`` leaves it out,
+            so maidr.js uses its default, ``"pointermove"``. See
+            :func:`maidr.render`.
         """
         # A reader with no network may still have a DotPad. When the SDK
         # has been downloaded (``maidr.download_dotpad_sdk()``) it rides
@@ -341,6 +360,7 @@ class Maidr:
             use_iframe=False,
             data_in_svg=data_in_svg,
             use_cdn=use_cdn,
+            hover_mode=hover_mode,
             prelude=local_dotpad_sdk_dependency(
                 use_cdn=use_cdn, lib_prefix=lib_dir, include_version=include_version
             ),
@@ -368,6 +388,8 @@ class Maidr:
         renderer: Literal["auto", "ipython", "browser"] = "auto",
         clear_fig: bool = True,
         use_cdn: bool | Literal["auto"] = "auto",
+        *,
+        hover_mode: HoverMode | None = None,
     ) -> object:
         """
         Preview the HTML content using the specified renderer.
@@ -385,6 +407,11 @@ class Maidr:
               the assets are copied next to the temporary HTML file.
             * ``"auto"`` (default): attempt the CDN first and fall back
               to the bundled copy client-side if the CDN request fails.
+        hover_mode : {"pointermove", "click", "off"} or None, default=None
+            The chart's starting value for the reader's Hover Mode setting,
+            written to the schema as ``hoverMode``. ``None`` leaves it out,
+            so maidr.js uses its default, ``"pointermove"``. See
+            :func:`maidr.render`.
         """
         # Stash the bundled ``maidr.js`` and its KaTeX stylesheet on the
         # page right before the iframe is emitted: in a notebook it is the
@@ -412,7 +439,9 @@ class Maidr:
         # A bare Pyodide page has no browser to open and no file to open in
         # it, so the chart is placed in the page itself.
         if Environment.is_pyodide_page():
-            html = self._create_html_tag(use_iframe=True, use_cdn=use_cdn)
+            html = self._create_html_tag(
+                use_iframe=True, use_cdn=use_cdn, hover_mode=hover_mode
+            )
             if clear_fig:
                 plt.close(self._fig)
             return show_in_page(html)
@@ -423,13 +452,13 @@ class Maidr:
         # this decision: it would rasterise the SVG and dump the schema
         # twice and throw the first copy away.
         if _renderer == "browser" and not Environment.is_notebook():
-            return self._open_plot_in_browser(use_cdn=use_cdn)
+            return self._open_plot_in_browser(use_cdn=use_cdn, hover_mode=hover_mode)
 
         # Displayed now, so the copy of the bundle it may carry is in the page
         # for the render's later charts; see ``maidr.api._quarto_stash``.
         with showing():
             html = self._create_html_tag(
-                use_iframe=True, use_cdn=use_cdn
+                use_iframe=True, use_cdn=use_cdn, hover_mode=hover_mode
             )  # Always use iframe for display
 
         if clear_fig:
@@ -491,7 +520,12 @@ class Maidr:
         del self._plots
         del self._fig
 
-    def _open_plot_in_browser(self, use_cdn: bool | Literal["auto"] = "auto") -> None:
+    def _open_plot_in_browser(
+        self,
+        use_cdn: bool | Literal["auto"] = "auto",
+        *,
+        hover_mode: HoverMode | None = None,
+    ) -> None:
         """Open the rendered HTML content using a temporary file.
 
         Parameters
@@ -501,6 +535,8 @@ class Maidr:
             ``maidr.js`` and its assets next to the temporary HTML file
             so the browser can load them over ``file://`` without any
             network access.
+        hover_mode : {"pointermove", "click", "off"} or None, default=None
+            Passed to :meth:`save_html`.
         """
         system_temp_dir = tempfile.gettempdir()
         static_temp_dir = os.path.join(system_temp_dir, "maidr")
@@ -508,7 +544,7 @@ class Maidr:
 
         temp_file_path = os.path.join(static_temp_dir, "maidr_plot.html")
         html_file_path = self.save_html(
-            temp_file_path, use_cdn=use_cdn
+            temp_file_path, use_cdn=use_cdn, hover_mode=hover_mode
         )  # This will use use_iframe=False
         if Environment.is_wsl():
             wsl_distro_name = Environment.get_wsl_distro_name()
@@ -555,6 +591,8 @@ class Maidr:
         use_iframe: bool = True,
         data_in_svg: bool = True,
         use_cdn: bool | Literal["auto"] = "auto",
+        *,
+        hover_mode: HoverMode | None = None,
     ) -> Tag:
         """Create the MAIDR HTML using HTML tags, one render of a figure at a time.
 
@@ -606,15 +644,21 @@ class Maidr:
         use_cdn : bool or {"auto"}, default="auto"
             Controls how ``maidr.js`` is referenced.  See :meth:`render`
             for the three possible modes.
+        hover_mode : {"pointermove", "click", "off"} or None, default=None
+            Written to the schema as ``hoverMode``; see :meth:`render`.
         """
         with figure_lock(self._fig):
-            return self._build_html_tag(use_iframe, data_in_svg, use_cdn=use_cdn)
+            return self._build_html_tag(
+                use_iframe, data_in_svg, use_cdn=use_cdn, hover_mode=hover_mode
+            )
 
     def _build_html_tag(
         self,
         use_iframe: bool = True,
         data_in_svg: bool = True,
         use_cdn: bool | Literal["auto"] = "auto",
+        *,
+        hover_mode: HoverMode | None = None,
     ) -> Tag:
         """Render the chart. Callers want :meth:`_create_html_tag`, which locks.
 
@@ -644,7 +688,7 @@ class Maidr:
 
         # Build schema once so id stays consistent across SVG and global var
         drawn_before = artist_census(self._fig)
-        schema = self._flatten_maidr()
+        schema = with_hover_mode(self._flatten_maidr(), hover_mode)
 
         # Ask the bundle whether it can draw what this render is about to
         # hand it. Distance in version numbers cannot answer that, and the
@@ -720,6 +764,7 @@ class Maidr:
         data_in_svg: bool = True,
         use_cdn: bool | Literal["auto"] = "auto",
         *,
+        hover_mode: HoverMode | None = None,
         prelude: Any = None,
     ) -> HTMLDocument:
         """Create an HTML document from Tag objects.
@@ -732,11 +777,15 @@ class Maidr:
             See _create_html_tag for details on payload placement strategy.
         use_cdn : bool or {"auto"}, default="auto"
             Controls how ``maidr.js`` is referenced.  See :meth:`render`.
+        hover_mode : {"pointermove", "click", "off"} or None, default=None
+            Written to the schema as ``hoverMode``; see :meth:`render`.
         prelude : TagChild, optional
             A child placed ahead of the chart, so a dependency it carries
             renders its head above the bundle's.
         """
-        tag = self._create_html_tag(use_iframe, data_in_svg, use_cdn=use_cdn)
+        tag = self._create_html_tag(
+            use_iframe, data_in_svg, use_cdn=use_cdn, hover_mode=hover_mode
+        )
         children = [tag] if prelude is None else [prelude, tag]
         return HTMLDocument(*children, lang="en")
 

@@ -53,6 +53,7 @@ from maidr.util.bundle_loader import (
 )
 from maidr.util.dotpad import dotpad_config_child, local_dotpad_sdk_dependency
 from maidr.util.environment import Environment
+from maidr.util.hover_mode import HoverMode, with_hover_mode
 from maidr.util.iframe_utils import (
     chart_title_of,
     with_chart_title,
@@ -1470,7 +1471,12 @@ class PlotlyMaidr:
 
         self._plots = [plot for plot in self._plots if _carries_data(plot)]
 
-    def render(self, use_cdn: bool | Literal["auto"] = "auto") -> Tag:
+    def render(
+        self,
+        use_cdn: bool | Literal["auto"] = "auto",
+        *,
+        hover_mode: HoverMode | None = None,
+    ) -> Tag:
         """Return the maidr plot inside an iframe.
 
         Parameters
@@ -1480,13 +1486,21 @@ class PlotlyMaidr:
             * ``False``: reference the bundled ``maidr.js`` assets.
             * ``"auto"`` (default): attempt the CDN first and fall back
               to the bundled copy client-side if the CDN request fails.
+        hover_mode : {"pointermove", "click", "off"} or None, default=None
+            The chart's starting value for the reader's Hover Mode setting,
+            written to the schema as ``hoverMode``. ``None`` leaves it out,
+            so maidr.js uses its default. See :func:`maidr.render`.
         """
-        return self._create_html_tag(use_iframe=True, use_cdn=use_cdn)
+        return self._create_html_tag(
+            use_iframe=True, use_cdn=use_cdn, hover_mode=hover_mode
+        )
 
     def show(
         self,
         renderer: Literal["auto", "ipython", "browser"] = "auto",
         use_cdn: bool | Literal["auto"] = "auto",
+        *,
+        hover_mode: HoverMode | None = None,
     ) -> object:
         """Display the accessible Plotly plot.
 
@@ -1496,6 +1510,8 @@ class PlotlyMaidr:
             Renderer to use.
         use_cdn : bool or {"auto"}, default="auto"
             See :meth:`render` for the three possible modes.
+        hover_mode : {"pointermove", "click", "off"} or None, default=None
+            Written to the schema as ``hoverMode``; see :meth:`render`.
         """
         # Proactively stash the bundled ``maidr.js`` and KaTeX source on
         # the parent notebook ``window`` so the iframe bootstrap below
@@ -1520,16 +1536,22 @@ class PlotlyMaidr:
 
         # A Pyodide page has no browser to open; the chart goes in the page.
         if Environment.is_pyodide_page():
-            return show_in_page(self._create_html_tag(use_iframe=True, use_cdn=use_cdn))
+            return show_in_page(
+                self._create_html_tag(
+                    use_iframe=True, use_cdn=use_cdn, hover_mode=hover_mode
+                )
+            )
 
         # The browser path renders through `save_html`, which builds the
         # whole document itself, so the Tag must not be built ahead of
         # this decision: that would serialize the figure and the schema
         # twice and throw the first copy away.
         if _renderer == "browser" and not Environment.is_notebook():
-            return self._open_plot_in_browser(use_cdn=use_cdn)
+            return self._open_plot_in_browser(use_cdn=use_cdn, hover_mode=hover_mode)
 
-        html = self._create_html_tag(use_iframe=True, use_cdn=use_cdn)
+        html = self._create_html_tag(
+            use_iframe=True, use_cdn=use_cdn, hover_mode=hover_mode
+        )
         return html.show(_renderer)
 
     def save_html(
@@ -1539,6 +1561,7 @@ class PlotlyMaidr:
         lib_dir: str | None = "lib",
         include_version: bool = True,
         use_cdn: bool | Literal["auto"] = "auto",
+        hover_mode: HoverMode | None = None,
     ) -> str:
         """Save the accessible HTML representation to a file.
 
@@ -1554,6 +1577,8 @@ class PlotlyMaidr:
             See :meth:`render` for the three possible modes.  When set
             to ``False`` or ``"auto"`` the bundled MAIDR JS assets are
             copied into ``lib_dir`` alongside the saved HTML.
+        hover_mode : {"pointermove", "click", "off"} or None, default=None
+            Written to the schema as ``hoverMode``; see :meth:`render`.
         """
         # A downloaded DotPad SDK travels in ``lib_dir`` with the bundle,
         # declared ahead of it, so the offline document reaches a tactile
@@ -1561,6 +1586,7 @@ class PlotlyMaidr:
         html = self._create_html_doc(
             use_iframe=False,
             use_cdn=use_cdn,
+            hover_mode=hover_mode,
             prelude=local_dotpad_sdk_dependency(
                 use_cdn=use_cdn, lib_prefix=lib_dir, include_version=include_version
             ),
@@ -1831,6 +1857,8 @@ class PlotlyMaidr:
         self,
         use_iframe: bool = True,
         use_cdn: bool | Literal["auto"] = "auto",
+        *,
+        hover_mode: HoverMode | None = None,
     ) -> Tag:
         """Create HTML with interactive Plotly chart and MAIDR accessibility.
 
@@ -1852,13 +1880,15 @@ class PlotlyMaidr:
             notebook / Shiny / Flask environments.
         use_cdn : bool or {"auto"}, default="auto"
             See :meth:`render` for mode descriptions.
+        hover_mode : {"pointermove", "click", "off"} or None, default=None
+            Written to the schema as ``hoverMode``; see :meth:`render`.
         """
         # Whether this render is iframed, and whether that frame reads the
         # parent-window stash or carries the bundle inline; see
         # :func:`maidr.util.bundle_loader.iframe_mode`.
         will_iframe, iframe_in_notebook, iframe_inline_bundle = iframe_mode(use_iframe)
 
-        schema = self._flatten_maidr()
+        schema = with_hover_mode(self._flatten_maidr(), hover_mode)
 
         # Same question the matplotlib path asks: can the copy that will
         # run actually draw these layers (#358)? Version distance cannot
@@ -1914,14 +1944,20 @@ class PlotlyMaidr:
         use_iframe: bool = True,
         use_cdn: bool | Literal["auto"] = "auto",
         *,
+        hover_mode: HoverMode | None = None,
         prelude: Any = None,
     ) -> HTMLDocument:
         """Create a full HTML document."""
-        tag = self._create_html_tag(use_iframe, use_cdn=use_cdn)
+        tag = self._create_html_tag(use_iframe, use_cdn=use_cdn, hover_mode=hover_mode)
         children = [tag] if prelude is None else [prelude, tag]
         return HTMLDocument(*children, lang="en")
 
-    def _open_plot_in_browser(self, use_cdn: bool | Literal["auto"] = "auto") -> None:
+    def _open_plot_in_browser(
+        self,
+        use_cdn: bool | Literal["auto"] = "auto",
+        *,
+        hover_mode: HoverMode | None = None,
+    ) -> None:
         """Open the rendered HTML in a browser via a temp file.
 
         Parameters
@@ -1930,13 +1966,17 @@ class PlotlyMaidr:
             Bundle MAIDR JS assets next to the temp HTML file when
             ``False`` (or ``"auto"``) so the browser can load everything
             over ``file://`` without network access.
+        hover_mode : {"pointermove", "click", "off"} or None, default=None
+            Passed to :meth:`save_html`.
         """
         system_temp_dir = tempfile.gettempdir()
         static_temp_dir = os.path.join(system_temp_dir, "maidr")
         os.makedirs(static_temp_dir, exist_ok=True)
 
         temp_file_path = os.path.join(static_temp_dir, "maidr_plotly_plot.html")
-        html_file_path = self.save_html(temp_file_path, use_cdn=use_cdn)
+        html_file_path = self.save_html(
+            temp_file_path, use_cdn=use_cdn, hover_mode=hover_mode
+        )
         webbrowser.open(f"file://{html_file_path}")
 
 

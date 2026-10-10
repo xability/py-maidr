@@ -29,6 +29,7 @@ from typing import Any, Literal, Optional, Union
 
 from htmltools import HTML, tags
 
+from maidr.util.hover_mode import HoverMode
 from maidr.util.iframe_utils import wrap_in_iframe_matplotlib
 from maidr.widget._document import render as render_document
 
@@ -36,7 +37,9 @@ from maidr.widget._document import render as render_document
 UseCdn = Optional[Union[bool, Literal["auto"]]]
 
 
-def render_maidr(plot: Any, *, use_cdn: UseCdn = None) -> str:
+def render_maidr(
+    plot: Any, *, use_cdn: UseCdn = None, hover_mode: Optional[HoverMode] = None
+) -> str:
     """
     Return the markup of an accessible chart, for a ``gr.HTML`` component.
 
@@ -59,6 +62,9 @@ def render_maidr(plot: Any, *, use_cdn: UseCdn = None) -> str:
         :func:`maidr.get_use_cdn`. Prefer this argument to
         :func:`maidr.set_use_cdn`, which changes what every user's handler
         renders.
+    hover_mode : {"pointermove", "click", "off"} or None, default None
+        The chart's starting value for the reader's Hover Mode setting; see
+        :func:`maidr.render`. ``None`` leaves maidr.js's default.
 
     Returns
     -------
@@ -92,10 +98,16 @@ def render_maidr(plot: Any, *, use_cdn: UseCdn = None) -> str:
             "figure is shared by every user of a Gradio app, so it is not "
             "read in its place."
         )
-    return _markup(plot, use_cdn, stacklevel=5)
+    return _markup(plot, use_cdn, stacklevel=5, hover_mode=hover_mode)
 
 
-def output_maidr(plot: Any = None, *, use_cdn: UseCdn = None, **kwargs: Any) -> Any:
+def output_maidr(
+    plot: Any = None,
+    *,
+    use_cdn: UseCdn = None,
+    hover_mode: Optional[HoverMode] = None,
+    **kwargs: Any,
+) -> Any:
     """
     Make a ``gr.HTML`` component holding an accessible chart.
 
@@ -106,6 +118,8 @@ def output_maidr(plot: Any = None, *, use_cdn: UseCdn = None, **kwargs: Any) -> 
         component empty, for an event handler to fill with
         :func:`render_maidr`.
     use_cdn : bool, {"auto"}, or None, default None
+        As for :func:`render_maidr`.
+    hover_mode : {"pointermove", "click", "off"} or None, default None
         As for :func:`render_maidr`.
     **kwargs
         Passed on to ``gr.HTML``, such as ``label`` or ``elem_id``.
@@ -135,13 +149,24 @@ def output_maidr(plot: Any = None, *, use_cdn: UseCdn = None, **kwargs: Any) -> 
 
         raise missing_extra_error(error, "gradio", "gradio", python=(3, 10)) from error
 
-    value = None if plot is None else _markup(plot, use_cdn, stacklevel=5)
+    value = (
+        None
+        if plot is None
+        else _markup(plot, use_cdn, stacklevel=5, hover_mode=hover_mode)
+    )
     return gr.HTML(value, **kwargs)
 
 
-def _markup(plot: Any, use_cdn: UseCdn, stacklevel: int) -> str:
+def _markup(
+    plot: Any,
+    use_cdn: UseCdn,
+    stacklevel: int,
+    hover_mode: Optional[HoverMode] = None,
+) -> str:
     """The chart's frame, a warning pointing ``stacklevel`` frames out."""
-    html, title = render_document(plot, use_cdn, stacklevel=stacklevel)
+    html, title = render_document(
+        plot, use_cdn, stacklevel=stacklevel, hover_mode=hover_mode
+    )
     return str(wrap_in_iframe_matplotlib(tags.div(HTML(html)), title))
 
 

@@ -604,9 +604,9 @@ def test_the_resolved_mode_is_the_one_the_chart_was_built_with(bar_axes, monkeyp
     seen = []
     real_render = document.maidr.render
 
-    def spy(plot, use_cdn=None):
+    def spy(plot, use_cdn=None, **kwargs):
         seen.append(use_cdn)
-        return real_render(plot, use_cdn=use_cdn)
+        return real_render(plot, use_cdn=use_cdn, **kwargs)
 
     monkeypatch.setattr(document.maidr, "render", spy)
     monkeypatch.setattr(document.maidr, "get_use_cdn", lambda: "auto")
