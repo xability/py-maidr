@@ -406,7 +406,13 @@ class InlineScope:
         return value
 
     def _scope_css(self, text: str) -> str:
-        """The rules of the SVG's ``<style>``, each scoped to this chart."""
+        """The rules of the SVG's ``<style>``, each scoped to this chart.
+
+        Written for the ``<style>`` matplotlib puts in every SVG -- plain
+        rules, no at-rules -- and refusing anything else rather than growing
+        into a CSS parser: a refusal costs the chart its place in the page,
+        not its working, since the iframe carries it.
+        """
         text = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
         if "@" in text:
             raise InlineUnsupported("the chart's <style> holds an at-rule")

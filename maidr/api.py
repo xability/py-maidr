@@ -403,6 +403,10 @@ def init_notebook(
         return
     if _NOTEBOOK_LOADED and not force:
         return
+    # A chart in a Quarto render carries its copy in its own output, and the
+    # first one of the render has put it in the page already.
+    if not force and Environment.is_quarto() and _quarto_page_has_stash():
+        return
 
     try:
         from IPython.display import HTML, display
@@ -544,6 +548,14 @@ def _init_notebook_for_show(use_cdn: bool | Literal["auto"] | None) -> None:
     if shell is not None:
         # Hidden from ``%who``, and cleared with the rest of the namespace.
         shell.push({_QUARTO_STASHED: True}, interactive=False)
+
+
+def _quarto_page_has_stash() -> bool:
+    """Whether a chart of this Quarto render has put the bundle in its page."""
+    from IPython import get_ipython
+
+    shell = get_ipython()
+    return bool(shell is not None and shell.user_ns.get(_QUARTO_STASHED))
 
 
 def _bundle_stash_script() -> str | None:

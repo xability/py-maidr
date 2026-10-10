@@ -515,6 +515,17 @@ def test_an_id_that_starts_another_is_renamed_on_its_own():
     ]
 
 
+def test_an_id_with_css_special_characters_is_renamed_whole():
+    """matplotlib's own ``matplotlib.axis_1`` has a dot, as a user's gid may."""
+    markup = f'<svg xmlns="{SVG}" id="{SVG_ID}"><g id="a.b"/><g id="a"/></svg>'
+    scope, schema = _scope(markup, {"selectors": ["g[id='a.b'] path", "g[id='a']"]})
+
+    assert schema["selectors"] == [
+        f"g[id='a.b-{scope.key}'] path",
+        f"g[id='a-{scope.key}']",
+    ]
+
+
 def test_selector_commas_inside_brackets_and_parentheses_are_not_split():
     parts = inline_chart._split_selector(
         "g[id='a,b'] > :nth-child(n+2 of use, path), g[maidr='x']"
@@ -793,6 +804,20 @@ def test_a_render_puts_no_second_maidr_js_in_the_page(quarto, monkeypatch):
     # The stash escapes every ``</`` inside it, so its own end is the only one.
     assert len(displayed) == 1
     assert displayed[0].count("</script>") == 1
+
+
+def test_a_call_to_init_notebook_after_a_chart_adds_no_second_copy(quarto, monkeypatch):
+    """The first chart of the render carries the copy into the page."""
+    ipython_display = pytest.importorskip("IPython.display")
+    displayed: list = []
+    quarto("html")
+    monkeypatch.setattr(ipython_display, "HTML", lambda html: html)
+    monkeypatch.setattr(ipython_display, "display", displayed.append)
+
+    assert _copies(_shown(_bar())) == 1
+    maidr_api.init_notebook()
+
+    assert displayed == []
 
 
 def test_the_loader_in_each_mode():
