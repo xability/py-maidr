@@ -8,9 +8,13 @@ that a frame kept from the chart:
 * an AMD ``define`` in the head, as require.js puts there, which takes the
   UMD ``maidr.js`` for a module and never runs it unless kept from it;
 * a deck that moves on ArrowRight unless its ``keyboardCondition`` says no,
-  as reveal.js does, and a search that opens on ``s`` through
-  ``window.quartoOpenSearch``, as a Quarto website's does;
+  with a search plugin on Ctrl+Shift+F, as reveal.js does, and a search
+  that opens on ``s`` through ``window.quartoOpenSearch``, as a Quarto
+  website's does;
 * a stylesheet that takes every focus ring away.
+
+A second page is the same without the deck, where Ctrl+Shift+F and Shift+Tab
+are the page's and the browser's.
 
 Both charts draw a line with the same ``gid``, so a selector that named it
 unchanged would find the other chart's line. Built with ``use_cdn=False``,
@@ -39,14 +43,16 @@ pytestmark = pytest.mark.browser
 _PARSE_TIMEOUT_MS = 30_000
 _PLOT = 'figure[id^="maidr-figure"] > [tabindex]'
 
-_HEAD = """
-<script>
+_AMD = """
   // require.js, as far as a UMD bundle can tell: takes it, never runs it.
   window.__amdCalls = 0;
   window.define = function () { window.__amdCalls += 1; };
   window.define.amd = {};
+"""
 
-  // A deck: ArrowRight moves on unless keyboardCondition says no.
+_DECK = """
+  // A deck: ArrowRight moves on unless keyboardCondition says no. It has
+  // reveal.js's search plugin, which opens on Ctrl+Shift+F.
   window.Reveal = (function () {
     var config = {}, ready = false, onReady = [];
     window.__slide = 0;
@@ -62,17 +68,21 @@ _HEAD = """
     return {
       configure: function (c) { for (var k in c) config[k] = c[k]; },
       getConfig: function () { return config; },
+      hasPlugin: function (id) { return id === 'search'; },
       isReady: function () { return ready; },
       isFocused: function () { return true; },
       on: function (name, f) { if (name === 'ready') onReady.push(f); }
     };
   })();
+"""
 
-  // reveal.js's search plugin: Ctrl+Shift+F, from a listener of its own.
-  window.__searchPlugin = 0;
+_PAGE_KEYS = """
+  // Ctrl+Shift+F, from a listener of its own: reveal.js's search plugin in a
+  // deck, any page's shortcut elsewhere.
+  window.__ctrlShiftF = 0;
   document.addEventListener('keydown', function (event) {
     if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === 'f') {
-      window.__searchPlugin += 1;
+      window.__ctrlShiftF += 1;
     }
   });
 
@@ -82,9 +92,31 @@ _HEAD = """
   document.addEventListener('keyup', function (event) {
     if (event.key === 's') window.quartoOpenSearch();
   });
-</script>
-<style>*:focus { outline: none !important; }</style>
+
+  // Whether anything took Shift+Tab from the browser.
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Tab') window.__tabPrevented = event.defaultPrevented;
+  });
 """
+
+
+def _head(*scripts: str) -> str:
+    """The scripts, and a stylesheet that takes every focus ring away."""
+    return (
+        f"<script>{''.join(scripts)}</script>"
+        "<style>*:focus { outline: none !important; }</style>"
+    )
+
+
+_HEAD = _head(_AMD, _DECK, _PAGE_KEYS)
+#: A page that is not a deck: no reveal.js.
+_PLAIN_HEAD = _head(_AMD, _PAGE_KEYS)
+
+
+def _deck(outputs: list[str]) -> str:
+    """Each output on a slide of its own, as reveal.js lays a deck out."""
+    slides = "".join(f"<section>{html}</section>" for html in outputs)
+    return f"<div class='reveal'><div class='slides'>{slides}</div></div>"
 
 
 def _line(title: str):
@@ -148,10 +180,10 @@ def outputs(tmp_path_factory) -> list[str]:
     return _outputs(tmp_path_factory.mktemp("render"))
 
 
-def _page(browser: Browser, tmp_path: Path, body: str) -> Page:
+def _page(browser: Browser, tmp_path: Path, body: str, head: str = _HEAD) -> Page:
     path = tmp_path / "doc.html"
     path.write_text(
-        f"<!doctype html><html lang='en'><head>{_HEAD}</head><body>{body}"
+        f"<!doctype html><html lang='en'><head>{head}</head><body>{body}"
         "<button id='after'>After</button></body></html>",
         encoding="utf-8",
     )
@@ -169,8 +201,16 @@ def _page(browser: Browser, tmp_path: Path, body: str) -> Page:
 
 @pytest.fixture
 def page(browser, tmp_path, outputs):
+    page = _page(browser, tmp_path, _deck(outputs))
+    yield page
+    page.close()
+
+
+@pytest.fixture
+def plain_page(browser, tmp_path, outputs):
+    """The same charts on a page that is not a deck."""
     body = "".join(f"<section>{html}</section>" for html in outputs)
-    page = _page(browser, tmp_path, body)
+    page = _page(browser, tmp_path, body, head=_PLAIN_HEAD)
     yield page
     page.close()
 
@@ -237,11 +277,17 @@ def test_the_sites_search_stays_shut_while_a_chart_has_the_keys(page):
 
 def test_reveal_search_stays_shut_while_a_chart_has_the_keys(page):
     _press_in(page, 0, "Control+Shift+F")
-    assert page.evaluate("window.__searchPlugin") == 0
+    assert page.evaluate("window.__ctrlShiftF") == 0
 
     page.locator("#after").focus()
     page.keyboard.press("Control+Shift+F")
-    assert page.evaluate("window.__searchPlugin") == 1
+    assert page.evaluate("window.__ctrlShiftF") == 1
+
+
+def test_ctrl_shift_f_is_the_pages_where_it_is_not_a_decks_search(plain_page):
+    """Kept from a page, it is kept from maidr.js, where a reader may bind it."""
+    _press_in(plain_page, 0, "Control+Shift+F")
+    assert plain_page.evaluate("window.__ctrlShiftF") == 1
 
 
 def test_the_charts_stylesheets_are_in_the_head_once(page):
@@ -294,6 +340,22 @@ def test_shift_tab_from_the_first_chart_hands_the_reader_to_its_slide(page):
     page.locator(_PLOT).first.focus()
     page.keyboard.press("Shift+Tab")
     assert page.evaluate("document.activeElement.tagName") == "SECTION"
+
+
+def test_shift_tab_is_the_browsers_on_a_page_that_is_not_a_deck(plain_page):
+    """There the elements above a chart are its wrappers or the page's."""
+    plain_page.locator(_PLOT).first.focus()
+    plain_page.keyboard.press("Shift+Tab")
+    after = plain_page.evaluate(
+        """() => ({
+             prevented: window.__tabPrevented,
+             active: document.activeElement.tagName,
+             given: document.querySelectorAll('section[tabindex]').length,
+           })"""
+    )
+    assert after["prevented"] is False
+    assert after["active"] != "SECTION"
+    assert after["given"] == 0
 
 
 def test_high_contrast_paints_the_chart_not_the_page(page):

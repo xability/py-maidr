@@ -354,13 +354,32 @@
     shimQuartoSearch();
   }
 
+  // reveal.js's search plugin opens on Ctrl+Shift+F (Cmd on a Mac) from a
+  // listener of its own, which keyboardCondition does not reach. Stopped
+  // here, the key reaches maidr.js no more than the plugin, so only on a deck
+  // that has the plugin: anywhere else it may be a shortcut the reader gave
+  // a command of maidr's.
+  function shimRevealSearch(event) {
+    if (!(event.ctrlKey || event.metaKey) || !event.shiftKey ||
+        (event.key !== 'F' && event.key !== 'f')) {
+      return;
+    }
+    var reveal = window.Reveal;
+    if (window.RevealSearch ||
+        (reveal && typeof reveal.hasPlugin === 'function' && reveal.hasPlugin('search'))) {
+      event.stopPropagation();
+    }
+  }
+
   // --- Shift+Tab out of a chart ----------------------------------------------
 
   // On a reveal.js slide a chart is often the first thing Tab reaches, and
   // Shift+Tab from it would leave the page for the browser's own controls,
   // where no key reaches the deck. maidr.js hands the reader to the slide
   // when its chart is framed (FrameFocusService); this does the same inline,
-  // and only when nothing on the page comes before the chart.
+  // only in a deck and only when nothing on the page comes before the chart.
+  // On any other page the browser's own Shift+Tab is the right answer: the
+  // elements above a chart are its wrappers or the page's.
   var TABBABLE = 'a[href],area[href],button:not([disabled]),input:not([disabled]),' +
     'select:not([disabled]),textarea:not([disabled]),iframe,audio[controls],video[controls],' +
     '[contenteditable]:not([contenteditable="false"]),[tabindex]:not([tabindex^="-"])';
@@ -382,20 +401,23 @@
 
   function handOff(event) {
     if (event.key !== 'Tab' || !event.shiftKey || event.altKey || event.ctrlKey ||
-        event.metaKey || event.defaultPrevented) {
+        event.metaKey || event.defaultPrevented || !window.Reveal) {
       return;
     }
     var active = document.activeElement;
     var wrapper = wrapperOf(active);
-    if (!wrapper || active.closest('[role="dialog"],[aria-modal="true"]')) return;
+    var parent = wrapper && wrapper.parentElement;
+    if (!parent || active.closest('[role="dialog"],[aria-modal="true"]')) return;
     var stops = document.querySelectorAll(TABBABLE);
     for (var i = 0; i < stops.length && stops[i] !== active; i++) {
       if (reachable(stops[i])) return;
     }
     event.preventDefault();
-    var section = wrapper.closest('section,article,[role="region"]');
+    // From the wrapper's parent: neither the wrapper nor maidr's own
+    // <article> inside it is somewhere to hand the reader to.
+    var section = parent.closest('section,article,[role="region"]');
     var candidates = section ? [section] : [];
-    for (var node = wrapper.parentElement; node; node = node.parentElement) {
+    for (var node = parent; node; node = node.parentElement) {
       if (node !== section) candidates.push(node);
     }
     for (var j = 0; j < candidates.length; j++) {
@@ -553,13 +575,7 @@
     if (!focusInChart()) return;
     shimHosts();
     handOff(event);
-    // reveal.js's search plugin opens on Ctrl+Shift+F (Cmd on a Mac) from a
-    // listener of its own, which keyboardCondition does not reach. maidr.js
-    // binds no such key, so it goes no further.
-    if ((event.ctrlKey || event.metaKey) && event.shiftKey &&
-        (event.key === 'F' || event.key === 'f')) {
-      event.stopPropagation();
-    }
+    shimRevealSearch(event);
   }, true);
 
   document.addEventListener('focusin', function (event) {

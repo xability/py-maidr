@@ -135,6 +135,47 @@ def test_maidr_takes_over_every_chart_and_leaves_the_page_alone(
     assert not errors
 
 
+_SEARCH_BOX = (
+    "() => { const box = document.querySelector('.searchbox');"
+    " return !!box && getComputedStyle(box).display !== 'none'; }"
+)
+
+
+def test_a_decks_search_and_shift_tab_leave_a_chart_on_its_slide(
+    browser: Browser, rendered
+):
+    """inline.js knows a deck, and its search plugin, as Quarto loads them."""
+    to, path = rendered
+    if to != "revealjs":
+        pytest.skip("a deck's keys")
+    page = browser.new_page(viewport={"width": 1200, "height": 900})
+    try:
+        page.goto(path.as_uri(), wait_until="load")
+        page.wait_for_function(f"() => ({_BOUND})() === 2", timeout=60_000)
+        page.evaluate("Reveal.slide(1)")
+        page.wait_for_timeout(800)
+        plot = page.locator(_PLOT).first
+
+        plot.focus()
+        page.wait_for_timeout(300)
+        page.keyboard.press("Control+Shift+F")
+        page.wait_for_timeout(300)
+        assert not page.evaluate(_SEARCH_BOX), "the deck's search opened"
+
+        plot.focus()
+        page.wait_for_timeout(300)
+        page.keyboard.press("Shift+Tab")
+        assert page.evaluate(
+            "() => document.activeElement.matches('.reveal .slides section')"
+        )
+
+        page.keyboard.press("Control+Shift+F")
+        page.wait_for_timeout(300)
+        assert page.evaluate(_SEARCH_BOX), "the deck's search never opens"
+    finally:
+        page.close()
+
+
 _DASHBOARD = """\
 ---
 title: Two cards
