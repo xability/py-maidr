@@ -403,6 +403,10 @@ def init_notebook(
         return
     if _NOTEBOOK_LOADED and not force:
         return
+    # A chart in a Quarto render carries its copy in its own output, and the
+    # first one of the render has put it in the page already.
+    if not force and Environment.is_quarto() and _quarto_page_has_stash():
+        return
 
     try:
         from IPython.display import HTML, display
@@ -414,16 +418,13 @@ def init_notebook(
         warn_bundle_unreadable,
         warn_if_bundle_is_stale,
     )
-    from maidr.util.dependencies import (
-        MAIDR_JS_FILENAME,
-        read_bundled_js,
-        read_bundled_math_css,
-    )
+    from maidr.util.dependencies import MAIDR_JS_FILENAME
     from maidr.util.cdn import (
         bundled_cdn_url,
     )
 
     mode = _resolve_use_cdn(use_cdn)
+    stash = None if mode is True else _bundle_stash_script()
 
     if mode is True:
         # CDN-only: a single <script src> reference suffices; nothing is
@@ -438,10 +439,7 @@ def init_notebook(
         # CDN <script>/<link> so the parent can use the remote copy
         # opportunistically, but iframes will prefer the local strings
         # because they are guaranteed to resolve.
-        try:
-            js_source = read_bundled_js()
-            math_css_source = read_bundled_math_css()
-        except (FileNotFoundError, OSError):
+        if stash is None:
             # Bundle is missing — fall back to CDN so we don't silently
             # break the user's notebook.
             #
@@ -462,28 +460,17 @@ def init_notebook(
                 f"</script>"
             )
         else:
-            # json.dumps produces a JS-safe string literal (escapes quotes,
-            # backslashes, newlines, etc.).  ``ensure_ascii=True`` (the
-            # default) also escapes U+2028 / U+2029 which JS treats as
-            # line terminators.  We then rewrite ``</`` to ``<\/`` so
-            # that a stray ``</script>`` inside the JS source cannot
-            # terminate the outer ``<script>`` tag early — the leading
-            # backslash is a legal (redundant) JSON escape.
-            js_literal = json.dumps(js_source).replace("</", "<\\/")
-            math_css_literal = json.dumps(math_css_source).replace("</", "<\\/")
             cdn_bootstrap = ""
-            if mode == "auto":
+            # Not in a Quarto render: no chart there runs the copy this
+            # would load into the page, and the page has require.js, which
+            # takes the UMD ``maidr.js`` for an anonymous module -- it never
+            # runs, and the next ``require()`` on the page fails over it.
+            if mode == "auto" and not Environment.is_quarto():
                 cdn_bootstrap = (
                     f'<script src="{bundled_cdn_url(MAIDR_JS_FILENAME)}">'
                     f"</script>"
                 )
-            html = (
-                f"<script>"
-                f"window.__maidrJsSource = {js_literal};"
-                f"window.__maidrMathCssSource = {math_css_literal};"
-                f"</script>"
-                f"{cdn_bootstrap}"
-            )
+            html = f"{stash}{cdn_bootstrap}"
 
     if mode is not True:
         # The bundled source is what we just stashed on ``window``, so
@@ -561,6 +548,98 @@ def _init_notebook_for_show(use_cdn: bool | Literal["auto"] | None) -> None:
     if shell is not None:
         # Hidden from ``%who``, and cleared with the rest of the namespace.
         shell.push({_QUARTO_STASHED: True}, interactive=False)
+
+
+def _quarto_page_has_stash() -> bool:
+    """Whether a chart of this Quarto render has put the bundle in its page."""
+    from IPython import get_ipython
+
+    shell = get_ipython()
+    return bool(shell is not None and shell.user_ns.get(_QUARTO_STASHED))
+
+
+def _bundle_stash_script() -> str | None:
+    """The ``<script>`` that stashes the bundled source on ``window``.
+
+    Returns
+    -------
+    str or None
+        The script, or None when the bundle cannot be read.
+    """
+    from maidr.util.dependencies import read_bundled_js, read_bundled_math_css
+
+    try:
+        js_source = read_bundled_js()
+        math_css_source = read_bundled_math_css()
+    except (FileNotFoundError, OSError):
+        return None
+    # json.dumps produces a JS-safe string literal (escapes quotes,
+    # backslashes, newlines, etc.).  ``ensure_ascii=True`` (the
+    # default) also escapes U+2028 / U+2029 which JS treats as
+    # line terminators.  We then rewrite ``</`` to ``<\/`` so
+    # that a stray ``</script>`` inside the JS source cannot
+    # terminate the outer ``<script>`` tag early — the leading
+    # backslash is a legal (redundant) JSON escape.
+    js_literal = json.dumps(js_source).replace("</", "<\\/")
+    math_css_literal = json.dumps(math_css_source).replace("</", "<\\/")
+    return (
+        f"<script>"
+        f"window.__maidrJsSource = {js_literal};"
+        f"window.__maidrMathCssSource = {math_css_literal};"
+        f"</script>"
+    )
+
+
+def _quarto_stash(use_cdn: bool | Literal["auto"] | None) -> str | None:
+    """The bundle a chart in a Quarto render carries in its own output.
+
+    The same copies :func:`_init_notebook_for_show` stashes, with the same
+    rule for how many: under ``"auto"`` the first chart of each render
+    carries it and the rest, and a Plotly or Bokeh frame in the same
+    document, use that one; under ``use_cdn=False`` every chart carries its
+    own; under ``True`` none does. What differs is where: inside the chart's
+    own output rather than in one displayed ahead of it, which Quarto made a
+    subfigure of a ``fig-`` cell, and which a chart written into the page
+    (#895) would be loaded without.
+
+    Only a chart ``show()`` displays counts as that first chart. One from
+    ``render()`` carries a copy while none has been put in the page, but its
+    caller may never put it there, so the next chart carries one too.
+
+    Parameters
+    ----------
+    use_cdn : bool, {"auto"}, or None
+        The mode the chart is rendered with.
+
+    Returns
+    -------
+    str or None
+        The ``<script>`` to put in the chart's output, or None when it needs
+        none -- or when the bundle cannot be read, which under ``False`` is
+        said.
+    """
+    from maidr.util.bundle_freshness import warn_bundle_unreadable
+    from maidr.util.inline_chart import is_showing
+
+    mode = _resolve_use_cdn(use_cdn)
+    if mode is True:
+        return None
+    shell = None
+    if mode == "auto":
+        from IPython import get_ipython
+
+        shell = get_ipython()
+        if shell is not None and shell.user_ns.get(_QUARTO_STASHED):
+            return None
+    stash = _bundle_stash_script()
+    if stash is None:
+        if mode is False:
+            warn_bundle_unreadable()
+        return None
+    if shell is not None and is_showing():
+        # Hidden from ``%who``, and cleared with the rest of the namespace.
+        shell.push({_QUARTO_STASHED: True}, interactive=False)
+    return stash
 
 
 def _is_plotly_figure(obj: Any) -> bool:

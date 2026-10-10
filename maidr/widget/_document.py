@@ -25,6 +25,7 @@ from htmltools import HTML, tags
 import maidr
 from maidr.util.dependencies import inline_bundle_tags, read_bundled_js
 from maidr.util.iframe_utils import chart_title_on
+from maidr.util.inline_chart import standalone_document
 
 #: Accepted by ``use_cdn``; ``None`` defers to :func:`maidr.get_use_cdn`.
 UseCdn = Optional[Union[bool, Literal["auto"]]]
@@ -58,7 +59,10 @@ def render(plot: Any, use_cdn: UseCdn, stacklevel: int) -> tuple[str, str]:
     # in which this function decides whether to inline against one answer
     # while the chart was built from another.
     resolved = maidr.get_use_cdn() if use_cdn is None else use_cdn
-    rendered = maidr.render(plot, use_cdn=resolved)
+    # A document of its own, even when made during a Quarto render: not one
+    # of the charts that render writes into its page.
+    with standalone_document():
+        rendered = maidr.render(plot, use_cdn=resolved)
     # Before the bundle is inlined, so the pass reads the chart and not the
     # ~1.9 MB of runtime beside it; see ``_stable_ids`` for why at all.
     html = _stable_ids(str(rendered.get_html_string()))

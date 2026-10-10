@@ -88,6 +88,11 @@ jobs:
       - name: Install the browser Playwright drives
         run: uv run playwright install --with-deps chromium
 
+      # For tests/browser/test_quarto_render_inline.py, which renders a
+      # document with Quarto itself (#895) and skips where it is missing.
+      - name: Set up Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+
       - name: Run the browser tests
         run: uv run pytest tests/browser -vv --run-browser
 

@@ -283,6 +283,10 @@ packages = ["maidr"]
 include = [
     "maidr/**/*.py",
     "maidr/static/**",
+    # py-maidr's own script and stylesheet for a chart written into a page
+    # Quarto renders, kept out of ``static/``, which ``save_html`` copies
+    # whole and the bundle refresh writes into.
+    "maidr/assets/**",
     "README.md",
     "LICENSE",
     "pyproject.toml",
