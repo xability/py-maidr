@@ -81,6 +81,7 @@ from maidr.util.bundle_loader import (
 )
 from maidr.util.dotpad import dotpad_config_child, local_dotpad_sdk_dependency
 from maidr.util.environment import Environment
+from maidr.util.hover_mode import HoverMode, with_hover_mode
 from maidr.util.iframe_utils import (
     chart_title_of,
     with_chart_title,
@@ -129,7 +130,12 @@ class BokehMaidr:
     #  Public API, mirroring PlotlyMaidr                                   #
     # ------------------------------------------------------------------ #
 
-    def render(self, use_cdn: bool | Literal["auto"] = "auto") -> Tag:
+    def render(
+        self,
+        use_cdn: bool | Literal["auto"] = "auto",
+        *,
+        hover_mode: HoverMode | None = None,
+    ) -> Tag:
         """Return the maidr plot inside an iframe.
 
         Parameters
@@ -143,13 +149,22 @@ class BokehMaidr:
             BokehJS is inlined from the installed ``bokeh`` package when
             ``use_cdn`` is ``False``, so the page works offline; otherwise
             it is loaded from Bokeh's CDN at the installed version.
+        hover_mode : {"pointermove", "click", "off"} or None, default=None
+            The chart's starting value for the reader's Hover Mode setting,
+            written to the schema (the wrapper's ``maidr-data``) as
+            ``hoverMode``. ``None`` leaves it out, so maidr.js uses its
+            default. See :func:`maidr.render`.
         """
-        return self._create_html_tag(use_iframe=True, use_cdn=use_cdn)
+        return self._create_html_tag(
+            use_iframe=True, use_cdn=use_cdn, hover_mode=hover_mode
+        )
 
     def show(
         self,
         renderer: Literal["auto", "ipython", "browser"] = "auto",
         use_cdn: bool | Literal["auto"] = "auto",
+        *,
+        hover_mode: HoverMode | None = None,
     ) -> object:
         """Display the accessible Bokeh plot.
 
@@ -159,6 +174,8 @@ class BokehMaidr:
             Renderer to use.
         use_cdn : bool or {"auto"}, default="auto"
             See :meth:`render` for the three possible modes.
+        hover_mode : {"pointermove", "click", "off"} or None, default=None
+            Written to the schema as ``hoverMode``; see :meth:`render`.
         """
         # Stash the bundle on the notebook ``window`` for the iframe loader;
         # see ``PlotlyMaidr.show``, which this mirrors.
@@ -175,12 +192,18 @@ class BokehMaidr:
             _renderer = renderer
 
         if Environment.is_pyodide_page():
-            return show_in_page(self._create_html_tag(use_iframe=True, use_cdn=use_cdn))
+            return show_in_page(
+                self._create_html_tag(
+                    use_iframe=True, use_cdn=use_cdn, hover_mode=hover_mode
+                )
+            )
 
         if _renderer == "browser" and not Environment.is_notebook():
-            return self._open_plot_in_browser(use_cdn=use_cdn)
+            return self._open_plot_in_browser(use_cdn=use_cdn, hover_mode=hover_mode)
 
-        html = self._create_html_tag(use_iframe=True, use_cdn=use_cdn)
+        html = self._create_html_tag(
+            use_iframe=True, use_cdn=use_cdn, hover_mode=hover_mode
+        )
         return html.show(_renderer)
 
     def save_html(
@@ -190,6 +213,7 @@ class BokehMaidr:
         lib_dir: str | None = "lib",
         include_version: bool = True,
         use_cdn: bool | Literal["auto"] = "auto",
+        hover_mode: HoverMode | None = None,
     ) -> str:
         """Save the accessible HTML representation to a file.
 
@@ -205,10 +229,13 @@ class BokehMaidr:
             See :meth:`render` for the three possible modes.  When set
             to ``False`` or ``"auto"`` the bundled MAIDR JS assets are
             copied into ``lib_dir`` alongside the saved HTML.
+        hover_mode : {"pointermove", "click", "off"} or None, default=None
+            Written to the schema as ``hoverMode``; see :meth:`render`.
         """
         html = self._create_html_doc(
             use_iframe=False,
             use_cdn=use_cdn,
+            hover_mode=hover_mode,
             prelude=local_dotpad_sdk_dependency(
                 use_cdn=use_cdn, lib_prefix=lib_dir, include_version=include_version
             ),
@@ -593,6 +620,8 @@ class BokehMaidr:
         self,
         use_iframe: bool = True,
         use_cdn: bool | Literal["auto"] = "auto",
+        *,
+        hover_mode: HoverMode | None = None,
     ) -> Tag:
         """Create HTML with the interactive Bokeh plot and MAIDR bound to it.
 
@@ -603,11 +632,15 @@ class BokehMaidr:
             notebook / Shiny / Flask environments.
         use_cdn : bool or {"auto"}, default="auto"
             See :meth:`render` for mode descriptions.
+        hover_mode : {"pointermove", "click", "off"} or None, default=None
+            Written to the schema as ``hoverMode``; see :meth:`render`.
         """
         from bokeh.embed import json_item
 
         will_iframe, iframe_in_notebook, iframe_inline_bundle = iframe_mode(use_iframe)
         schema = self._flatten_maidr()
+        if schema is not None:
+            schema = with_hover_mode(schema, hover_mode)
         if schema is not None and use_cdn is not True:
             warn_if_bundle_cannot_render(
                 schema_trace_types(schema), bundle_is_primary=use_cdn is False
@@ -655,19 +688,27 @@ class BokehMaidr:
         use_iframe: bool = True,
         use_cdn: bool | Literal["auto"] = "auto",
         *,
+        hover_mode: HoverMode | None = None,
         prelude: Any = None,
     ) -> HTMLDocument:
         """Create a full HTML document."""
-        tag = self._create_html_tag(use_iframe, use_cdn=use_cdn)
+        tag = self._create_html_tag(use_iframe, use_cdn=use_cdn, hover_mode=hover_mode)
         children = [tag] if prelude is None else [prelude, tag]
         return HTMLDocument(*children, lang="en")
 
-    def _open_plot_in_browser(self, use_cdn: bool | Literal["auto"] = "auto") -> None:
+    def _open_plot_in_browser(
+        self,
+        use_cdn: bool | Literal["auto"] = "auto",
+        *,
+        hover_mode: HoverMode | None = None,
+    ) -> None:
         """Open the rendered HTML in a browser via a temp file."""
         static_temp_dir = os.path.join(tempfile.gettempdir(), "maidr")
         os.makedirs(static_temp_dir, exist_ok=True)
         temp_file_path = os.path.join(static_temp_dir, "maidr_bokeh_plot.html")
-        html_file_path = self.save_html(temp_file_path, use_cdn=use_cdn)
+        html_file_path = self.save_html(
+            temp_file_path, use_cdn=use_cdn, hover_mode=hover_mode
+        )
         webbrowser.open(f"file://{html_file_path}")
 
 

@@ -30,6 +30,7 @@ except ImportError as error:
 import maidr
 from maidr.core.figure_manager import FigureManager
 from maidr.util.dependencies import bundled_js_path
+from maidr.util.hover_mode import HoverMode, check_hover_mode
 from maidr.util.served_bundle import (
     ServedBundle,
     served_bundle_dependency,
@@ -300,6 +301,9 @@ class render_maidr(Renderer[Any]):
         and what ``"auto"`` falls back to offline -- is served by the app
         itself, once per app and version, rather than carried inside
         every chart.
+    hover_mode : {"pointermove", "click", "off"} or None, default None
+        The chart's starting value for the reader's Hover Mode setting; see
+        :func:`maidr.render`. ``None`` leaves maidr.js's default.
 
     Returns
     -------
@@ -341,12 +345,16 @@ class render_maidr(Renderer[Any]):
         width: str = "100%",
         height: str = "auto",
         use_cdn: UseCdn = None,
+        hover_mode: Optional[HoverMode] = None,
     ) -> None:
         # Assigned before ``super().__init__``: it ends by registering the
         # renderer with the session, after which these must already be set.
         self.width = width
         self.height = height
         self.use_cdn = use_cdn
+        # Checked here, so a mistyped mode fails where the app is written
+        # rather than on every render.
+        self.hover_mode = check_hover_mode(hover_mode)
         # The chart this output is serving, per session it has rendered in;
         # see :meth:`_serve_out_of_band`.  Keyed by session because Shiny
         # does not stop an app from attaching one renderer instance to
@@ -449,7 +457,7 @@ class render_maidr(Renderer[Any]):
         # ``to_thread`` call: the value is then set in the context the
         # render actually runs in, whatever the executor does with contexts.
         with serving_bundle(bundle):
-            return maidr.render(value, use_cdn=self.use_cdn)
+            return maidr.render(value, use_cdn=self.use_cdn, hover_mode=self.hover_mode)
 
     def _route(self, session: Session) -> Optional[_ServedChart]:
         """Return this output's route in ``session``, registering it once.

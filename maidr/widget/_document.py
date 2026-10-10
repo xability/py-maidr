@@ -24,6 +24,7 @@ from htmltools import HTML, tags
 
 import maidr
 from maidr.util.dependencies import inline_bundle_tags, read_bundled_js
+from maidr.util.hover_mode import HoverMode
 from maidr.util.iframe_utils import chart_title_on
 from maidr.util.inline_chart import standalone_document
 
@@ -31,7 +32,13 @@ from maidr.util.inline_chart import standalone_document
 UseCdn = Optional[Union[bool, Literal["auto"]]]
 
 
-def render(plot: Any, use_cdn: UseCdn, stacklevel: int) -> tuple[str, str]:
+def render(
+    plot: Any,
+    use_cdn: UseCdn,
+    stacklevel: int,
+    *,
+    hover_mode: Optional[HoverMode] = None,
+) -> tuple[str, str]:
     """
     Render a chart to the HTML of a frame of its own, and report its title.
 
@@ -47,6 +54,8 @@ def render(plot: Any, use_cdn: UseCdn, stacklevel: int) -> tuple[str, str]:
     stacklevel : int
         Frames to skip for a warning raised one function deeper than this
         one, so it names the caller's own line.
+    hover_mode : {"pointermove", "click", "off"} or None, default None
+        The chart's starting hover mode; see :func:`maidr.render`.
 
     Returns
     -------
@@ -62,7 +71,7 @@ def render(plot: Any, use_cdn: UseCdn, stacklevel: int) -> tuple[str, str]:
     # A document of its own, even when made during a Quarto render: not one
     # of the charts that render writes into its page.
     with standalone_document():
-        rendered = maidr.render(plot, use_cdn=resolved)
+        rendered = maidr.render(plot, use_cdn=resolved, hover_mode=hover_mode)
     # Before the bundle is inlined, so the pass reads the chart and not the
     # ~1.9 MB of runtime beside it; see ``_stable_ids`` for why at all.
     html = _stable_ids(str(rendered.get_html_string()))

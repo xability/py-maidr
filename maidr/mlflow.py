@@ -24,6 +24,7 @@ from typing import Any, Iterable, Literal
 import numpy as np
 
 from maidr.util.caller_warning import warn_at_caller
+from maidr.util.hover_mode import HoverMode
 from maidr.util.metric_chart import (
     DEFAULT_MAX_POINTS,
     MetricChart,
@@ -204,6 +205,7 @@ def log_mlflow_chart(
     run_id: str | None = None,
     tracking_uri: str | None = None,
     use_cdn: bool | Literal["auto"] | None = False,
+    hover_mode: HoverMode | None = None,
 ) -> None:
     """
     Store an accessible chart in an MLflow run, as an HTML artifact.
@@ -233,6 +235,11 @@ def log_mlflow_chart(
         access, and keeps working as maidr.js changes. ``True`` loads it from
         the jsDelivr CDN, which keeps the artifact small. ``None`` defers to
         :func:`maidr.get_use_cdn`.
+    hover_mode : {"pointermove", "click", "off"} or None, default None
+        The chart's starting value for the reader's Hover Mode setting; see
+        :func:`maidr.render`. ``None`` leaves maidr.js's default. The MLflow
+        UI's frame cannot keep a reader's settings between visits, so this
+        is the mode the chart opens in every time.
 
     Raises
     ------
@@ -240,7 +247,8 @@ def log_mlflow_chart(
         If ``mlflow`` is not installed.
     ValueError
         If ``artifact_file`` does not end in ``.html``, which the MLflow UI
-        would show as text.
+        would show as text, or if ``hover_mode`` is not one of the values
+        :func:`maidr.render` lists.
 
     Notes
     -----
@@ -269,7 +277,9 @@ def log_mlflow_chart(
     # its <title>.
     from maidr.widget._document import render as render_document
 
-    fragment, title = render_document(plot, use_cdn, stacklevel=4)
+    fragment, title = render_document(
+        plot, use_cdn, stacklevel=4, hover_mode=hover_mode
+    )
     page = (
         '<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
         f"<title>{html.escape(title or 'Accessible chart')}</title>\n</head>\n"

@@ -693,6 +693,24 @@ If you want to set the backend manually, use `matplotlib.use("module://maidr.bac
 
 For plot types not yet supported by maidr (e.g. 3D plots; see [Plot Type Stability](stability.qmd) for what is stable and what is experimental), `plt.show()` will automatically fall back to displaying a static image and emit a warning. No code changes are needed: your plots will always be visible.
 
+### Hover Mode
+
+By default, moving the pointer over a chart moves the reader's position to the point under it and highlights it, as the arrow keys do. `show()`, `render()` and `save_html()` accept `hover_mode=` to choose how the chart starts out:
+
+| `hover_mode` | What the pointer does |
+|:---|:---|
+| `None` (default) | Leaves the choice to `maidr.js`, which uses `"pointermove"`. |
+| `"pointermove"` | Moving over a point moves the position there and highlights it. |
+| `"click"` | The position moves only when the reader clicks a point. |
+| `"off"` | The pointer is ignored; the chart is navigated with the keyboard only. |
+
+```python
+maidr.show(bar_plot, hover_mode="click")
+maidr.save_html(bar_plot, "output.html", hover_mode="off")
+```
+
+This is the chart's starting value for the **Hover Mode** setting in maidr's settings dialog (`Ctrl + ,`, `CMD + ,` on Mac), not a lock: a reader who has picked a Hover Mode there keeps their own choice. Any other value raises `ValueError`. The Plotly, Bokeh and plotnine paths take it too, as do the Shiny, Streamlit and Gradio widgets and `maidr.log_mlflow_chart()`. **Altair** charts do not: their schema is built in the browser by the upstream Vega-Lite adapter, which takes no hover mode, so a value other than `None` warns and the chart starts in the default mode. A `maidr.js` older than this setting ignores it.
+
 ## Offline Use and the JavaScript Bundle
 
 Accessible output needs the `maidr.js` library. `render()`, `show()`, and `save_html()` accept `use_cdn=` to control where it comes from:
