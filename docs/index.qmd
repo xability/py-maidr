@@ -889,7 +889,7 @@ Every render gets a new version in the URL and the document is served `no-store`
 | before (bundle inline) | 8.9 MB (4 × ~2.2 MB) | — |
 | now | **78 KB** (4 × ~20 KB) | **1.85 MB, once** |
 
-The chart is still rendered in an iframe: that is what keeps a host stylesheet — a `*:focus { outline: none }` rule, say — from stripping the chart's focus ring. Only where its runtime comes from changed. Shiny serves the files without a `Cache-Control` header, so the browser keeps them by its own heuristics and revalidates with a bodiless `304` once those lapse. BokehJS is not part of this: a Bokeh chart with `use_cdn=False` still carries Bokeh's own library inline.
+The chart is still rendered in an iframe: that is what keeps the app's own keyboard shortcuts from acting on the keys a reader presses in the chart, and a host stylesheet — a `*:focus { outline: none }` rule, say — from stripping the chart's focus ring. A page Quarto renders has its charts written into it instead (see *Quarto Documents*), because the shortcuts such a page has are known and can be held off one by one; an app's are whatever its author wrote. Only where its runtime comes from changed. Shiny serves the files without a `Cache-Control` header, so the browser keeps them by its own heuristics and revalidates with a bodiless `304` once those lapse. BokehJS is not part of this: a Bokeh chart with `use_cdn=False` still carries Bokeh's own library inline.
 
 **What the lock cannot do is stop your app.** It serializes renders against each other; it does not stop a render function drawing into a figure another session is in the middle of rendering. That produces a chart whose SVG and announced data disagree — visible to a sighted reader, invisible to a screen-reader one — so maidr says so, naming the figure:
 
@@ -1050,6 +1050,39 @@ inside that scope.
 
 @tbl-shortcuts is the canonical list. Where another section of this page
 mentions a key, it refers back to this table rather than restating the binding.
+
+## Quarto Documents
+
+When Quarto renders a document to a web page — an `html` document, a website
+or book, a `dashboard`, or a `revealjs` deck — a matplotlib or seaborn chart is
+written into the page itself, as an `<svg>` the page sizes like an image, and
+the page loads `maidr.js` once for all of its charts. (In a notebook each chart
+has an iframe of its own; see below.) It needs Quarto 1.8 or newer, which tells
+the kernel what it is rendering to. With an older Quarto, and for any format
+that is not a web page, a chart keeps the iframe it had before. Plotly, Altair
+and Bokeh charts keep theirs in every format.
+
+A chart in the page still has what its iframe gave it:
+
+* **Its keys.** While the focus is in a chart, the keys it reads are kept from
+  the page: reveal.js does not change slides, and a website's search does not
+  open on **f**, **s** or **/**. Everywhere else on the page they work as
+  usual. **Escape** in a chart on a dashboard card shown full screen closes
+  the chart's own mode, not the card.
+* **Its focus ring**, drawn inside the chart so that a slide, a card or a
+  cell's output box does not clip it, and kept when a theme removes focus
+  outlines.
+* **Its name.** The chart's title, which named its iframe, describes the
+  chart, after the caption of a figure (`#| fig-cap:`) when it has one.
+* **Its own colours** in high contrast mode: the chart is painted, not the
+  rest of the page.
+
+Each chart's ids are made its own, so two charts drawn with the same `gid`
+each highlight their own marks.
+
+A chart whose SVG holds something that cannot be kept to it on a page — a
+`<script>`, a `<foreignObject>`, or a stylesheet with an at-rule — is shown in
+an iframe instead, with a warning.
 
 ## Quarto reveal.js Slides
 

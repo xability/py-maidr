@@ -1,0 +1,134 @@
+/* maidr inline: the charts py-maidr writes into a page Quarto renders (#895).
+ * Every rule is scoped to the .maidr-inline wrapper around a chart, or to a
+ * dashboard card holding one. The rules follow r-maidr's
+ * inst/maidr-knitr/knitr-inline.css, which styles R charts in the same pages. */
+
+.maidr-inline {
+  margin: 0 0 1em;
+  max-width: 100%;
+}
+
+/* maidr.js builds article > figure > div[tabindex] around the svg; the
+ * page's figure margins are not the chart's. */
+.maidr-inline article,
+.maidr-inline figure {
+  margin: 0;
+  padding: 0;
+}
+
+/* The chart shrinks to a narrow column, as an image does, and keeps its
+ * shape. */
+.maidr-inline-svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+/* A visible focus (WCAG 2.4.7) that survives a page that removes every
+ * outline (*:focus { outline: none !important }): this selector is more
+ * specific. The ring is drawn inside the chart, because a cell's output box
+ * (overflow: auto), a dashboard card and a reveal.js slide (overflow:
+ * hidden) clip one drawn outside it. A light band inside the ring, the
+ * outline of the svg itself, keeps it visible on a dark plot background. */
+.maidr-inline figure[id^="maidr-figure"] > div[tabindex="0"]:focus {
+  outline: 3px solid #1a5fb4 !important;
+  outline-offset: -3px !important;
+}
+.maidr-inline figure[id^="maidr-figure"] > div[tabindex="0"]:focus .maidr-inline-svg {
+  outline: 2px solid #ffffff !important;
+  outline-offset: -5px !important;
+}
+
+/* The braille and review fields, and maidr's buttons, take the focus in
+ * their modes, and need a ring as much as the chart does. */
+.maidr-inline textarea:focus,
+.maidr-inline input:focus,
+.maidr-inline select:focus,
+.maidr-inline button:focus-visible,
+.maidr-inline a:focus-visible,
+.maidr-inline [role="button"]:focus-visible {
+  outline: 3px solid #1a5fb4 !important;
+  outline-offset: 1px !important;
+}
+
+@media (forced-colors: active) {
+  .maidr-inline figure[id^="maidr-figure"] > div[tabindex="0"]:focus,
+  .maidr-inline textarea:focus,
+  .maidr-inline input:focus,
+  .maidr-inline select:focus,
+  .maidr-inline button:focus-visible,
+  .maidr-inline a:focus-visible,
+  .maidr-inline [role="button"]:focus-visible {
+    outline-color: Highlight !important;
+  }
+  .maidr-inline figure[id^="maidr-figure"] > div[tabindex="0"]:focus .maidr-inline-svg {
+    outline: none !important;
+  }
+}
+
+/* High contrast: maidr.js paints the body, which inline is the page's;
+ * inline.js gives it the page's own colours back and the chart's wrapper
+ * maidr's. */
+html.maidr-inline-contrast body {
+  background-color: var(--maidr-inline-page-bg) !important;
+  color: var(--maidr-inline-page-fg) !important;
+}
+
+/* maidr opens its dialogs inside the chart. inline.js sets, on each chart's
+ * wrapper, the zoom that undoes a zoom of the page around it (a deck's), and
+ * the one that gives their text its own size back when it came out smaller
+ * than the reader's default font size. */
+.maidr-inline .MuiDialog-root {
+  zoom: var(--maidr-inline-unzoom, 1);
+}
+.maidr-inline .MuiDialog-paper {
+  zoom: var(--maidr-inline-zoom, 1);
+  max-width: min(600px, calc((100vw - 64px) / var(--maidr-inline-zoom, 1)));
+  max-height: calc((100vh - 64px) / var(--maidr-inline-zoom, 1));
+}
+
+/* A reveal.js slide, and the slides around it, set a perspective, which
+ * makes the slide the box a fixed dialog is placed in rather than the
+ * window: a slide taller than the window put the dialog's buttons out of
+ * view. Not while one of a chart's dialogs is open on it. */
+.reveal .slides:has(.maidr-inline .MuiDialog-root),
+.reveal .slides section:has(.maidr-inline .MuiDialog-root) {
+  perspective: none !important;
+}
+
+/* A slide's centred text and its heading sizes, capitals and colours would
+ * restyle the dialogs' headings: they are given back the type MUI's default
+ * theme gives them, in the rem inline.js measured for the dialog's text. */
+.maidr-inline [role="dialog"] {
+  text-align: start;
+}
+.maidr-inline [role="dialog"] :is(h1, h2, h3, h4, h5, h6) {
+  font-family: "Roboto", "Helvetica", "Arial", sans-serif !important;
+  color: inherit !important;
+  text-transform: none !important;
+  text-shadow: none !important;
+  word-wrap: normal !important;
+}
+.maidr-inline [role="dialog"] .MuiTypography-h6 {
+  font-size: calc(1.25 * var(--maidr-inline-rem, 1rem)) !important;
+  line-height: 1.6 !important;
+  letter-spacing: 0.0075em !important;
+}
+.maidr-inline [role="dialog"] .MuiTypography-subtitle1 {
+  font-size: var(--maidr-inline-rem, 1rem) !important;
+  line-height: 1.75 !important;
+  letter-spacing: 0.00938em !important;
+}
+.maidr-inline [role="dialog"] .MuiTypography-subtitle2 {
+  font-size: calc(0.875 * var(--maidr-inline-rem, 1rem)) !important;
+  line-height: 1.57 !important;
+  letter-spacing: 0.00714em !important;
+}
+
+/* A Quarto dashboard sizes its cards to the window and hides what does not
+ * fit. inline.js shrinks a chart to its card when it does not fit, and the
+ * card scrolls rather than clip maidr's braille and review fields below the
+ * chart. */
+.html-fill-item:has(> .maidr-inline) {
+  overflow: auto;
+}

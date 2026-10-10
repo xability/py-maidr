@@ -6,6 +6,7 @@ import io
 import os
 import tempfile
 import uuid
+import warnings
 import webbrowser
 import subprocess
 from pathlib import Path
@@ -50,8 +51,17 @@ from maidr.util.grid_position import topmost_subplotspec
 from maidr.util.environment import Environment
 from maidr.util.iframe_utils import (
     chart_title_of,
+    iframe_title,
     with_chart_title,
     wrap_in_iframe_matplotlib,
+)
+from maidr.util.inline_chart import (
+    InlineScope,
+    InlineUnsupported,
+    chart_tag as inline_chart_tag,
+    in_quarto_render,
+    inline_applies,
+    loader_js,
 )
 
 #: Layer classes a segmented bar layer on the same axes can supersede.
@@ -92,6 +102,14 @@ _SEGMENTED_BAR_PLOTS = (GroupedBarPlot,)
 #: per point, which is the shape ``BarsHistPlot``, ``LollipopPlot`` and the
 #: plotly bar emit on purpose when document order is not data order.
 _SINGLE_SELECTOR_TYPES = frozenset({PlotType.SCATTER})
+
+
+def _quarto_stash(use_cdn: bool | Literal["auto"]) -> str | None:
+    """The bundle a chart in a Quarto render carries; see ``maidr.api``."""
+    # Imported here: ``maidr.api`` imports this module.
+    from maidr.api import _quarto_stash as stash
+
+    return stash(use_cdn)
 
 
 def _join_selector_list(selectors: Any) -> Any:
@@ -371,15 +389,18 @@ class Maidr:
         # page right before the iframe is emitted: in a notebook it is the
         # frame's offline fallback (its only source under use_cdn=False).
         # ``_init_notebook_for_show`` says when a chart stashes its own copy.
-        try:
-            from maidr.api import _init_notebook_for_show
+        # A chart in a Quarto render carries it in its own output instead;
+        # see ``_inject_plot``.
+        if not in_quarto_render(True):
+            try:
+                from maidr.api import _init_notebook_for_show
 
-            _init_notebook_for_show(use_cdn)
-        except Exception:
-            # Never block show() on notebook init; the iframe
-            # bootstrap will surface a helpful console warning if
-            # the bundle is unreachable.
-            pass
+                _init_notebook_for_show(use_cdn)
+            except Exception:
+                # Never block show() on notebook init; the iframe
+                # bootstrap will surface a helpful console warning if
+                # the bundle is unreachable.
+                pass
 
         # Use the passed renderer parameter, fallback to auto-detection
         if renderer == "auto":
@@ -634,8 +655,29 @@ class Maidr:
                 schema_trace_types(schema), bundle_is_primary=use_cdn is False
             )
 
+        # In a page a Quarto render builds, the chart is written into the page
+        # rather than an iframe, which takes an SVG scoped to it (#895). The
+        # schema has to be in the SVG there: a page holds many charts, and
+        # the ``var maidr`` global can name only one.
+        chart_title = chart_title_of(schema)
+        inline = (
+            InlineScope(iframe_title(chart_title))
+            if data_in_svg and inline_applies(use_iframe)
+            else None
+        )
+
         with HighlightContextManager.set_maidr_elements(tagged_elements, selector_ids):
-            svg = self._get_svg(embed_data=data_in_svg, schema=schema)
+            svg = self._get_svg(embed_data=data_in_svg, schema=schema, inline=inline)
+
+        if inline is not None and inline.refused is not None:
+            # The SVG was left as it was; the iframe carries it as before.
+            warnings.warn(
+                f"maidr: this chart is shown in an iframe rather than in the "
+                f"page, because {inline.refused}.",
+                UserWarning,
+                stacklevel=4,
+            )
+            inline = None
 
         # The schema was read from the artists; the SVG was written from
         # them afterwards. Anything that drew into the figure in between
@@ -656,10 +698,15 @@ class Maidr:
             maidr = f"\nvar maidr = {json.dumps(schema, check_circular=False)}\n"
 
         # Inject plot's svg and MAIDR structure into html tag.
-        chart_title = chart_title_of(schema)
         return with_chart_title(
             Maidr._inject_plot(
-                svg, maidr, self.maidr_id, use_iframe, use_cdn, chart_title
+                svg,
+                maidr,
+                self.maidr_id,
+                use_iframe,
+                use_cdn,
+                chart_title,
+                inline=inline,
             ),
             chart_title,
         )
@@ -1078,7 +1125,12 @@ class Maidr:
             "subplots": subplot_grid,
         }
 
-    def _get_svg(self, embed_data: bool = True, schema: dict | None = None) -> HTML:
+    def _get_svg(
+        self,
+        embed_data: bool = True,
+        schema: dict | None = None,
+        inline: InlineScope | None = None,
+    ) -> HTML:
         """Extract the chart SVG from ``matplotlib.figure.Figure``.
 
         Parameters
@@ -1089,6 +1141,10 @@ class Maidr:
         schema : dict | None, default=None
             If provided, this schema will be used (ensuring a consistent id across
             the page). If None, a new schema will be generated.
+        inline : InlineScope | None, default=None
+            Scopes the SVG to the chart, for a page it shares with others. When
+            it refuses, it says why in its ``refused`` and the SVG is left as
+            it was.
         """
         svg_buffer = io.StringIO()
         self._fig.savefig(svg_buffer, format="svg")
@@ -1112,6 +1168,11 @@ class Maidr:
             # Ensure SVG id matches schema id in both modes
             if isinstance(current_schema, dict) and "id" in current_schema:
                 element.attrib["id"] = str(current_schema["id"])  # ensure match
+            if inline is not None and isinstance(current_schema, dict):
+                try:
+                    current_schema = inline.scope(element, current_schema)
+                except InlineUnsupported as refusal:
+                    inline.refused = refusal
             if embed_data:
                 # Compact on purpose: an attribute value is one line to a
                 # reader anyway (newlines become `&#10;`), and `indent`
@@ -1153,6 +1214,8 @@ class Maidr:
         use_iframe: bool = True,
         use_cdn: bool | Literal["auto"] = "auto",
         chart_title: str | None = None,
+        *,
+        inline: InlineScope | None = None,
     ) -> Tag:
         """Embed the plot and associated MAIDR scripts into the HTML structure.
 
@@ -1182,7 +1245,19 @@ class Maidr:
             The chart's title, which names the iframe for screen readers.
             Passed in rather than read here: this is a static method, and the
             schema the title comes from belongs to the caller (#453).
+        inline : InlineScope, optional
+            Given when ``plot`` was scoped to be written into the page of a
+            Quarto render (#895); see :func:`Maidr._inline_chart`.
         """
+        if inline is not None:
+            return Maidr._inline_chart(plot, use_cdn, chart_title, inline)
+
+        # In a Quarto render the bundle a frame falls back to is stashed in
+        # the chart's own output, not one displayed ahead of it: Quarto makes
+        # a figure of each output of a ``fig-`` cell, and the stash became a
+        # subfigure that took the caption.
+        quarto_stash = _quarto_stash(use_cdn) if in_quarto_render(use_iframe) else None
+
         # Decide whether the iframe-in-notebook "load-once" fast path applies.
         # ``Tag.get_html_string()`` (used by ``wrap_in_iframe_matplotlib``)
         # silently drops ``HTMLDependency`` children, so for iframe renders
@@ -1488,12 +1563,79 @@ class Maidr:
 
         base_html = tags.div(*children)
 
-        # Render the plot inside an iframe if in a Jupyter notebook, Google Colab
-        # or VSCode notebook. No need for iframe if this is a Quarto document.
-        # ``will_iframe`` is the same condition, decided once above so the
-        # branch that picks a source for ``maidr.js`` and the branch that
-        # wraps the result cannot disagree about whether there is an iframe.
+        # Render the plot inside an iframe in a Jupyter notebook, Google Colab
+        # or VSCode notebook, and in a Quarto render whose output is not a
+        # web page. ``will_iframe`` is the same condition, decided once above
+        # so the branch that picks a source for ``maidr.js`` and the branch
+        # that wraps the result cannot disagree about whether there is an
+        # iframe.
         if will_iframe:
             base_html = wrap_in_iframe_matplotlib(base_html, chart_title)
+            if quarto_stash is not None:
+                # Ahead of the frame, which reads it once its document loads.
+                base_html = tags.div(HTML(quarto_stash), base_html)
 
         return base_html
+
+    @staticmethod
+    def _inline_chart(
+        plot: HTML,
+        use_cdn: bool | Literal["auto"],
+        chart_title: str | None,
+        inline: InlineScope,
+    ) -> Tag:
+        """The chart as a page Quarto renders carries it: in the page (#895).
+
+        ``maidr.js`` is loaded once for the page, by whichever chart's loader
+        runs first, and binds every chart on it. Under ``"auto"`` the bundle
+        it falls back to is stashed by the first chart of the render, as for
+        an iframe; under ``use_cdn=False`` every chart carries it, since it is
+        each chart's only source and a cell can hide its output.
+
+        Parameters
+        ----------
+        plot : htmltools.HTML
+            The SVG, already scoped by ``inline``.
+        use_cdn : bool or {"auto"}
+            Where ``maidr.js`` comes from; see :meth:`render`.
+        chart_title : str or None
+            The chart's title.
+        inline : InlineScope
+            What scoped the SVG.
+
+        Returns
+        -------
+        htmltools.Tag
+            One ``<div class="maidr-inline">``.
+        """
+        stash = _quarto_stash(use_cdn)
+        cdn_url: str | None = None
+        locale_fallback = ""
+        mode = use_cdn
+        if use_cdn is False:
+            warn_if_bundle_is_stale()
+            if stash is None:
+                # The bundle could not be read, and ``_quarto_stash`` has said
+                # so. The CDN copy of the same version is the only source left,
+                # as for a frame outside a notebook.
+                mode = True
+                cdn_url = bundled_cdn_url(MAIDR_JS_FILENAME)
+        else:
+            cdn_url = maidr_js_cdn_url()
+            if use_cdn == "auto":
+                locale_fallback = locale_fallback_js()
+                warn_if_bundle_is_stale(bundle_is_primary=False)
+
+        before_runtime: list[Any] = [
+            locale_config_child(use_cdn, inline=True),
+            dotpad_config_child(inline=True),
+        ]
+        if stash is not None:
+            before_runtime.append(HTML(stash))
+        return inline_chart_tag(
+            plot,
+            inline,
+            chart_title,
+            before_runtime=before_runtime,
+            loader=loader_js(mode, cdn_url, locale_fallback),
+        )

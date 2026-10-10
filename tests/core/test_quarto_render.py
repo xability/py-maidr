@@ -70,11 +70,14 @@ def page(monkeypatch):
     monkeypatch.setattr(Environment, "is_notebook", staticmethod(lambda: True))
     monkeypatch.setattr(ipython, "get_ipython", lambda: page.kernel)
     monkeypatch.setattr(maidr_api, "_NOTEBOOK_LOADED", False)
-    # The chart itself is displayed through htmltools; only the stash goes
-    # through IPython.display, which is what this records. The module is
-    # patched rather than replaced: matplotlib reads IPython's version when
-    # a figure is created.
-    monkeypatch.setattr("htmltools._core.Tag.show", lambda self, *a, **k: None)
+    # The chart itself is displayed through htmltools, and the stash through
+    # IPython.display, or, in a Quarto render, inside the chart's own output
+    # (#895). Both are recorded. The module is patched rather than replaced:
+    # matplotlib reads IPython's version when a figure is created.
+    monkeypatch.setattr(
+        "htmltools._core.Tag.show",
+        lambda self, *a, **k: page.displayed.append(str(self)),
+    )
     monkeypatch.setattr(ipython_display, "HTML", lambda html: html)
     monkeypatch.setattr(ipython_display, "display", page.displayed.append)
     yield page

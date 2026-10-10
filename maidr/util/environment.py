@@ -1,7 +1,18 @@
+import json
 import os
 import subprocess
 import sys
-from typing import Union
+from typing import Optional, Union
+
+#: The pandoc writers whose output is a page a browser runs scripts in, as a
+#: Quarto render names them in ``format.pandoc.to``. A dashboard is ``html``
+#: there; ``ipynb``, ``commonmark``, ``latex``, ``docx`` and the rest are not
+#: pages, so a chart for one of them is not written into a page either.
+_QUARTO_PAGE_WRITERS = frozenset({"html", "html4", "html5", "revealjs"})
+
+#: The writer :meth:`Environment.quarto_writer` last read, keyed on the file
+#: it read it from as it stood then.
+_quarto_writer_cache: "dict[tuple[str, int, int], Optional[str]]" = {}
 
 
 class Environment:
@@ -121,6 +132,60 @@ class Environment:
             True if ``QUARTO_FIG_FORMAT`` is set and not empty.
         """
         return bool(os.environ.get("QUARTO_FIG_FORMAT"))
+
+    @staticmethod
+    def quarto_writer() -> Optional[str]:
+        """
+        Return the pandoc writer of the Quarto render running this kernel.
+
+        Quarto 1.8 and later name a JSON file in ``QUARTO_EXECUTE_INFO``
+        that describes the document being executed, its format among it. A
+        dashboard reads ``html`` here, a deck ``revealjs``, and a notebook
+        target ``ipynb``.
+
+        The file is read again whenever it changes: ``quarto preview`` keeps
+        one kernel, and one file, across renders, and a format switched in
+        between has to be seen.
+
+        Returns
+        -------
+        str or None
+            ``format.pandoc.to``, or None outside such a render, under an
+            older Quarto, or when the file cannot be read.
+        """
+        path = os.environ.get("QUARTO_EXECUTE_INFO")
+        if not path or not Environment.is_quarto():
+            return None
+        try:
+            stat = os.stat(path)
+            key = (path, stat.st_mtime_ns, stat.st_size)
+            if key not in _quarto_writer_cache:
+                with open(path, encoding="utf-8") as f:
+                    writer = json.load(f)["format"]["pandoc"]["to"]
+                _quarto_writer_cache.clear()
+                _quarto_writer_cache[key] = writer if isinstance(writer, str) else None
+            return _quarto_writer_cache[key]
+        except Exception:
+            # Broad on purpose, as in is_shiny: a probe must never be why a
+            # render fails, and an answer of None keeps today's iframe.
+            return None
+
+    @staticmethod
+    def is_quarto_page() -> bool:
+        """
+        Return True in a Quarto render whose output is a page a browser runs.
+
+        That is an ``html`` document, website, book or dashboard, or a
+        ``revealjs`` deck. A chart there can be written into the page itself
+        rather than into an iframe: there is no notebook frontend to take
+        its keys, and the page's own shortcuts are known (#895).
+
+        Returns
+        -------
+        bool
+            True if :meth:`quarto_writer` names such a writer.
+        """
+        return Environment.quarto_writer() in _QUARTO_PAGE_WRITERS
 
     @staticmethod
     def is_pyodide_page() -> bool:
