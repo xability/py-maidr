@@ -1070,6 +1070,13 @@ document rendered to `html` and `ipynb` in one go keeps its iframes in the
 notebook. If two of those formats share one `fig-format`, render each in its
 own `quarto render` with `--no-execute-daemon`.
 
+What a cell outputs for a web page is also what Quarto keeps in the notebooks
+it writes beside one: the `.quarto_ipynb` that `keep-ipynb: true` keeps, and a
+manuscript's notebook download. JupyterLab and Notebook 7 keep their own
+shortcuts off a chart there, but other notebook frontends may not. With
+`execute: cache: true`, outputs are reused across formats, so a render to a
+web page and to a format that is not one should not share a cache.
+
 A chart in the page still has what its iframe gave it:
 
 * **Its keys.** While the focus is in a chart, the keys it reads are kept from

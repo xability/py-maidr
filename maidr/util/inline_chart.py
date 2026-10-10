@@ -50,19 +50,12 @@ from maidr.util.environment import Environment
 _SVG = "{http://www.w3.org/2000/svg}"
 _XLINK_HREF = "{http://www.w3.org/1999/xlink}href"
 
-#: The shape of every id py-maidr mints, ``str(uuid.uuid4())``.
-_UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
-
-#: An id py-maidr minted, which is unique on any page already: the svg's own,
-#: which is the schema's, and a group's ``maidr-<uuid>``. Matched whole, so
-#: a user's ``gid`` that only contains a uuid is still made the chart's own.
-_MINTED_ID = re.compile(rf"(?:maidr-(?:[a-z]+-)*)?{_UUID.pattern}")
-
 #: ``url(#id)``, quoted or not, as an attribute or a style declaration says it.
 _URL = re.compile(r"""url\(\s*(['"]?)\s*#([^'")\s]+)\s*\1\s*\)""")
 
-#: ``[id='x']`` and ``[id="x"]``: how py-maidr's selectors name a group.
-_ID_ATTRIBUTE = re.compile(r"""\[id=(['"])(.*?)\1\]""")
+#: ``[id='x']`` and ``[maidr='x']``, quoted either way: how py-maidr's
+#: selectors name a group, by its id or by the mark py-maidr gives a layer's.
+_ID_ATTRIBUTE = re.compile(r"""\[(id|maidr)=(['"])(.*?)\2\]""")
 
 #: ``#x``, the other way a selector can name an element. It also matches a
 #: colour in an attribute test, ``[fill="#ff0000"]``, which is left alone
@@ -214,10 +207,14 @@ def _split_selector(selector: str) -> list[str]:
 class InlineScope:
     """Makes one chart's SVG safe to share a page with other charts.
 
-    Every id that is not one of py-maidr's uuids gets the suffix
-    ``-m<12 hex digits>``, fresh per chart, and every reference to it
-    follows: ``url(#id)``, ``href="#id"``, ARIA id lists, and the selectors
-    in the chart's schema. A suffix rather than r-maidr's prefix, because
+    Every id but the svg's own gets the suffix ``-m<12 hex digits>``, fresh
+    per chart, and so does the ``maidr`` mark py-maidr gives a layer's
+    group; every reference follows: ``url(#id)``, ``href="#id"``, ARIA id
+    lists, and the selectors in the chart's schema. py-maidr's own
+    ``maidr-<uuid>`` ids are suffixed too: they are minted once per figure,
+    not per render, and one figure can be shown twice on a page. The svg's
+    id is the schema's, which maidr.js finds the chart by, and is minted
+    per render. A suffix rather than r-maidr's prefix, because
     maidr.js finds a matplotlib panel by ``g[id^="axes_"]``, and a panel
     whose id no longer starts so loses its outline. The suffix never reads
     as axis furniture to maidr.js's tactile renderer either: that splits an
@@ -243,6 +240,7 @@ class InlineScope:
         #: The ``<svg>``'s id, which is the schema's.
         self.svg_id = ""
         self._renamed: dict[str, str] = {}
+        self._marks: dict[str, str] = {}
         #: Why the chart could not be scoped, once :meth:`scope` refused it.
         self.refused: InlineUnsupported | None = None
 
@@ -280,7 +278,12 @@ class InlineScope:
         self._renamed = {
             element_id: f"{element_id}-{self.key}"
             for element_id in (element.get("id") for element in svg.iter())
-            if element_id and not _MINTED_ID.fullmatch(element_id)
+            if element_id and element_id != self.svg_id
+        }
+        self._marks = {
+            mark: f"{mark}-{self.key}"
+            for mark in (element.get("maidr") for element in svg.iter())
+            if mark and not mark.startswith("{")
         }
         # Before anything changes: this is the one check left that can refuse.
         self.css = self._scope_css(style_text)
@@ -325,6 +328,9 @@ class InlineScope:
             element.set("id", renamed[element_id])
         for attribute, value in list(element.attrib.items()):
             if attribute == "maidr":
+                # The schema on the svg itself is written afterwards.
+                if value in self._marks:
+                    element.set(attribute, self._marks[value])
                 continue
             if "url(" in value:
                 element.set(attribute, _URL.sub(self._url, value))
@@ -344,8 +350,9 @@ class InlineScope:
         renamed = self._renamed
 
         def attribute(match: re.Match) -> str:
-            quote, value = match.group(1), match.group(2)
-            return f"[id={quote}{renamed.get(value, value)}{quote}]"
+            name, quote, value = match.groups()
+            names = renamed if name == "id" else self._marks
+            return f"[{name}={quote}{names.get(value, value)}{quote}]"
 
         def hash_id(match: re.Match) -> str:
             value = match.group(1)
@@ -356,14 +363,14 @@ class InlineScope:
     def _anchored(self, part: str) -> bool:
         """Whether a selector names an element by a value only this chart has.
 
-        That is an id, or py-maidr's ``maidr`` attribute, tested for an exact
-        value that py-maidr minted or that carries this chart's suffix. A
-        uuid elsewhere in the selector -- a prefix test, another attribute --
-        does not make it the chart's own.
+        That is an id, or py-maidr's ``maidr`` mark, tested for an exact value
+        that carries this chart's suffix, or for the svg's own id. Anything
+        else -- a prefix test, another attribute -- does not make it the
+        chart's own.
         """
         for match in _ANCHOR.finditer(part):
             value = match.group(2) if match.group(2) is not None else match.group(3)
-            if _UUID.search(value) or value.endswith(f"-{self.key}"):
+            if value.endswith(f"-{self.key}") or value == self.svg_id:
                 return True
         return False
 
@@ -594,10 +601,14 @@ def chart_tag(
     children.extend(child for child in before_runtime if child is not None)
     children.append(tags.script(HTML(loader)))
     # Named until maidr.js names the chart; inline.js takes the name off then.
+    # ``data-lm-suppress-shortcuts``: Quarto writes the outputs of an html
+    # render into notebooks too -- ``keep-ipynb``, a manuscript's notebook
+    # download -- and JupyterLab and Notebook 7 keep their shortcuts off any
+    # key pressed in an element inside one carrying it.
     return tags.div(
         *children,
         class_="maidr-inline",
         role="img",
         aria_label=scope.name,
-        **{"data-maidr-inline": ""},
+        **{"data-maidr-inline": "", "data-lm-suppress-shortcuts": ""},
     )

@@ -104,8 +104,12 @@ class _Kernel:
         self.user_ns.update(variables)
 
 
-def _outputs(tmp_path: Path) -> list[str]:
-    """Two charts, rendered as the kernel of a Quarto ``html`` render does."""
+def _outputs(tmp_path: Path, *, same_figure: bool = False) -> list[str]:
+    """Two charts, rendered as the kernel of a Quarto ``html`` render does.
+
+    With ``same_figure``, one figure rendered twice, as ``show()`` called on
+    it twice renders it.
+    """
     info = tmp_path / "info.json"
     info.write_text(
         json.dumps(
@@ -120,7 +124,16 @@ def _outputs(tmp_path: Path) -> list[str]:
         mock.patch.object(Environment, "is_notebook", return_value=True),
         mock.patch("IPython.get_ipython", return_value=kernel),
     ):
-        for title in ("First", "Second"):
+        if same_figure:
+            fig = _line("Twice")
+            try:
+                for _ in range(2):
+                    outputs.append(
+                        str(FigureManager.get_maidr(fig).render(use_cdn=False))
+                    )
+            finally:
+                plt.close(fig)
+        for title in () if same_figure else ("First", "Second"):
             fig = _line(title)
             try:
                 outputs.append(str(FigureManager.get_maidr(fig).render(use_cdn=False)))
@@ -415,5 +428,17 @@ def test_a_preview_of_a_figure_on_another_page_keeps_what_it_draws_with(
                }"""
         )
         assert copy == {"inert": True, "bound": 0, "resolved": True, "charts": 1}
+    finally:
+        page.close()
+
+
+def test_one_figure_shown_twice_highlights_in_each_output(browser, tmp_path):
+    """py-maidr mints a figure's group ids once, not each time it renders it."""
+    twice = _outputs(tmp_path, same_figure=True)
+    page = _page(
+        browser, tmp_path, "".join(f"<section>{html}</section>" for html in twice)
+    )
+    try:
+        _highlights_own(page, 2)
     finally:
         page.close()

@@ -366,15 +366,41 @@ def test_matplotlib_ids_keep_the_start_maidr_js_reads(quarto):
     assert any(re.fullmatch(r"figure_1-m[0-9a-f]{12}", i) for i in ids)
 
 
-def test_a_uuid_id_is_left_as_it_is(quarto):
-    """py-maidr's own ids are unique already, and the schema's id is the svg's."""
+def test_only_the_svgs_own_id_is_left_as_it_is(quarto):
+    """It is the schema's, which maidr.js finds the chart by, and new per render."""
     quarto("html")
     svg = _svg(_render(_bar()))
 
     assert svg.get("id") == _schema(svg)["id"]
     for element in svg.iter():
-        if UUID.search(element.get("id") or ""):
-            assert not re.search(r"-m[0-9a-f]{12}$", element.get("id"))
+        if element is not svg and element.get("id"):
+            assert re.search(r"-m[0-9a-f]{12}$", element.get("id")), element.get("id")
+
+
+def test_one_figure_shown_twice_shares_nothing_between_its_outputs(quarto):
+    """py-maidr mints a figure's group ids and marks once, not per render."""
+    quarto("html")
+    fig = _bar()
+    try:
+        maidr_figure = FigureManager.get_maidr(fig)
+        first = _svg(str(maidr_figure.render()))
+        second = _svg(str(maidr_figure.render()))
+    finally:
+        plt.close(fig)
+
+    def names(svg):
+        return {
+            value
+            for element in svg.iter()
+            for value in (element.get("id"), element.get("maidr"))
+            if value and not value.startswith("{")
+        }
+
+    def selectors(svg):
+        return set(_selectors(_schema(svg)))
+
+    assert names(first).isdisjoint(names(second))
+    assert selectors(first).isdisjoint(selectors(second))
 
 
 def test_every_reference_finds_its_own_chart(quarto):
@@ -636,7 +662,7 @@ def test_the_chart_is_named_until_maidr_js_names_it(quarto):
 
     assert _wrapper(html) == (
         '<div class="maidr-inline" role="img" aria-label="Sales, accessible chart"'
-        ' data-maidr-inline="">'
+        ' data-maidr-inline="" data-lm-suppress-shortcuts="">'
     )
     assert svg.get("aria-hidden") == "true"
     assert svg.get("role") is None

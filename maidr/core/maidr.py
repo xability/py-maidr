@@ -6,7 +6,6 @@ import io
 import os
 import tempfile
 import uuid
-import warnings
 import webbrowser
 import subprocess
 from pathlib import Path
@@ -25,6 +24,7 @@ from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.plot import MaidrPlot
 from maidr.core.plot.barplot import BarPlot
 from maidr.core.plot.grouped_barplot import GroupedBarPlot
+from maidr.util.caller_warning import warn_at_caller
 from maidr.util.figure_lock import figure_lock
 from maidr.util.pyodide_display import show_in_page
 from maidr.util.render_census import artist_census, warn_if_figure_changed
@@ -675,11 +675,10 @@ class Maidr:
 
         if inline is not None and inline.refused is not None:
             # The SVG was left as it was; the iframe carries it as before.
-            warnings.warn(
+            warn_at_caller(
                 f"maidr: this chart is shown in an iframe rather than in the "
                 f"page, because {inline.refused}.",
-                UserWarning,
-                stacklevel=4,
+                through=("matplotlib",),
             )
             inline = None
 
