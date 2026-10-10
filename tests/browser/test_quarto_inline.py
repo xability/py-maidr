@@ -315,6 +315,54 @@ def test_high_contrast_paints_the_chart_not_the_page(page):
     assert cleared == [page_colour, ""]
 
 
+def test_maidrs_settings_fields_keep_room_for_their_text(page):
+    """MUI's own, sized with content-box: the braille field's rule is not theirs."""
+    _press_in(page, 0, "Control+Comma")
+    field = page.locator('[role="dialog"] input.MuiInputBase-input').first
+    field.wait_for(state="visible")
+    size = field.evaluate(
+        """f => {
+             const s = getComputedStyle(f);
+             return {
+               sizing: s.boxSizing,
+               text: f.clientHeight
+                 - parseFloat(s.paddingTop) - parseFloat(s.paddingBottom),
+               font: parseFloat(s.fontSize),
+             };
+           }"""
+    )
+    assert size["sizing"] == "content-box"
+    assert size["text"] >= size["font"], size
+
+
+def test_the_braille_and_review_fields_keep_to_a_narrow_column(
+    browser, tmp_path, outputs
+):
+    page = _page(browser, tmp_path, f"<section>{outputs[0]}</section>")
+    try:
+        page.set_viewport_size({"width": 360, "height": 740})
+        for key, field in (
+            ("b", 'textarea[id^="maidr-braille-textarea"]'),
+            ("r", 'input[id^="maidr-review-input"]'),
+        ):
+            _press_in(page, 0, key)
+            fits = page.locator(field).evaluate(
+                """f => {
+                     const wrapper = f.closest('.maidr-inline');
+                     const page = document.documentElement;
+                     return {
+                       inWrapper: f.getBoundingClientRect().right
+                         <= wrapper.getBoundingClientRect().right + 0.5,
+                       noScroll: page.scrollWidth <= window.innerWidth,
+                     };
+                   }"""
+            )
+            assert fits == {"inWrapper": True, "noScroll": True}, (key, fits)
+            page.keyboard.press(key)
+    finally:
+        page.close()
+
+
 def test_a_preview_copy_of_a_chart_is_not_a_chart(page):
     """Quarto copies a figure into a popup when a reference to it is hovered."""
     before = page.evaluate(
