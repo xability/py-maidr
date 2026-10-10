@@ -425,7 +425,7 @@ cookieconsent.run({
 
 <section id="maidr.widget.gradio.render_maidr" class="level1">
 <h1>gradio.render_maidr</h1>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>widget.gradio.render_maidr(plot, <span class="op">*</span>, use_cdn<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>widget.gradio.render_maidr(plot, <span class="op">*</span>, use_cdn<span class="op">=</span><span class="va">None</span>, hover_mode<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Return the markup of an accessible chart, for a <code>gr.HTML</code> component.</p>
 <p>Use it as the component’s value, or return it from an event handler whose output is one.</p>
 <section id="parameters" class="level2 doc-section doc-section-parameters">
@@ -451,6 +451,12 @@ cookieconsent.run({
 <td>bool, {"auto"}, or None</td>
 <td>Where the chart loads <code>maidr.js</code> from; see :func:<code>maidr.render</code>. <code>False</code> puts the script, about 2 MB, inside every chart, so an app without network access still works. <code>None</code> defers to :func:<code>maidr.get_use_cdn</code>. Prefer this argument to :func:<code>maidr.set_use_cdn</code>, which changes what every user’s handler renders.</td>
 <td><code>None</code></td>
+</tr>
+<tr class="odd">
+<td>hover_mode</td>
+<td>('pointermove', 'click', 'off')</td>
+<td>The chart’s starting value for the reader’s Hover Mode setting; see :func:<code>maidr.render</code>. <code>None</code> leaves maidr.js’s default.</td>
+<td><code>"pointermove"</code></td>
 </tr>
 </tbody>
 </table>

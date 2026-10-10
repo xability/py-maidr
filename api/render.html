@@ -411,6 +411,7 @@ cookieconsent.run({
   <ul class="collapse">
   <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
   <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  <li><a href="#raises" id="toc-raises" class="nav-link" data-scroll-target="#raises">Raises</a></li>
   </ul></li>
   </ul>
 <div class="toc-actions"><ul><li><a href="https://github.com/xability/py-maidr/issues/new/choose" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
@@ -423,7 +424,7 @@ cookieconsent.run({
 
 <section id="maidr.render" class="level1">
 <h1>render</h1>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>render(plot<span class="op">=</span><span class="va">None</span>, use_cdn<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>render(plot<span class="op">=</span><span class="va">None</span>, use_cdn<span class="op">=</span><span class="va">None</span>, <span class="op">*</span>, hover_mode<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Render a MAIDR plot to HTML.</p>
 <section id="parameters" class="level2 doc-section doc-section-parameters">
 <h2 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h2>
@@ -449,6 +450,12 @@ cookieconsent.run({
 <td>* <code>True</code>: load <code>maidr.js</code> from the public jsDelivr CDN only (no offline fallback). * <code>False</code>: reference the copy bundled inside the installed <code>maidr</code> package. Use this in air-gapped environments. * <code>"auto"</code>: emit a CDN <code>&lt;script&gt;</code> with a client-side <code>onerror</code> handler that swaps in the bundled copy when the CDN is unreachable. This is the default mode. Reachability is decided in the browser, but building the URL resolves the published version over the network once per process (bounded by <code>MAIDR_CDN_TIMEOUT</code>; set <code>MAIDR_CDN_VERSION=latest</code> to skip it). * <code>None</code> (default): use the process-wide default set via :func:<code>set_use_cdn</code> or the <code>MAIDR_USE_CDN</code> env var (both default to <code>"auto"</code>). Altair charts always use the CDN — this argument is not plumbed through that adapter, so <code>False</code> warns rather than taking effect (#521).</td>
 <td><code>None</code></td>
 </tr>
+<tr class="odd">
+<td>hover_mode</td>
+<td>('pointermove', 'click', 'off')</td>
+<td>The chart’s starting value for the reader’s Hover Mode setting, written to the MAIDR schema as <code>hoverMode</code>: * <code>"pointermove"</code>: moving the pointer over the chart moves the reader’s position and highlights what is under it (maidr.js’s default). * <code>"click"</code>: the position moves only when the reader clicks. * <code>"off"</code>: the pointer is ignored; the chart is keyboard only. * <code>None</code> (default): leave <code>hoverMode</code> out, so maidr.js uses its default. A reader who has changed Hover Mode in the chart’s settings keeps their own choice. A maidr.js release older than the field ignores it. Altair charts do not support it – their schema is built by the upstream Vega-Lite adapter – so a value other than <code>None</code> warns there and has no effect.</td>
+<td><code>"pointermove"</code></td>
+</tr>
 </tbody>
 </table>
 </section>
@@ -472,6 +479,25 @@ cookieconsent.run({
 <td></td>
 <td><code>htmltools</code>.<code>Tag</code></td>
 <td>The rendered HTML representation of the plot.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="raises" class="level2 doc-section doc-section-raises">
+<h2 class="doc-section doc-section-raises anchored" data-anchor-id="raises">Raises</h2>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><a href="https://docs.python.org/3/builtins/exceptions.html#ValueError">ValueError</a></td>
+<td>If <code>hover_mode</code> is not one of the values above.</td>
 </tr>
 </tbody>
 </table>

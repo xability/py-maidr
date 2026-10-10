@@ -424,7 +424,13 @@ cookieconsent.run({
 
 <section id="maidr.widget.streamlit.maidr_html" class="level1">
 <h1>streamlit.maidr_html</h1>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>widget.streamlit.maidr_html(plot<span class="op">=</span><span class="va">None</span>, <span class="op">*</span>, use_cdn<span class="op">=</span><span class="va">None</span>, _stacklevel<span class="op">=</span><span class="dv">3</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>widget.streamlit.maidr_html(</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    plot<span class="op">=</span><span class="va">None</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    use_cdn<span class="op">=</span><span class="va">None</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    hover_mode<span class="op">=</span><span class="va">None</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    _stacklevel<span class="op">=</span><span class="dv">3</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Return an accessible chart as a self-contained HTML string.</p>
 <section id="parameters" class="level2 doc-section doc-section-parameters">
 <h2 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h2>
@@ -451,6 +457,12 @@ cookieconsent.run({
 <td><code>None</code></td>
 </tr>
 <tr class="odd">
+<td>hover_mode</td>
+<td>('pointermove', 'click', 'off')</td>
+<td>The chart’s starting value for the reader’s Hover Mode setting; see :func:<code>maidr.render</code>. <code>None</code> leaves maidr.js’s default.</td>
+<td><code>"pointermove"</code></td>
+</tr>
+<tr class="even">
 <td>_stacklevel</td>
 <td><a href="https://docs.python.org/3/builtins/functions.html#int">int</a></td>
 <td>Internal. Frames to skip when warning, so a warning points at the caller’s own line; :func:<code>render_maidr</code> raises it by one because it sits a frame further out. Not part of the public API – the underscore is the only thing stopping an IDE from offering it.</td>

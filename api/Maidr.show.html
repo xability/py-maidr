@@ -422,7 +422,7 @@ cookieconsent.run({
 
 <section id="maidr.Maidr.show" class="level1">
 <h1>Maidr.show</h1>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>Maidr.show(renderer<span class="op">=</span><span class="st">'auto'</span>, clear_fig<span class="op">=</span><span class="va">True</span>, use_cdn<span class="op">=</span><span class="st">'auto'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>Maidr.show(renderer<span class="op">=</span><span class="st">'auto'</span>, clear_fig<span class="op">=</span><span class="va">True</span>, use_cdn<span class="op">=</span><span class="st">'auto'</span>, <span class="op">*</span>, hover_mode<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Preview the HTML content using the specified renderer.</p>
 <section id="parameters" class="level2 doc-section doc-section-parameters">
 <h2 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h2>
@@ -453,6 +453,12 @@ cookieconsent.run({
 <td><a href="https://docs.python.org/3/builtins/functions.html#bool">bool</a> or {'auto'}</td>
 <td>* <code>True</code>: load <code>maidr.js</code> from the CDN only. * <code>False</code>: render using the copy of <code>maidr.js</code> bundled with the installed package. For the browser renderer the assets are copied next to the temporary HTML file. * <code>"auto"</code> (default): attempt the CDN first and fall back to the bundled copy client-side if the CDN request fails.</td>
 <td><code>"auto"</code></td>
+</tr>
+<tr class="even">
+<td>hover_mode</td>
+<td>('pointermove', 'click', 'off')</td>
+<td>The chart’s starting value for the reader’s Hover Mode setting, written to the schema as <code>hoverMode</code>. <code>None</code> leaves it out, so maidr.js uses its default, <code>"pointermove"</code>. See :func:<code>maidr.render</code>.</td>
+<td><code>"pointermove"</code></td>
 </tr>
 </tbody>
 </table>

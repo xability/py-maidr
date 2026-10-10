@@ -432,7 +432,8 @@ cookieconsent.run({
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    run_id<span class="op">=</span><span class="va">None</span></span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    tracking_uri<span class="op">=</span><span class="va">None</span></span>
 <span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    use_cdn<span class="op">=</span><span class="va">False</span></span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    hover_mode<span class="op">=</span><span class="va">None</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Store an accessible chart in an MLflow run, as an HTML artifact.</p>
 <p>The MLflow UI shows an <code>.html</code> artifact in a frame on the run’s Artifacts tab, where the chart is read from the keyboard, as sound, as text and in braille like any other maidr chart.</p>
 <section id="parameters" class="level2 doc-section doc-section-parameters">
@@ -477,6 +478,12 @@ cookieconsent.run({
 <td>Where the chart loads <code>maidr.js</code> from. <code>False</code>, the default, stores the script inside the artifact, about 2 MB, so the chart works wherever the tracking server can be reached, with no other network access, and keeps working as maidr.js changes. <code>True</code> loads it from the jsDelivr CDN, which keeps the artifact small. <code>None</code> defers to :func:<code>maidr.get_use_cdn</code>.</td>
 <td><code>False</code></td>
 </tr>
+<tr class="even">
+<td>hover_mode</td>
+<td>('pointermove', 'click', 'off')</td>
+<td>The chart’s starting value for the reader’s Hover Mode setting; see :func:<code>maidr.render</code>. <code>None</code> leaves maidr.js’s default. The MLflow UI’s frame cannot keep a reader’s settings between visits, so this is the mode the chart opens in every time.</td>
+<td><code>"pointermove"</code></td>
+</tr>
 </tbody>
 </table>
 </section>
@@ -499,7 +506,7 @@ cookieconsent.run({
 <tr class="even">
 <td></td>
 <td><a href="https://docs.python.org/3/builtins/exceptions.html#ValueError">ValueError</a></td>
-<td>If <code>artifact_file</code> does not end in <code>.html</code>, which the MLflow UI would show as text.</td>
+<td>If <code>artifact_file</code> does not end in <code>.html</code>, which the MLflow UI would show as text, or if <code>hover_mode</code> is not one of the values :func:<code>maidr.render</code> lists.</td>
 </tr>
 </tbody>
 </table>

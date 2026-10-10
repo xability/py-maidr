@@ -432,7 +432,8 @@ cookieconsent.run({
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    include_version<span class="op">=</span><span class="va">True</span></span>
 <span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    data_in_svg<span class="op">=</span><span class="va">True</span></span>
 <span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    use_cdn<span class="op">=</span><span class="va">None</span></span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    hover_mode<span class="op">=</span><span class="va">None</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Save a MAIDR plot as HTML file.</p>
 <section id="parameters" class="level2 doc-section doc-section-parameters">
 <h2 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h2>
@@ -482,6 +483,12 @@ cookieconsent.run({
 <td>* <code>True</code>: reference the public jsDelivr CDN only (no files copied, no offline fallback). * <code>False</code>: bundle <code>maidr.js</code> and its assets into <code>lib_dir</code> next to the saved HTML and reference the script with a relative path. The resulting directory is self-contained and works without any network access. * <code>"auto"</code>: copy the bundle alongside the HTML and emit a CDN loader with a client-side <code>onerror</code> fallback, so the HTML works both online and offline. This is the default mode. * <code>None</code> (default): use the process-wide default (see :func:<code>set_use_cdn</code> / <code>MAIDR_USE_CDN</code>). Both default to <code>"auto"</code>. The two CDN modes (<code>True</code> and <code>"auto"</code>) resolve the published version over the network once per process when building the URL, bounded by <code>MAIDR_CDN_TIMEOUT</code>; <code>MAIDR_CDN_VERSION</code> skips it. <code>False</code> makes no request. Altair charts always use the CDN — this argument is not plumbed through that adapter.</td>
 <td><code>None</code></td>
 </tr>
+<tr class="odd">
+<td>hover_mode</td>
+<td>('pointermove', 'click', 'off')</td>
+<td>The chart’s starting hover mode, written to the schema as <code>hoverMode</code>. See :func:<code>render</code> for the values. <code>None</code> leaves it out; Altair charts warn and ignore it.</td>
+<td><code>"pointermove"</code></td>
+</tr>
 </tbody>
 </table>
 </section>
@@ -519,6 +526,11 @@ cookieconsent.run({
 <td></td>
 <td><a href="https://docs.python.org/3/builtins/exceptions.html#TypeError">TypeError</a></td>
 <td>If <code>file</code> is not given.</td>
+</tr>
+<tr class="even">
+<td></td>
+<td><a href="https://docs.python.org/3/builtins/exceptions.html#ValueError">ValueError</a></td>
+<td>If <code>hover_mode</code> is not one of the values :func:<code>render</code> lists.</td>
 </tr>
 </tbody>
 </table>
