@@ -70,6 +70,10 @@ _ID_ATTRIBUTE = re.compile(r"""\[id=(['"])(.*?)\1\]""")
 #: none.
 _ID_HASH = re.compile(r"#((?:[A-Za-z0-9_-]|\\.)+)")
 
+#: An exact test of an id, or of py-maidr's ``maidr`` attribute, in a selector:
+#: ``[id='x']``, ``[maidr='x']`` or ``#x``. ``[id^='x']`` is not one.
+_ANCHOR = re.compile(r"""\[(?:id|maidr)=(['"])(.*?)\1\]|#((?:[A-Za-z0-9_-]|\\.)+)""")
+
 #: The attributes that hold a list of ids.
 _ARIA_ID_LISTS = (
     "aria-activedescendant",
@@ -305,11 +309,25 @@ class InlineScope:
 
         return _ID_HASH.sub(hash_id, _ID_ATTRIBUTE.sub(attribute, selector))
 
+    def _anchored(self, part: str) -> bool:
+        """Whether a selector names an element by a value only this chart has.
+
+        That is an id, or py-maidr's ``maidr`` attribute, tested for an exact
+        value that py-maidr minted or that carries this chart's suffix. A
+        uuid elsewhere in the selector -- a prefix test, another attribute --
+        does not make it the chart's own.
+        """
+        for match in _ANCHOR.finditer(part):
+            value = match.group(2) if match.group(2) is not None else match.group(3)
+            if _UUID.search(value) or value.endswith(f"-{self.key}"):
+                return True
+        return False
+
     def _scope_selector(self, selector: str) -> str:
         parts = []
         for part in _split_selector(self._rename_in_selector(selector)):
             stripped = part.strip()
-            if stripped and not (_UUID.search(stripped) or self.key in stripped):
+            if stripped and not self._anchored(stripped):
                 part = f'[id="{self.svg_id}"] {stripped}'
             parts.append(part)
         return ",".join(parts)
@@ -356,7 +374,8 @@ class InlineScope:
                     scoped.append(f".{self.css_class}")
                 scoped.append(f".{self.css_class} {part}")
             if scoped:
-                rules.append(f"{', '.join(scoped)} {{{match.group(2).strip()}}}")
+                body = _URL.sub(self._url, match.group(2).strip())
+                rules.append(f"{', '.join(scoped)} {{{body}}}")
         if text[position:].strip():
             raise InlineUnsupported("the chart's <style> could not be read")
         return "\n".join(rules)

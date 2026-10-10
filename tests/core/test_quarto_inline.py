@@ -381,6 +381,25 @@ def test_a_selector_that_names_nothing_of_its_own_is_scoped_to_the_chart():
     ]
 
 
+def test_a_uuid_outside_an_id_test_does_not_make_a_selector_the_charts_own():
+    markup = f'<svg xmlns="{SVG}" id="{SVG_ID}"><g id="maidr-{SVG_ID}"/></svg>'
+    scope, schema = _scope(
+        markup, {"selectors": f"g[id^='maidr-'] path[data-x='{SVG_ID}']"}
+    )
+
+    assert schema["selectors"].startswith(f'[id="{SVG_ID}"] ')
+
+
+def test_a_style_names_the_charts_own_definitions():
+    markup = (
+        f'<svg xmlns="{SVG}" id="{SVG_ID}"><defs><linearGradient id="grad"/></defs>'
+        "<style>path { fill: url(#grad) }</style></svg>"
+    )
+    scope, _schema = _scope(markup, {})
+
+    assert f"url(#grad-{scope.key})" in scope.css
+
+
 def test_selector_commas_inside_brackets_and_parentheses_are_not_split():
     parts = inline_chart._split_selector(
         "g[id='a,b'] > :nth-child(n+2 of use, path), g[maidr='x']"
