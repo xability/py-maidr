@@ -380,23 +380,52 @@ def test_shift_tab_is_the_browsers_on_a_page_that_is_not_a_deck(plain_page):
     assert after["given"] == 0
 
 
+_BODY_COLOURS = (
+    "() => { const s = getComputedStyle(document.body);"
+    " return [s.backgroundColor, s.color]; }"
+)
+
+# Walks up from the plot to the first element with a background of its own.
+_BEHIND_THE_PLOT = """plot => {
+  const clear = ['rgba(0, 0, 0, 0)', 'transparent'];
+  let node = plot;
+  while (node && clear.includes(getComputedStyle(node).backgroundColor)) {
+    node = node.parentElement;
+  }
+  return {
+    inChart: !!node && plot.closest('.maidr-inline').contains(node),
+    colour: node ? getComputedStyle(node).backgroundColor : '',
+  };
+}"""
+
+
 def test_high_contrast_paints_the_chart_not_the_page(page):
-    page_colour = page.evaluate("getComputedStyle(document.body).backgroundColor")
-    _press_in(page, 0, "c")
-    painted = page.evaluate(
-        "() => [getComputedStyle(document.body).backgroundColor,"
-        " document.querySelector('.maidr-inline').style.backgroundColor]"
+    """What the reader sees, whichever element maidr.js paints.
+
+    maidr.js 4.14 paints the body, and inline.js gives the page its colours
+    back and the chart's wrapper maidr's; a maidr.js that paints the chart's
+    own article leaves inline.js nothing to do.
+    """
+    page.add_style_tag(
+        content="body { background: rgb(250, 240, 230); color: rgb(20, 20, 20); }"
     )
-    assert painted[0] == page_colour
-    assert painted[1] not in ("", page_colour)
+    page_colours = page.evaluate(_BODY_COLOURS)
+    _press_in(page, 0, "c")
+
+    assert page.evaluate(_BODY_COLOURS) == page_colours
+    behind = page.locator(_PLOT).first.evaluate(_BEHIND_THE_PLOT)
+    assert behind["inChart"], behind
+    assert behind["colour"] != page_colours[0]
 
     page.locator("#after").focus()
     page.wait_for_timeout(500)
-    cleared = page.evaluate(
-        "() => [getComputedStyle(document.body).backgroundColor,"
-        " document.querySelector('.maidr-inline').style.backgroundColor]"
+    assert page.evaluate(_BODY_COLOURS) == page_colours
+    still_painted = page.evaluate(
+        """() => [...document.querySelectorAll(
+             '.maidr-inline, article[id^="maidr-article-"]')]
+           .filter(e => e.style.backgroundColor || e.style.color).length"""
     )
-    assert cleared == [page_colour, ""]
+    assert still_painted == 0
 
 
 def test_maidrs_settings_fields_keep_room_for_their_text(page):
