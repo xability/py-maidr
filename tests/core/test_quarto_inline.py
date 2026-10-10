@@ -345,6 +345,18 @@ def test_every_selector_is_anchored_to_its_chart(quarto):
             assert UUID.search(part) or key in part, selector
 
 
+def test_a_gid_that_only_contains_a_uuid_is_made_the_charts_own(quarto):
+    """Only an id py-maidr minted is unique already; a user's may repeat."""
+    quarto("html")
+    gid = "series-6f1c2c1e-6d2b-4f8e-9a0b-1c2d3e4f5a6b"
+    first, second = _svg(_render(_line(gid))), _svg(_render(_line(gid)))
+
+    def ids(svg):
+        return {element.get("id") for element in svg.iter() if element.get("id")}
+
+    assert ids(first).isdisjoint(ids(second))
+
+
 def _scope(markup: str, schema: dict, name: str = "Chart") -> tuple[InlineScope, dict]:
     svg = etree.fromstring(markup.encode())
     scope = InlineScope(name)

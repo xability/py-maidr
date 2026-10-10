@@ -50,8 +50,13 @@ from maidr.util.environment import Environment
 _SVG = "{http://www.w3.org/2000/svg}"
 _XLINK_HREF = "{http://www.w3.org/1999/xlink}href"
 
-#: Every id py-maidr mints, ``str(uuid.uuid4())``: unique on any page already.
+#: The shape of every id py-maidr mints, ``str(uuid.uuid4())``.
 _UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+
+#: An id py-maidr minted, which is unique on any page already: the svg's own,
+#: which is the schema's, and a group's ``maidr-<uuid>``. Matched whole, so
+#: a user's ``gid`` that only contains a uuid is still made the chart's own.
+_MINTED_ID = re.compile(rf"(?:maidr-(?:[a-z]+-)*)?{_UUID.pattern}")
 
 #: ``url(#id)``, quoted or not, as an attribute or a style declaration says it.
 _URL = re.compile(r"""url\(\s*(['"]?)\s*#([^'")\s]+)\s*\1\s*\)""")
@@ -59,7 +64,10 @@ _URL = re.compile(r"""url\(\s*(['"]?)\s*#([^'")\s]+)\s*\1\s*\)""")
 #: ``[id='x']`` and ``[id="x"]``: how py-maidr's selectors name a group.
 _ID_ATTRIBUTE = re.compile(r"""\[id=(['"])(.*?)\1\]""")
 
-#: ``#x``, the other way a selector can name an element.
+#: ``#x``, the other way a selector can name an element. It also matches a
+#: colour in an attribute test, ``[fill="#ff0000"]``, which is left alone
+#: unless it happens to be one of the chart's ids; py-maidr's selectors test
+#: none.
 _ID_HASH = re.compile(r"#((?:[A-Za-z0-9_-]|\\.)+)")
 
 #: The attributes that hold a list of ids.
@@ -236,7 +244,7 @@ class InlineScope:
         self._renamed = {
             element_id: f"{element_id}-{self.key}"
             for element_id in (element.get("id") for element in svg.iter())
-            if element_id and not _UUID.search(element_id)
+            if element_id and not _MINTED_ID.fullmatch(element_id)
         }
         # Before anything changes: this is the one check left that can refuse.
         self.css = self._scope_css(style_text)
