@@ -133,3 +133,62 @@ def test_maidr_takes_over_every_chart_and_leaves_the_page_alone(
     finally:
         page.close()
     assert not errors
+
+
+_DASHBOARD = """\
+---
+title: Two cards
+format: dashboard
+---
+
+```{python}
+#| include: false
+import matplotlib.pyplot as plt
+import maidr
+maidr.set_use_cdn(False)
+```
+
+## Row
+
+```{python}
+#| title: Bars
+fig, ax = plt.subplots(figsize=(6, 4))
+ax.bar(["a", "b", "c"], [3, 1, 2])
+plt.show()
+```
+
+```{python}
+#| title: Line
+fig, ax = plt.subplots(figsize=(6, 4))
+ax.plot([1, 2, 3], [2, 3, 1])
+plt.show()
+```
+"""
+
+
+def test_a_dashboards_charts_stay_in_their_cards(tmp_path):
+    """Quarto's dashboard filter lifts an output it takes for a bslib component."""
+    from lxml import html as lxml_html
+
+    quarto = _quarto()
+    (tmp_path / "dash.qmd").write_text(_DASHBOARD, encoding="utf-8")
+    env = {**os.environ, "QUARTO_PYTHON": sys.executable, "MPLBACKEND": "Agg"}
+    result = subprocess.run(
+        [quarto, "render", "dash.qmd"],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=600,
+    )
+    if result.returncode != 0:
+        pytest.fail(f"quarto render failed:\n{result.stderr[-4000:]}")
+    page = lxml_html.parse(str(tmp_path / "dash.html"))
+
+    charts = page.xpath("//div[contains(concat(' ', @class, ' '), ' maidr-inline ')]")
+    assert len(charts) == 2
+    for chart in charts:
+        card = chart.xpath(
+            "ancestor::div[contains(concat(' ', @class, ' '), ' card ')]"
+        )
+        assert card, "a chart was moved out of its card"

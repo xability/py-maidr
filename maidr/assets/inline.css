@@ -52,6 +52,14 @@
   outline-offset: -5px !important;
 }
 
+/* maidr's braille and review fields are as wide as their text; in a phone's
+ * column they keep to the chart's width. */
+.maidr-inline textarea,
+.maidr-inline input {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
 /* The braille and review fields, and maidr's buttons, take the focus in
  * their modes, and need a ring as much as the chart does. */
 .maidr-inline textarea:focus,

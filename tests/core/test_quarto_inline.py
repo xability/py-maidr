@@ -595,6 +595,32 @@ def test_a_chart_that_cannot_be_scoped_is_framed_as_before(quarto, monkeypatch):
     assert "maidr-inline" not in html
 
 
+@pytest.mark.parametrize("use_cdn", [False, True, "auto"])
+def test_nothing_a_chart_writes_reads_as_a_dashboard_component(quarto, use_cdn):
+    """Quarto's dashboard filter lifts any output holding ``bslib-`` out of its card.
+
+    In a Lua pattern the ``-`` is a lazy quantifier, so ``bsli`` anywhere is
+    enough: a chart that held it left its card, and a card with nothing else
+    in it disappeared, title and all.
+    """
+    quarto("html")
+    html = _shown(_bar(), use_cdn=use_cdn)
+
+    assert "bsli" not in html
+
+
+def test_the_svg_carries_no_indentation_into_the_page(quarto):
+    """It is text in the page, which a site's search indexes."""
+    quarto("html")
+    svg = _svg(_render(_bar()))
+    text_elements = {f"{{{SVG}}}{tag}" for tag in ("text", "tspan", "title", "desc")}
+
+    for element in svg.iter():
+        if element.tag not in text_elements:
+            assert element.text is None or element.text.strip(), element.tag
+        assert element.tail is None or element.tail.strip(), element.tag
+
+
 # --- Names -------------------------------------------------------------------
 
 

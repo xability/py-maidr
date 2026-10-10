@@ -74,6 +74,11 @@ _ID_HASH = re.compile(r"#((?:[A-Za-z0-9_-]|\\.)+)")
 #: ``[id='x']``, ``[maidr='x']`` or ``#x``. ``[id^='x']`` is not one.
 _ANCHOR = re.compile(r"""\[(?:id|maidr)=(['"])(.*?)\1\]|#((?:[A-Za-z0-9_-]|\\.)+)""")
 
+#: The SVG elements whose text, whitespace included, is drawn.
+_TEXT_ELEMENTS = frozenset(
+    f"{_SVG}{tag}" for tag in ("text", "tspan", "textPath", "title", "desc")
+)
+
 #: The attributes that hold a list of ids.
 _ARIA_ID_LISTS = (
     "aria-activedescendant",
@@ -285,9 +290,21 @@ class InlineScope:
             if parent is not None:
                 parent.remove(element)
         for element in svg.iter():
+            # matplotlib's indentation is text in the page, which a site's
+            # search indexes: about 2 KB of whitespace a chart. The text of
+            # a label, which svg.fonttype "none" writes, is kept. So are
+            # the comments it writes each label's text in, which no search
+            # reads, but not the whitespace after them.
+            parent = element.getparent()
+            if element.tail is not None and not element.tail.strip():
+                if parent is None or parent.tag not in _TEXT_ELEMENTS:
+                    element.tail = None
             if not isinstance(element.tag, str):
                 continue
             self._rename(element)
+            if element.tag not in _TEXT_ELEMENTS:
+                if element.text is not None and not element.text.strip():
+                    element.text = None
 
         svg.set(
             "class",

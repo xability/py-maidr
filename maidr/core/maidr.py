@@ -1192,7 +1192,9 @@ class Maidr:
         svg_buffer.write(
             etree.tostring(
                 root_svg,
-                pretty_print=True,
+                # Not for a chart written into a page, whose indentation
+                # would be text in the page; see ``InlineScope.scope``.
+                pretty_print=inline is None or inline.refused is not None,
                 encoding="unicode",  # type: ignore
             )
         )

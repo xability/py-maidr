@@ -314,12 +314,17 @@
     window.quartoOpenSearch = guarded;
   }
 
+  // Spelt in two parts: Quarto's dashboard filter moves any cell output that
+  // holds the Lua pattern 'bslib-' -- which matches 'bsli' -- out of its
+  // card, as a component of its own.
+  var BSLIB = 'bs' + 'lib';
+
   // A bslib card shown full screen (a Quarto dashboard's) leaves it on
   // Escape pressed anywhere, through a listener on the document that it
   // keeps on the card's instance. The one for a card around a chart ignores
   // the keys pressed in the chart, where Escape closes maidr's own modes.
   function shimCard(card) {
-    var Card = window.bslib && window.bslib.Card;
+    var Card = window[BSLIB] && window[BSLIB].Card;
     var instance = Card && typeof Card.getInstance === 'function' && Card.getInstance(card);
     if (!instance || instance.__maidrInline || typeof instance._exitFullScreenOnEscape !== 'function') {
       return;
@@ -338,8 +343,8 @@
   }
 
   function shimCards(node) {
-    for (var card = node.closest('.bslib-card'); card;
-      card = card.parentElement && card.parentElement.closest('.bslib-card')) {
+    for (var card = node.closest('.' + BSLIB + '-card'); card;
+      card = card.parentElement && card.parentElement.closest('.' + BSLIB + '-card')) {
       shimCard(card);
     }
   }
@@ -403,14 +408,18 @@
 
   // Hovering a reference to a Quarto figure shows a copy of it in a tippy
   // popup: a second chart with the same ids and a second tab stop. The copy
-  // is made inert and loses its ids, its tab stops and the attribute maidr.js
-  // binds by; its url(#..) references still find the original's definitions.
+  // is made inert and loses its tab stops and the attribute maidr.js binds
+  // by, and every id the page already has; its url(#..) references find the
+  // original's definitions then. A copy of a figure on another page, which
+  // Quarto fetches, keeps the ids nothing else on this page has, or its
+  // glyphs and markers would find nothing.
   function quietPreview(root) {
     if (!root.querySelector(CHART + ', svg[maidr]')) return;
     root.setAttribute('inert', '');
     var nodes = root.querySelectorAll('[id], [tabindex], [maidr], [maidr-data]');
     for (var i = 0; i < nodes.length; i++) {
-      nodes[i].removeAttribute('id');
+      var id = nodes[i].id;
+      if (id && document.getElementById(id) !== nodes[i]) nodes[i].removeAttribute('id');
       nodes[i].removeAttribute('tabindex');
       nodes[i].removeAttribute('maidr');
       nodes[i].removeAttribute('maidr-data');

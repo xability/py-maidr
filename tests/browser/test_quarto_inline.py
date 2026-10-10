@@ -383,3 +383,37 @@ def test_an_output_added_again_after_load_gets_ids_of_its_own(page, outputs):
         timeout=_PARSE_TIMEOUT_MS,
     )
     _highlights_own(page, 3)
+
+
+def test_a_preview_of_a_figure_on_another_page_keeps_what_it_draws_with(
+    browser, tmp_path, outputs
+):
+    """Quarto fetches that page; its definitions are nowhere else on this one."""
+    page = _page(browser, tmp_path, f"<section>{outputs[0]}</section>")
+    try:
+        page.evaluate(
+            """(html) => {
+                 const root = document.createElement('div');
+                 root.setAttribute('data-tippy-root', '');
+                 root.innerHTML = html;
+                 document.body.appendChild(root);
+               }""",
+            outputs[1],
+        )
+        page.wait_for_timeout(500)
+        copy = page.evaluate(
+            """() => {
+                 const root = document.querySelector('[data-tippy-root]');
+                 const refs = [...root.querySelectorAll('use')]
+                   .map(u => u.getAttribute('xlink:href') || u.getAttribute('href'));
+                 return {
+                   inert: root.hasAttribute('inert'),
+                   bound: root.querySelectorAll('[maidr], [tabindex]').length,
+                   resolved: refs.length > 0 && refs.every(r => root.querySelector(r)),
+                   charts: document.querySelectorAll('article[id^=maidr-article-]').length,
+                 };
+               }"""
+        )
+        assert copy == {"inert": True, "bound": 0, "resolved": True, "charts": 1}
+    finally:
+        page.close()
