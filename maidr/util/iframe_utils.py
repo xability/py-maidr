@@ -57,7 +57,7 @@ def _generate_unique_id() -> str:
     return "iframe_" + str(uuid.uuid4())
 
 
-def iframe_title(chart_title: str | None = None) -> str:
+def iframe_title(chart_title: str | None = None, alt: str | None = None) -> str:
     """
     Build the accessible name for the frame holding a chart.
 
@@ -76,17 +76,25 @@ def iframe_title(chart_title: str | None = None) -> str:
     the shape ``Description.tsx`` uses for its own table -- a name for the
     chart when there is one, a bare label when there is not.
 
+    An author's alt text names the frame instead: their own words for the
+    chart, as it names a chart written into the page of a Quarto render.
+
     Parameters
     ----------
     chart_title : str, optional
         The chart's title. Whitespace-only counts as absent, matching the
         MAIDR engine's trimmed "authored" check.
+    alt : str, optional
+        The alt text of the Quarto cell the chart is drawn in (``fig-alt``).
+        Whitespace-only counts as absent.
 
     Returns
     -------
     str
         The accessible name for the ``iframe``.
     """
+    if alt and alt.strip():
+        return alt.strip()
     name = (chart_title or "").strip()
     return f"{name}, accessible chart" if name else _UNTITLED_NAME
 
@@ -184,7 +192,9 @@ def chart_title_on(tag: object) -> str:
     return str(getattr(tag, _CHART_TITLE_ATTR, "") or "")
 
 
-def wrap_in_iframe_matplotlib(base_html: Tag, chart_title: str | None = None) -> Tag:
+def wrap_in_iframe_matplotlib(
+    base_html: Tag, chart_title: str | None = None, alt: str | None = None
+) -> Tag:
     """Wrap matplotlib HTML in an auto-resizing iframe for notebooks.
 
     Parameters
@@ -194,6 +204,9 @@ def wrap_in_iframe_matplotlib(base_html: Tag, chart_title: str | None = None) ->
     chart_title : str, optional
         The chart's own title, which leads the frame's accessible name. See
         :func:`iframe_title`.
+    alt : str, optional
+        The alt text of the Quarto cell the chart is drawn in, which names
+        the frame instead.
 
     Returns
     -------
@@ -341,7 +354,7 @@ def wrap_in_iframe_matplotlib(base_html: Tag, chart_title: str | None = None) ->
 
     return tags.iframe(
         id=unique_id,
-        title=iframe_title(chart_title),
+        title=iframe_title(chart_title, alt),
         # Marks this frame as maidr's own. A host page may put other
         # iframes in the same container, and anything keying off "an
         # iframe is the chart" -- the Shiny focus restore does -- would
@@ -358,7 +371,9 @@ def wrap_in_iframe_matplotlib(base_html: Tag, chart_title: str | None = None) ->
     )
 
 
-def wrap_in_iframe_plotly(base_html: Tag, chart_title: str | None = None) -> Tag:
+def wrap_in_iframe_plotly(
+    base_html: Tag, chart_title: str | None = None, alt: str | None = None
+) -> Tag:
     """Wrap Plotly HTML in an auto-resizing iframe for notebooks.
 
     Mirrors the focus-delegation logic from the matplotlib wrapper
@@ -372,6 +387,9 @@ def wrap_in_iframe_plotly(base_html: Tag, chart_title: str | None = None) -> Tag
     chart_title : str, optional
         The chart's own title, which leads the frame's accessible name. See
         :func:`iframe_title`.
+    alt : str, optional
+        The alt text of the Quarto cell the chart is drawn in, which names
+        the frame instead.
 
     Returns
     -------
@@ -483,7 +501,7 @@ def wrap_in_iframe_plotly(base_html: Tag, chart_title: str | None = None) -> Tag
 
     return tags.iframe(
         id=unique_id,
-        title=iframe_title(chart_title),
+        title=iframe_title(chart_title, alt),
         # Marks this frame as maidr's own. A host page may put other
         # iframes in the same container, and anything keying off "an
         # iframe is the chart" -- the Shiny focus restore does -- would

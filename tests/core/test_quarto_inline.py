@@ -633,6 +633,98 @@ def test_a_chart_that_cannot_be_scoped_is_framed_as_before(quarto, monkeypatch):
     assert "maidr-inline" not in html
 
 
+def test_a_chart_that_cannot_be_scoped_is_framed_under_its_fig_alt(quarto, monkeypatch):
+    """The cell's ``fig-alt`` names the frame, read once for the chart."""
+    quarto("html")
+    read = []
+
+    def fig_alt():
+        read.append(None)
+        return "Three bars, rising."
+
+    def refuse(self, svg, schema):
+        raise InlineUnsupported("the test said so")
+
+    monkeypatch.setattr(maidr_core, "quarto_fig_alt", fig_alt)
+    monkeypatch.setattr(InlineScope, "scope", refuse)
+    with pytest.warns(UserWarning, match="iframe rather than in the page"):
+        html = _render(_bar())
+
+    assert 'title="Three bars, rising."' in html
+    assert len(read) == 1
+
+
+def test_a_chart_a_cell_saves_takes_none_of_its_alt_text(quarto, monkeypatch, tmp_path):
+    """``save_html`` writes a file, which is not one of the cell's outputs."""
+    quarto("html")
+    read = []
+    monkeypatch.setattr(maidr_core, "quarto_fig_alt", lambda: read.append(None))
+    fig = _bar()
+    try:
+        FigureManager.get_maidr(fig).save_html(str(tmp_path / "chart.html"))
+    finally:
+        plt.close(fig)
+
+    assert read == []
+
+
+def _plotly_chart():
+    px = pytest.importorskip("plotly.express")
+    from maidr.plotly import plotly_maidr
+
+    figure = px.bar(x=["a", "b"], y=[1, 2], title="Sales")
+    return plotly_maidr, plotly_maidr.PlotlyMaidr(figure)
+
+
+def _bokeh_chart():
+    plotting = pytest.importorskip("bokeh.plotting")
+    from maidr.bokeh import bokeh_maidr
+
+    figure = plotting.figure(x_range=["a", "b"], title="Sales")
+    figure.vbar(x=["a", "b"], top=[1, 2], width=0.9)
+    return bokeh_maidr, bokeh_maidr.BokehMaidr(figure)
+
+
+def _altair_chart():
+    alt = pytest.importorskip("altair")
+    pd = pytest.importorskip("pandas")
+    from maidr.altair import altair_maidr
+
+    data = pd.DataFrame({"x": ["a", "b"], "y": [1, 2]})
+    chart = alt.Chart(data, title="Sales").mark_bar().encode(x="x:N", y="y:Q")
+    return altair_maidr, altair_maidr.AltairMaidr(chart)
+
+
+@pytest.mark.parametrize(
+    "chart", [_plotly_chart, _bokeh_chart, _altair_chart], ids=lambda f: f.__name__
+)
+def test_a_chart_that_stays_in_a_frame_is_named_by_the_cells_fig_alt(
+    quarto, monkeypatch, chart
+):
+    """A Plotly, Bokeh or Altair chart is not written into the page (#895)."""
+    quarto("html")
+    module, renderer = chart()
+    monkeypatch.setattr(module, "quarto_fig_alt", lambda: "Two bars, rising.")
+
+    html = str(renderer._create_html_tag(use_iframe=True))
+
+    assert 'title="Two bars, rising."' in html
+
+
+@pytest.mark.parametrize(
+    "chart", [_plotly_chart, _bokeh_chart, _altair_chart], ids=lambda f: f.__name__
+)
+def test_outside_a_render_a_frame_is_named_by_its_title(monkeypatch, chart):
+    monkeypatch.delenv("QUARTO_FIG_FORMAT", raising=False)
+    monkeypatch.setattr(Environment, "is_notebook", staticmethod(lambda: True))
+    module, renderer = chart()
+    monkeypatch.setattr(module, "quarto_fig_alt", lambda: "Never read.")
+
+    html = str(renderer._create_html_tag(use_iframe=True))
+
+    assert 'title="Sales, accessible chart"' in html
+
+
 @pytest.mark.parametrize("use_cdn", [False, True, "auto"])
 def test_nothing_a_chart_writes_reads_as_a_dashboard_component(quarto, use_cdn):
     """Quarto's dashboard filter lifts any output holding ``bslib-`` out of its card.

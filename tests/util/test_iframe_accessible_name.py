@@ -50,6 +50,16 @@ class TestTheFrameIsNamed:
         assert 'title="Body mass by species, accessible chart"' in rendered
 
     @pytest.mark.parametrize("wrap", WRAPPERS)
+    def test_an_authors_alt_text_names_the_frame(self, wrap) -> None:
+        rendered = _html(wrap(tags.div("chart"), "Sales", 'Sales & "costs" <rise>'))
+        # The author's own words for the chart: a Quarto cell's fig-alt, which
+        # names a chart written into the page the same way.
+        assert 'title="Sales &amp; &quot;costs&quot; &lt;rise&gt;"' in rendered
+
+    def test_whitespace_alt_text_counts_as_none(self) -> None:
+        assert iframe_title("Sales", "  ") == "Sales, accessible chart"
+
+    @pytest.mark.parametrize("wrap", WRAPPERS)
     def test_an_untitled_chart_still_names_its_frame(self, wrap) -> None:
         rendered = _html(wrap(tags.div("chart")))
 

@@ -87,7 +87,9 @@ from maidr.util.iframe_utils import (
     with_chart_title,
     wrap_in_iframe_plotly,
 )
+from maidr.util.inline_chart import in_quarto_render
 from maidr.util.pyodide_display import show_in_page
+from maidr.util.quarto_cell import fig_alt as quarto_fig_alt
 from maidr.util.script_json import script_json
 
 #: The cursor a line, step or area is highlighted with: a ring in MAIDR's
@@ -679,8 +681,10 @@ class BokehMaidr:
         chart_title = chart_title_of(schema or {})
         if will_iframe:
             # BokehJS and maidr.js both mount after ``iframe.onload``, which
-            # is the case the Plotly wrapper's delayed resizing handles.
-            base_html = wrap_in_iframe_plotly(base_html, chart_title)
+            # is the case the Plotly wrapper's delayed resizing handles. A
+            # Quarto cell's ``fig-alt`` names the frame.
+            alt = quarto_fig_alt() if in_quarto_render(use_iframe) else None
+            base_html = wrap_in_iframe_plotly(base_html, chart_title, alt)
         return with_chart_title(base_html, chart_title)
 
     def _create_html_doc(
