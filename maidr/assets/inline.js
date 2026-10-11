@@ -107,6 +107,13 @@
     }
   }
 
+  // maidr.js describes the element too, by its keyboard instructions, under
+  // ids that start with maidr-instruction- (xability/maidr#1384). Those are
+  // kept, after the page's: a reader hears what the chart is before how to
+  // use it, and maidr adds and takes away its own as the reader enters and
+  // uses the chart.
+  var MAIDR_INSTRUCTION = 'maidr-instruction-';
+
   function describe(plot) {
     var wrapper = wrapperOf(plot);
     if (!wrapper) return;
@@ -116,8 +123,13 @@
     var host = wrapper.parentNode && wrapper.parentNode.closest &&
       wrapper.parentNode.closest('[aria-describedby]');
     if (host && !inChart(host)) ids.push(host.getAttribute('aria-describedby'));
-    var value = ids.join(' ');
-    if (value && plot.getAttribute('aria-describedby') !== value) {
+    if (!ids.length) return;
+    var current = plot.getAttribute('aria-describedby') || '';
+    var maidrIds = current.split(/\s+/).filter(function (id) {
+      return id.indexOf(MAIDR_INSTRUCTION) === 0;
+    });
+    var value = ids.concat(maidrIds).join(' ');
+    if (current !== value) {
       plot.setAttribute('aria-describedby', value);
     }
   }

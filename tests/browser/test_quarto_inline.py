@@ -425,18 +425,32 @@ def test_maidr_names_the_chart_and_its_title_describes_it(page):
     described = page.evaluate(
         """() => [...document.querySelectorAll('figure[id^="maidr-figure"] > [tabindex]')].map(plot => {
              const svg = plot.querySelector('svg');
-             const ids = (plot.getAttribute('aria-describedby') || '').split(' ');
+             const ids = (plot.getAttribute('aria-describedby') || '').split(' ').filter(Boolean);
+             const text = id => (document.getElementById(id) || {}).textContent;
              return {
                label: plot.getAttribute('aria-label') || '',
-               description: ids.map(id => (document.getElementById(id) || {}).textContent).join(' '),
+               first: text(ids[0]),
+               rest: ids.slice(1),
+               description: ids.map(text).join(' '),
                svgHidden: svg.getAttribute('aria-hidden'),
                svgRole: svg.getAttribute('role'),
              };
            })"""
     )
-    assert [d["description"] for d in described] == ["First", "Second"]
-    for d in described:
-        assert d["label"].startswith("This is a maidr plot")
+    # The chart's title describes it first, whatever maidr.js adds.
+    assert [d["first"] for d in described] == ["First", "Second"]
+    for d, title in zip(described, ["First", "Second"]):
+        if d["label"].startswith("This is a maidr plot"):
+            # An older maidr.js names the chart by its instructions.
+            assert d["rest"] == []
+        else:
+            # A newer one (xability/maidr#1384) names it by its title and
+            # type, and describes it by its instructions, which stay after
+            # the title.
+            assert d["label"].startswith(f"{title}, ")
+            assert d["rest"]
+            assert all(i.startswith("maidr-instruction-") for i in d["rest"])
+            assert "This is a maidr plot" in d["description"]
         assert d["svgHidden"] == "true"
         assert d["svgRole"] is None
     # The wrapper's stand-in name went once maidr.js named the chart.
