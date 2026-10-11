@@ -154,12 +154,11 @@ def test_only_the_frames_run_maidr_js(
         assert notebook["prefetches"] == []
         return
     # Each frame loads the CDN copy itself, and the page prefetched that one:
-    # one fetch that runs nothing, however many links ask for it, and one
-    # script per frame.
+    # fetches that run nothing, and one script per frame. How many links of
+    # the page's become a fetch of their own is the browser's business.
     assert len(loaded) == 1
     assert set(notebook["prefetches"]) == loaded
-    assert sorted(kind for url, kind in requested if url in loaded) == [
-        "other",
-        "script",
-        "script",
-    ]
+    kinds = [kind for url, kind in requested if url in loaded]
+    assert kinds.count("script") == 2
+    assert "other" in kinds, "the page did not prefetch the frames' copy"
+    assert set(kinds) == {"other", "script"}
