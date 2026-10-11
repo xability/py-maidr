@@ -180,9 +180,18 @@ html.maidr-inline-contrast body {
 }
 
 /* A Quarto dashboard sizes its cards to the window and hides what does not
- * fit. inline.js shrinks a chart to its card when it does not fit, and the
- * card scrolls rather than clip maidr's braille and review fields below the
- * chart. */
+ * fit. inline.js sizes a chart to its card as Quarto sizes a plain figure
+ * there, with a line for maidr's text below it; the chart is centred across
+ * the card, as the figure is, and its wrapper's margin is the card's padding
+ * to give. The card scrolls rather than clip maidr's braille and review
+ * fields below the chart. */
 .html-fill-item:has(> .maidr-inline) {
   overflow: auto;
+}
+.html-fill-item > .maidr-inline {
+  margin-bottom: 0;
+}
+.html-fill-item > .maidr-inline figure[id^="maidr-figure"] > [tabindex],
+.html-fill-item > .maidr-inline .maidr-inline-svg {
+  margin-inline: auto;
 }

@@ -27,7 +27,9 @@ that, so this module carries it over:
   ``maidr.js`` hands itself to it and never runs unless kept from it; see
   :func:`loader_js`.
 * **Its size.** A chart is given the box and size of the figure Quarto
-  shows in its place without maidr (:func:`size_like_plain_figure`).
+  shows in its place without maidr (:func:`size_like_plain_figure`), and
+  ``inline.js`` fills a dashboard card with it as Quarto fills one with
+  that figure.
 
 A notebook, Shiny, Streamlit, Gradio, Flask and a Pyodide page keep their
 iframes: in each, a key pressed in an inline chart reaches a shortcut of the

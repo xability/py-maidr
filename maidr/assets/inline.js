@@ -193,25 +193,71 @@
 
   // --- Dashboards ------------------------------------------------------------
 
-  // A Quarto dashboard sizes each card to the window and hides what does not
-  // fit. A chart taller than its card is shrunk to it, keeping its shape and
-  // a line for maidr's text below it. A card sized by its content never
-  // overflows, so only an overflowing one shrinks its chart.
+  // A Quarto dashboard shows a plain figure as large as its card allows,
+  // keeping its shape, centred in it (.quarto-dashboard-img-contain: width
+  // and height 100%, object-fit: contain); and as wide as the card where the
+  // card takes its height from what it holds: a scrolling dashboard, a row
+  // that does not fill, a phone's single column. A chart is given the same
+  // size and place, less a line kept below it for maidr's text. inline.css
+  // centres it across the card; the card scrolls to maidr's braille and
+  // review fields when they are open.
   var FITTED = '.html-fill-item > .maidr-inline';
+
+  // The height of a line of maidr's text, which is set in the wrapper's.
+  function textLine(wrapper) {
+    var style = getComputedStyle(wrapper);
+    var line = parseFloat(style.lineHeight);
+    return line > 0 ? line : 1.5 * parseFloat(style.fontSize);
+  }
 
   function fitChart(wrapper) {
     if (!wrapper || !wrapper.matches(FITTED)) return;
     var box = wrapper.parentElement;
     var svg = wrapper.querySelector('svg.maidr-inline-svg');
-    if (!box || !svg) return;
-    svg.style.maxHeight = '';
-    svg.style.width = '';
-    var over = box.scrollHeight - box.clientHeight;
-    if (over <= 1) return;
-    var line = 2.5 * parseFloat(getComputedStyle(wrapper).fontSize);
-    var height = svg.getBoundingClientRect().height - over - line;
-    svg.style.width = 'auto';
-    svg.style.maxHeight = Math.max(height, 96) + 'px';
+    var view = svg && svg.viewBox && svg.viewBox.baseVal;
+    if (!box || !view || !(view.width > 0) || !(view.height > 0)) return;
+    var size = svg.style;
+    var scrolled = box.scrollTop;
+    wrapper.style.paddingTop = '';
+    // Whether the card sizes the box or the box takes its height from what
+    // it holds: one the card sizes keeps its height whatever the chart's.
+    size.maxHeight = 'none';
+    size.width = '0px';
+    size.height = '4000px';
+    var tall = box.clientHeight;
+    size.height = '0px';
+    var sized = Math.abs(tall - box.clientHeight) < 1;
+    var style = getComputedStyle(box);
+    var width = box.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+    var scale = width / view.width;
+    var room = 0;
+    if (sized) {
+      room = box.clientHeight - parseFloat(style.paddingTop) -
+        parseFloat(style.paddingBottom) - textLine(wrapper);
+      scale = Math.min(scale, Math.max(room, 96) / view.height);
+    }
+    var height = view.height * scale;
+    size.width = view.width * scale + 'px';
+    size.height = height + 'px';
+    // Centred down the card, with the line for maidr's text below it.
+    if (room > height) wrapper.style.paddingTop = (room - height) / 2 + 'px';
+    box.scrollTop = scrolled;
+  }
+
+  // maidr's braille and review fields open below the chart, and a card that
+  // fills with the chart scrolls to them. The browser scrolls to a field as
+  // it takes the focus, when it is out of view then; one in view then can
+  // still grow past the card's edge after.
+  var FIELDS = 'textarea[id^="maidr-braille-textarea"], input[id^="maidr-review-input"]';
+
+  function keepInView(target) {
+    var wrapper = wrapperOf(target);
+    if (!wrapper || !wrapper.matches(FITTED) || !target.matches(FIELDS)) return;
+    requestAnimationFrame(function () {
+      if (document.activeElement === target) {
+        target.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      }
+    });
   }
 
   function fitCharts() {
@@ -636,6 +682,7 @@
     shimCards(target);
     if (target.matches && target.matches(PLOT)) describe(target);
     sizeDialogs(wrapperOf(target));
+    keepInView(target);
   }, true);
 
   function onReady() {
