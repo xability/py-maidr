@@ -229,9 +229,12 @@ class InlineScope:
     each rule scoped to the chart by a class of its own (:attr:`css`).
     """
 
-    def __init__(self, name: str) -> None:
+    def __init__(self, name: str, alt: str | None = None) -> None:
         #: What the chart is called until maidr.js names it.
         self.name = name
+        #: The author's alt text, from the cell's ``fig-alt``: the chart's name
+        #: until maidr.js names it, and the first of its description after.
+        self.alt = alt
         self.key = "m" + uuid.uuid4().hex[:12]
         #: The chart's own class, which its lifted ``<style>`` is scoped to.
         self.css_class = f"maidr-inline-{self.key}"
@@ -587,6 +590,7 @@ def chart_tag(
         The chart's ``<div class="maidr-inline">``.
     """
     title = (chart_title or "").strip()
+    alt = (scope.alt or "").strip()
     children: list[Any] = [
         # Marked so that inline.js keeps one copy of it in the page's head.
         tags.style(HTML(_asset("inline.css")), **{"data-maidr-inline-css": ""})
@@ -594,6 +598,18 @@ def chart_tag(
     if scope.css:
         children.append(tags.style(HTML(scope.css)))
     children.append(svg)
+    if alt:
+        # What the chart shows, in the author's words: inline.js describes the
+        # chart by it first once maidr.js names the chart, as r-maidr does
+        # with ``fig.alt``.
+        children.append(
+            tags.span(
+                alt,
+                id=f"{scope.svg_id}-alt",
+                class_="maidr-inline-alt",
+                hidden=True,
+            )
+        )
     if title:
         children.append(
             tags.span(

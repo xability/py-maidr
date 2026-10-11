@@ -42,6 +42,8 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.browser
 
 _PARSE_TIMEOUT_MS = 30_000
+#: The ``fig-alt`` the first chart's cell gives; the second gives none.
+_FIRST_ALT = "A line that falls, then rises."
 _PLOT = 'figure[id^="maidr-figure"] > [tabindex]'
 
 _AMD = """
@@ -216,10 +218,16 @@ def _outputs(tmp_path: Path, *, same_figure: bool = False) -> list[str]:
     kernel = _Kernel()
     env = {"QUARTO_FIG_FORMAT": "png", "QUARTO_EXECUTE_INFO": str(info)}
     outputs = []
+    alts = [] if same_figure else [_FIRST_ALT, None]
     with (
         mock.patch.dict("os.environ", env),
         mock.patch.object(Environment, "is_notebook", return_value=True),
         mock.patch("IPython.get_ipython", return_value=kernel),
+        # As the first chart's cell would give it with ``#| fig-alt:``.
+        mock.patch(
+            "maidr.core.maidr.quarto_fig_alt",
+            side_effect=lambda: alts.pop(0) if alts else None,
+        ),
     ):
         if same_figure:
             fig = _line("Twice")
@@ -421,36 +429,45 @@ def test_the_focus_ring_survives_a_page_that_removes_them(page):
     assert outline == ["solid", 3]
 
 
-def test_maidr_names_the_chart_and_its_title_describes_it(page):
+def test_maidr_names_the_chart_and_the_page_describes_it(page):
+    """By the cell's ``fig-alt`` first, as r-maidr's ``fig.alt``; then by the
+    chart's title, unless maidr.js already names the chart by it; then by
+    maidr's own instructions."""
     described = page.evaluate(
         """() => [...document.querySelectorAll('figure[id^="maidr-figure"] > [tabindex]')].map(plot => {
              const svg = plot.querySelector('svg');
              const ids = (plot.getAttribute('aria-describedby') || '').split(' ').filter(Boolean);
-             const text = id => (document.getElementById(id) || {}).textContent;
              return {
                label: plot.getAttribute('aria-label') || '',
-               first: text(ids[0]),
-               rest: ids.slice(1),
-               description: ids.map(text).join(' '),
+               ids,
+               texts: ids.map(id => (document.getElementById(id) || {}).textContent || ''),
                svgHidden: svg.getAttribute('aria-hidden'),
                svgRole: svg.getAttribute('role'),
              };
            })"""
     )
-    # The chart's title describes it first, whatever maidr.js adds.
-    assert [d["first"] for d in described] == ["First", "Second"]
-    for d, title in zip(described, ["First", "Second"]):
+    first, second = described
+    assert first["ids"][0].endswith("-alt")
+    assert first["texts"][0] == _FIRST_ALT
+    assert not any(i.endswith("-alt") for i in second["ids"])
+    for d, title in ((first, "First"), (second, "Second")):
+        maidrs = [i for i in d["ids"] if i.startswith("maidr-instruction-")]
+        pages = d["ids"][: len(d["ids"]) - len(maidrs)]
+        # The page's ids first, maidr's after them.
+        assert d["ids"] == pages + maidrs
         if d["label"].startswith("This is a maidr plot"):
-            # An older maidr.js names the chart by its instructions.
-            assert d["rest"] == []
+            # An older maidr.js names the chart by its instructions, so its
+            # title describes it.
+            assert pages[-1].endswith("-title")
+            assert d["texts"][len(pages) - 1] == title
         else:
             # A newer one (xability/maidr#1384) names it by its title and
-            # type, and describes it by its instructions, which stay after
-            # the title.
+            # type, so the title is not read again, and describes it by its
+            # instructions.
             assert d["label"].startswith(f"{title}, ")
-            assert d["rest"]
-            assert all(i.startswith("maidr-instruction-") for i in d["rest"])
-            assert "This is a maidr plot" in d["description"]
+            assert not any(i.endswith("-title") for i in d["ids"])
+            assert maidrs
+            assert "This is a maidr plot" in " ".join(d["texts"])
         assert d["svgHidden"] == "true"
         assert d["svgRole"] is None
     # The wrapper's stand-in name went once maidr.js named the chart.
