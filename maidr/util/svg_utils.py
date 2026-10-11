@@ -1,4 +1,5 @@
 import io
+import logging
 from contextlib import contextmanager
 from contextvars import ContextVar
 
@@ -9,6 +10,8 @@ from matplotlib.layout_engine import PlaceHolderLayoutEngine
 from matplotlib.transforms import Transform
 from matplotlib.lines import Line2D
 from typing import Iterator, List, Optional, Tuple
+
+_logger = logging.getLogger(__name__)
 
 
 class _Settling:
@@ -112,7 +115,8 @@ def settle_layout(fig: Figure) -> None:
                 draw = fig.canvas.draw
             draw()
     except Exception:
-        pass
+        # A figure whose layout cannot be settled is still worth reading.
+        _logger.debug("maidr: could not settle the figure's layout", exc_info=True)
 
 
 #: The most SVG saves :func:`settle_layout` makes of a figure with a layout
@@ -142,6 +146,10 @@ def _settle_engine(fig: Figure) -> None:
         ):
             return
         before = now
+    _logger.debug(
+        "maidr: the figure's layout engine still moved its axes after %d saves",
+        _ENGINE_PASSES,
+    )
 
 
 def data_to_svg_coords(
