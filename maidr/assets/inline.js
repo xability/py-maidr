@@ -12,7 +12,8 @@
  * no listener of this script can keep a key from the page without keeping it
  * from maidr.js too. The page's shortcuts are held off where the page asks
  * whether to act -- reveal.js's keyboardCondition, Quarto's search, a bslib
- * card's Escape -- and only while the focus is in a chart. */
+ * card's Escape -- and only while the focus is in a chart, unless maidr.js
+ * does so itself. */
 (function () {
   'use strict';
   if (window.__maidrInline) return;
@@ -272,11 +273,25 @@
 
   // --- Host page shortcuts ---------------------------------------------------
 
+  // A maidr.js that keeps the page's shortcuts off a chart's keys itself --
+  // these guards, the Shift+Tab hand-off and reveal.js's search key below --
+  // says so in maidrLive.features, and is left to it. It marks what it wraps
+  // with __maidrHostGuard, and honours this script's __maidrInline, so that
+  // whichever of the two comes first wraps an object and the other leaves it.
+  function nativeGuards() {
+    var live = window.maidrLive;
+    return !!(live && live.features && live.features.hostGuards >= 1);
+  }
+
+  function isGuarded(target) {
+    return !!(target.__maidrInline || target.__maidrHostGuard);
+  }
+
   // reveal.js (Quarto revealjs) reads keyboardCondition on every keydown;
   // whatever the deck set is kept.
   function shimReveal() {
     var reveal = window.Reveal;
-    if (!reveal || reveal.__maidrInline || typeof reveal.configure !== 'function' ||
+    if (!reveal || isGuarded(reveal) || typeof reveal.configure !== 'function' ||
         typeof reveal.getConfig !== 'function') {
       return;
     }
@@ -305,7 +320,7 @@
   // field, through window.quartoOpenSearch, looked up when the key is let go.
   function shimQuartoSearch() {
     var open = window.quartoOpenSearch;
-    if (typeof open !== 'function' || open.__maidrInline) return;
+    if (typeof open !== 'function' || isGuarded(open)) return;
     var guarded = function () {
       if (focusInChart()) return;
       return open.apply(this, arguments);
@@ -326,7 +341,7 @@
   function shimCard(card) {
     var Card = window[BSLIB] && window[BSLIB].Card;
     var instance = Card && typeof Card.getInstance === 'function' && Card.getInstance(card);
-    if (!instance || instance.__maidrInline || typeof instance._exitFullScreenOnEscape !== 'function') {
+    if (!instance || isGuarded(instance) || typeof instance._exitFullScreenOnEscape !== 'function') {
       return;
     }
     instance.__maidrInline = true;
@@ -343,6 +358,7 @@
   }
 
   function shimCards(node) {
+    if (nativeGuards()) return;
     for (var card = node.closest('.' + BSLIB + '-card'); card;
       card = card.parentElement && card.parentElement.closest('.' + BSLIB + '-card')) {
       shimCard(card);
@@ -350,8 +366,30 @@
   }
 
   function shimHosts() {
+    if (nativeGuards()) return;
     shimReveal();
     shimQuartoSearch();
+  }
+
+  // reveal.js's search plugin opens on Ctrl+Shift+F (Cmd on a Mac) from a
+  // listener of its own on the document, which keyboardCondition does not
+  // reach. Its test is a capital F with Ctrl or Cmd held, so Ctrl+F with
+  // Caps Lock on opens it too. The key is stopped on the root element as it
+  // bubbles up: after the React handlers inside the page have had it --
+  // among them the recorder that takes a new shortcut in maidr's settings --
+  // and before the document. maidr.js's own shortcuts listen on the document
+  // too, so the stopped key reaches them no more than the plugin, and it is
+  // stopped only on a deck that has the plugin: anywhere else it may be a
+  // shortcut the reader gave a command of maidr's.
+  function shimRevealSearch(event) {
+    if (!(event.ctrlKey || event.metaKey) || event.key !== 'F' || nativeGuards()) {
+      return;
+    }
+    var reveal = window.Reveal;
+    if (window.RevealSearch ||
+        (reveal && typeof reveal.hasPlugin === 'function' && reveal.hasPlugin('search'))) {
+      event.stopPropagation();
+    }
   }
 
   // --- Shift+Tab out of a chart ----------------------------------------------
@@ -360,12 +398,19 @@
   // Shift+Tab from it would leave the page for the browser's own controls,
   // where no key reaches the deck. maidr.js hands the reader to the slide
   // when its chart is framed (FrameFocusService); this does the same inline,
-  // and only when nothing on the page comes before the chart.
+  // only in a deck and only when nothing on the page comes before the chart.
+  // On any other page the browser's own Shift+Tab is the right answer: the
+  // elements above a chart are its wrappers or the page's.
   var TABBABLE = 'a[href],area[href],button:not([disabled]),input:not([disabled]),' +
     'select:not([disabled]),textarea:not([disabled]),iframe,audio[controls],video[controls],' +
-    '[contenteditable]:not([contenteditable="false"]),[tabindex]:not([tabindex^="-"])';
+    '[contenteditable]:not([contenteditable="false"]),[tabindex]';
 
+  // A negative tabindex takes any of these out of the tab order, a link or a
+  // button as much as anything. Read from the attribute, as the browser reads
+  // it, not from tabIndex, which is -1 in Chromium for an editable element
+  // that has no tabindex and is a tab stop all the same.
   function reachable(element) {
+    if (parseInt(element.getAttribute('tabindex'), 10) < 0) return false;
     if (element.closest('[hidden],[aria-hidden="true"],[inert]')) return false;
     var style = getComputedStyle(element);
     return style.display !== 'none' && style.visibility !== 'hidden';
@@ -382,7 +427,7 @@
 
   function handOff(event) {
     if (event.key !== 'Tab' || !event.shiftKey || event.altKey || event.ctrlKey ||
-        event.metaKey || event.defaultPrevented) {
+        event.metaKey || event.defaultPrevented || !window.Reveal || nativeGuards()) {
       return;
     }
     var active = document.activeElement;
@@ -553,14 +598,11 @@
     if (!focusInChart()) return;
     shimHosts();
     handOff(event);
-    // reveal.js's search plugin opens on Ctrl+Shift+F (Cmd on a Mac) from a
-    // listener of its own, which keyboardCondition does not reach. maidr.js
-    // binds no such key, so it goes no further.
-    if ((event.ctrlKey || event.metaKey) && event.shiftKey &&
-        (event.key === 'F' || event.key === 'f')) {
-      event.stopPropagation();
-    }
   }, true);
+
+  document.documentElement.addEventListener('keydown', function (event) {
+    if (focusInChart()) shimRevealSearch(event);
+  }, false);
 
   document.addEventListener('focusin', function (event) {
     var target = event.target;

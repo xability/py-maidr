@@ -53,9 +53,11 @@
 }
 
 /* maidr's braille and review fields are as wide as their text; in a phone's
- * column they keep to the chart's width. */
-.maidr-inline textarea,
-.maidr-inline input {
+ * column they keep to the chart's width. Those two only: the fields of its
+ * settings, chat and command palette are MUI's, sized with content-box, and
+ * border-box squashed their text into their padding. */
+.maidr-inline textarea[id^="maidr-braille-textarea"],
+.maidr-inline input[id^="maidr-review-input"] {
   max-width: 100%;
   box-sizing: border-box;
 }

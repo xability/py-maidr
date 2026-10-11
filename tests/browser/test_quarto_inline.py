@@ -8,9 +8,14 @@ that a frame kept from the chart:
 * an AMD ``define`` in the head, as require.js puts there, which takes the
   UMD ``maidr.js`` for a module and never runs it unless kept from it;
 * a deck that moves on ArrowRight unless its ``keyboardCondition`` says no,
-  as reveal.js does, and a search that opens on ``s`` through
-  ``window.quartoOpenSearch``, as a Quarto website's does;
+  with a search plugin on Ctrl+Shift+F, as reveal.js does, and a search
+  that opens on ``s`` through ``window.quartoOpenSearch``, as a Quarto
+  website's does;
 * a stylesheet that takes every focus ring away.
+
+A second page is the same without the deck, where Ctrl+Shift+F and Shift+Tab
+are the page's and the browser's. On a third, a chart is in a card shown full
+screen, which Escape pressed anywhere leaves, as a Quarto dashboard's is.
 
 Both charts draw a line with the same ``gid``, so a selector that named it
 unchanged would find the other chart's line. Built with ``use_cdn=False``,
@@ -39,17 +44,20 @@ pytestmark = pytest.mark.browser
 _PARSE_TIMEOUT_MS = 30_000
 _PLOT = 'figure[id^="maidr-figure"] > [tabindex]'
 
-_HEAD = """
-<script>
+_AMD = """
   // require.js, as far as a UMD bundle can tell: takes it, never runs it.
   window.__amdCalls = 0;
   window.define = function () { window.__amdCalls += 1; };
   window.define.amd = {};
+"""
 
-  // A deck: ArrowRight moves on unless keyboardCondition says no.
+_DECK = """
+  // A deck: ArrowRight moves on unless keyboardCondition says no. It has
+  // reveal.js's search plugin, which opens on Ctrl+Shift+F.
   window.Reveal = (function () {
     var config = {}, ready = false, onReady = [];
     window.__slide = 0;
+    window.__configured = 0;
     document.addEventListener('keydown', function (event) {
       var condition = config.keyboardCondition;
       if (typeof condition === 'function' && condition(event) === false) return;
@@ -60,31 +68,120 @@ _HEAD = """
       onReady.forEach(function (f) { f(); });
     });
     return {
-      configure: function (c) { for (var k in c) config[k] = c[k]; },
+      configure: function (c) {
+        window.__configured += 1;
+        for (var k in c) config[k] = c[k];
+      },
       getConfig: function () { return config; },
+      hasPlugin: function (id) { return id === 'search'; },
       isReady: function () { return ready; },
       isFocused: function () { return true; },
       on: function (name, f) { if (name === 'ready') onReady.push(f); }
     };
   })();
+"""
 
-  // reveal.js's search plugin: Ctrl+Shift+F, from a listener of its own.
-  window.__searchPlugin = 0;
+_PAGE_KEYS = """
+  // Ctrl+Shift+F, from a listener of its own: reveal.js's search plugin in a
+  // deck, any page's shortcut elsewhere. By the plugin's own test, a capital
+  // F with Ctrl or Cmd, which Ctrl+F with Caps Lock on is too.
+  window.__ctrlShiftF = 0;
   document.addEventListener('keydown', function (event) {
-    if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === 'f') {
-      window.__searchPlugin += 1;
+    if (event.key === 'F' && (event.ctrlKey || event.metaKey)) {
+      window.__ctrlShiftF += 1;
     }
   });
 
   // A Quarto website's search: opens on s, looked up when the key is let go.
   window.__searches = 0;
-  window.quartoOpenSearch = function () { window.__searches += 1; };
+  window.quartoOpenSearch = window.__pageSearch = function () {
+    window.__searches += 1;
+  };
   document.addEventListener('keyup', function (event) {
     if (event.key === 's') window.quartoOpenSearch();
   });
-</script>
-<style>*:focus { outline: none !important; }</style>
+
+  // Whether anything took Shift+Tab from the browser.
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Tab') window.__tabPrevented = event.defaultPrevented;
+  });
 """
+
+# A maidr.js that keeps the page's shortcuts off a chart's keys itself says
+# so in ``maidrLive.features``. The bundled one is made to say it, and
+# ``__bundleGuards`` is whether it said so already.
+_NATIVE_GUARDS = """
+  (function () {
+    var live;
+    Object.defineProperty(window, 'maidrLive', {
+      configurable: true,
+      get: function () { return live; },
+      set: function (value) {
+        window.__bundleGuards = !!(value.features && value.features.hostGuards >= 1);
+        value.features = Object.freeze({ hostGuards: 1 });
+        live = value;
+      }
+    });
+  })();
+"""
+
+_CARD = """
+  // A card shown full screen, as bslib's: Escape pressed anywhere leaves it,
+  // through a listener on the document the card keeps on its instance.
+  window.__escapes = 0;
+  window.__card = {
+    _exitFullScreenOnEscape: function (event) {
+      if (event.key === 'Escape') window.__escapes += 1;
+    }
+  };
+  window.__cardEscape = window.__card._exitFullScreenOnEscape;
+  document.addEventListener('keydown', window.__cardEscape, false);
+  window.bslib = { Card: { getInstance: function (element) {
+    return element.matches('.bslib-card') ? window.__card : undefined;
+  } } };
+"""
+
+# What a maidr.js that guards the page itself has wrapped, which it marks.
+_MARKED = """
+  Reveal.__maidrHostGuard = true;
+  window.quartoOpenSearch.__maidrHostGuard = true;
+  window.__card.__maidrHostGuard = true;
+"""
+
+
+# A reader's 40-cell braille display, the commonest size, saved as maidr's
+# settings dialog saves it.
+_FORTY_CELLS = """
+  try {
+    localStorage.setItem('maidr-settings', JSON.stringify(
+      { general: { brailleDisplayKind: 'manual', brailleDisplaySize: 40 } }));
+  } catch (e) {}
+"""
+
+
+def _head(*scripts: str) -> str:
+    """The scripts, and a stylesheet that takes every focus ring away."""
+    return (
+        f"<script>{''.join(scripts)}</script>"
+        "<style>*:focus { outline: none !important; }</style>"
+    )
+
+
+_HEAD = _head(_AMD, _DECK, _PAGE_KEYS)
+#: A page that is not a deck: no reveal.js.
+_PLAIN_HEAD = _head(_AMD, _PAGE_KEYS)
+
+
+def _deck(outputs: list[str]) -> str:
+    """Each output on a slide of its own, as reveal.js lays a deck out."""
+    slides = "".join(f"<section>{html}</section>" for html in outputs)
+    return f"<div class='reveal'><div class='slides'>{slides}</div></div>"
+
+
+def _carded(outputs: list[str]) -> str:
+    """A deck whose first chart is in a card shown full screen."""
+    card = f"<div class='bslib-card card' data-full-screen='true'>{outputs[0]}</div>"
+    return _deck([card, *outputs[1:]])
 
 
 def _line(title: str):
@@ -148,10 +245,10 @@ def outputs(tmp_path_factory) -> list[str]:
     return _outputs(tmp_path_factory.mktemp("render"))
 
 
-def _page(browser: Browser, tmp_path: Path, body: str) -> Page:
+def _page(browser: Browser, tmp_path: Path, body: str, head: str = _HEAD) -> Page:
     path = tmp_path / "doc.html"
     path.write_text(
-        f"<!doctype html><html lang='en'><head>{_HEAD}</head><body>{body}"
+        f"<!doctype html><html lang='en'><head>{head}</head><body>{body}"
         "<button id='after'>After</button></body></html>",
         encoding="utf-8",
     )
@@ -169,8 +266,16 @@ def _page(browser: Browser, tmp_path: Path, body: str) -> Page:
 
 @pytest.fixture
 def page(browser, tmp_path, outputs):
+    page = _page(browser, tmp_path, _deck(outputs))
+    yield page
+    page.close()
+
+
+@pytest.fixture
+def plain_page(browser, tmp_path, outputs):
+    """The same charts on a page that is not a deck."""
     body = "".join(f"<section>{html}</section>" for html in outputs)
-    page = _page(browser, tmp_path, body)
+    page = _page(browser, tmp_path, body, head=_PLAIN_HEAD)
     yield page
     page.close()
 
@@ -237,11 +342,63 @@ def test_the_sites_search_stays_shut_while_a_chart_has_the_keys(page):
 
 def test_reveal_search_stays_shut_while_a_chart_has_the_keys(page):
     _press_in(page, 0, "Control+Shift+F")
-    assert page.evaluate("window.__searchPlugin") == 0
+    assert page.evaluate("window.__ctrlShiftF") == 0
 
     page.locator("#after").focus()
     page.keyboard.press("Control+Shift+F")
-    assert page.evaluate("window.__searchPlugin") == 1
+    assert page.evaluate("window.__ctrlShiftF") == 1
+
+
+def test_ctrl_f_with_caps_lock_on_is_held_off_a_decks_search_too(page):
+    """A capital F with Ctrl and no Shift: the plugin opens on it all the same."""
+    _press_in(page, 0, "Control+F")
+    assert page.evaluate("window.__ctrlShiftF") == 0
+
+    page.locator("#after").focus()
+    page.keyboard.press("Control+F")
+    assert page.evaluate("window.__ctrlShiftF") == 1
+
+
+def test_the_decks_search_key_can_be_recorded_as_a_shortcut_of_maidrs(page):
+    """The recorder is a React handler, which has the key before it is held off.
+
+    The deck's search stays shut while the key is recorded, and after.
+    """
+    _press_in(page, 0, "Control+Comma")
+    page.get_by_role("tab", name="Keyboard Shortcuts").click()
+    page.get_by_role("button", name="Change shortcut for Toggle Text Mode").click()
+    page.keyboard.press("Control+Shift+F")
+    status = page.locator('.settings-shortcuts [role="status"]')
+    status.filter(has_text="Toggle Text Mode is now").wait_for(timeout=5_000)
+    assert "shift" in status.inner_text().lower()
+    assert page.evaluate("window.__ctrlShiftF") == 0
+
+    # Pressed again in the dialog, with nothing recording it.
+    page.keyboard.press("Control+Shift+F")
+    assert page.evaluate("window.__ctrlShiftF") == 0
+
+
+def test_a_full_screen_card_stays_open_while_a_chart_has_the_keys(
+    browser, tmp_path, outputs
+):
+    """Escape in a chart closes maidr's own modes, not the card's full screen."""
+    head = _head(_AMD, _DECK, _PAGE_KEYS, _CARD)
+    page = _page(browser, tmp_path, _carded(outputs), head=head)
+    try:
+        _press_in(page, 0, "Escape")
+        assert page.evaluate("window.__escapes") == 0
+
+        page.locator("#after").focus()
+        page.keyboard.press("Escape")
+        assert page.evaluate("window.__escapes") == 1
+    finally:
+        page.close()
+
+
+def test_ctrl_shift_f_is_the_pages_where_it_is_not_a_decks_search(plain_page):
+    """Kept from a page, it is kept from maidr.js, where a reader may bind it."""
+    _press_in(plain_page, 0, "Control+Shift+F")
+    assert plain_page.evaluate("window.__ctrlShiftF") == 1
 
 
 def test_the_charts_stylesheets_are_in_the_head_once(page):
@@ -296,23 +453,217 @@ def test_shift_tab_from_the_first_chart_hands_the_reader_to_its_slide(page):
     assert page.evaluate("document.activeElement.tagName") == "SECTION"
 
 
-def test_high_contrast_paints_the_chart_not_the_page(page):
-    page_colour = page.evaluate("getComputedStyle(document.body).backgroundColor")
-    _press_in(page, 0, "c")
-    painted = page.evaluate(
-        "() => [getComputedStyle(document.body).backgroundColor,"
-        " document.querySelector('.maidr-inline').style.backgroundColor]"
+def test_a_link_out_of_the_tab_order_does_not_keep_shift_tab_off_the_slide(
+    browser, tmp_path, outputs
+):
+    """``tabindex="-1"``, as pandoc's HTML 4 writer gives each line of code.
+
+    Without it, the link is where the browser's Shift+Tab goes.
+    """
+    link = "<a id='line' href='#line' tabindex='-1'>1</a>"
+    page = _page(browser, tmp_path, _deck([link + outputs[0], outputs[1]]))
+    try:
+        page.locator(_PLOT).first.focus()
+        page.keyboard.press("Shift+Tab")
+        assert page.evaluate("document.activeElement.tagName") == "SECTION"
+
+        page.evaluate("document.getElementById('line').removeAttribute('tabindex')")
+        page.locator(_PLOT).first.focus()
+        page.keyboard.press("Shift+Tab")
+        assert page.evaluate("document.activeElement.id") == "line"
+    finally:
+        page.close()
+
+
+def test_shift_tab_is_the_browsers_on_a_page_that_is_not_a_deck(plain_page):
+    """There the elements above a chart are its wrappers or the page's."""
+    plain_page.locator(_PLOT).first.focus()
+    plain_page.keyboard.press("Shift+Tab")
+    after = plain_page.evaluate(
+        """() => ({
+             prevented: window.__tabPrevented,
+             active: document.activeElement.tagName,
+             given: document.querySelectorAll('section[tabindex]').length,
+           })"""
     )
-    assert painted[0] == page_colour
-    assert painted[1] not in ("", page_colour)
+    assert after["prevented"] is False
+    assert after["active"] != "SECTION"
+    assert after["given"] == 0
+
+
+_BODY_COLOURS = (
+    "() => { const s = getComputedStyle(document.body);"
+    " return [s.backgroundColor, s.color]; }"
+)
+
+# Walks up from the plot to the first element with a background of its own.
+_BEHIND_THE_PLOT = """plot => {
+  const clear = ['rgba(0, 0, 0, 0)', 'transparent'];
+  let node = plot;
+  while (node && clear.includes(getComputedStyle(node).backgroundColor)) {
+    node = node.parentElement;
+  }
+  return {
+    inChart: !!node && plot.closest('.maidr-inline').contains(node),
+    colour: node ? getComputedStyle(node).backgroundColor : '',
+  };
+}"""
+
+
+def test_high_contrast_paints_the_chart_not_the_page(page):
+    """What the reader sees, whichever element maidr.js paints.
+
+    maidr.js 4.14 paints the body, and inline.js gives the page its colours
+    back and the chart's wrapper maidr's; a maidr.js that paints the chart's
+    own article leaves inline.js nothing to do.
+    """
+    page.add_style_tag(
+        content="body { background: rgb(250, 240, 230); color: rgb(20, 20, 20); }"
+    )
+    page_colours = page.evaluate(_BODY_COLOURS)
+    _press_in(page, 0, "c")
+
+    assert page.evaluate(_BODY_COLOURS) == page_colours
+    behind = page.locator(_PLOT).first.evaluate(_BEHIND_THE_PLOT)
+    assert behind["inChart"], behind
+    assert behind["colour"] != page_colours[0]
 
     page.locator("#after").focus()
     page.wait_for_timeout(500)
-    cleared = page.evaluate(
-        "() => [getComputedStyle(document.body).backgroundColor,"
-        " document.querySelector('.maidr-inline').style.backgroundColor]"
+    assert page.evaluate(_BODY_COLOURS) == page_colours
+    still_painted = page.evaluate(
+        """() => [...document.querySelectorAll(
+             '.maidr-inline, article[id^="maidr-article-"]')]
+           .filter(e => e.style.backgroundColor || e.style.color).length"""
     )
-    assert cleared == [page_colour, ""]
+    assert still_painted == 0
+
+
+def test_maidrs_settings_fields_keep_room_for_their_text(page):
+    """MUI's own, sized with content-box: the braille field's rule is not theirs."""
+    _press_in(page, 0, "Control+Comma")
+    field = page.locator('[role="dialog"] input.MuiInputBase-input').first
+    field.wait_for(state="visible")
+    size = field.evaluate(
+        """f => {
+             const s = getComputedStyle(f);
+             return {
+               sizing: s.boxSizing,
+               text: f.clientHeight
+                 - parseFloat(s.paddingTop) - parseFloat(s.paddingBottom),
+               font: parseFloat(s.fontSize),
+             };
+           }"""
+    )
+    assert size["sizing"] == "content-box"
+    assert size["text"] >= size["font"], size
+
+
+def test_the_braille_and_review_fields_keep_to_a_narrow_column(
+    browser, tmp_path, outputs
+):
+    """At the 320px a page reflows to (WCAG 1.4.10), with a 40-cell display.
+
+    Each field is wider than the chart's column there without inline.css.
+    """
+    head = _head(_FORTY_CELLS, _AMD, _DECK, _PAGE_KEYS)
+    page = _page(browser, tmp_path, f"<section>{outputs[0]}</section>", head=head)
+    try:
+        page.set_viewport_size({"width": 320, "height": 740})
+        for key, field, cols in (
+            ("b", 'textarea[id^="maidr-braille-textarea"]', 40),
+            ("r", 'input[id^="maidr-review-input"]', None),
+        ):
+            _press_in(page, 0, key)
+            fits = page.locator(field).evaluate(
+                """f => {
+                     const wrapper = f.closest('.maidr-inline');
+                     const page = document.documentElement;
+                     return {
+                       cols: f.cols || null,
+                       inWrapper: f.getBoundingClientRect().right
+                         <= wrapper.getBoundingClientRect().right + 0.5,
+                       noScroll: page.scrollWidth <= window.innerWidth,
+                     };
+                   }"""
+            )
+            expected = {"cols": cols, "inWrapper": True, "noScroll": True}
+            assert fits == expected, (key, fits)
+            page.keyboard.press(key)
+    finally:
+        page.close()
+
+
+def test_a_maidr_js_that_guards_the_page_itself_is_left_to_it(
+    browser, tmp_path, outputs
+):
+    """Told so by ``maidrLive.features``, inline.js wraps nothing of the page's.
+
+    What is wrapped, if anything, is maidr.js's own, which marks it. A
+    bundled maidr.js that only says so, guarding nothing, leaves every key to
+    the page: inline.js neither stops Ctrl+Shift+F nor hands Shift+Tab to the
+    slide.
+    """
+    head = _head(_NATIVE_GUARDS, _AMD, _DECK, _PAGE_KEYS, _CARD)
+    page = _page(browser, tmp_path, _carded(outputs), head=head)
+    try:
+        assert page.evaluate("window.maidrLive.features.hostGuards") == 1
+        for key in ("ArrowRight", "s", "Escape", "Control+Shift+F", "Shift+Tab"):
+            _press_in(page, 0, key)
+        wrapped_here = page.evaluate(
+            """() => ({
+                 configured: window.__configured,
+                 reveal: !!Reveal.__maidrInline && !Reveal.__maidrHostGuard,
+                 search: window.quartoOpenSearch !== window.__pageSearch
+                   && !window.quartoOpenSearch.__maidrHostGuard,
+                 card: __card._exitFullScreenOnEscape !== __cardEscape
+                   && !__card.__maidrHostGuard,
+               })"""
+        )
+        assert wrapped_here == {
+            "configured": 0,
+            "reveal": False,
+            "search": False,
+            "card": False,
+        }
+        if not page.evaluate("window.__bundleGuards"):
+            reached = page.evaluate(
+                """() => ({
+                     slide: window.__slide,
+                     searches: window.__searches,
+                     escapes: window.__escapes,
+                     ctrlShiftF: window.__ctrlShiftF,
+                     tabPrevented: window.__tabPrevented,
+                   })"""
+            )
+            assert reached == {
+                "slide": 1,
+                "searches": 1,
+                "escapes": 1,
+                "ctrlShiftF": 1,
+                "tabPrevented": False,
+            }
+    finally:
+        page.close()
+
+
+def test_what_maidr_js_has_guarded_is_not_guarded_again(browser, tmp_path, outputs):
+    """An object marked ``__maidrHostGuard`` is maidr.js's, whatever it says."""
+    head = _head(_AMD, _DECK, _PAGE_KEYS, _CARD, _MARKED)
+    page = _page(browser, tmp_path, _carded(outputs), head=head)
+    try:
+        for key in ("ArrowRight", "s", "Escape"):
+            _press_in(page, 0, key)
+        left = page.evaluate(
+            """() => ({
+                 configured: window.__configured,
+                 search: window.quartoOpenSearch === window.__pageSearch,
+                 card: __card._exitFullScreenOnEscape === __cardEscape,
+               })"""
+        )
+        assert left == {"configured": 0, "search": True, "card": True}
+    finally:
+        page.close()
 
 
 def test_a_preview_copy_of_a_chart_is_not_a_chart(page):
