@@ -83,10 +83,11 @@ _DECK = """
 
 _PAGE_KEYS = """
   // Ctrl+Shift+F, from a listener of its own: reveal.js's search plugin in a
-  // deck, any page's shortcut elsewhere.
+  // deck, any page's shortcut elsewhere. By the plugin's own test, a capital
+  // F with Ctrl or Cmd, which Ctrl+F with Caps Lock on is too.
   window.__ctrlShiftF = 0;
   document.addEventListener('keydown', function (event) {
-    if (event.ctrlKey && event.shiftKey && event.key.toLowerCase() === 'f') {
+    if (event.key === 'F' && (event.ctrlKey || event.metaKey)) {
       window.__ctrlShiftF += 1;
     }
   });
@@ -345,6 +346,16 @@ def test_reveal_search_stays_shut_while_a_chart_has_the_keys(page):
 
     page.locator("#after").focus()
     page.keyboard.press("Control+Shift+F")
+    assert page.evaluate("window.__ctrlShiftF") == 1
+
+
+def test_ctrl_f_with_caps_lock_on_is_held_off_a_decks_search_too(page):
+    """A capital F with Ctrl and no Shift: the plugin opens on it all the same."""
+    _press_in(page, 0, "Control+F")
+    assert page.evaluate("window.__ctrlShiftF") == 0
+
+    page.locator("#after").focus()
+    page.keyboard.press("Control+F")
     assert page.evaluate("window.__ctrlShiftF") == 1
 
 

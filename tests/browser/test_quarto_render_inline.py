@@ -150,7 +150,8 @@ def test_a_decks_search_and_shift_tab_leave_a_chart_on_its_slide(
     It holds Ctrl+Shift+F and Shift+Tab only on a deck, and knows one by the
     globals reveal.js and its search plugin leave. This checks that Quarto's
     own deck has them: with a check that missed it, the search would open
-    from a chart and Shift+Tab would leave the slide.
+    from a chart and Shift+Tab would leave the slide. Ctrl+F with Caps Lock
+    on is the plugin's key as well.
     """
     _to, path = rendered
     page = browser.new_page(viewport={"width": 1200, "height": 900})
@@ -166,6 +167,9 @@ def test_a_decks_search_and_shift_tab_leave_a_chart_on_its_slide(
         page.keyboard.press("Control+Shift+F")
         page.wait_for_timeout(300)
         assert not page.evaluate(_SEARCH_BOX), "the deck's search opened"
+        page.keyboard.press("Control+F")
+        page.wait_for_timeout(300)
+        assert not page.evaluate(_SEARCH_BOX), "the deck's search opened on Ctrl+F"
 
         plot.focus()
         page.wait_for_timeout(300)
