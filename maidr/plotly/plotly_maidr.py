@@ -1702,7 +1702,7 @@ class PlotlyMaidr:
             "subplots": subplot_grid,
         }
 
-    def _get_plotly_html(self, div_id: str) -> str:
+    def _get_plotly_html(self, div_id: str, default_height: int | None = None) -> str:
         """Get Plotly's interactive HTML div.
 
         Returns the chart as an interactive HTML fragment that includes
@@ -1720,6 +1720,11 @@ class PlotlyMaidr:
         div_id : str
             The id plotly gives the graph div, so the init script can find
             this chart's own div rather than the first one on the page.
+        default_height : int, optional
+            How tall, in pixels, a figure with no height of its own (in its
+            layout or its template's) is drawn. By default plotly's own
+            default for a fragment, ``"100%"``, which leaves the height to
+            plotly.js: 450px.
 
         Returns
         -------
@@ -1733,11 +1738,13 @@ class PlotlyMaidr:
             f" gd.dispatchEvent(new Event('{_PLOTLY_DRAWN_EVENT}'));"
             " }"
         )
+        sizing = {} if default_height is None else {"default_height": default_height}
         return self._fig.to_html(
             full_html=False,
             include_plotlyjs="cdn",
             div_id=div_id,
             post_script=mark_drawn,
+            **sizing,
         )
 
     def _build_init_script(
@@ -1908,7 +1915,13 @@ class PlotlyMaidr:
         # Fresh per render, so the same figure rendered twice into one page
         # still gives each init script a div of its own to wait on.
         plot_div_id = str(uuid.uuid4())
-        plotly_div = self._get_plotly_html(plot_div_id)
+        # In a notebook's frame, a figure with no height of its own is as tall
+        # as the notebook's own plotly renderer draws it.
+        in_frame = in_notebook_frame(use_iframe)
+        plotly_div = self._get_plotly_html(
+            plot_div_id,
+            default_height=notebook_default_height() if in_frame else None,
+        )
         init_script = self._build_init_script(
             schema,
             use_cdn=use_cdn,
@@ -1942,7 +1955,7 @@ class PlotlyMaidr:
             # matplotlib chart written into the page.
             alt = quarto_fig_alt() if in_quarto_render(use_iframe) else None
             base_html = wrap_in_iframe_plotly(
-                base_html, chart_title, alt, in_notebook=in_notebook_frame(use_iframe)
+                base_html, chart_title, alt, in_notebook=in_frame
             )
 
         return with_chart_title(base_html, chart_title)
@@ -1986,6 +1999,34 @@ class PlotlyMaidr:
             temp_file_path, use_cdn=use_cdn, hover_mode=hover_mode
         )
         webbrowser.open(f"file://{html_file_path}")
+
+
+#: plotly's renderers that hand a figure to the notebook frontend's own
+#: plotly renderer (JupyterLab's, Notebook 7's, VS Code's, nteract's), which
+#: draws a figure with no height of its own 360px tall.
+_FRONTEND_RENDERERS = frozenset({"plotly_mimetype", "jupyterlab", "nteract", "vscode"})
+
+
+def notebook_default_height() -> int:
+    """How tall the notebook's plotly renderer draws a figure with no height.
+
+    The first of ``plotly.io.renderers.default`` is the one the notebook
+    shows: a frontend's own renderer draws such a figure 360px tall, and
+    plotly's HTML renderers (``notebook``, ``notebook_connected``, ``colab``,
+    ``kaggle``, ``iframe`` and the like) 525px.
+
+    Returns
+    -------
+    int
+        The height, in CSS pixels.
+    """
+    try:
+        import plotly.io as pio
+
+        first = str(pio.renderers.default or "").split("+")[0].strip()
+    except Exception:
+        first = ""
+    return 360 if first in _FRONTEND_RENDERERS else 525
 
 
 def _domain_start(box: Any, key: str) -> float:
