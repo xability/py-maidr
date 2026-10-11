@@ -963,3 +963,103 @@ def test_a_card_shared_with_other_outputs_gives_the_chart_the_figures_share(
                 assert chart["h"] == pytest.approx(image["h"] - chart["line"], abs=1.5)
             assert chart["bottom"] <= chart["boxH"] + 1
             assert not chart["scrolls"], chart
+
+
+_SLIDES = """\
+---
+title: Slides
+format: revealjs
+---
+
+```{{python}}
+#| include: false
+import matplotlib.pyplot as plt
+{maidr}
+
+
+def bars(figsize=None):
+    fig, ax = plt.subplots(figsize=figsize)
+    ax.bar(["A", "B", "C", "D"], [3, 7, 2, 5])
+    ax.set_xlabel("Store")
+    plt.show()
+```
+
+## A chart
+
+```{{python}}
+bars()
+```
+
+## In a column
+
+:::: {{.columns}}
+::: {{.column width="50%"}}
+```{{python}}
+bars()
+```
+:::
+::: {{.column width="50%"}}
+Text beside it.
+:::
+::::
+
+## Small
+
+```{{python}}
+bars((4, 3))
+```
+"""
+
+
+@pytest.fixture(scope="module")
+def slides(tmp_path_factory) -> tuple[Path, Path]:
+    return _render_pair(tmp_path_factory.mktemp("slides"), _SLIDES)
+
+
+_ON_SLIDE = """() => {
+  const slide = document.querySelector('.reveal .slides section.present');
+  return [...slide.querySelectorAll('img, svg.maidr-inline-svg')].map(e => {
+    const r = e.getBoundingClientRect();
+    return {w: r.width, h: r.height, left: r.left};
+  });
+}"""
+
+
+def _on_slides(browser: Browser, path: Path) -> list[list[dict]]:
+    page = _open(browser, path, 1280, 720)
+    try:
+        page.wait_for_function("() => window.Reveal && Reveal.isReady()")
+        if path.name == "maidr.html":
+            page.wait_for_function(f"() => ({_BOUND})() === 3", timeout=60_000)
+        page.evaluate("Reveal.configure({transition: 'none'})")
+        seen = []
+        for index in (1, 2, 3):
+            page.evaluate(f"Reveal.slide({index})")
+            page.wait_for_timeout(500)
+            seen.append(page.evaluate(_ON_SLIDE))
+        return seen
+    finally:
+        page.close()
+
+
+def test_a_chart_on_a_slide_is_the_size_of_the_plain_figure(browser: Browser, slides):
+    """Stretched to the slide, as the figure is, or at its own size.
+
+    In a column, reveal.js keeps the image to 95% of the column's width and
+    leaves its height, squashing it; the chart is kept to the same width
+    and keeps its shape.
+    """
+    plain, charted = slides
+    images = _on_slides(browser, plain)
+    charts = _on_slides(browser, charted)
+
+    assert [len(shown) for shown in charts] == [len(shown) for shown in images]
+    assert [len(shown) for shown in charts] == [1, 1, 1]
+    (lone,), (column,), (small,) = charts
+    (lone_image,), (column_image,), (small_image,) = images
+    for chart, image in ((lone, lone_image), (small, small_image)):
+        assert chart["w"] == pytest.approx(image["w"], abs=1.5)
+        assert chart["h"] == pytest.approx(image["h"], abs=1.5)
+        assert chart["left"] == pytest.approx(image["left"], abs=1.5)
+    assert column["w"] == pytest.approx(column_image["w"], abs=1.5)
+    assert column["w"] / column["h"] == pytest.approx(lone["w"] / lone["h"], rel=0.01)
