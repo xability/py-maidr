@@ -12,8 +12,8 @@
  * no listener of this script can keep a key from the page without keeping it
  * from maidr.js too. The page's shortcuts are held off where the page asks
  * whether to act -- reveal.js's keyboardCondition, Quarto's search, a bslib
- * card's Escape -- and only while the focus is in a chart, by a maidr.js that
- * does not do so itself. */
+ * card's Escape -- and only while the focus is in a chart, unless maidr.js
+ * does so itself. */
 (function () {
   'use strict';
   if (window.__maidrInline) return;
