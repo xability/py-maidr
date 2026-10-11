@@ -1183,7 +1183,10 @@ Where a chart differs from Quarto's figure, on purpose or not:
   an image: beside a chart they stay in its card. Draw the chart in a
   function, or assign those values (`_ = ax.set_xlabel("x")`).
 * **On a reveal.js slide**, a chart is kept to 95% of the width it is given,
-  as reveal.js keeps an image.
+  as reveal.js keeps an image. A chart that fills the rest of a slide below
+  a heading and text leaves no room for maidr's braille and review fields,
+  which open below it, partly past the slide's bottom edge; a smaller
+  `figsize` leaves them room.
 
 ## Quarto reveal.js Slides
 
