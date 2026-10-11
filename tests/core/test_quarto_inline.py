@@ -268,6 +268,34 @@ def test_the_figure_format_quarto_set_up_is_read_off_the_display_formatter():
         for figure_format in ("retina", "png", "svg"):
             set_matplotlib_formats(figure_format)
             assert environment._figure_format() == figure_format
+            assert Environment.quarto_figure_format() == figure_format
+
+
+def test_the_formatter_carries_the_arguments_a_plain_figure_is_saved_with():
+    """``InlineBackend.print_figure_kwargs``, which decide its box (#895)."""
+    pytest.importorskip("matplotlib_inline")
+    from IPython.core.interactiveshell import InteractiveShell
+    from matplotlib_inline.backend_inline import set_matplotlib_formats
+
+    from maidr.util import environment
+
+    shell = InteractiveShell.instance()
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr("IPython.get_ipython", lambda: shell)
+        set_matplotlib_formats("png", bbox_inches=None, pad_inches=0.3)
+        figure_format, printer = environment._figure_printer()
+        set_matplotlib_formats("retina")
+
+    assert figure_format == "png"
+    assert printer.keywords["bbox_inches"] is None
+    assert printer.keywords["pad_inches"] == 0.3
+
+
+def test_without_a_formatter_the_figure_format_is_the_files(quarto):
+    quarto("html")
+    assert Environment.quarto_figure_format() == "retina"
+    quarto("ipynb")
+    assert Environment.quarto_figure_format() == "png"
 
 
 def test_a_page_gets_the_chart_itself(quarto):
@@ -327,6 +355,63 @@ def test_save_html_is_still_a_document_of_its_own(quarto, tmp_path):
 
     assert path
     assert "maidr-inline" not in html
+
+
+def _small_with_a_label():
+    """A 4x3 figure, whose x label lies below its canvas."""
+    fig, ax = plt.subplots(figsize=(4, 3), dpi=100)
+    ax.bar(["Q1", "Q2", "Q3"], [3.0, 7.0, 2.0])
+    ax.set_xlabel("Quarter")
+    return fig
+
+
+def test_a_chart_in_the_page_has_the_box_and_size_of_the_plain_figure(quarto):
+    """Cut to what is drawn and shown at the figure's dpi, as Quarto's retina image.
+
+    ``tests/util/test_inline_figure_size.py`` holds the sizes to IPython's own.
+    """
+    quarto("html")
+    svg = _svg(_render(_small_with_a_label()))
+    left, top, width, height = (float(v) for v in svg.get("viewBox").split())
+
+    assert top + height > 216, "the box stops at the canvas, above the x label"
+    assert svg.get("width").endswith("px") and svg.get("height").endswith("px")
+    assert float(svg.get("width")[:-2]) == pytest.approx(width / 72 * 100, abs=0.01)
+    assert float(svg.get("height")[:-2]) == pytest.approx(height / 72 * 100, abs=0.01)
+
+
+def _svg_size(html: str) -> tuple[str | None, ...]:
+    """``width``, ``height`` and ``viewBox`` of the chart's ``<svg>``, escaped or not.
+
+    The chart's, not one in the source of a ``maidr.js`` a frame carries.
+    """
+    import html as html_module
+
+    tag = next(
+        match.group(0)
+        for match in re.finditer(r"<svg\b[^>]*>", html_module.unescape(html))
+        if " maidr=" in match.group(0)
+    )
+    return tuple(
+        (re.search(rf'\s{name}="([^"]*)"', tag) or [None, None])[1]
+        for name in ("width", "height", "viewBox")
+    )
+
+
+def test_a_chart_anywhere_else_keeps_matplotlibs_size(quarto, tmp_path):
+    """A frame -- a notebook's, a format that is not a page -- and save_html."""
+    quarto("ipynb")
+    framed = _render(_small_with_a_label())
+    fig = _small_with_a_label()
+    try:
+        FigureManager.get_maidr(fig).save_html(str(tmp_path / "chart.html"))
+    finally:
+        plt.close(fig)
+    saved = (tmp_path / "chart.html").read_text(encoding="utf-8")
+
+    assert "<iframe" in framed
+    for html in (framed, saved):
+        assert _svg_size(html) == ("288pt", "216pt", "0 0 288 216")
 
 
 def test_a_document_of_its_own_made_during_a_render_stays_one(quarto):

@@ -42,6 +42,7 @@ from maidr.util.dependencies import (
     maidr_html_dependency,
 )
 from maidr.util.served_bundle import frame_bundle_tags, served_bundle_url
+from maidr.util.svg_utils import settling
 from maidr.util.cdn import (
     bundled_cdn_url,
     maidr_js_cdn_url,
@@ -64,6 +65,7 @@ from maidr.util.inline_chart import (
     inline_applies,
     loader_js,
     showing,
+    size_like_plain_figure,
 )
 from maidr.util.quarto_cell import fig_alt as quarto_fig_alt
 
@@ -648,9 +650,20 @@ class Maidr:
         hover_mode : {"pointermove", "click", "off"} or None, default=None
             Written to the schema as ``hoverMode``; see :meth:`render`.
         """
-        with figure_lock(self._fig):
+        # In a page a Quarto render builds, the chart is written into the page
+        # rather than an iframe, which takes an SVG scoped to it (#895). The
+        # schema has to be in the SVG there: a page holds many charts, and
+        # the ``var maidr`` global can name only one. There the chart is cut
+        # to what is drawn, as the plain figure is, and a figure's layout is
+        # kept as the plain figure's is; see ``settle_layout``.
+        in_page = data_in_svg and inline_applies(use_iframe)
+        with figure_lock(self._fig), settling(keep_layout=in_page):
             return self._build_html_tag(
-                use_iframe, data_in_svg, use_cdn=use_cdn, hover_mode=hover_mode
+                use_iframe,
+                data_in_svg,
+                use_cdn=use_cdn,
+                hover_mode=hover_mode,
+                in_page=in_page,
             )
 
     def _build_html_tag(
@@ -660,6 +673,7 @@ class Maidr:
         use_cdn: bool | Literal["auto"] = "auto",
         *,
         hover_mode: HoverMode | None = None,
+        in_page: bool = False,
     ) -> Tag:
         """Render the chart. Callers want :meth:`_create_html_tag`, which locks.
 
@@ -704,19 +718,16 @@ class Maidr:
                 schema_trace_types(schema), bundle_is_primary=use_cdn is False
             )
 
-        # In a page a Quarto render builds, the chart is written into the page
-        # rather than an iframe, which takes an SVG scoped to it (#895). The
-        # schema has to be in the SVG there: a page holds many charts, and
-        # the ``var maidr`` global can name only one.
+        # Written into a Quarto page (``in_page``): see `_create_html_tag`.
         chart_title = chart_title_of(schema)
         # The cell's ``fig-alt`` names the chart, as r-maidr's ``fig.alt``
         # does: in the page until maidr.js names it, or as its frame's name.
         # Read once for each chart the cell shows, which takes the next item
         # of a list.
         alt = quarto_fig_alt() if in_quarto_render(use_iframe) else None
-        inline = None
-        if data_in_svg and inline_applies(use_iframe):
-            inline = InlineScope(alt or iframe_title(chart_title), alt=alt)
+        inline = (
+            InlineScope(alt or iframe_title(chart_title), alt=alt) if in_page else None
+        )
 
         with HighlightContextManager.set_maidr_elements(tagged_elements, selector_ids):
             svg = self._get_svg(embed_data=data_in_svg, schema=schema, inline=inline)
@@ -1230,6 +1241,10 @@ class Maidr:
                     current_schema = inline.scope(element, current_schema)
                 except InlineUnsupported as refusal:
                     inline.refused = refusal
+                else:
+                    # In the page, at the size and shape it gives the same
+                    # figure without maidr; see ``size_like_plain_figure``.
+                    size_like_plain_figure(self._fig, element)
             if embed_data:
                 # Compact on purpose: an attribute value is one line to a
                 # reader anyway (newlines become `&#10;`), and `indent`

@@ -1,38 +1,155 @@
+import io
+import logging
+from contextlib import contextmanager
+from contextvars import ContextVar
+
 import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
+from matplotlib.layout_engine import PlaceHolderLayoutEngine
 from matplotlib.transforms import Transform
 from matplotlib.lines import Line2D
-from typing import List, Optional, Tuple
+from typing import Iterator, List, Optional, Tuple
+
+_logger = logging.getLogger(__name__)
+
+
+class _Settling:
+    """One render's settling: the layout it keeps, and the figures it settled."""
+
+    __slots__ = ("keep_layout", "settled")
+
+    def __init__(self, keep_layout: bool) -> None:
+        self.keep_layout = keep_layout
+        self.settled: List[Figure] = []
+
+
+_SETTLING: ContextVar[Optional[_Settling]] = ContextVar("maidr_settling", default=None)
+
+
+@contextmanager
+def settling(keep_layout: bool) -> Iterator[None]:
+    """
+    Settle each figure at most once while a render extracts its layers.
+
+    Every violin and regression layer settles its figure before converting
+    its points, and the figure does not change between one layer's
+    extraction and the next, so within a render the first settle is the
+    only one that does anything. It is the only one made: a figure with six
+    violins, and a layout engine, used to be saved for each of them.
+
+    Parameters
+    ----------
+    keep_layout : bool
+        Whether a figure without a layout engine keeps the layout it has, as
+        :func:`settle_layout` describes: True for a chart written into a
+        Quarto page, which is cut to what is drawn as a plain figure is.
+    """
+    token = _SETTLING.set(_Settling(keep_layout))
+    try:
+        yield
+    finally:
+        _SETTLING.reset(token)
 
 
 def settle_layout(fig: Figure) -> None:
     """
-    Run the figure's tight layout so the axes sit where the SVG will draw them.
+    Settle the figure's layout so the axes sit where the SVG will draw them.
 
     :func:`data_to_svg_coords` reads the axes position, and that position is
-    only final once the layout has been settled -- which is why the transform
-    used to do this itself, on every call.  A layout pass measures the text
-    extent of every artist on the figure, so an extraction converting its
-    points one at a time paid for the whole figure once per point: 124 passes
-    for four seaborn violins, nearly all of the render time (#704).  Settle
-    once per extraction, before the first conversion, and let the conversions
-    be pure.
+    only final once the figure has been drawn: a draw runs the figure's own
+    layout engine, if it has one (``layout="constrained"``, ``"tight"``,
+    ``figure.autolayout``), applies each axes' aspect and places an axes
+    that has a locator.
 
-    The SVG is written after extraction, from whatever layout the figure is
-    then in, so one pass here leaves the coordinates and the drawing agreeing
-    just as the repeated passes did.  Failures are swallowed as before: a
-    figure whose layout cannot be tightened is still worth reading.
+    A figure with a layout engine is laid out by it, and by no other: it
+    used to be re-laid-out tight, which replaced a constrained layout, with
+    a warning that it had. It is saved as an SVG, which is then thrown away:
+    the engine places the axes around the text it measures, and the SVG's
+    renderer measures text otherwise than the raster one a plain draw uses
+    -- by as much as half a point once ``text.hinting`` is on, as it is by
+    default. And an engine's pass starts from where the last one left the
+    axes: a tight layout moves them again on its next pass, by an eighth of
+    what it moved them on this one (0.8 of a point, then 0.1, on a 3x3 inch
+    figure). So the SVG is saved until the axes stop moving, at most
+    :data:`_ENGINE_PASSES` times, and the chart's SVG, saved the same way,
+    draws them where they then are.
+
+    A figure without one is laid out tight (``tight_layout``), as it always
+    has been, except in a render that keeps its layout (:func:`settling`).
+    The SVG of a chart is the figure's canvas, and a small figure's axis
+    labels lie past it unless the figure is laid out to fit them; a chart
+    written into a Quarto page is instead cut to what is drawn, as the plain
+    figure beside it is, so it keeps the layout the plain figure has and is
+    only drawn, without rendering anything.
+
+    A draw measures the text extent of every artist on the figure, so an
+    extraction converting its points one at a time paid for the whole
+    figure once per point: 124 passes for four seaborn violins, nearly all
+    of the render time (#704). Settle once per extraction, before the first
+    conversion, and let the conversions be pure; within a render
+    (:func:`settling`), once for the figure.
+
+    Failures are swallowed: a figure that cannot be drawn here is still
+    worth reading.
 
     Parameters
     ----------
     fig : Figure
         The figure whose layout to settle.
     """
+    scope = _SETTLING.get()
+    if scope is not None:
+        if any(settled is fig for settled in scope.settled):
+            return
+        scope.settled.append(fig)
     try:
-        fig.tight_layout()
+        engine = fig.get_layout_engine()
+        if engine is not None and not isinstance(engine, PlaceHolderLayoutEngine):
+            _settle_engine(fig)
+        elif scope is None or not scope.keep_layout:
+            fig.tight_layout()
+        else:
+            draw = getattr(fig, "draw_without_rendering", None)
+            if draw is None:  # pragma: no cover - a matplotlib without it
+                draw = fig.canvas.draw
+            draw()
     except Exception:
-        pass
+        # A figure whose layout cannot be settled is still worth reading.
+        _logger.debug("maidr: could not settle the figure's layout", exc_info=True)
+
+
+#: The most SVG saves :func:`settle_layout` makes of a figure with a layout
+#: engine. A tight layout's moves shrink about eightfold a pass, so the
+#: fourth is a few thousandths of a point.
+_ENGINE_PASSES = 4
+
+#: How far, in points, the axes may move between two passes for the layout
+#: to count as settled.
+_SETTLED_POINTS = 0.01
+
+
+def _settle_engine(fig: Figure) -> None:
+    """Save ``fig`` as an SVG until its layout engine stops moving the axes."""
+    width, height = (float(v) * 72 for v in fig.get_size_inches())
+    scale = np.array([width, height, width, height])
+
+    def positions() -> np.ndarray:
+        return np.array([ax.get_position().bounds for ax in fig.axes]).reshape(-1, 4)
+
+    before = positions()
+    for _ in range(_ENGINE_PASSES):
+        fig.savefig(io.StringIO(), format="svg")
+        now = positions()
+        if now.shape == before.shape and np.all(
+            np.abs(now - before) * scale < _SETTLED_POINTS
+        ):
+            return
+        before = now
+    _logger.debug(
+        "maidr: the figure's layout engine still moved its axes after %d saves",
+        _ENGINE_PASSES,
+    )
 
 
 def data_to_svg_coords(

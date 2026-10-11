@@ -193,37 +193,175 @@
 
   // --- Dashboards ------------------------------------------------------------
 
-  // A Quarto dashboard sizes each card to the window and hides what does not
-  // fit. A chart taller than its card is shrunk to it, keeping its shape and
-  // a line for maidr's text below it. A card sized by its content never
-  // overflows, so only an overflowing one shrinks its chart.
+  // A Quarto dashboard shows a plain figure as large as its card allows,
+  // keeping its shape, centred in it (.quarto-dashboard-img-contain: width
+  // and height 100%, object-fit: contain); and as wide as the card where the
+  // card takes its height from what it holds: a scrolling dashboard, a row
+  // that does not fill, a phone's single column. A chart is given the same
+  // size and place, less a line kept below it for maidr's text. inline.css
+  // centres it across the card; the card scrolls to maidr's braille and
+  // review fields when they are open, and to a text longer than the line.
   var FITTED = '.html-fill-item > .maidr-inline';
 
+  // The height of a line of maidr's text, which is set in the wrapper's.
+  function textLine(wrapper) {
+    var style = getComputedStyle(wrapper);
+    var line = parseFloat(style.lineHeight);
+    return line > 0 ? line : 1.5 * parseFloat(style.fontSize);
+  }
+
+  // A box's padding and border on one side.
+  function edges(style, side) {
+    return parseFloat(style['padding' + side]) + parseFloat(style['border' + side + 'Width']);
+  }
+
+  // A chart is fitted with the other charts of its card's body, which
+  // shares its height among them.
   function fitChart(wrapper) {
     if (!wrapper || !wrapper.matches(FITTED)) return;
+    var body = wrapper.parentElement.parentElement;
+    if (body) fitCard(body);
+  }
+
+  function fitCard(body) {
+    // Each chart's output box, and the card's body around them, which a
+    // card can share among several outputs: a print() before a chart, two
+    // charts from one cell.
+    var wrappers = body.querySelectorAll(':scope > .html-fill-item > .maidr-inline');
+    var charts = [];
+    for (var i = 0; i < wrappers.length; i++) {
+      var svg = wrappers[i].querySelector('svg.maidr-inline-svg');
+      var view = svg && svg.viewBox && svg.viewBox.baseVal;
+      if (!view || !(view.width > 0) || !(view.height > 0)) continue;
+      var box = wrappers[i].parentElement;
+      charts.push({ wrapper: wrappers[i], box: box, size: svg.style, view: view,
+        scrolled: box.scrollTop });
+    }
+    // None, or a hidden tab or page: fitted when shown, which resizes it.
+    if (!charts.length || !body.clientWidth) return;
+    var chart;
+    for (i = 0; i < charts.length; i++) {
+      chart = charts[i];
+      chart.wrapper.style.paddingTop = '';
+      chart.box.style.flexBasis = '';
+      chart.size.maxHeight = 'none';
+      chart.size.width = '0px';
+      chart.size.height = '0px';
+    }
+    // Whether the card sizes its body or the body takes its height from what
+    // it holds: one the card sizes keeps its height whatever the charts'.
+    charts[0].size.height = '4000px';
+    var tall = body.clientHeight;
+    charts[0].size.height = '0px';
+    var layout = getComputedStyle(body);
+    var sized = Math.abs(tall - body.clientHeight) < 1 &&
+      /flex/.test(layout.display) && /^column/.test(layout.flexDirection);
+    for (i = 0; i < charts.length; i++) {
+      chart = charts[i];
+      chart.style = getComputedStyle(chart.box);
+      var width = chart.box.clientWidth - parseFloat(chart.style.paddingLeft) -
+        parseFloat(chart.style.paddingRight);
+      chart.scale = width / chart.view.width;
+      // The body shares its height among its outputs in proportion to the
+      // height each would have at the card's width (flex: 1 1 auto), which
+      // for a plain figure is the image's. A chart's box asks for the
+      // image's, whatever size the chart is then given in it.
+      if (sized) {
+        chart.box.style.flexBasis = chart.view.height * chart.scale +
+          edges(chart.style, 'Top') + edges(chart.style, 'Bottom') + 'px';
+      }
+    }
+    for (i = 0; i < charts.length; i++) {
+      chart = charts[i];
+      var room = 0;
+      if (sized) {
+        room = chart.box.clientHeight - parseFloat(chart.style.paddingTop) -
+          parseFloat(chart.style.paddingBottom) - textLine(chart.wrapper);
+        chart.scale = Math.min(chart.scale, Math.max(room, 96) / chart.view.height);
+      }
+      var height = chart.view.height * chart.scale;
+      chart.size.width = chart.view.width * chart.scale + 'px';
+      chart.size.height = height + 'px';
+      // Centred down its box, with the line for maidr's text below it.
+      if (room > height) chart.wrapper.style.paddingTop = (room - height) / 2 + 'px';
+    }
+    for (i = 0; i < charts.length; i++) charts[i].box.scrollTop = charts[i].scrolled;
+  }
+
+  // maidr's braille and review fields open below the chart, and a card that
+  // fills with the chart scrolls to them. The browser scrolls to a field as
+  // it takes the focus, when it is out of view then; one in view then can
+  // still grow past the card's edge after.
+  var FIELDS = 'textarea[id^="maidr-braille-textarea"], input[id^="maidr-review-input"]';
+
+  function keepInView(target) {
+    var wrapper = wrapperOf(target);
+    if (!wrapper || !wrapper.matches(FITTED) || !target.matches(FIELDS)) return;
+    requestAnimationFrame(function () {
+      if (document.activeElement === target) {
+        target.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      }
+    });
+  }
+
+  // maidr's text, below the chart, is given one line. A longer one -- a
+  // value that wraps in a narrow card -- grows past a card the chart fills,
+  // and the card is scrolled as far as it takes to show it, as the reader
+  // moves through the chart. The chart keeps its size: one that shrank and
+  // grew back as the text did would move every mark under a reader's
+  // magnifier. The instructions maidr shows as the chart takes the focus are
+  // left where they run: scrolled to, the chart would move away from a
+  // reader coming into it, and from under the pointer that clicked it.
+  var TEXT = '[id^="maidr-text-container"]';
+  var textObserver = null;
+  // The chart the reader has pressed a key in since the focus came into it.
+  var steered = null;
+
+  function showText(wrapper) {
+    if (!wrapper || wrapper !== steered || !wrapper.matches(FITTED) ||
+        !wrapper.contains(document.activeElement)) return;
+    var text = wrapper.querySelector(TEXT);
+    // The text's own element and the rotor's below it.
+    var area = text && text.parentElement;
+    if (!area) return;
     var box = wrapper.parentElement;
-    var svg = wrapper.querySelector('svg.maidr-inline-svg');
-    if (!box || !svg) return;
-    svg.style.maxHeight = '';
-    svg.style.width = '';
-    var over = box.scrollHeight - box.clientHeight;
-    if (over <= 1) return;
-    var line = 2.5 * parseFloat(getComputedStyle(wrapper).fontSize);
-    var height = svg.getBoundingClientRect().height - over - line;
-    svg.style.width = 'auto';
-    svg.style.maxHeight = Math.max(height, 96) + 'px';
+    var top = box.getBoundingClientRect().top + box.clientTop;
+    var r = area.getBoundingClientRect();
+    var over = r.bottom - (top + box.clientHeight);
+    // No further than keeps the text's first line in view.
+    if (over > 0.5) box.scrollTop += Math.min(over, Math.max(0, r.top - top));
+  }
+
+  // maidr.js puts its text in the chart's figure when the chart takes the
+  // focus, and takes it out when it loses it; the figure grows with it.
+  function watchText(target, from) {
+    var wrapper = wrapperOf(target);
+    if (wrapperOf(from) !== wrapper) steered = null;
+    if (!wrapper || !wrapper.matches(FITTED) || !window.ResizeObserver) return;
+    var figure = wrapper.querySelector('figure[id^="maidr-figure"]');
+    if (!figure) return;
+    if (!textObserver) {
+      textObserver = new ResizeObserver(function (entries) {
+        for (var i = 0; i < entries.length; i++) showText(wrapperOf(entries[i].target));
+      });
+    }
+    textObserver.observe(figure);
   }
 
   function fitCharts() {
     var wrappers = document.querySelectorAll(FITTED);
     if (!wrappers.length) return;
     var observer = window.ResizeObserver && new ResizeObserver(function (entries) {
+      var bodies = [];
       for (var i = 0; i < entries.length; i++) {
-        var wrapper = entries[i].target.querySelector(':scope > .maidr-inline');
-        // Fitted in the next frame: fitting in the callback resizes the box
-        // it observes in the same frame, which the browser reports.
-        if (wrapper) requestAnimationFrame(fitChart.bind(null, wrapper));
+        var body = entries[i].target.parentElement;
+        if (body && bodies.indexOf(body) < 0) bodies.push(body);
       }
+      // Fitted in the next frame: fitting in the callback resizes the box
+      // it observes in the same frame, which the browser reports.
+      requestAnimationFrame(function () {
+        for (var j = 0; j < bodies.length; j++) fitCard(bodies[j]);
+      });
     });
     for (var i = 0; i < wrappers.length; i++) {
       fitChart(wrappers[i]);
@@ -620,6 +758,7 @@
 
   window.addEventListener('keydown', function (event) {
     if (!focusInChart()) return;
+    steered = wrapperOf(document.activeElement);
     shimHosts();
     handOff(event);
   }, true);
@@ -636,6 +775,8 @@
     shimCards(target);
     if (target.matches && target.matches(PLOT)) describe(target);
     sizeDialogs(wrapperOf(target));
+    keepInView(target);
+    watchText(target, event.relatedTarget);
   }, true);
 
   function onReady() {
