@@ -1086,7 +1086,9 @@ the page loads `maidr.js` once for all of its charts. (In a notebook each chart
 has an iframe of its own; see below.) It needs Quarto 1.8 or newer, which tells
 the kernel what it is rendering to. With an older Quarto, and for any format
 that is not a web page, a chart keeps the iframe it had before. Plotly, Altair
-and Bokeh charts keep theirs in every format.
+and Bokeh charts keep theirs in every format. In a render, a cell's
+`#| fig-alt:` names a chart's iframe, as it names a chart in the page (see
+*Its name* below).
 
 Quarto keeps a kernel running between renders when you render from a terminal,
 RStudio or VS Code, and under `quarto preview`, and it tells that kernel what

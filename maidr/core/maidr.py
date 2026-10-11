@@ -709,11 +709,13 @@ class Maidr:
         # schema has to be in the SVG there: a page holds many charts, and
         # the ``var maidr`` global can name only one.
         chart_title = chart_title_of(schema)
+        # The cell's ``fig-alt`` names the chart, as r-maidr's ``fig.alt``
+        # does: in the page until maidr.js names it, or as its frame's name.
+        # Read once for each chart the cell shows, which takes the next item
+        # of a list.
+        alt = quarto_fig_alt() if in_quarto_render(use_iframe) else None
         inline = None
         if data_in_svg and inline_applies(use_iframe):
-            # The cell's ``fig-alt`` names the chart until maidr.js does, as
-            # r-maidr's ``fig.alt`` names its chart.
-            alt = quarto_fig_alt()
             inline = InlineScope(alt or iframe_title(chart_title), alt=alt)
 
         with HighlightContextManager.set_maidr_elements(tagged_elements, selector_ids):
@@ -756,6 +758,7 @@ class Maidr:
                 use_cdn,
                 chart_title,
                 inline=inline,
+                alt=alt,
             ),
             chart_title,
         )
@@ -1272,6 +1275,7 @@ class Maidr:
         chart_title: str | None = None,
         *,
         inline: InlineScope | None = None,
+        alt: str | None = None,
     ) -> Tag:
         """Embed the plot and associated MAIDR scripts into the HTML structure.
 
@@ -1304,6 +1308,9 @@ class Maidr:
         inline : InlineScope, optional
             Given when ``plot`` was scoped to be written into the page of a
             Quarto render (#895); see :func:`Maidr._inline_chart`.
+        alt : str, optional
+            The alt text of the Quarto cell the chart is drawn in, which
+            names its iframe; see :func:`iframe_title`.
         """
         if inline is not None:
             return Maidr._inline_chart(plot, use_cdn, chart_title, inline)
@@ -1626,7 +1633,7 @@ class Maidr:
         # that wraps the result cannot disagree about whether there is an
         # iframe.
         if will_iframe:
-            base_html = wrap_in_iframe_matplotlib(base_html, chart_title)
+            base_html = wrap_in_iframe_matplotlib(base_html, chart_title, alt)
             if quarto_stash is not None:
                 # Ahead of the frame, which reads it once its document loads.
                 base_html = tags.div(HTML(quarto_stash), base_html)
