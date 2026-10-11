@@ -141,9 +141,11 @@ _use_cdn_default: bool | Literal["auto"] | None = None
 #
 # Mirrors the pattern used by Plotly (``init_notebook_mode``) and Bokeh
 # (``output_notebook``): the bundled ``maidr.js`` / ``maidr-math.css`` are
-# injected into the parent notebook DOM exactly once per kernel session
-# and subsequent iframe outputs pull them from ``window.parent`` rather
-# than duplicating the ~1.7 MB bundle per cell.
+# stashed as strings in the parent notebook page, and iframe outputs pull
+# them from ``window.parent`` rather than duplicating the ~1.7 MB bundle
+# per cell.  This flag keeps ``import maidr`` and repeated calls from
+# stashing them again; each ``show()`` still does (``force=True``), so that
+# its cell stands on its own -- see ``_init_notebook_for_show``.
 
 _NOTEBOOK_LOADED: bool = False
 
@@ -370,7 +372,7 @@ def init_notebook(
     """Stash the bundled ``maidr.js`` / ``maidr-math.css`` in the notebook page.
 
     Mirrors the ``plotly.offline.init_notebook_mode`` / ``bokeh.io.output_notebook``
-    pattern: load the library once at the top of the notebook instead of
+    pattern: put the library in the notebook's page once instead of
     duplicating the ~1.7 MB bundle in every iframe ``srcdoc``.  The source
     strings are stashed on ``window.__maidrJsSource`` /
     ``window.__maidrMathCssSource`` in the parent document so that later
