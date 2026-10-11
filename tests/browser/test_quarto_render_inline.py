@@ -706,14 +706,16 @@ bars((4, 3))
 """
 
 
-@pytest.fixture(scope="module")
-def cards(tmp_path_factory):
-    """The two dashboards' URLs, served: a dashboard loads modules ``file:`` refuses."""
+def _served(tmp_path: Path, template: str):
+    """Render ``template`` as it is and without maidr, and serve the two pages.
+
+    A dashboard loads modules ``file:`` refuses. Yields their URLs.
+    """
     import functools
     import http.server
     import threading
 
-    plain, charted = _render_pair(tmp_path_factory.mktemp("cards"), _CARDS)
+    plain, charted = _render_pair(tmp_path, template)
 
     class Quiet(http.server.SimpleHTTPRequestHandler):
         def log_message(self, *args, **kwargs):
@@ -728,6 +730,12 @@ def cards(tmp_path_factory):
     finally:
         server.shutdown()
         server.server_close()
+
+
+@pytest.fixture(scope="module")
+def cards(tmp_path_factory):
+    """The two dashboards' URLs."""
+    yield from _served(tmp_path_factory.mktemp("cards"), _CARDS)
 
 
 #: Each card's picture: the part of its box an image draws in (object-fit:
@@ -745,16 +753,19 @@ _PICTURES = """() => [...document.querySelectorAll(
     right: b.right - (r.left + (r.width + w * k) / 2), boxW: b.width, boxH: b.height,
     bottom: r.top + (r.height + h * k) / 2 - b.top,
     line: wrapper ? parseFloat(getComputedStyle(wrapper).lineHeight) : 0,
+    scrolls: body.scrollHeight > body.clientHeight + 1,
     full: e.closest('.card').getAttribute('data-full-screen')};
 })"""
 
 
-def _pictures(browser: Browser, url: str, width: int, height: int, full: bool):
+def _pictures(
+    browser: Browser, url: str, width: int, height: int, full: bool, charts: int = 2
+):
     """The cards' pictures as laid out, after the first is shown full screen, and after."""
     page = _open(browser, url, width, height)
     try:
         if url.endswith("maidr.html"):
-            page.wait_for_function(f"() => ({_BOUND})() === 2", timeout=60_000)
+            page.wait_for_function(f"() => ({_BOUND})() === {charts}", timeout=60_000)
         page.wait_for_function(
             "() => [...document.images].every(i => i.complete)", timeout=60_000
         )
@@ -829,3 +840,80 @@ def test_maidrs_braille_field_is_in_view_in_a_card(browser: Browser, cards):
         page.close()
 
     assert field == {"braille": True, "in_view": True}
+
+
+_SHARED = """\
+---
+title: Shared cards
+format:
+  dashboard:
+    expandable: true
+---
+
+```{{python}}
+#| include: false
+import matplotlib.pyplot as plt
+{maidr}
+
+
+def bars(title):
+    fig, ax = plt.subplots()
+    ax.bar(["A", "B", "C", "D"], [3, 7, 2, 5])
+    ax.set_title(title)
+    ax.set_xlabel("Store")
+    plt.show()
+```
+
+## Row
+
+```{{python}}
+#| title: Two charts
+bars("North")
+bars("South")
+```
+
+```{{python}}
+#| title: Text and a chart
+print("Units sold this quarter, in thousands.")
+bars("East")
+```
+"""
+
+
+@pytest.fixture(scope="module")
+def shared_cards(tmp_path_factory):
+    """Two dashboards whose cards hold more than a chart, served."""
+    yield from _served(tmp_path_factory.mktemp("shared"), _SHARED)
+
+
+@pytest.mark.parametrize("viewport", [(1280, 800), (390, 844)])
+def test_a_card_shared_with_other_outputs_gives_the_chart_the_figures_share(
+    browser: Browser, shared_cards, viewport
+):
+    """Two charts from one cell, or a print() before one, as with plain figures.
+
+    The card's body shares its height among its outputs as it does among
+    plain figures, and a chart is fitted into its share as a figure is,
+    less the line for maidr's text where the share's height is the limit:
+    all of it shown, nothing to scroll. At a phone's width, where the card
+    takes its height from what it holds, a chart's share is the figure's
+    height and no more.
+    """
+    plain, charted = shared_cards
+    images = _pictures(browser, plain, *viewport, full=True, charts=3)
+    charts = _pictures(browser, charted, *viewport, full=True, charts=3)
+
+    assert [len(shown) for shown in charts] == [len(shown) for shown in images]
+    assert [len(shown) for shown in charts] == [3, 2, 3]
+    for shown_images, shown_charts in zip(images, charts):
+        for image, chart in zip(shown_images, shown_charts):
+            assert chart["boxH"] == pytest.approx(image["boxH"], abs=1.5)
+            assert chart["w"] / chart["h"] == pytest.approx(
+                image["w"] / image["h"], rel=0.01
+            )
+            if image["w"] >= image["boxW"] - 1:
+                assert chart["w"] == pytest.approx(image["w"], abs=1.5)
+            else:
+                assert chart["h"] == pytest.approx(image["h"] - chart["line"], abs=1.5)
+            assert chart["bottom"] <= chart["boxH"] + 1
+            assert not chart["scrolls"], chart

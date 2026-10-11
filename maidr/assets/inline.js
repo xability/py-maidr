@@ -210,38 +210,82 @@
     return line > 0 ? line : 1.5 * parseFloat(style.fontSize);
   }
 
+  // A box's padding and border on one side.
+  function edges(style, side) {
+    return parseFloat(style['padding' + side]) + parseFloat(style['border' + side + 'Width']);
+  }
+
+  // A chart is fitted with the other charts of its card's body, which
+  // shares its height among them.
   function fitChart(wrapper) {
     if (!wrapper || !wrapper.matches(FITTED)) return;
-    var box = wrapper.parentElement;
-    var svg = wrapper.querySelector('svg.maidr-inline-svg');
-    var view = svg && svg.viewBox && svg.viewBox.baseVal;
-    if (!box || !view || !(view.width > 0) || !(view.height > 0)) return;
-    var size = svg.style;
-    var scrolled = box.scrollTop;
-    wrapper.style.paddingTop = '';
-    // Whether the card sizes the box or the box takes its height from what
-    // it holds: one the card sizes keeps its height whatever the chart's.
-    size.maxHeight = 'none';
-    size.width = '0px';
-    size.height = '4000px';
-    var tall = box.clientHeight;
-    size.height = '0px';
-    var sized = Math.abs(tall - box.clientHeight) < 1;
-    var style = getComputedStyle(box);
-    var width = box.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
-    var scale = width / view.width;
-    var room = 0;
-    if (sized) {
-      room = box.clientHeight - parseFloat(style.paddingTop) -
-        parseFloat(style.paddingBottom) - textLine(wrapper);
-      scale = Math.min(scale, Math.max(room, 96) / view.height);
+    var body = wrapper.parentElement.parentElement;
+    if (body) fitCard(body);
+  }
+
+  function fitCard(body) {
+    // Each chart's output box, and the card's body around them, which a
+    // card can share among several outputs: a print() before a chart, two
+    // charts from one cell.
+    var wrappers = body.querySelectorAll(':scope > .html-fill-item > .maidr-inline');
+    var charts = [];
+    for (var i = 0; i < wrappers.length; i++) {
+      var svg = wrappers[i].querySelector('svg.maidr-inline-svg');
+      var view = svg && svg.viewBox && svg.viewBox.baseVal;
+      if (!view || !(view.width > 0) || !(view.height > 0)) continue;
+      var box = wrappers[i].parentElement;
+      charts.push({ wrapper: wrappers[i], box: box, size: svg.style, view: view,
+        scrolled: box.scrollTop });
     }
-    var height = view.height * scale;
-    size.width = view.width * scale + 'px';
-    size.height = height + 'px';
-    // Centred down the card, with the line for maidr's text below it.
-    if (room > height) wrapper.style.paddingTop = (room - height) / 2 + 'px';
-    box.scrollTop = scrolled;
+    // None, or a hidden tab or page: fitted when shown, which resizes it.
+    if (!charts.length || !body.clientWidth) return;
+    var chart;
+    for (i = 0; i < charts.length; i++) {
+      chart = charts[i];
+      chart.wrapper.style.paddingTop = '';
+      chart.box.style.flexBasis = '';
+      chart.size.maxHeight = 'none';
+      chart.size.width = '0px';
+      chart.size.height = '0px';
+    }
+    // Whether the card sizes its body or the body takes its height from what
+    // it holds: one the card sizes keeps its height whatever the charts'.
+    charts[0].size.height = '4000px';
+    var tall = body.clientHeight;
+    charts[0].size.height = '0px';
+    var layout = getComputedStyle(body);
+    var sized = Math.abs(tall - body.clientHeight) < 1 &&
+      /flex/.test(layout.display) && /^column/.test(layout.flexDirection);
+    for (i = 0; i < charts.length; i++) {
+      chart = charts[i];
+      chart.style = getComputedStyle(chart.box);
+      var width = chart.box.clientWidth - parseFloat(chart.style.paddingLeft) -
+        parseFloat(chart.style.paddingRight);
+      chart.scale = width / chart.view.width;
+      // The body shares its height among its outputs in proportion to the
+      // height each would have at the card's width (flex: 1 1 auto), which
+      // for a plain figure is the image's. A chart's box asks for the
+      // image's, whatever size the chart is then given in it.
+      if (sized) {
+        chart.box.style.flexBasis = chart.view.height * chart.scale +
+          edges(chart.style, 'Top') + edges(chart.style, 'Bottom') + 'px';
+      }
+    }
+    for (i = 0; i < charts.length; i++) {
+      chart = charts[i];
+      var room = 0;
+      if (sized) {
+        room = chart.box.clientHeight - parseFloat(chart.style.paddingTop) -
+          parseFloat(chart.style.paddingBottom) - textLine(chart.wrapper);
+        chart.scale = Math.min(chart.scale, Math.max(room, 96) / chart.view.height);
+      }
+      var height = chart.view.height * chart.scale;
+      chart.size.width = chart.view.width * chart.scale + 'px';
+      chart.size.height = height + 'px';
+      // Centred down its box, with the line for maidr's text below it.
+      if (room > height) chart.wrapper.style.paddingTop = (room - height) / 2 + 'px';
+    }
+    for (i = 0; i < charts.length; i++) charts[i].box.scrollTop = charts[i].scrolled;
   }
 
   // maidr's braille and review fields open below the chart, and a card that
@@ -264,12 +308,16 @@
     var wrappers = document.querySelectorAll(FITTED);
     if (!wrappers.length) return;
     var observer = window.ResizeObserver && new ResizeObserver(function (entries) {
+      var bodies = [];
       for (var i = 0; i < entries.length; i++) {
-        var wrapper = entries[i].target.querySelector(':scope > .maidr-inline');
-        // Fitted in the next frame: fitting in the callback resizes the box
-        // it observes in the same frame, which the browser reports.
-        if (wrapper) requestAnimationFrame(fitChart.bind(null, wrapper));
+        var body = entries[i].target.parentElement;
+        if (body && bodies.indexOf(body) < 0) bodies.push(body);
       }
+      // Fitted in the next frame: fitting in the callback resizes the box
+      // it observes in the same frame, which the browser reports.
+      requestAnimationFrame(function () {
+        for (var j = 0; j < bodies.length; j++) fitCard(bodies[j]);
+      });
     });
     for (var i = 0; i < wrappers.length; i++) {
       fitChart(wrappers[i]);

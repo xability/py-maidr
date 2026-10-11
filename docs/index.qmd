@@ -1170,9 +1170,11 @@ Where a chart differs from Quarto's figure, on purpose or not:
   paragraph below the chart, not as a figure caption.
 * **In a dashboard card**, a chart is as large as the card allows, keeping
   its shape and centred in it, as Quarto's figure is, but with a line left
-  below it for maidr's text; the card scrolls to the braille and review
-  fields when they open, and a card shown full screen takes its chart with
-  it. A dashboard also shows the value of every line of a cell, and Quarto
+  below it for maidr's text; a card shown full screen takes its chart with
+  it. A card that holds more than the chart — two charts from one cell, or
+  printed text before one — shares its height among them as it does among
+  plain figures. The card scrolls to the braille and review fields when they
+  open. A dashboard also shows the value of every line of a cell, and Quarto
   drops matplotlib's (`<BarContainer ...>`, `Text(0.5, 0, 'x')`) only beside
   an image: beside a chart they stay in its card. Draw the chart in a
   function, or assign those values (`_ = ax.set_xlabel("x")`).
