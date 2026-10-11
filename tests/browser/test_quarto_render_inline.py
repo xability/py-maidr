@@ -305,3 +305,84 @@ def test_a_dashboards_charts_stay_in_their_cards(tmp_path):
             "ancestor::div[contains(concat(' ', @class, ' '), ' card ')]"
         )
         assert card, "a chart was moved out of its card"
+
+
+_SAME_CODE = """\
+---
+title: Same code
+---
+
+```{python}
+#| include: false
+import matplotlib.pyplot as plt
+import maidr
+maidr.set_use_cdn(False)
+```
+
+```{python}
+data, title = [1, 2], "First"
+```
+
+```{python}
+#| fig-alt: "First: b is twice a."
+plt.bar(["a", "b"], data)
+plt.title(title)
+plt.show()
+```
+
+```{python}
+data, title = [2, 1], "Second"
+```
+
+```{python}
+#| fig-alt: "Second: a is twice b."
+plt.bar(["a", "b"], data)
+plt.title(title)
+plt.show()
+```
+
+```{python}
+#| label: fig-third
+#| fig-cap: "Third chart."
+#| fig-alt: "Third chart."
+plt.bar(["a"], [1])
+plt.title("Third")
+plt.show()
+```
+"""
+
+
+def test_cells_with_the_same_code_take_their_own_alt_text(tmp_path):
+    """Of cells with the same code, the running one is found by the kernel's
+    place in the render. Alt text that is the figure's caption is left to the
+    caption, as r-maidr leaves it, so it is read once."""
+    from lxml import html as lxml_html
+
+    quarto = _quarto()
+    (tmp_path / "same.qmd").write_text(_SAME_CODE, encoding="utf-8")
+    env = {**os.environ, "QUARTO_PYTHON": sys.executable, "MPLBACKEND": "Agg"}
+    result = subprocess.run(
+        [quarto, "render", "same.qmd", "--to", "html"],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=600,
+    )
+    if result.returncode != 0:
+        pytest.fail(f"quarto render failed:\n{result.stderr[-4000:]}")
+    page = lxml_html.parse(str(tmp_path / "same.html"))
+
+    def having(tag: str, name: str) -> list:
+        return page.xpath(f"//{tag}[contains(concat(' ', @class, ' '), ' {name} ')]")
+
+    alts = [element.text_content() for element in having("span", "maidr-inline-alt")]
+    names = [chart.get("aria-label") for chart in having("div", "maidr-inline")]
+    captions = [" ".join(c.text_content().split()) for c in page.xpath("//figcaption")]
+    assert alts == ["First: b is twice a.", "Second: a is twice b."]
+    assert names == [
+        "First: b is twice a.",
+        "Second: a is twice b.",
+        "Third, accessible chart",
+    ]
+    assert captions == ["Figure 1: Third chart."]

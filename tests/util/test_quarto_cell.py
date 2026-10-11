@@ -26,17 +26,54 @@ class _History:
         self.input_hist_raw: list[str] = [""]
 
 
+class _Info:
+    def __init__(self, store_history: bool) -> None:
+        self.store_history = store_history
+
+
+class _Events:
+    def __init__(self) -> None:
+        self.callbacks: list = []
+
+    def register(self, event: str, callback) -> None:
+        assert event == "pre_run_cell"
+        self.callbacks.append(callback)
+
+    def trigger(self, info: _Info) -> None:
+        for callback in self.callbacks:
+            callback(info)
+
+
 class _Kernel:
-    """The part of the kernel's IPython shell the reader uses."""
+    """The part of the kernel's IPython shell the reader uses.
+
+    As IPython does, it stores a cell of the document in its history before
+    running it, and a cell run without storing it, as Quarto runs its setup
+    and cleanup cells, is neither stored nor counted.
+    """
 
     def __init__(self) -> None:
         self.history_manager = _History()
         self.execution_count = 1
+        self.events = _Events()
+        self._running = False
 
     def run(self, code: str) -> None:
-        """Start running a cell: its code is in the history, its count new."""
-        self.execution_count += 1
+        """Start running a cell of the document, which the kernel stores."""
+        self._finish()
+        self.events.trigger(_Info(store_history=True))
         self.history_manager.input_hist_raw.append(code)
+        self._running = True
+
+    def run_unstored(self) -> None:
+        """Run a cell without storing it, as Quarto runs its setup cell."""
+        self._finish()
+        self.events.trigger(_Info(store_history=False))
+
+    def _finish(self) -> None:
+        if self._running:
+            self.execution_count += 1
+            self._running = False
 
 
 def _cell(source: str) -> dict:
@@ -59,7 +96,20 @@ def kernel(monkeypatch, tmp_path):
     monkeypatch.setattr(quarto_cell, "_shell", lambda: kernel)
     monkeypatch.setattr(quarto_cell, "_notebooks", {})
     monkeypatch.setattr(quarto_cell, "_drawn", [None, 0])
+    monkeypatch.setattr(quarto_cell, "_stored_before_render", [0])
+    monkeypatch.setattr(quarto_cell, "_watched", [None])
     return kernel
+
+
+def _render(kernel: _Kernel, *codes: str) -> list:
+    """Run a render's cells in order, reading the alt text after each."""
+    kernel.run_unstored()
+    read = []
+    for code in codes:
+        kernel.run(code)
+        read.append(quarto_cell.fig_alt())
+    kernel.run_unstored()
+    return read
 
 
 def test_the_cells_fig_alt_is_read(kernel, tmp_path):
@@ -209,16 +259,78 @@ def test_a_cell_that_is_not_run_is_not_taken_for_the_one_that_is(kernel, tmp_pat
     assert quarto_cell.fig_alt() == "This one."
 
 
-def test_cells_with_the_same_code_and_other_alt_text_give_none(kernel, tmp_path):
-    """Rather than the wrong cell's alt text, which would be read as true."""
+def test_cells_with_the_same_code_take_their_own_alt_text(kernel, tmp_path):
+    """Quarto runs the cells in order, so the kernel's place tells them apart."""
     _notebook(
         tmp_path / "doc.quarto_ipynb",
+        "import maidr",
+        '#| fig-alt: "One."\nplt.show()',
+        "plt.bar(x, y)",
+        '#| fig-alt: "Another."\nplt.show()',
+    )
+
+    read = _render(kernel, "import maidr", "plt.show()", "plt.bar(x, y)", "plt.show()")
+
+    assert read[1::2] == ["One.", "Another."]
+
+
+def test_a_later_render_in_the_same_kernel_takes_them_in_order_again(kernel, tmp_path):
+    """A kept-alive kernel goes on counting; Quarto's setup cell marks the start."""
+    notebook = tmp_path / "doc.quarto_ipynb"
+    cells = ("import maidr", "plt.show()", "plt.show()")
+    _notebook(notebook, "import maidr", '#| fig-alt: "One."\nplt.show()', "plt.show()")
+    assert _render(kernel, *cells)[1:] == ["One.", None]
+
+    _notebook(
+        notebook,
+        "import maidr",
         '#| fig-alt: "One."\nplt.show()',
         '#| fig-alt: "Another."\nplt.show()',
     )
-    kernel.run("plt.show()")
+    os.utime(notebook, ns=(10**18, 10**18))
 
-    assert quarto_cell.fig_alt() is None
+    assert _render(kernel, *cells)[1:] == ["One.", "Another."]
+
+
+def test_same_code_cells_give_none_when_the_render_cannot_be_placed(kernel, tmp_path):
+    """A kept-alive kernel's earlier render drew no chart, so nothing watched
+    it start: rather than another cell's alt text, none."""
+    kernel.run_unstored()
+    for code in ("a = 1", "b = 2", "c = 3"):
+        kernel.run(code)
+    kernel.run_unstored()
+    _notebook(
+        tmp_path / "doc.quarto_ipynb",
+        "import maidr",
+        '#| fig-alt: "One."\nplt.show()',
+        '#| fig-alt: "Another."\nplt.show()',
+    )
+
+    read = _render(kernel, "import maidr", "plt.show()", "plt.show()")
+
+    assert read[1:] == [None, None]
+
+
+def test_a_cell_the_document_does_not_run_is_not_counted(kernel, tmp_path, monkeypatch):
+    """``execute: eval: false`` leaves a cell without ``eval`` unrun."""
+    info = tmp_path / "info.json"
+    info.write_text(
+        json.dumps(
+            {
+                "document-path": str(tmp_path / "doc.qmd"),
+                "format": {"execute": {"eval": False}},
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("QUARTO_EXECUTE_INFO", str(info))
+    _notebook(
+        tmp_path / "doc.quarto_ipynb",
+        '#| fig-alt: "Not run."\nplt.show()',
+        '#| eval: true\n#| fig-alt: "Run."\nplt.show()',
+    )
+
+    assert _render(kernel, "plt.show()") == ["Run."]
 
 
 def test_cells_with_the_same_code_and_alt_text_give_it(kernel, tmp_path):
@@ -230,6 +342,45 @@ def test_cells_with_the_same_code_and_alt_text_give_it(kernel, tmp_path):
     kernel.run("plt.show()")
 
     assert quarto_cell.fig_alt() == "Same."
+
+
+def test_alt_text_that_is_the_figures_caption_is_left_to_the_caption(kernel, tmp_path):
+    """Quarto reads the caption under the chart, as r-maidr leaves it out."""
+    _notebook(
+        tmp_path / "doc.quarto_ipynb",
+        '#| label: fig-sales\n#| fig-cap: "Sales rise."\n#| fig-alt: "Sales rise."'
+        "\nplt.show()",
+    )
+    kernel.run("plt.show()")
+
+    assert quarto_cell.fig_alt() is None
+
+
+def test_a_caption_quarto_does_not_show_leaves_the_alt_text(kernel, tmp_path):
+    """Quarto captions a figure's cell only, one labelled ``fig-``."""
+    _notebook(
+        tmp_path / "doc.quarto_ipynb",
+        '#| fig-cap: "Costs fall."\n#| fig-alt: "Costs fall."\nplt.show()',
+    )
+    kernel.run("plt.show()")
+
+    assert quarto_cell.fig_alt() == "Costs fall."
+
+
+def test_each_chart_is_compared_with_its_own_subcaption(kernel, tmp_path):
+    _notebook(
+        tmp_path / "doc.quarto_ipynb",
+        "#| label: fig-pair\n"
+        '#| fig-cap: "Two views."\n'
+        '#| fig-subcap: ["Left.", "Right."]\n'
+        '#| fig-alt: ["Left.", "The right one, larger."]\n'
+        "draw_two()",
+    )
+    kernel.run("draw_two()")
+
+    read = [quarto_cell.fig_alt() for _ in range(2)]
+
+    assert read == [None, "The right one, larger."]
 
 
 def test_the_newest_notebook_quarto_wrote_is_read(kernel, tmp_path):
