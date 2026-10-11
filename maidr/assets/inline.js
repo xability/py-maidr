@@ -69,12 +69,15 @@
 
   // Until maidr.js has put its focusable element around a chart, the
   // wrapper is a named picture, so a reader whose maidr.js never loaded
-  // still hears what it is. The svg is hidden from the start: reveal.js
-  // reads a slide's text aloud when it is shown, and a chart drawn with
-  // svg.fonttype 'none' has its tick labels as text. Once maidr's element
-  // is there, maidr.js names it and the wrapper's name goes. The chart's
-  // title, which named its frame (#453), describes the element instead,
-  // after the caption of a Quarto figure around it.
+  // still hears what it is: the cell's fig-alt, or else the chart's title.
+  // The svg is hidden from the start: reveal.js reads a slide's text aloud
+  // when it is shown, and a chart drawn with svg.fonttype 'none' has its
+  // tick labels as text. Once maidr's element is there, maidr.js names it
+  // and the wrapper's name goes. The element is then described by the
+  // fig-alt, as r-maidr describes its charts by fig.alt; by the chart's
+  // title, which named its frame (#453), unless maidr.js already names the
+  // chart by it (xability/maidr#1384); and by the caption of a Quarto
+  // figure around it.
   function settle() {
     var wrappers = document.querySelectorAll('.maidr-inline[data-maidr-inline]');
     for (var i = 0; i < wrappers.length; i++) {
@@ -114,12 +117,21 @@
   // uses the chart.
   var MAIDR_INSTRUCTION = 'maidr-instruction-';
 
+  // Whether maidr.js already names the chart by this text: from
+  // xability/maidr#1384 it names a chart by its title, then its type.
+  function namedBy(plot, element) {
+    var text = (element.textContent || '').trim();
+    return !!text && (plot.getAttribute('aria-label') || '').indexOf(text) === 0;
+  }
+
   function describe(plot) {
     var wrapper = wrapperOf(plot);
     if (!wrapper) return;
     var ids = [];
+    var alt = wrapper.querySelector(':scope > .maidr-inline-alt[id]');
+    if (alt) ids.push(alt.id);
     var title = wrapper.querySelector(':scope > .maidr-inline-title[id]');
-    if (title) ids.push(title.id);
+    if (title && !namedBy(plot, title)) ids.push(title.id);
     var host = wrapper.parentNode && wrapper.parentNode.closest &&
       wrapper.parentNode.closest('[aria-describedby]');
     if (host && !inChart(host)) ids.push(host.getAttribute('aria-describedby'));

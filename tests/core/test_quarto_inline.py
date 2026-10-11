@@ -27,6 +27,7 @@ from lxml import etree  # noqa: E402
 
 import maidr  # noqa: E402, F401  # activates patches
 from maidr import api as maidr_api  # noqa: E402
+from maidr.core import maidr as maidr_core  # noqa: E402
 from maidr.core.figure_manager import FigureManager  # noqa: E402
 from maidr.util import inline_chart  # noqa: E402
 from maidr.util.environment import Environment  # noqa: E402
@@ -697,6 +698,34 @@ def test_an_untitled_chart_has_no_description_to_carry(quarto):
 
     assert 'class="maidr-inline-title"' not in html
     assert 'aria-label="Accessible chart"' in _wrapper(html)
+
+
+def test_the_cells_fig_alt_names_the_chart_and_comes_before_its_title(
+    quarto, monkeypatch
+):
+    """As r-maidr's ``fig.alt`` does: the author's words, read first."""
+    quarto("html")
+    monkeypatch.setattr(maidr_core, "quarto_fig_alt", lambda: 'Sales "rise" <steadily>')
+    html = _render(_bar(title="Sales"))
+    svg_id = _svg(html).get("id")
+
+    assert 'aria-label="Sales &quot;rise&quot; &lt;steadily&gt;"' in _wrapper(html)
+    alt = re.search(
+        rf'<span id="{svg_id}-alt" class="maidr-inline-alt" hidden[^>]*>'
+        r'Sales "rise" &lt;steadily&gt;</span>',
+        html,
+    )
+    assert alt is not None
+    assert alt.start() < html.index(f'id="{svg_id}-title"')
+
+
+def test_without_fig_alt_there_is_no_alt_element(quarto, monkeypatch):
+    quarto("html")
+    monkeypatch.setattr(maidr_core, "quarto_fig_alt", lambda: None)
+    html = _render(_bar(title="Sales"))
+
+    assert 'class="maidr-inline-alt"' not in html
+    assert 'aria-label="Sales, accessible chart"' in _wrapper(html)
 
 
 # --- maidr.js and the bundle -------------------------------------------------

@@ -43,6 +43,7 @@ maidr.set_use_cdn(False)
 ## First
 
 ```{python}
+#| fig-alt: "Three bars: a is the tallest, b the shortest."
 fig, ax = plt.subplots(figsize=(6, 4))
 ax.bar(["a", "b", "c"], [3, 1, 2])
 ax.set_title("First")
@@ -133,6 +134,35 @@ def test_maidr_takes_over_every_chart_and_leaves_the_page_alone(
     finally:
         page.close()
     assert not errors
+
+
+def test_a_cells_fig_alt_names_its_chart_and_describes_it_first(
+    browser: Browser, rendered
+):
+    """Quarto takes ``#| fig-alt`` off before the kernel runs the cell, and
+    puts none on a cell's HTML output; the chart reads it from the notebook
+    Quarto executes, as r-maidr reads ``fig.alt`` from knitr."""
+    _to, path = rendered
+    alt = "Three bars: a is the tallest, b the shortest."
+    html = path.read_text(encoding="utf-8")
+    assert html.count('class="maidr-inline-alt"') == 1
+    assert f'aria-label="{alt}"' in html
+
+    page = browser.new_page(viewport={"width": 1200, "height": 900})
+    try:
+        page.goto(path.as_uri(), wait_until="load")
+        page.wait_for_function(f"() => ({_BOUND})() === 2", timeout=60_000)
+        described = page.evaluate(
+            """plot => [...document.querySelectorAll(plot)].map(element =>
+                 (element.getAttribute('aria-describedby') || '').split(' ')
+                   .filter(Boolean)
+                   .map(id => (document.getElementById(id) || {}).textContent || ''))""",
+            _PLOT,
+        )
+    finally:
+        page.close()
+    assert described[0][0] == alt
+    assert alt not in described[1]
 
 
 _SEARCH_BOX = (

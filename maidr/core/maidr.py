@@ -65,6 +65,7 @@ from maidr.util.inline_chart import (
     loader_js,
     showing,
 )
+from maidr.util.quarto_cell import fig_alt as quarto_fig_alt
 
 #: Layer classes a segmented bar layer on the same axes can supersede.
 #:
@@ -708,11 +709,12 @@ class Maidr:
         # schema has to be in the SVG there: a page holds many charts, and
         # the ``var maidr`` global can name only one.
         chart_title = chart_title_of(schema)
-        inline = (
-            InlineScope(iframe_title(chart_title))
-            if data_in_svg and inline_applies(use_iframe)
-            else None
-        )
+        inline = None
+        if data_in_svg and inline_applies(use_iframe):
+            # The cell's ``fig-alt`` names the chart until maidr.js does, as
+            # r-maidr's ``fig.alt`` names its chart.
+            alt = quarto_fig_alt()
+            inline = InlineScope(alt or iframe_title(chart_title), alt=alt)
 
         with HighlightContextManager.set_maidr_elements(tagged_elements, selector_ids):
             svg = self._get_svg(embed_data=data_in_svg, schema=schema, inline=inline)

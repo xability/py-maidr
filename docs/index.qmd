@@ -1113,8 +1113,11 @@ A chart in the page still has what its iframe gave it:
 * **Its focus ring**, drawn inside the chart so that a slide, a card or a
   cell's output box does not clip it, and kept when a theme removes focus
   outlines.
-* **Its name.** The chart's title, which named its iframe, describes the
-  chart, after the caption of a figure (`#| fig-cap:`) when it has one.
+* **Its name.** A cell's `#| fig-alt:` names the chart until maidr.js has
+  loaded, and then describes it first, as `fig.alt` does in R Markdown; a
+  cell drawing several charts can give a list, one for each. Then come the
+  chart's title, which named its iframe, unless maidr.js already names the
+  chart by it, and the caption of a figure (`#| fig-cap:`) when it has one.
 * **Its own colours** in high contrast mode: the chart is painted, not the
   rest of the page.
 
