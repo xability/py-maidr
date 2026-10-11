@@ -348,6 +348,25 @@ def test_reveal_search_stays_shut_while_a_chart_has_the_keys(page):
     assert page.evaluate("window.__ctrlShiftF") == 1
 
 
+def test_the_decks_search_key_can_be_recorded_as_a_shortcut_of_maidrs(page):
+    """The recorder is a React handler, which has the key before it is held off.
+
+    The deck's search stays shut while the key is recorded, and after.
+    """
+    _press_in(page, 0, "Control+Comma")
+    page.get_by_role("tab", name="Keyboard Shortcuts").click()
+    page.get_by_role("button", name="Change shortcut for Toggle Text Mode").click()
+    page.keyboard.press("Control+Shift+F")
+    status = page.locator('.settings-shortcuts [role="status"]')
+    status.filter(has_text="Toggle Text Mode is now").wait_for(timeout=5_000)
+    assert "shift" in status.inner_text().lower()
+    assert page.evaluate("window.__ctrlShiftF") == 0
+
+    # Pressed again in the dialog, with nothing recording it.
+    page.keyboard.press("Control+Shift+F")
+    assert page.evaluate("window.__ctrlShiftF") == 0
+
+
 def test_a_full_screen_card_stays_open_while_a_chart_has_the_keys(
     browser, tmp_path, outputs
 ):

@@ -181,6 +181,39 @@ def test_a_decks_search_and_shift_tab_leave_a_chart_on_its_slide(
         page.close()
 
 
+@pytest.mark.parametrize("rendered", ["revealjs"], indirect=True)
+def test_the_decks_search_key_can_be_recorded_in_maidrs_settings(
+    browser: Browser, rendered
+):
+    """On Quarto's own deck, whose search plugin hears it on the document.
+
+    The plugin toggles its box, so it is looked at after each press.
+    """
+    _to, path = rendered
+    page = browser.new_page(viewport={"width": 1200, "height": 900})
+    try:
+        page.goto(path.as_uri(), wait_until="load")
+        page.wait_for_function(f"() => ({_BOUND})() === 2", timeout=60_000)
+        page.evaluate("Reveal.slide(1)")
+        page.wait_for_timeout(800)
+        page.locator(_PLOT).first.focus()
+        page.wait_for_timeout(300)
+        page.keyboard.press("Control+Comma")
+        page.get_by_role("tab", name="Keyboard Shortcuts").click()
+        page.get_by_role("button", name="Change shortcut for Toggle Text Mode").click()
+        page.keyboard.press("Control+Shift+F")
+        status = page.locator('.settings-shortcuts [role="status"]')
+        status.filter(has_text="Toggle Text Mode is now").wait_for(timeout=5_000)
+        assert not page.evaluate(_SEARCH_BOX), "the deck's search opened"
+
+        # Pressed again in the dialog, with nothing recording it.
+        page.keyboard.press("Control+Shift+F")
+        page.wait_for_timeout(300)
+        assert not page.evaluate(_SEARCH_BOX), "the deck's search opened"
+    finally:
+        page.close()
+
+
 _DASHBOARD = """\
 ---
 title: Two cards
