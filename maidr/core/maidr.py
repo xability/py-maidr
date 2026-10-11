@@ -1689,7 +1689,12 @@ class Maidr:
         # that wraps the result cannot disagree about whether there is an
         # iframe.
         if will_iframe:
-            base_html = wrap_in_iframe_matplotlib(base_html, chart_title, alt)
+            base_html = wrap_in_iframe_matplotlib(
+                base_html,
+                chart_title,
+                alt,
+                in_notebook=in_notebook_frame(use_iframe),
+            )
             if quarto_stash is not None:
                 # Ahead of the frame, which reads it once its document loads.
                 base_html = tags.div(HTML(quarto_stash), base_html)

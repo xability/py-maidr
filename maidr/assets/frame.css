@@ -1,0 +1,81 @@
+/* maidr frame: the document of the iframe py-maidr shows a chart in, in a
+ * notebook. A matplotlib or seaborn chart stands where the notebook would
+ * show the figure's image, at that image's size (inline_chart.py's
+ * size_like_plain_figure), and the frame holds it as the output area holds
+ * the image. The rules follow inline.css, which styles a chart written into
+ * a Quarto page. */
+
+/* The chart starts at the frame's edge, as the image starts at the output
+ * area's. */
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+/* maidr.js builds article > figure > div[tabindex] around the chart; a
+ * browser's figure margins (40px each side) are not the chart's. */
+article[id^="maidr-article-"],
+figure[id^="maidr-figure-"] {
+  margin: 0;
+  padding: 0;
+}
+
+/* The chart shrinks with a narrow output area, as the image does, and keeps
+ * its shape. */
+svg.maidr-frame-svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+/* A visible focus (WCAG 2.4.7), drawn inside the chart: the frame's edge is
+ * the chart's, and would cut a ring drawn outside it (#893). A light band
+ * inside the ring, the outline of the svg itself, keeps it visible on a dark
+ * plot background. */
+figure[id^="maidr-figure"] > div[tabindex="0"]:focus {
+  outline: 3px solid #1a5fb4 !important;
+  outline-offset: -3px !important;
+}
+figure[id^="maidr-figure"] > div[tabindex="0"]:focus svg.maidr-frame-svg {
+  outline: 2px solid #ffffff !important;
+  outline-offset: -5px !important;
+}
+
+/* maidr's braille and review fields are as wide as their text; in a narrow
+ * output area they keep to the frame. Those two only: the fields of its
+ * settings, chat and command palette are MUI's, sized with content-box, and
+ * border-box squashed their text into their padding. */
+textarea[id^="maidr-braille-textarea"],
+input[id^="maidr-review-input"] {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* The braille and review fields, and maidr's buttons, take the focus in
+ * their modes, and need a ring as much as the chart does, inside them for
+ * the same reason. */
+textarea:focus,
+input:focus,
+select:focus,
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible {
+  outline: 3px solid #1a5fb4 !important;
+  outline-offset: -3px !important;
+}
+
+@media (forced-colors: active) {
+  figure[id^="maidr-figure"] > div[tabindex="0"]:focus,
+  textarea:focus,
+  input:focus,
+  select:focus,
+  button:focus-visible,
+  a:focus-visible,
+  [role="button"]:focus-visible {
+    outline-color: Highlight !important;
+  }
+  figure[id^="maidr-figure"] > div[tabindex="0"]:focus svg.maidr-frame-svg {
+    outline: none !important;
+  }
+}

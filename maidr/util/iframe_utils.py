@@ -198,10 +198,88 @@ def chart_title_on(tag: object) -> str:
 FRAME_SVG_CLASS = "maidr-frame-svg"
 
 
+def frame_style() -> str:
+    """The stylesheet of a chart's frame in a notebook, as a ``<style>`` element.
+
+    See ``maidr/assets/frame.css``: the frame's margins and the figure's are
+    reset, the chart shrinks with a narrow output area, and focus rings are
+    drawn inside the frame.
+
+    Returns
+    -------
+    str
+        The ``<style>`` element, first in the frame's ``srcdoc``.
+    """
+    from maidr.util.inline_chart import _asset
+
+    return f"<style>{_asset('frame.css')}</style>"
+
+
+#: The width a notebook's frame may take: its output area's, and the padding
+#: the area keeps on its right too. JupyterLab, Notebook 7 and an nbconvert
+#: export pad an HTML output on its right (20px) and an image output not, so
+#: a chart narrower than the output area came out 20px narrower than the
+#: figure's image would. The frame takes that padding back, and its margin
+#: gives it back to the area, which therefore does not scroll. A frame that
+#: ``keepPadding`` keeps clear of it, as the library's own chart does.
+_OUTPUT_WIDTH_JS = """
+        function maidrOutputWidth(iframe, keepPadding) {
+            var host = iframe.parentElement;
+            var pad = host && !keepPadding
+                ? parseFloat(window.getComputedStyle(host).paddingRight) || 0
+                : 0;
+            iframe.style.marginRight = pad > 0 ? (-pad) + 'px' : '';
+            return pad > 0 ? 'calc(100% + ' + pad + 'px)' : '100%';
+        }
+"""
+
+#: Room for maidr's help and settings dialogs, which MUI fixes in the frame's
+#: viewport, centred, at least 32px from its edges, and scrolls within when
+#: the viewport is shorter than they are. While one is open, a notebook's
+#: frame is made as tall as the dialog would be on its own, up to the height
+#: of the window, and not less than 480px; a chart taller than that keeps its
+#: height. ``doc`` is the frame's document, ``win`` the window the frame is in.
+_DIALOG_ROOM_JS = """
+        function maidrDialogRoom(doc, win) {
+            var paper = doc.querySelector('.MuiDialog-paper');
+            if (!paper) return 0;
+            var view = paper.ownerDocument.defaultView;
+            var style = view.getComputedStyle(paper);
+            var natural = (parseFloat(style.paddingTop) || 0)
+                + (parseFloat(style.paddingBottom) || 0)
+                + (parseFloat(style.borderTopWidth) || 0)
+                + (parseFloat(style.borderBottomWidth) || 0);
+            for (var i = 0; i < paper.children.length; i++) {
+                natural += paper.children[i].scrollHeight || 0;
+            }
+            var room = natural
+                + (parseFloat(style.marginTop) || 0)
+                + (parseFloat(style.marginBottom) || 0);
+            var cap = Math.max(win.innerHeight || 0, 480);
+            return Math.ceil(Math.min(room, cap));
+        }
+"""
+
+
 def wrap_in_iframe_matplotlib(
-    base_html: Tag, chart_title: str | None = None, alt: str | None = None
+    base_html: Tag,
+    chart_title: str | None = None,
+    alt: str | None = None,
+    *,
+    in_notebook: bool = False,
 ) -> Tag:
     """Wrap matplotlib HTML in an auto-resizing iframe for notebooks.
+
+    In a notebook (``in_notebook``) the frame stands where the notebook
+    would show the figure's image, and holds the chart as the output area
+    holds the image: it is as wide as the output area, up to the chart's own
+    width -- that of the ``<svg>`` marked :data:`FRAME_SVG_CLASS` -- and the
+    chart shrinks with it, keeping its shape, rather than the output area
+    scrolling sideways. Its document has :func:`frame_style`. Its height is
+    measured again whenever the frame's width or its content changes, and
+    grows while maidr's help or settings dialog is open, so that the dialog
+    fits. Elsewhere -- Shiny, Flask, a Pyodide page -- the frame is as wide
+    as its content.
 
     Parameters
     ----------
@@ -213,6 +291,8 @@ def wrap_in_iframe_matplotlib(
     alt : str, optional
         The alt text of the Quarto cell the chart is drawn in, which names
         the frame instead.
+    in_notebook : bool, default=False
+        Whether the frame goes into a notebook's output.
 
     Returns
     -------
@@ -220,34 +300,63 @@ def wrap_in_iframe_matplotlib(
         An iframe tag wrapping the original HTML with auto-resizing logic.
     """
     unique_id = _generate_unique_id()
+    fits = "true" if in_notebook else "false"
 
     resizing_script = f"""
+        {_OUTPUT_WIDTH_JS}
+        {_DIALOG_ROOM_JS}
         function resizeIframe() {{
+            let fitsOutput = {fits};
             let iframe = document.getElementById('{unique_id}');
             if (
                 iframe && iframe.contentWindow &&
-                iframe.contentWindow.document
+                iframe.contentWindow.document &&
+                iframe.contentWindow.document.body
             ) {{
                 let iframeDocument = iframe.contentWindow.document;
                 let body = iframeDocument.body;
                 let de = iframeDocument.documentElement;
 
-                // The width comes first, so the height below is measured at
-                // the width the frame keeps. body.scrollWidth is never less
-                // than the body's own width, so the frame is narrowed to
-                // nothing before it is read, and the content alone sets it.
-                // It is measured from the body's edge, so the body's margins
-                // are added back; without them the frame cut 8px, and the
-                // focus outline, off the chart's right side (#893).
                 let bodyStyle = iframe.contentWindow.getComputedStyle(body);
-                iframe.style.width = '0px';
-                iframe.style.width = (
-                    body.scrollWidth
-                    + (parseFloat(bodyStyle.marginLeft) || 0)
-                    + (parseFloat(bodyStyle.marginRight) || 0)
-                ) + 'px';
+                let side = (parseFloat(bodyStyle.marginLeft) || 0)
+                    + (parseFloat(bodyStyle.marginRight) || 0);
+                // In a notebook the frame is as wide as the output area, up to
+                // the chart's own width, the width the svg was given (the
+                // plain figure's), and the chart shrinks with it (frame.css),
+                // as the figure's image shrinks to the output area. A width
+                // in CSS, so the frame follows the output area as it narrows
+                // or widens, with nothing to run.
+                let chart = fitsOutput
+                    ? iframeDocument.querySelector('svg.{FRAME_SVG_CLASS}')
+                    : null;
+                let own = chart && chart.width && chart.width.baseVal
+                    ? chart.width.baseVal.value
+                    : 0;
+                if (own > 0) {{
+                    // While maidr's help or settings dialog is open, the frame
+                    // may be as wide as MUI makes a dialog (600px, and 32px
+                    // either side), so that a small chart's frame does not
+                    // squeeze it.
+                    let dialogOpen = iframeDocument.querySelector('.MuiDialog-root');
+                    iframe.style.width = maidrOutputWidth(iframe, false);
+                    iframe.style.maxWidth = Math.max(own + side, dialogOpen ? 664 : 0) + 'px';
+                }} else {{
+                    // The width comes first, so the height below is measured
+                    // at the width the frame keeps. body.scrollWidth is never
+                    // less than the body's own width, so the frame is
+                    // narrowed to nothing before it is read, and the content
+                    // alone sets it. It is measured from the body's edge, so
+                    // the body's margins are added back; without them the
+                    // frame cut 8px, and the focus outline, off the chart's
+                    // right side (#893).
+                    iframe.style.width = '0px';
+                    iframe.style.width = (body.scrollWidth + side) + 'px';
+                }}
 
-                iframe.style.height = 'auto';
+                // In a notebook the height is measured with the frame at
+                // none, so that the 150px an iframe is left at is no floor
+                // under a short chart.
+                iframe.style.height = fitsOutput ? '0px' : 'auto';
 
                 // Use Math.max() across multiple DOM measurements (industry standard)
                 let height = Math.max(
@@ -255,7 +364,7 @@ def wrap_in_iframe_matplotlib(
                     body.offsetHeight || 0,
                     de.scrollHeight || 0,
                     de.offsetHeight || 0,
-                    de.clientHeight || 0
+                    fitsOutput ? 0 : (de.clientHeight || 0)
                 );
 
                 // Scan specific MAIDR elements with getBoundingClientRect()
@@ -297,6 +406,9 @@ def wrap_in_iframe_matplotlib(
                     height += 100;
                 }} else if (isReviewInputActive) {{
                     height += 50;
+                }}
+                if (fitsOutput) {{
+                    height = Math.max(height, maidrDialogRoom(iframeDocument, window));
                 }}
                 iframe.style.height = (height) + 'px';
             }}
@@ -343,6 +455,18 @@ def wrap_in_iframe_matplotlib(
                 }});
             }};
 
+            if ({fits}) {{
+                // A narrower or wider output area resizes the frame, and the
+                // chart in it; a dialog maidr opens or closes is added to or
+                // taken from the body, and moves the focus.
+                iframe.contentWindow.addEventListener('resize', scheduleResize);
+                iframe.contentWindow.document.addEventListener('focusin', scheduleResize, true);
+                iframe.contentWindow.document.addEventListener('focusout', scheduleResize, true);
+                new MutationObserver(scheduleResize).observe(
+                    iframe.contentWindow.document.body, {{ childList: true }}
+                );
+            }}
+
             // Try ResizeObserver first (modern, more efficient)
             if (typeof iframe.contentWindow.ResizeObserver !== 'undefined') {{
                 new iframe.contentWindow.ResizeObserver(scheduleResize).observe(
@@ -358,6 +482,9 @@ def wrap_in_iframe_matplotlib(
         }} catch (_) {{}}
     """
 
+    srcdoc = str(base_html.get_html_string())
+    if in_notebook:
+        srcdoc = frame_style() + srcdoc
     return tags.iframe(
         id=unique_id,
         title=iframe_title(chart_title, alt),
@@ -367,7 +494,7 @@ def wrap_in_iframe_matplotlib(
         # otherwise act on one of those. See `maidr/widget/_focus.py`.
         **{"data-maidr-chart": ""},
         allow=_ALLOWED_FEATURES,
-        srcdoc=str(base_html.get_html_string()),
+        srcdoc=srcdoc,
         width="100%",
         height="100%",
         scrolling="no",

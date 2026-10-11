@@ -736,10 +736,12 @@ class InlineScope:
 
 @lru_cache(maxsize=None)
 def _asset(name: str) -> str:
-    """One of ``maidr/assets/inline.{js,css}``, its comments and indents dropped.
+    """One of ``maidr/assets/``, its comments and indents dropped.
 
-    Every chart carries them, so that a chart whose cell hides its output
-    takes nothing from the charts after it; they run once per page.
+    Every chart carries ``inline.{js,css}``, so that a chart whose cell hides
+    its output takes nothing from the charts after it; they run once per
+    page. Every notebook frame carries ``frame.css``; see
+    :func:`maidr.util.iframe_utils.frame_style`.
     """
     text = resources.files("maidr").joinpath("assets", name).read_text(encoding="utf-8")
     text = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
