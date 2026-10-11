@@ -388,7 +388,8 @@ def init_notebook(
     prefetches it for them, with a ``<link rel="prefetch">`` rather than a
     ``<script src>``, which the require.js of classic Notebook and of
     nbconvert's HTML exports would swallow and every other frontend would
-    run again for each chart.
+    run again for each chart.  Not in a Quarto render, whose charts load
+    the version the render resolves, which need not be the one prefetched.
 
     Parameters
     ----------
@@ -397,11 +398,10 @@ def init_notebook(
           load.
         * ``False``: read the bundled ``maidr.js`` / ``maidr-math.css``
           from the installed package and embed them as strings on
-          ``window``.
+          ``window``.  Nothing else: the frames run only that copy, so
+          when the bundle cannot be read this warns and emits nothing.
         * ``"auto"``: stash them as for ``False``, as the fallback of
-          frames that try the CDN first, and prefetch the CDN copy --
-          except in a Quarto render, whose charts load the version the
-          render resolves.
+          frames that try the CDN first, and prefetch the CDN copy.
         * ``None`` (default): defer to :func:`get_use_cdn`.
     force : bool, default False
         Re-inject even if :data:`_NOTEBOOK_LOADED` is already ``True``.
@@ -466,42 +466,26 @@ def init_notebook(
     )
 
     mode = _resolve_use_cdn(use_cdn)
+    # ``False`` or ``"auto"``: the bundled source strings, for the frames to
+    # evaluate.  None under ``True``, whose frames load the CDN copy alone,
+    # and when the bundle cannot be read.
     stash = None if mode is True else _bundle_stash_script()
+    if stash is None and mode is False:
+        # The stash is the only copy a frame runs under ``False``, so its
+        # charts get no runtime at all.  Nothing is fetched in its place:
+        # these frames never load the CDN copy, and the caller opted out
+        # of the network.
+        warn_bundle_unreadable(cdn_fallback=False)
 
-    if mode is True:
-        # CDN-only: nothing is stashed on window.*, because the frames load
-        # the CDN copy themselves; this only starts that download early.  No
-        # stylesheet either: each frame's maidr.js resolves maidr-math.css
-        # against the URL it was loaded from.
-        html = _prefetch_tag()
-    else:
-        # ``False`` or ``"auto"``: embed the bundled source strings once in
-        # the page, for the frames to evaluate.
-        if stash is None:
-            # Bundle is missing: the CDN copy is the only one left, so it is
-            # prefetched as under ``True``.
-            #
-            # This branch is reachable with ``mode is False``, where the
-            # caller was promised no Python-side network I/O.  Honor
-            # that: resolving a version here would issue exactly the
-            # request they opted out of, on an install that is already
-            # broken.  Name the bundled version, which needs no lookup, and
-            # say why, since silently contacting the CDN under
-            # ``use_cdn=False`` is the more surprising outcome.
-            # Both modes emit the same markup; only ``False`` has been
-            # promised no network I/O, so only it needs telling that its
-            # bundle could not be read.
-            if mode is False:
-                warn_bundle_unreadable()
-            html = _prefetch_tag()
-        else:
-            prefetch = ""
-            # Under ``"auto"`` the frames try the CDN before the stash.  Not
-            # in a Quarto render: its charts load the version the render
-            # resolves, which need not be the one named here.
-            if mode == "auto" and not Environment.is_quarto():
-                prefetch = _prefetch_tag()
-            html = f"{stash}{prefetch}"
+    prefetch = ""
+    # Under ``True`` and ``"auto"`` the frames load the CDN copy (``"auto"``
+    # first, before the stash), so the page starts that download early.  No
+    # stylesheet: each frame's maidr.js resolves maidr-math.css against the
+    # URL it was loaded from.  Not in a Quarto render: its charts load the
+    # version the render resolves (#888), which need not be the one named
+    # here.
+    if mode is not False and not Environment.is_quarto():
+        prefetch = _prefetch_tag()
 
     if mode is not True:
         # The bundled source is what we just stashed on ``window``, so
@@ -509,7 +493,9 @@ def init_notebook(
         # Offline-safe: never resolves over the network by itself.
         warn_if_bundle_is_stale(bundle_is_primary=mode is False)
 
-    display(HTML(html))
+    html = f"{stash or ''}{prefetch}"
+    if html:
+        display(HTML(html))
     _NOTEBOOK_LOADED = True
 
 

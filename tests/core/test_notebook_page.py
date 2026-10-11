@@ -9,9 +9,9 @@ that copy was taken for an anonymous module and broke the page's next
 ``require()``; everywhere else it ran, once more per chart, over the whole
 notebook.
 
-These pin that the page gets a ``<link rel="prefetch">`` instead, whatever the
-mode and however the markup gets there, and that it names the copy the frames
-load, so the frames still find it in the browser's cache.
+These pin that the page gets at most a ``<link rel="prefetch">`` instead,
+whatever the mode and however the markup gets there, and that it names the
+copy the frames load, so the frames still find it in the browser's cache.
 ``tests/browser/test_notebook_page.py`` opens such a page.
 """
 
@@ -169,36 +169,53 @@ def test_the_page_gets_no_script_that_loads_maidr_js(page, mode, put):
     assert _scripts_with_a_source(page) == []
 
 
-@pytest.mark.parametrize("mode", MODES)
-def test_nor_when_the_bundle_cannot_be_read(page, monkeypatch, mode):
-    """The CDN copy is all that is left, and it is still only prefetched."""
+def _unreadable_bundle(monkeypatch) -> None:
     monkeypatch.setattr(
         dependencies,
         "read_bundled_js",
         lambda: (_ for _ in ()).throw(FileNotFoundError("bundle missing")),
     )
 
+
+@pytest.mark.parametrize("mode", MODES)
+def test_nor_when_the_bundle_cannot_be_read(page, monkeypatch, mode):
+    """The CDN copy is all that is left, and it is still only prefetched.
+
+    Under ``False`` not even that: those frames run only the stash, so a
+    prefetch would be a request the caller opted out of, for nothing.
+    """
+    _unreadable_bundle(monkeypatch)
+
     maidr.init_notebook(use_cdn=mode, force=True)
 
+    if mode is False:
+        assert page == []
+        return
     assert _scripts_with_a_source(page) == []
     assert len(_prefetches(page)) == 1
     assert "window.__maidrJsSource" not in page[0]
 
 
+@pytest.mark.parametrize("readable", [True, False], ids=["bundle", "no bundle"])
 @pytest.mark.parametrize("mode", MODES)
-def test_nor_in_a_quarto_render(page, monkeypatch, mode):
+def test_nor_in_a_quarto_render(page, monkeypatch, mode, readable):
     """A call by hand there puts no copy in the page the render builds either.
 
     Its charts are written into the page and load ``maidr.js`` themselves
-    (#895); what ``init_notebook()`` adds is at most a prefetch, and under
-    ``"auto"`` not even that, as #896 left it.
+    (#895), at the version the render resolves (#888), which need not be
+    the one a prefetch would name. So ``init_notebook()`` adds the stash
+    and nothing else, as #896 left ``"auto"``.
     """
     monkeypatch.setenv(QUARTO_VARIABLE, "png")
+    if not readable:
+        _unreadable_bundle(monkeypatch)
 
     maidr.init_notebook(use_cdn=mode, force=True)
 
     assert _scripts_with_a_source(page) == []
-    assert len(_prefetches(page)) == (1 if mode is True else 0)
+    assert _prefetches(page) == []
+    stashed = readable and mode is not True
+    assert len(page) == (1 if stashed else 0)
 
 
 @pytest.mark.parametrize("mode", MODES)
