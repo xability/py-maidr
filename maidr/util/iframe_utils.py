@@ -233,6 +233,22 @@ _OUTPUT_WIDTH_JS = """
         }
 """
 
+#: The same width, taken by the frame's own document as it starts, before
+#: anything in it draws: plotly.js draws a chart without a width of its own
+#: as wide as the frame is then, and keeps it once maidr.js has bound it.
+_OUTPUT_WIDTH_FIRST = (
+    "<script>(function () { try {"
+    " var frame = window.frameElement;"
+    " var host = frame && frame.parentElement;"
+    " if (!host) return;"
+    " var pad = parseFloat(window.parent.getComputedStyle(host).paddingRight) || 0;"
+    " if (pad > 0) {"
+    " frame.style.width = 'calc(100% + ' + pad + 'px)';"
+    " frame.style.marginRight = (-pad) + 'px';"
+    " }"
+    " } catch (e) {} })();</script>"
+)
+
 #: Room for maidr's help and settings dialogs, which MUI fixes in the frame's
 #: viewport, centred, at least 32px from its edges, and scrolls within when
 #: the viewport is shorter than they are. While one is open, a notebook's
@@ -505,13 +521,27 @@ def wrap_in_iframe_matplotlib(
 
 
 def wrap_in_iframe_plotly(
-    base_html: Tag, chart_title: str | None = None, alt: str | None = None
+    base_html: Tag,
+    chart_title: str | None = None,
+    alt: str | None = None,
+    *,
+    in_notebook: bool = False,
+    keep_padding: bool = False,
 ) -> Tag:
     """Wrap Plotly HTML in an auto-resizing iframe for notebooks.
 
     Mirrors the focus-delegation logic from the matplotlib wrapper
     but adds Plotly-specific handling for overflow containers and
-    MAIDR element scanning.
+    MAIDR element scanning. Bokeh and Altair charts use it too.
+
+    In a notebook (``in_notebook``) the frame's document has
+    :func:`frame_style`, and the frame holds the whole chart: its height
+    counts the margins of what the document starts and ends with, which cut
+    the bottom of a Bokeh chart, its x-axis label with it, and a chart of a
+    fixed width wider than the output area widens the frame, so that the
+    output area scrolls to it as it scrolls to the plain chart, rather than
+    the frame cutting it off. The frame grows while maidr's help or settings
+    dialog is open, as the matplotlib one does.
 
     Parameters
     ----------
@@ -523,6 +553,14 @@ def wrap_in_iframe_plotly(
     alt : str, optional
         The alt text of the Quarto cell the chart is drawn in, which names
         the frame instead.
+    in_notebook : bool, default=False
+        Whether the frame goes into a notebook's output.
+    keep_padding : bool, default=False
+        Whether, in a notebook, the frame keeps clear of the padding to the
+        right of an HTML output, as the library's own chart does there: a
+        Bokeh plot, which is an HTML output itself, and an Altair chart,
+        which vega-embed's menu keeps further from that edge. A Plotly
+        chart takes the padding, as plotly's own renderer does.
 
     Returns
     -------
@@ -530,9 +568,15 @@ def wrap_in_iframe_plotly(
         An iframe tag wrapping the original HTML with auto-resizing logic.
     """
     unique_id = _generate_unique_id()
+    fits = "true" if in_notebook else "false"
+    keeps = "true" if keep_padding else "false"
 
     resizing_script = f"""
+        {_OUTPUT_WIDTH_JS}
+        {_DIALOG_ROOM_JS}
         function resizeIframe() {{
+            var fitsOutput = {fits};
+            var keepsPadding = {keeps};
             var iframe = document.getElementById('{unique_id}');
             if (!iframe || !iframe.contentWindow || !iframe.contentWindow.document) {{
                 return;
@@ -541,16 +585,34 @@ def wrap_in_iframe_plotly(
             var doc = iframe.contentWindow.document;
             var body = doc.body;
             if (!body) return;
+            var de = doc.documentElement;
+
+            // WIDTH, in a notebook: a chart of a fixed width wider than the
+            // output area widens the frame, so the output area scrolls to it
+            // as it does to the plain chart, where scrolling="no" cut it off.
+            // One that takes the frame's width never overflows it.
+            if (fitsOutput) {{
+                iframe.style.width = maidrOutputWidth(iframe, keepsPadding);
+                if (de.scrollWidth > iframe.contentWindow.innerWidth + 1) {{
+                    iframe.style.width = de.scrollWidth + 'px';
+                }}
+            }}
 
             // CRITICAL: Shrink iframe first to get accurate content measurement.
             // Without this, body.scrollHeight reflects the current iframe size,
             // not the natural content size (causes whitespace after braille closes).
-            iframe.style.height = 'auto';
+            // In a notebook to no height at all, so that the 150px an iframe is
+            // left at is no floor under the document's own height, which is
+            // measured there too: it counts the margins of what the document
+            // starts and ends with, which body.scrollHeight leaves out.
+            iframe.style.height = fitsOutput ? '0px' : 'auto';
 
             // HEIGHT: Measure content after shrinking
             var height = Math.max(
                 body.scrollHeight || 0,
-                body.offsetHeight || 0
+                body.offsetHeight || 0,
+                fitsOutput ? (de.scrollHeight || 0) : 0,
+                fitsOutput ? (de.offsetHeight || 0) : 0
             );
 
             // Scan MAIDR elements for bottom edge (they extend below the chart)
@@ -588,6 +650,9 @@ def wrap_in_iframe_plotly(
             }} else if (isReviewActive) {{
                 height += 50;
             }}
+            if (fitsOutput) {{
+                height = Math.max(height, maidrDialogRoom(doc, window));
+            }}
 
             iframe.style.height = height + 'px';
         }}
@@ -613,6 +678,14 @@ def wrap_in_iframe_plotly(
                 _raf = requestAnimationFrame(resizeIframe);
             }};
 
+            if ({fits}) {{
+                // A dialog maidr opens or closes is added to or taken from
+                // the body.
+                new MutationObserver(scheduleResize).observe(
+                    iframe.contentWindow.document.body, {{ childList: true }}
+                );
+            }}
+
             if (typeof iframe.contentWindow.ResizeObserver !== 'undefined') {{
                 new iframe.contentWindow.ResizeObserver(scheduleResize).observe(
                     iframe.contentWindow.document.body
@@ -632,6 +705,10 @@ def wrap_in_iframe_plotly(
         }} catch (_) {{}}
     """
 
+    srcdoc = str(base_html.get_html_string())
+    if in_notebook:
+        width_first = "" if keep_padding else _OUTPUT_WIDTH_FIRST
+        srcdoc = frame_style() + width_first + srcdoc
     return tags.iframe(
         id=unique_id,
         title=iframe_title(chart_title, alt),
@@ -641,7 +718,7 @@ def wrap_in_iframe_plotly(
         # otherwise act on one of those. See `maidr/widget/_focus.py`.
         **{"data-maidr-chart": ""},
         allow=_ALLOWED_FEATURES,
-        srcdoc=str(base_html.get_html_string()),
+        srcdoc=srcdoc,
         width="100%",
         height="100%",
         scrolling="no",

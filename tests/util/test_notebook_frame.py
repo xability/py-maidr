@@ -31,6 +31,7 @@ from maidr.util.iframe_utils import (  # noqa: E402
     FRAME_SVG_CLASS,
     frame_style,
     wrap_in_iframe_matplotlib,
+    wrap_in_iframe_plotly,
 )
 from maidr.util.inline_chart import _asset  # noqa: E402
 
@@ -146,6 +147,45 @@ def test_a_hostile_title_still_arrives_as_text():
     )
 
     assert "<script>alert" not in str(frame).split("srcdoc=")[0]
+
+
+# --- The plotly frame (Bokeh and Altair use it too) -----------------------------------
+
+
+def test_a_notebook_plotly_frame_carries_the_stylesheet():
+    frame = wrap_in_iframe_plotly(tags.div("chart"), "Sales", in_notebook=True)
+
+    srcdoc = _attribute(frame, "srcdoc")
+    assert srcdoc.startswith(frame_style())
+    # The frame takes its width before plotly.js draws in it, which keeps
+    # the width it drew at.
+    assert srcdoc.index("window.frameElement") < srcdoc.index("chart")
+    script = _attribute(frame, "onload")
+    assert "var fitsOutput = true;" in script
+    assert "var keepsPadding = false;" in script
+    assert "iframe.style.width = maidrOutputWidth(iframe, keepsPadding);" in script
+    # The document's own height, which counts margins body.scrollHeight
+    # leaves out, and a frame widened to content wider than the output area.
+    assert "de.scrollHeight" in script
+    assert "iframe.style.width = de.scrollWidth + 'px'" in script
+
+
+def test_a_frame_can_keep_clear_of_the_output_areas_padding():
+    """As a Bokeh plot, an HTML output itself, keeps clear of it."""
+    frame = wrap_in_iframe_plotly(
+        tags.div("chart"), "Sales", in_notebook=True, keep_padding=True
+    )
+
+    assert "window.frameElement" not in _attribute(frame, "srcdoc")
+    assert "var keepsPadding = true;" in _attribute(frame, "onload")
+
+
+def test_outside_a_notebook_the_plotly_frame_is_left_as_it_was():
+    frame = wrap_in_iframe_plotly(tags.div("chart"), "Sales")
+
+    srcdoc = _attribute(frame, "srcdoc")
+    assert not srcdoc.startswith("<style>")
+    assert "var fitsOutput = false;" in _attribute(frame, "onload")
 
 
 # --- Through a render ---------------------------------------------------------------
