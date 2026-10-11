@@ -14,7 +14,8 @@ that a frame kept from the chart:
 * a stylesheet that takes every focus ring away.
 
 A second page is the same without the deck, where Ctrl+Shift+F and Shift+Tab
-are the page's and the browser's.
+are the page's and the browser's. On a third, a chart is in a card shown full
+screen, which Escape pressed anywhere leaves, as a Quarto dashboard's is.
 
 Both charts draw a line with the same ``gid``, so a selector that named it
 unchanged would find the other chart's line. Built with ``use_cdn=False``,
@@ -106,7 +107,8 @@ _PAGE_KEYS = """
 """
 
 # A maidr.js that keeps the page's shortcuts off a chart's keys itself says
-# so in ``maidrLive.features``. The bundled one is made to say it.
+# so in ``maidrLive.features``. The bundled one is made to say it, and
+# ``__bundleGuards`` is whether it said so already.
 _NATIVE_GUARDS = """
   (function () {
     var live;
@@ -114,11 +116,35 @@ _NATIVE_GUARDS = """
       configurable: true,
       get: function () { return live; },
       set: function (value) {
+        window.__bundleGuards = !!(value.features && value.features.hostGuards >= 1);
         value.features = Object.freeze({ hostGuards: 1 });
         live = value;
       }
     });
   })();
+"""
+
+_CARD = """
+  // A card shown full screen, as bslib's: Escape pressed anywhere leaves it,
+  // through a listener on the document the card keeps on its instance.
+  window.__escapes = 0;
+  window.__card = {
+    _exitFullScreenOnEscape: function (event) {
+      if (event.key === 'Escape') window.__escapes += 1;
+    }
+  };
+  window.__cardEscape = window.__card._exitFullScreenOnEscape;
+  document.addEventListener('keydown', window.__cardEscape, false);
+  window.bslib = { Card: { getInstance: function (element) {
+    return element.matches('.bslib-card') ? window.__card : undefined;
+  } } };
+"""
+
+# What a maidr.js that guards the page itself has wrapped, which it marks.
+_MARKED = """
+  Reveal.__maidrHostGuard = true;
+  window.quartoOpenSearch.__maidrHostGuard = true;
+  window.__card.__maidrHostGuard = true;
 """
 
 
@@ -149,6 +175,12 @@ def _deck(outputs: list[str]) -> str:
     """Each output on a slide of its own, as reveal.js lays a deck out."""
     slides = "".join(f"<section>{html}</section>" for html in outputs)
     return f"<div class='reveal'><div class='slides'>{slides}</div></div>"
+
+
+def _carded(outputs: list[str]) -> str:
+    """A deck whose first chart is in a card shown full screen."""
+    card = f"<div class='bslib-card card' data-full-screen='true'>{outputs[0]}</div>"
+    return _deck([card, *outputs[1:]])
 
 
 def _line(title: str):
@@ -314,6 +346,23 @@ def test_reveal_search_stays_shut_while_a_chart_has_the_keys(page):
     page.locator("#after").focus()
     page.keyboard.press("Control+Shift+F")
     assert page.evaluate("window.__ctrlShiftF") == 1
+
+
+def test_a_full_screen_card_stays_open_while_a_chart_has_the_keys(
+    browser, tmp_path, outputs
+):
+    """Escape in a chart closes maidr's own modes, not the card's full screen."""
+    head = _head(_AMD, _DECK, _PAGE_KEYS, _CARD)
+    page = _page(browser, tmp_path, _carded(outputs), head=head)
+    try:
+        _press_in(page, 0, "Escape")
+        assert page.evaluate("window.__escapes") == 0
+
+        page.locator("#after").focus()
+        page.keyboard.press("Escape")
+        assert page.evaluate("window.__escapes") == 1
+    finally:
+        page.close()
 
 
 def test_ctrl_shift_f_is_the_pages_where_it_is_not_a_decks_search(plain_page):
@@ -498,13 +547,16 @@ def test_a_maidr_js_that_guards_the_page_itself_is_left_to_it(
 ):
     """Told so by ``maidrLive.features``, inline.js wraps nothing of the page's.
 
-    What is wrapped, if anything, is maidr.js's own, which marks it.
+    What is wrapped, if anything, is maidr.js's own, which marks it. A
+    bundled maidr.js that only says so, guarding nothing, leaves every key to
+    the page: inline.js neither stops Ctrl+Shift+F nor hands Shift+Tab to the
+    slide.
     """
-    head = _head(_NATIVE_GUARDS, _AMD, _DECK, _PAGE_KEYS)
-    page = _page(browser, tmp_path, _deck(outputs), head=head)
+    head = _head(_NATIVE_GUARDS, _AMD, _DECK, _PAGE_KEYS, _CARD)
+    page = _page(browser, tmp_path, _carded(outputs), head=head)
     try:
         assert page.evaluate("window.maidrLive.features.hostGuards") == 1
-        for key in ("ArrowRight", "s", "Control+Shift+F", "Shift+Tab"):
+        for key in ("ArrowRight", "s", "Escape", "Control+Shift+F", "Shift+Tab"):
             _press_in(page, 0, key)
         wrapped_here = page.evaluate(
             """() => ({
@@ -512,9 +564,52 @@ def test_a_maidr_js_that_guards_the_page_itself_is_left_to_it(
                  reveal: !!Reveal.__maidrInline && !Reveal.__maidrHostGuard,
                  search: window.quartoOpenSearch !== window.__pageSearch
                    && !window.quartoOpenSearch.__maidrHostGuard,
+                 card: __card._exitFullScreenOnEscape !== __cardEscape
+                   && !__card.__maidrHostGuard,
                })"""
         )
-        assert wrapped_here == {"configured": 0, "reveal": False, "search": False}
+        assert wrapped_here == {
+            "configured": 0,
+            "reveal": False,
+            "search": False,
+            "card": False,
+        }
+        if not page.evaluate("window.__bundleGuards"):
+            reached = page.evaluate(
+                """() => ({
+                     slide: window.__slide,
+                     searches: window.__searches,
+                     escapes: window.__escapes,
+                     ctrlShiftF: window.__ctrlShiftF,
+                     tabPrevented: window.__tabPrevented,
+                   })"""
+            )
+            assert reached == {
+                "slide": 1,
+                "searches": 1,
+                "escapes": 1,
+                "ctrlShiftF": 1,
+                "tabPrevented": False,
+            }
+    finally:
+        page.close()
+
+
+def test_what_maidr_js_has_guarded_is_not_guarded_again(browser, tmp_path, outputs):
+    """An object marked ``__maidrHostGuard`` is maidr.js's, whatever it says."""
+    head = _head(_AMD, _DECK, _PAGE_KEYS, _CARD, _MARKED)
+    page = _page(browser, tmp_path, _carded(outputs), head=head)
+    try:
+        for key in ("ArrowRight", "s", "Escape"):
+            _press_in(page, 0, key)
+        left = page.evaluate(
+            """() => ({
+                 configured: window.__configured,
+                 search: window.quartoOpenSearch === window.__pageSearch,
+                 card: __card._exitFullScreenOnEscape === __cardEscape,
+               })"""
+        )
+        assert left == {"configured": 0, "search": True, "card": True}
     finally:
         page.close()
 
