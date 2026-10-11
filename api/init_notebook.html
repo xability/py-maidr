@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
-<meta name="description" content="Inject the bundled maidr.js / maidr-math.css into the notebook DOM.">
+<meta name="description" content="Stash the bundled maidr.js / maidr-math.css in the notebook page.">
 
 <title>maidr.init_notebook API reference – py-maidr</title>
 <style>
@@ -220,13 +220,13 @@ cookieconsent.run({
 
 <link rel="stylesheet" href="../styles.css">
 <meta property="og:title" content="maidr.init_notebook API reference">
-<meta property="og:description" content="Inject the bundled maidr.js / maidr-math.css into the notebook DOM.">
+<meta property="og:description" content="Stash the bundled maidr.js / maidr-math.css in the notebook page.">
 <meta property="og:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta property="og:site_name" content="py-maidr">
 <meta property="og:locale" content="en_US">
 <meta property="og:image:alt" content="MAIDR logo - Data Insight for All">
 <meta name="twitter:title" content="maidr.init_notebook API reference">
-<meta name="twitter:description" content="Inject the bundled maidr.js / maidr-math.css into the notebook DOM.">
+<meta name="twitter:description" content="Stash the bundled maidr.js / maidr-math.css in the notebook page.">
 <meta name="twitter:image" content="https://py.maidr.ai/media/logo.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image:alt" content="MAIDR logo - Data Insight for All">
@@ -235,7 +235,7 @@ cookieconsent.run({
 <meta name="DC.creator" content="Seo, JooYoung">
 <meta name="DC.creator" content="Venkatesh, Saairam">
 <meta name="DC.publisher" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
-<meta name="DC.description" content="Inject the bundled maidr.js / maidr-math.css into the notebook DOM.">
+<meta name="DC.description" content="Stash the bundled maidr.js / maidr-math.css in the notebook page.">
 <meta name="DC.identifier" content="https://py.maidr.ai/api/init_notebook.html">
 <meta name="DC.type" content="Text">
 <meta name="DC.format" content="text/html">
@@ -424,9 +424,10 @@ cookieconsent.run({
 <section id="maidr.init_notebook" class="level1">
 <h1>init_notebook</h1>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>init_notebook(use_cdn<span class="op">=</span><span class="va">None</span>, force<span class="op">=</span><span class="va">False</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Inject the bundled <code>maidr.js</code> / <code>maidr-math.css</code> into the notebook DOM.</p>
-<p>Mirrors the <code>plotly.offline.init_notebook_mode</code> / <code>bokeh.io.output_notebook</code> pattern: load the library once at the top of the notebook instead of duplicating the ~1.7 MB bundle in every iframe <code>srcdoc</code>. The source strings are stashed on <code>window.__maidrJsSource</code> / <code>window.__maidrMathCssSource</code> in the parent document so that later iframe outputs can evaluate them in their own JS context without the bundle re-appearing in the notebook file.</p>
+<p>Stash the bundled <code>maidr.js</code> / <code>maidr-math.css</code> in the notebook page.</p>
+<p>Mirrors the <code>plotly.offline.init_notebook_mode</code> / <code>bokeh.io.output_notebook</code> pattern: put the library in the notebook’s page once instead of duplicating the ~1.7 MB bundle in every iframe <code>srcdoc</code>. The source strings are stashed on <code>window.__maidrJsSource</code> / <code>window.__maidrMathCssSource</code> in the parent document so that later iframe outputs can evaluate them in their own JS context without the bundle re-appearing in the notebook file.</p>
 <p>The stylesheet stashed alongside the script is <code>maidr-math.css</code>, the KaTeX rules that style LaTeX in AI chat responses. It travels as a source string for the same reason the script does: an iframe rendered from <code>srcdoc</code> has no base URL, so <code>maidr.js</code> cannot fetch the file for itself the way it does on a page that loaded it over HTTP.</p>
+<p>Nothing this emits runs <code>maidr.js</code> in the notebook’s own page: only the chart frames run it. Where the frames load the CDN copy, the page prefetches it for them, with a <code>&lt;link rel="prefetch"&gt;</code> rather than a <code>&lt;script src&gt;</code>, which the require.js of classic Notebook and of nbconvert’s HTML exports would swallow and every other frontend would run again for each chart. Not in a Quarto render, whose charts load the version the render resolves, which need not be the one prefetched.</p>
 <section id="parameters" class="level2 doc-section doc-section-parameters">
 <h2 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h2>
 <table class="caption-top table">
@@ -442,7 +443,7 @@ cookieconsent.run({
 <tr class="odd">
 <td>use_cdn</td>
 <td>bool, {"auto"}, or None</td>
-<td>* <code>True</code>: inject a <code>&lt;script src="{CDN}"&gt;</code> tag so the notebook loads the CDN copy once. * <code>False</code>: read the bundled <code>maidr.js</code> / <code>maidr-math.css</code> from the installed package and embed them as strings on <code>window</code>. * <code>"auto"</code>: try the CDN first and fall back to the bundled source client-side. * <code>None</code> (default): defer to :func:<code>get_use_cdn</code>.</td>
+<td>* <code>True</code>: stash nothing, and prefetch the CDN copy the frames load. * <code>False</code>: read the bundled <code>maidr.js</code> / <code>maidr-math.css</code> from the installed package and embed them as strings on <code>window</code>. Nothing else: the frames run only that copy, so when the bundle cannot be read this warns and emits nothing. * <code>"auto"</code>: stash them as for <code>False</code>, as the fallback of frames that try the CDN first, and prefetch the CDN copy. * <code>None</code> (default): defer to :func:<code>get_use_cdn</code>.</td>
 <td><code>None</code></td>
 </tr>
 <tr class="even">
@@ -457,9 +458,9 @@ cookieconsent.run({
 <section id="notes" class="level2 doc-section doc-section-notes">
 <h2 class="doc-section doc-section-notes anchored" data-anchor-id="notes">Notes</h2>
 <p>No-op outside notebook environments (<code>Environment.is_notebook()</code> returns <code>False</code>). Safe to call multiple times — the guard flag prevents re-injection unless <code>force=True</code>.</p>
-<p>Pins its tags to the <em>bundled</em> version rather than resolving one. <code>maidr/__init__.py</code> calls this at import, and resolving here would put a blocking network request inside <code>import maidr</code> — before the user has run anything, and before the documented opt-outs could be applied. A stalled DNS resolver is not reliably bounded by a socket timeout, so that wait has no dependable ceiling.</p>
-<p>The bundled version needs no request and is still immutable, so these tags are cache-safe: emitting <code>@latest</code> here would have left the parent document subject to the same seven-day cache lifetime this module exists to remove. Plots themselves render in iframes that inject their own <code>&lt;script&gt;</code> at the <em>resolved</em> version, so the first <code>render()</code> / <code>save_html()</code> is where a lookup happens.</p>
-<p>That split has a known, accepted cost: whenever the bundle is behind the published release — the very case :func:<code>maidr.bundle_status</code> exists to report — a notebook session fetches <em>two</em> different <code>maidr.js</code> builds, and this parent-document tag is a prefetch the plots do not end up using. It is still the right trade: the alternative is resolving at import time, which is the blocking request described above, and the duplicate cost falls away as soon as the bundle is refreshed at release time. Please do not “fix” this by resolving here.</p>
+<p>Pins its prefetch to the <em>bundled</em> version rather than resolving one. <code>maidr/__init__.py</code> calls this at import, and resolving here would put a blocking network request inside <code>import maidr</code> — before the user has run anything, and before the documented opt-outs could be applied. A stalled DNS resolver is not reliably bounded by a socket timeout, so that wait has no dependable ceiling.</p>
+<p>The bundled version needs no request and is still immutable, so the prefetch is cache-safe: naming <code>@latest</code> here would have left the parent document subject to the same seven-day cache lifetime this module exists to remove. Plots themselves render in iframes that inject their own <code>&lt;script&gt;</code> at the <em>resolved</em> version, so the first <code>render()</code> / <code>save_html()</code> is where a lookup happens. In a notebook that is the bundled version too, unless a pin or an explicit :func:<code>maidr.bundle_status</code> names another, so the frames load the very URL prefetched here.</p>
+<p>That split has a known, accepted cost: whenever the bundle is behind the published release and a lookup has moved the frames past it — the very case :func:<code>maidr.bundle_status</code> exists to report — a notebook session fetches <em>two</em> different <code>maidr.js</code> builds, and this prefetch is one the plots do not end up using. It is still the right trade: the alternative is resolving at import time, which is the blocking request described above, and the duplicate cost falls away as soon as the bundle is refreshed at release time. Please do not “fix” this by resolving here.</p>
 
 
 </section>
