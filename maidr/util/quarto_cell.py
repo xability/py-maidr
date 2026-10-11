@@ -6,6 +6,8 @@ notebook Quarto executes: a ``.ipynb`` document itself, or, for a ``.qmd``,
 the ``<stem>.quarto_ipynb`` Quarto writes beside the document for the length
 of the render, with its includes already in place. The cell is found there by
 the code the kernel was sent, which is the cell's source after its options.
+Of cells with the same code, the running one is told by the kernel's place in
+the render: Quarto runs the document's cells in order, each once.
 
 r-maidr reads ``fig.alt`` from the chunk options knitr hands it. This is the
 nearest the Jupyter engine comes to that.
@@ -40,6 +42,16 @@ _notebooks: dict[str, tuple[tuple[int, int], list[tuple[str, dict[str, Any]]]]] 
 #: count the executions of a later render from 1 again.
 _drawn: list[Any] = [None, 0]
 
+#: How many cells the kernel had stored in its history when this render
+#: started. Quarto runs its setup cell ahead of the document's, and its
+#: cleanup cell after them, without storing either, in a kernel it keeps
+#: alive between renders as in a new one: :func:`_watch_renders` notes the
+#: count when one runs. A new kernel has stored none.
+_stored_before_render: list[int] = [0]
+
+#: The kernel :func:`_watch_renders` watches.
+_watched: list[Any] = [None]
+
 
 def fig_alt() -> Optional[str]:
     """Return the ``fig-alt`` of the Quarto cell drawing the next chart.
@@ -51,8 +63,10 @@ def fig_alt() -> Optional[str]:
     -------
     str or None
         The alt text, or None outside a Quarto render, for a cell without
-        ``fig-alt``, or when the cell cannot be told apart from another cell
-        with the same code and a different ``fig-alt``.
+        ``fig-alt``, and for alt text that is the caption Quarto shows under
+        the chart, which describes it already, as r-maidr leaves it out.
+        None too when cells with the same code give different alt text and
+        the render cannot be placed in the notebook.
     """
     try:
         return _fig_alt()
@@ -69,19 +83,87 @@ def _fig_alt() -> Optional[str]:
     shell = _shell()
     if shell is None:
         return None
+    _watch_renders(shell)
     path = _notebook_path()
     if path is None:
         return None
     index = _chart_index((path, os.stat(path).st_mtime_ns, shell.execution_count))
-    code = _normalized(shell.history_manager.input_hist_raw[-1])
-    values = [
-        options.get("fig-alt")
-        for cell_code, options in _code_cells(path)
-        if cell_code == code and options.get("eval", True) is not False
+    history = shell.history_manager.input_hist_raw
+    code = _normalized(history[-1])
+    run = _run_cells(path)
+    alts = {_alt(options, index) for cell_code, options in run if cell_code == code}
+    if len(alts) <= 1:
+        return alts.pop() if alts else None
+    # Cells with this code give different alt text. Quarto runs the cells it
+    # evaluates in order and the kernel stores each before running it, so the
+    # running one is the cell at the kernel's place in this render. The
+    # history, not the execution count, gives the place: IPython 9 counts a
+    # cell before running it, IPython 8 after.
+    place = len(history) - 1 - _stored_before_render[0] - 1
+    if 0 <= place < len(run) and run[place][0] == code:
+        return _alt(run[place][1], index)
+    return None
+
+
+def _run_cells(path: str) -> list[tuple[str, dict[str, Any]]]:
+    """The code cells of the notebook Quarto runs, in order."""
+    default = _evaluated_by_default()
+    return [
+        (code, options)
+        for code, options in _code_cells(path)
+        if code and options.get("eval", default) is True
     ]
-    if not values or any(value != values[0] for value in values):
+
+
+def _alt(options: dict[str, Any], index: int) -> Optional[str]:
+    """The alt text a cell's options give its ``index``-th chart.
+
+    None for alt text that is the caption Quarto shows under the chart,
+    which describes it already: r-maidr leaves it out the same way.
+    """
+    alt = _pick(options.get("fig-alt"), index)
+    if alt is not None and alt == _caption(options, index):
         return None
-    return _pick(values[0], index)
+    return alt
+
+
+def _evaluated_by_default() -> bool:
+    """Whether Quarto runs a cell with no ``eval``, by the document's."""
+    document_format = _execute_info().get("format")
+    execute = (
+        document_format.get("execute") if isinstance(document_format, dict) else None
+    )
+    return not isinstance(execute, dict) or execute.get("eval", True) is True
+
+
+def _caption(options: dict[str, Any], index: int) -> Optional[str]:
+    """The caption Quarto shows under the ``index``-th chart, if any.
+
+    Quarto captions the charts of a figure's cell, one labelled ``fig-``,
+    and of no other: each by its ``fig-subcap`` when the cell gives them,
+    or by its ``fig-cap``. inline.js describes the chart by the caption.
+    """
+    if not str(options.get("label", "")).startswith("fig-"):
+        return None
+    return _pick(options.get("fig-subcap"), index) or _pick(
+        options.get("fig-cap"), index
+    )
+
+
+def _watch_renders(shell: Any) -> None:
+    """Note in :data:`_stored_before_render` where each render starts."""
+    events = getattr(shell, "events", None)
+    if _watched[0] is shell or events is None:
+        return
+    _watched[0] = shell
+
+    def started(info: Any = None) -> None:
+        # Quarto's setup and cleanup cells, which it does not store: the next
+        # cell stored is a render's first.
+        if info is not None and not getattr(info, "store_history", True):
+            _stored_before_render[0] = len(shell.history_manager.input_hist_raw) - 1
+
+    events.register("pre_run_cell", started)
 
 
 def _shell() -> Any:
@@ -128,20 +210,31 @@ def _document_path() -> Optional[str]:
     ``QUARTO_DOCUMENT_FILE`` name it too, the directory being the one the
     render runs in.
     """
-    info = os.environ.get("QUARTO_EXECUTE_INFO")
-    if info:
-        try:
-            with open(info, encoding="utf-8") as f:
-                path = json.load(f).get("document-path")
-            if isinstance(path, str) and path:
-                return path
-        except (OSError, ValueError, AttributeError):
-            pass
+    path = _execute_info().get("document-path")
+    if isinstance(path, str) and path:
+        return path
     directory = os.environ.get("QUARTO_DOCUMENT_PATH")
     name = os.environ.get("QUARTO_DOCUMENT_FILE")
     if directory and name:
         return os.path.join(directory, name)
     return None
+
+
+def _execute_info() -> dict[str, Any]:
+    """The ``QUARTO_EXECUTE_INFO`` file of Quarto 1.8 and later, or {}.
+
+    It names the document and holds its format, ``execute`` options
+    included.
+    """
+    path = os.environ.get("QUARTO_EXECUTE_INFO")
+    if not path:
+        return {}
+    try:
+        with open(path, encoding="utf-8") as f:
+            info = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    return info if isinstance(info, dict) else {}
 
 
 def _code_cells(path: str) -> list[tuple[str, dict[str, Any]]]:
