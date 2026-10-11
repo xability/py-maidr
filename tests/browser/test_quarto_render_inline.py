@@ -141,13 +141,18 @@ _SEARCH_BOX = (
 )
 
 
+@pytest.mark.parametrize("rendered", ["revealjs"], indirect=True)
 def test_a_decks_search_and_shift_tab_leave_a_chart_on_its_slide(
     browser: Browser, rendered
 ):
-    """inline.js knows a deck, and its search plugin, as Quarto loads them."""
-    to, path = rendered
-    if to != "revealjs":
-        pytest.skip("a deck's keys")
+    """inline.js knows a deck, and its search plugin, as Quarto loads them.
+
+    It holds Ctrl+Shift+F and Shift+Tab only on a deck, and knows one by the
+    globals reveal.js and its search plugin leave. This checks that Quarto's
+    own deck has them: with a check that missed it, the search would open
+    from a chart and Shift+Tab would leave the slide.
+    """
+    _to, path = rendered
     page = browser.new_page(viewport={"width": 1200, "height": 900})
     try:
         page.goto(path.as_uri(), wait_until="load")
