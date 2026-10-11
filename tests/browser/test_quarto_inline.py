@@ -122,6 +122,16 @@ _NATIVE_GUARDS = """
 """
 
 
+# A reader's 40-cell braille display, the commonest size, saved as maidr's
+# settings dialog saves it.
+_FORTY_CELLS = """
+  try {
+    localStorage.setItem('maidr-settings', JSON.stringify(
+      { general: { brailleDisplayKind: 'manual', brailleDisplaySize: 40 } }));
+  } catch (e) {}
+"""
+
+
 def _head(*scripts: str) -> str:
     """The scripts, and a stylesheet that takes every focus ring away."""
     return (
@@ -451,12 +461,17 @@ def test_maidrs_settings_fields_keep_room_for_their_text(page):
 def test_the_braille_and_review_fields_keep_to_a_narrow_column(
     browser, tmp_path, outputs
 ):
-    page = _page(browser, tmp_path, f"<section>{outputs[0]}</section>")
+    """At the 320px a page reflows to (WCAG 1.4.10), with a 40-cell display.
+
+    Each field is wider than the chart's column there without inline.css.
+    """
+    head = _head(_FORTY_CELLS, _AMD, _DECK, _PAGE_KEYS)
+    page = _page(browser, tmp_path, f"<section>{outputs[0]}</section>", head=head)
     try:
-        page.set_viewport_size({"width": 360, "height": 740})
-        for key, field in (
-            ("b", 'textarea[id^="maidr-braille-textarea"]'),
-            ("r", 'input[id^="maidr-review-input"]'),
+        page.set_viewport_size({"width": 320, "height": 740})
+        for key, field, cols in (
+            ("b", 'textarea[id^="maidr-braille-textarea"]', 40),
+            ("r", 'input[id^="maidr-review-input"]', None),
         ):
             _press_in(page, 0, key)
             fits = page.locator(field).evaluate(
@@ -464,13 +479,15 @@ def test_the_braille_and_review_fields_keep_to_a_narrow_column(
                      const wrapper = f.closest('.maidr-inline');
                      const page = document.documentElement;
                      return {
+                       cols: f.cols || null,
                        inWrapper: f.getBoundingClientRect().right
                          <= wrapper.getBoundingClientRect().right + 0.5,
                        noScroll: page.scrollWidth <= window.innerWidth,
                      };
                    }"""
             )
-            assert fits == {"inWrapper": True, "noScroll": True}, (key, fits)
+            expected = {"cols": cols, "inWrapper": True, "noScroll": True}
+            assert fits == expected, (key, fits)
             page.keyboard.press(key)
     finally:
         page.close()
