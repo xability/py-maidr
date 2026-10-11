@@ -403,9 +403,14 @@
   // elements above a chart are its wrappers or the page's.
   var TABBABLE = 'a[href],area[href],button:not([disabled]),input:not([disabled]),' +
     'select:not([disabled]),textarea:not([disabled]),iframe,audio[controls],video[controls],' +
-    '[contenteditable]:not([contenteditable="false"]),[tabindex]:not([tabindex^="-"])';
+    '[contenteditable]:not([contenteditable="false"]),[tabindex]';
 
+  // A negative tabindex takes any of these out of the tab order, a link or a
+  // button as much as anything. Read from the attribute, as the browser reads
+  // it, not from tabIndex, which is -1 in Chromium for an editable element
+  // that has no tabindex and is a tab stop all the same.
   function reachable(element) {
+    if (parseInt(element.getAttribute('tabindex'), 10) < 0) return false;
     if (element.closest('[hidden],[aria-hidden="true"],[inert]')) return false;
     var style = getComputedStyle(element);
     return style.display !== 'none' && style.visibility !== 'hidden';
