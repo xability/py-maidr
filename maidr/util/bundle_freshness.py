@@ -202,12 +202,21 @@ def bundle_status(*, resolve: bool = True) -> BundleStatus:
     return BundleStatus(bundled, published, is_behind, is_stale)
 
 
-def warn_bundle_unreadable() -> None:
-    """Warn that ``use_cdn=False`` had to reach for the CDN anyway.
+def warn_bundle_unreadable(*, cdn_fallback: bool = True) -> None:
+    """Warn that ``use_cdn=False`` could not read the bundled assets.
 
     Lives here rather than in :mod:`maidr.api` so the dedup bookkeeping
     it relies on stays inside the module that owns it, and so every
     statement about the bundled assets is made from one place.
+
+    Parameters
+    ----------
+    cdn_fallback : bool, default True
+        Whether the caller loads the CDN copy instead, which is what the
+        warning then says.  ``False`` from :func:`maidr.init_notebook`:
+        a notebook's chart frames under ``use_cdn=False`` run only the
+        copy it stashes in the page, so without one they get no runtime,
+        and nothing contacts the CDN for them.
 
     Notes
     -----
@@ -218,6 +227,16 @@ def warn_bundle_unreadable() -> None:
     before it happens; the staleness warning fires from an explicit render
     call, where a filterable warning category is the better fit.
     """
+    if not cdn_fallback:
+        warn_once(
+            "missing-bundle-no-runtime",
+            "maidr: use_cdn=False was requested but the bundled maidr.js/css "
+            "could not be read, so charts this notebook shows with it will "
+            "have no maidr runtime: no sonification, braille or keyboard "
+            "navigation. Reinstall py-maidr to repair the bundle, or use "
+            'use_cdn="auto" to load maidr.js from the CDN.',
+        )
+        return
     warn_once(
         "missing-bundle",
         "maidr: use_cdn=False was requested but the bundled maidr.js/css "

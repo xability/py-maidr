@@ -422,9 +422,9 @@ def test_init_notebook_use_cdn_false_never_resolves_when_bundle_missing(
 ):
     """A broken install must not turn ``use_cdn=False`` into a request.
 
-    The missing-bundle fallback emits CDN tags so the notebook still
-    works; building those URLs must not resolve a version, or an
-    explicitly offline session pays for a lookup it opted out of.
+    The frames run only the stashed copy under ``False``, so with none
+    to stash there is nothing to put in the page: no lookup, and no CDN
+    URL for the browser to fetch either.  The caller is told instead.
     """
     monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
     cdn.set_cdn_version(None)
@@ -450,17 +450,17 @@ def test_init_notebook_use_cdn_false_never_resolves_when_bundle_missing(
     with caplog.at_level(logging.WARNING, logger=warn_module.__name__):
         maidr.init_notebook(use_cdn=False)
 
-    assert any("could not be read" in r.message for r in caplog.records), (
-        "an offline caller silently served from the CDN must be told"
+    messages = [r.getMessage() for r in caplog.records]
+    assert any(
+        "could not be read" in m and "no maidr runtime" in m for m in messages
+    ), "an offline caller whose charts cannot run must be told"
+    assert not any("will load them from the CDN" in m for m in messages), (
+        "nothing loads the CDN copy for a notebook's use_cdn=False frames"
     )
 
-    html = displayed.get("html", "")
-    bundled = dependencies.maidr_js_version()
-    assert f"cdn.jsdelivr.net/npm/maidr@{bundled}/" in html, (
-        "the fallback should pin the bundled version, which needs no lookup"
-    )
-    assert "maidr@latest" not in html, (
-        "@latest carries the seven-day cache lifetime this PR removes"
+    assert "html" not in displayed, (
+        "with no stash, nothing goes in the page: a CDN URL would be a "
+        "request the caller opted out of, for a copy no frame runs"
     )
 
 

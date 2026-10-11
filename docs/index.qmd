@@ -732,6 +732,14 @@ serves it beside the `maidr.js` it serves, and in notebooks `init_notebook()`
 stashes it in the page for the same reason: an iframe rendered from `srcdoc`
 has no base URL for the runtime to resolve against.
 
+In a notebook only the charts' frames run `maidr.js`. `init_notebook()`, which
+`import maidr` calls for you, puts the bundled copy in the notebook's page as a
+string for the frames to run (under `False` and `"auto"`), and asks the browser
+to prefetch the CDN copy they load (under `True` and `"auto"`). It never runs
+`maidr.js` in the notebook's page itself, so the require.js of a classic
+Notebook or an nbconvert HTML export, and the notebook's own Plotly figures,
+are left alone.
+
 ::: {.callout-note}
 ## Pinning the CDN below maidr 3.75.1
 
@@ -756,7 +764,7 @@ Resolving the version makes a single outbound HTTPS request, the first time a CD
 
 The trade is that a network hiccup pins that page to the version you installed rather than the current one. That is the quieter failure: the bundled version is a real published release, and it is the same copy py-maidr would serve with `use_cdn=False`.
 
-`import maidr` makes no request, even in a notebook: `init_notebook()` pins its tags to the version bundled in the wheel, which needs no lookup and is still immutable.
+`import maidr` makes no request, even in a notebook: the CDN copy `init_notebook()` has the browser prefetch is pinned to the version bundled in the wheel, which needs no lookup and is still immutable.
 
 `MAIDR_CDN_TIMEOUT` (default 3 seconds) is shared across the lookup rather than applied per attempt, so a fallback endpoint cannot multiply the wait. Treat it as approximate rather than a ceiling: the underlying timeout applies per socket operation — connect, TLS handshake, read — so an endpoint that stalls just under the limit at each step can overrun it by a small multiple.
 

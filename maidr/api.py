@@ -141,9 +141,11 @@ _use_cdn_default: bool | Literal["auto"] | None = None
 #
 # Mirrors the pattern used by Plotly (``init_notebook_mode``) and Bokeh
 # (``output_notebook``): the bundled ``maidr.js`` / ``maidr-math.css`` are
-# injected into the parent notebook DOM exactly once per kernel session
-# and subsequent iframe outputs pull them from ``window.parent`` rather
-# than duplicating the ~1.7 MB bundle per cell.
+# stashed as strings in the parent notebook page, and iframe outputs pull
+# them from ``window.parent`` rather than duplicating the ~1.7 MB bundle
+# per cell.  This flag keeps ``import maidr`` and repeated calls from
+# stashing them again; each ``show()`` still does (``force=True``), so that
+# its cell stands on its own -- see ``_init_notebook_for_show``.
 
 _NOTEBOOK_LOADED: bool = False
 
@@ -367,10 +369,10 @@ def init_notebook(
     use_cdn: bool | Literal["auto"] | None = None,
     force: bool = False,
 ) -> None:
-    """Inject the bundled ``maidr.js`` / ``maidr-math.css`` into the notebook DOM.
+    """Stash the bundled ``maidr.js`` / ``maidr-math.css`` in the notebook page.
 
     Mirrors the ``plotly.offline.init_notebook_mode`` / ``bokeh.io.output_notebook``
-    pattern: load the library once at the top of the notebook instead of
+    pattern: put the library in the notebook's page once instead of
     duplicating the ~1.7 MB bundle in every iframe ``srcdoc``.  The source
     strings are stashed on ``window.__maidrJsSource`` /
     ``window.__maidrMathCssSource`` in the parent document so that later
@@ -383,16 +385,25 @@ def init_notebook(
     from ``srcdoc`` has no base URL, so ``maidr.js`` cannot fetch the file
     for itself the way it does on a page that loaded it over HTTP.
 
+    Nothing this emits runs ``maidr.js`` in the notebook's own page: only
+    the chart frames run it.  Where the frames load the CDN copy, the page
+    prefetches it for them, with a ``<link rel="prefetch">`` rather than a
+    ``<script src>``, which the require.js of classic Notebook and of
+    nbconvert's HTML exports would swallow and every other frontend would
+    run again for each chart.  Not in a Quarto render, whose charts load
+    the version the render resolves, which need not be the one prefetched.
+
     Parameters
     ----------
     use_cdn : bool, {"auto"}, or None, optional
-        * ``True``: inject a ``<script src="{CDN}">`` tag so the notebook
-          loads the CDN copy once.
+        * ``True``: stash nothing, and prefetch the CDN copy the frames
+          load.
         * ``False``: read the bundled ``maidr.js`` / ``maidr-math.css``
           from the installed package and embed them as strings on
-          ``window``.
-        * ``"auto"``: try the CDN first and fall back to the bundled
-          source client-side.
+          ``window``.  Nothing else: the frames run only that copy, so
+          when the bundle cannot be read this warns and emits nothing.
+        * ``"auto"``: stash them as for ``False``, as the fallback of
+          frames that try the CDN first, and prefetch the CDN copy.
         * ``None`` (default): defer to :func:`get_use_cdn`.
     force : bool, default False
         Re-inject even if :data:`_NOTEBOOK_LOADED` is already ``True``.
@@ -405,29 +416,32 @@ def init_notebook(
     returns ``False``).  Safe to call multiple times — the guard flag
     prevents re-injection unless ``force=True``.
 
-    Pins its tags to the *bundled* version rather than resolving one.
+    Pins its prefetch to the *bundled* version rather than resolving one.
     ``maidr/__init__.py`` calls this at import, and resolving here would
     put a blocking network request inside ``import maidr`` — before the
     user has run anything, and before the documented opt-outs could be
     applied.  A stalled DNS resolver is not reliably bounded by a socket
     timeout, so that wait has no dependable ceiling.
 
-    The bundled version needs no request and is still immutable, so these
-    tags are cache-safe: emitting ``@latest`` here would have left the
+    The bundled version needs no request and is still immutable, so the
+    prefetch is cache-safe: naming ``@latest`` here would have left the
     parent document subject to the same seven-day cache lifetime this
     module exists to remove.  Plots themselves render in iframes that
     inject their own ``<script>`` at the *resolved* version, so the first
-    ``render()`` / ``save_html()`` is where a lookup happens.
+    ``render()`` / ``save_html()`` is where a lookup happens.  In a
+    notebook that is the bundled version too, unless a pin or an explicit
+    :func:`maidr.bundle_status` names another, so the frames load the very
+    URL prefetched here.
 
     That split has a known, accepted cost: whenever the bundle is behind
-    the published release — the very case :func:`maidr.bundle_status`
-    exists to report — a notebook session fetches *two* different
-    ``maidr.js`` builds, and this parent-document tag is a prefetch the
-    plots do not end up using.  It is still the right trade: the
-    alternative is resolving at import time, which is the blocking
-    request described above, and the duplicate cost falls away as soon as
-    the bundle is refreshed at release time.  Please do not "fix" this by
-    resolving here.
+    the published release and a lookup has moved the frames past it
+    — the very case :func:`maidr.bundle_status` exists to report — a
+    notebook session fetches *two* different ``maidr.js`` builds, and this
+    prefetch is one the plots do not end up using.  It is still the right
+    trade: the alternative is resolving at import time, which is the
+    blocking request described above, and the duplicate cost falls away as
+    soon as the bundle is refreshed at release time.  Please do not "fix"
+    this by resolving here.
     """
     global _NOTEBOOK_LOADED
 
@@ -452,59 +466,28 @@ def init_notebook(
         warn_bundle_unreadable,
         warn_if_bundle_is_stale,
     )
-    from maidr.util.dependencies import MAIDR_JS_FILENAME
-    from maidr.util.cdn import (
-        bundled_cdn_url,
-    )
 
     mode = _resolve_use_cdn(use_cdn)
+    # ``False`` or ``"auto"``: the bundled source strings, for the frames to
+    # evaluate.  None under ``True``, whose frames load the CDN copy alone,
+    # and when the bundle cannot be read.
     stash = None if mode is True else _bundle_stash_script()
+    if stash is None and mode is False:
+        # The stash is the only copy a frame runs under ``False``, so its
+        # charts get no runtime at all.  Nothing is fetched in its place:
+        # these frames never load the CDN copy, and the caller opted out
+        # of the network.
+        warn_bundle_unreadable(cdn_fallback=False)
 
-    if mode is True:
-        # CDN-only: a single <script src> reference suffices; nothing is
-        # stashed on window.* because iframes inject their own CDN
-        # <script> as before.  No stylesheet accompanies it — the script
-        # tag's own URL is what maidr.js resolves maidr-math.css against,
-        # so the CDN copy of that file is already reachable from here.
-        html = f'<script src="{bundled_cdn_url(MAIDR_JS_FILENAME)}"></script>'
-    else:
-        # ``False`` or ``"auto"``: embed the bundled source strings
-        # once in the parent DOM.  For ``"auto"`` we also kick off a
-        # CDN <script>/<link> so the parent can use the remote copy
-        # opportunistically, but iframes will prefer the local strings
-        # because they are guaranteed to resolve.
-        if stash is None:
-            # Bundle is missing — fall back to CDN so we don't silently
-            # break the user's notebook.
-            #
-            # This branch is reachable with ``mode is False``, where the
-            # caller was promised no Python-side network I/O.  Honor
-            # that: resolving a version here would issue exactly the
-            # request they opted out of, on an install that is already
-            # broken.  Emit the unresolved ``@latest`` URL instead, and
-            # say why, since silently contacting the CDN under
-            # ``use_cdn=False`` is the more surprising outcome.
-            # Both modes emit the same markup; only ``False`` has been
-            # promised no network I/O, so only it needs telling that its
-            # bundle could not be read.
-            if mode is False:
-                warn_bundle_unreadable()
-            html = (
-                f'<script src="{bundled_cdn_url(MAIDR_JS_FILENAME)}">'
-                f"</script>"
-            )
-        else:
-            cdn_bootstrap = ""
-            # Not in a Quarto render: no chart there runs the copy this
-            # would load into the page, and the page has require.js, which
-            # takes the UMD ``maidr.js`` for an anonymous module -- it never
-            # runs, and the next ``require()`` on the page fails over it.
-            if mode == "auto" and not Environment.is_quarto():
-                cdn_bootstrap = (
-                    f'<script src="{bundled_cdn_url(MAIDR_JS_FILENAME)}">'
-                    f"</script>"
-                )
-            html = f"{stash}{cdn_bootstrap}"
+    prefetch = ""
+    # Under ``True`` and ``"auto"`` the frames load the CDN copy (``"auto"``
+    # first, before the stash), so the page starts that download early.  No
+    # stylesheet: each frame's maidr.js resolves maidr-math.css against the
+    # URL it was loaded from.  Not in a Quarto render: its charts load the
+    # version the render resolves (#888), which need not be the one named
+    # here.
+    if mode is not False and not Environment.is_quarto():
+        prefetch = _prefetch_tag()
 
     if mode is not True:
         # The bundled source is what we just stashed on ``window``, so
@@ -512,7 +495,9 @@ def init_notebook(
         # Offline-safe: never resolves over the network by itself.
         warn_if_bundle_is_stale(bundle_is_primary=mode is False)
 
-    display(HTML(html))
+    html = f"{stash or ''}{prefetch}"
+    if html:
+        display(HTML(html))
     _NOTEBOOK_LOADED = True
 
 
@@ -590,6 +575,41 @@ def _quarto_page_has_stash() -> bool:
 
     shell = get_ipython()
     return bool(shell is not None and shell.user_ns.get(_QUARTO_STASHED))
+
+
+def _prefetch_tag() -> str:
+    """The ``<link>`` that fetches the CDN ``maidr.js`` into the browser's cache.
+
+    Put in the notebook's own page, where nothing needs ``maidr.js`` to run:
+    every chart is a ``srcdoc`` frame that loads its own copy, from the CDN
+    or from the stash, and reads nothing else from the page. So a
+    ``<script src>`` here would only do harm. On a page with require.js --
+    classic Notebook (nbclassic) and nbconvert's HTML exports -- the UMD
+    build is taken for an anonymous module, never runs, and the page's next
+    ``require()`` fails with "Mismatched anonymous define()". Where it does
+    run -- JupyterLab, and those pages too once ``maidr.js`` is not UMD --
+    each ``show()`` would start another copy over the whole notebook, which
+    warns that ``window.maidrLive`` is being redefined and binds the
+    notebook's plain Plotly figures as charts of its own.
+
+    A prefetch runs nothing. It puts the file in the HTTP cache, which a
+    ``srcdoc`` frame shares with its page, so a frame's own load of the same
+    URL is still served from there. A browser that does not prefetch skips
+    it, and the frame fetches the file itself.
+
+    Returns
+    -------
+    str
+        The tag, naming the bundled version unless a pin or a completed
+        lookup names another; see :func:`maidr.util.cdn.bundled_cdn_url`.
+    """
+    from maidr.util.cdn import bundled_cdn_url
+    from maidr.util.dependencies import MAIDR_JS_FILENAME
+
+    return (
+        f'<link rel="prefetch" as="script" '
+        f'href="{bundled_cdn_url(MAIDR_JS_FILENAME)}">'
+    )
 
 
 def _bundle_stash_script() -> str | None:
