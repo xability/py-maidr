@@ -147,6 +147,14 @@ def standalone_document() -> Iterator[None]:
         _STANDALONE.reset(token)
 
 
+def in_standalone_document() -> bool:
+    """Whether charts are being rendered as documents of their own just now.
+
+    See :func:`standalone_document`.
+    """
+    return _STANDALONE.get()
+
+
 def in_quarto_render(use_iframe: bool) -> bool:
     """Whether a chart rendered now becomes a cell output of a Quarto render.
 
@@ -201,7 +209,9 @@ _CSS_PX_PER_INCH = 96.0
 _POINTS_PER_INCH = 72.0
 
 
-def size_like_plain_figure(fig: Any, svg: Any) -> None:
+def size_like_plain_figure(
+    fig: Any, svg: Any, shown_as: tuple[str | None, dict[str, Any]] | None = None
+) -> None:
     """Give a chart's ``<svg>`` the size and shape the page gives a plain figure.
 
     A Quarto render shows a plain matplotlib figure through the kernel's
@@ -228,19 +238,30 @@ def size_like_plain_figure(fig: Any, svg: Any) -> None:
     is not the whole canvas in points (``savefig.bbox`` cut it already): its
     coordinates would not be the figure's then.
 
+    A notebook shows a plain figure the same way, and a chart in its frame
+    is sized here too, from what :func:`maidr.util.notebook_figure.notebook_figure_format`
+    reads of the kernel's inline backend.
+
     Parameters
     ----------
     fig : matplotlib.figure.Figure
         The figure the SVG was saved from, after the save.
     svg : lxml.etree._Element
         Its root ``<svg>``.
+    shown_as : tuple of (str or None, dict), optional
+        The format the plain figure is shown in and the ``savefig``
+        arguments it is shown with, as IPython's ``print_figure`` takes them.
+        By default those of the kernel's figure formatter, in the page of a
+        Quarto render.
     """
     try:
         width_in, height_in = (float(v) for v in fig.get_size_inches())
         canvas = (0.0, 0.0, width_in * _POINTS_PER_INCH, height_in * _POINTS_PER_INCH)
         if not _is_view_box(svg.get("viewBox"), canvas):
             return
-        figure_format, keywords = _plain_figure_format()
+        figure_format, keywords = (
+            _plain_figure_format() if shown_as is None else shown_as
+        )
         box = _shown_box(fig, figure_format, keywords)
         if box is None:
             x0, y1, width, height = 0.0, height_in, width_in, height_in

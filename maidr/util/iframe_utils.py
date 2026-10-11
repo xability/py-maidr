@@ -192,6 +192,12 @@ def chart_title_on(tag: object) -> str:
     return str(getattr(tag, _CHART_TITLE_ATTR, "") or "")
 
 
+#: The class of the root ``<svg>`` of a matplotlib chart in a notebook's
+#: frame, sized as the notebook shows the plain figure; the frame's stylesheet
+#: and script find the chart by it.
+FRAME_SVG_CLASS = "maidr-frame-svg"
+
+
 def wrap_in_iframe_matplotlib(
     base_html: Tag, chart_title: str | None = None, alt: str | None = None
 ) -> Tag:

@@ -398,8 +398,15 @@ def _svg_size(html: str) -> tuple[str | None, ...]:
     )
 
 
-def test_a_chart_anywhere_else_keeps_matplotlibs_size(quarto, tmp_path):
-    """A frame -- a notebook's, a format that is not a page -- and save_html."""
+def test_a_frame_is_the_plain_figure_and_a_document_matplotlibs_canvas(
+    quarto, tmp_path
+):
+    """A frame -- a notebook's, a format that is not a page -- and save_html.
+
+    The frame stands where the notebook shows the plain figure, and takes its
+    box and size; ``tests/util/test_notebook_figure.py`` holds them to the
+    inline backend's. A document of its own is matplotlib's canvas in points.
+    """
     quarto("ipynb")
     framed = _render(_small_with_a_label())
     fig = _small_with_a_label()
@@ -410,8 +417,12 @@ def test_a_chart_anywhere_else_keeps_matplotlibs_size(quarto, tmp_path):
     saved = (tmp_path / "chart.html").read_text(encoding="utf-8")
 
     assert "<iframe" in framed
-    for html in (framed, saved):
-        assert _svg_size(html) == ("288pt", "216pt", "0 0 288 216")
+    width, height, view = _svg_size(framed)
+    left, top, view_width, view_height = (float(v) for v in view.split())
+    assert top + view_height > 216, "the box stops at the canvas, above the x label"
+    assert float(width[:-2]) == pytest.approx(view_width / 72 * 100, abs=0.01)
+    assert float(height[:-2]) == pytest.approx(view_height / 72 * 100, abs=0.01)
+    assert _svg_size(saved) == ("288pt", "216pt", "0 0 288 216")
 
 
 def test_a_document_of_its_own_made_during_a_render_stays_one(quarto):

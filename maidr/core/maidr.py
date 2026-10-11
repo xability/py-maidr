@@ -52,6 +52,7 @@ from maidr.util.locale_pack import locale_config_child, locale_fallback_js
 from maidr.util.grid_position import topmost_subplotspec
 from maidr.util.environment import Environment
 from maidr.util.iframe_utils import (
+    FRAME_SVG_CLASS,
     chart_title_of,
     iframe_title,
     with_chart_title,
@@ -67,6 +68,7 @@ from maidr.util.inline_chart import (
     showing,
     size_like_plain_figure,
 )
+from maidr.util.notebook_figure import in_notebook_frame, notebook_figure_format
 from maidr.util.quarto_cell import fig_alt as quarto_fig_alt
 
 #: Layer classes a segmented bar layer on the same axes can supersede.
@@ -653,17 +655,20 @@ class Maidr:
         # In a page a Quarto render builds, the chart is written into the page
         # rather than an iframe, which takes an SVG scoped to it (#895). The
         # schema has to be in the SVG there: a page holds many charts, and
-        # the ``var maidr`` global can name only one. There the chart is cut
-        # to what is drawn, as the plain figure is, and a figure's layout is
-        # kept as the plain figure's is; see ``settle_layout``.
+        # the ``var maidr`` global can name only one. There, and in a
+        # notebook's frame, the chart is cut to what is drawn, as the plain
+        # figure is, and a figure's layout is kept as the plain figure's is;
+        # see ``settle_layout``.
         in_page = data_in_svg and inline_applies(use_iframe)
-        with figure_lock(self._fig), settling(keep_layout=in_page):
+        in_frame = not in_page and in_notebook_frame(use_iframe)
+        with figure_lock(self._fig), settling(keep_layout=in_page or in_frame):
             return self._build_html_tag(
                 use_iframe,
                 data_in_svg,
                 use_cdn=use_cdn,
                 hover_mode=hover_mode,
                 in_page=in_page,
+                in_frame=in_frame,
             )
 
     def _build_html_tag(
@@ -674,6 +679,7 @@ class Maidr:
         *,
         hover_mode: HoverMode | None = None,
         in_page: bool = False,
+        in_frame: bool = False,
     ) -> Tag:
         """Render the chart. Callers want :meth:`_create_html_tag`, which locks.
 
@@ -729,8 +735,13 @@ class Maidr:
             InlineScope(alt or iframe_title(chart_title), alt=alt) if in_page else None
         )
 
+        # In a notebook's frame, the chart stands where the notebook would
+        # have shown the figure's image; see ``_plain_figure_shown_as``.
+        shown_as = self._plain_figure_shown_as() if in_frame else None
         with HighlightContextManager.set_maidr_elements(tagged_elements, selector_ids):
-            svg = self._get_svg(embed_data=data_in_svg, schema=schema, inline=inline)
+            svg = self._get_svg(
+                embed_data=data_in_svg, schema=schema, inline=inline, shown_as=shown_as
+            )
 
         if inline is not None and inline.refused is not None:
             # The SVG was left as it was; the iframe carries it as before.
@@ -1001,6 +1012,22 @@ class Maidr:
         self._plots = [plot for plot, _ in kept]
         self.selector_ids = [selector_id for _, selector_id in kept]
 
+    def _plain_figure_shown_as(self) -> tuple[str | None, dict[str, Any]]:
+        """How a notebook shows this figure drawn without maidr.
+
+        The image matplotlib_inline makes of it, from the kernel's
+        ``InlineBackend`` settings; see
+        :func:`maidr.util.notebook_figure.notebook_figure_format`. A chart in
+        the notebook's frame takes its size and shape.
+
+        Returns
+        -------
+        tuple of (str or None, dict)
+            The figure format, and the arguments IPython's ``print_figure``
+            saves the figure with.
+        """
+        return notebook_figure_format()
+
     def _figure_metadata(self) -> dict:
         """
         Extract figure-wide metadata for the top-level MAIDR schema.
@@ -1198,6 +1225,7 @@ class Maidr:
         embed_data: bool = True,
         schema: dict | None = None,
         inline: InlineScope | None = None,
+        shown_as: tuple[str | None, dict[str, Any]] | None = None,
     ) -> HTML:
         """Extract the chart SVG from ``matplotlib.figure.Figure``.
 
@@ -1213,6 +1241,11 @@ class Maidr:
             Scopes the SVG to the chart, for a page it shares with others. When
             it refuses, it says why in its ``refused`` and the SVG is left as
             it was.
+        shown_as : tuple of (str or None, dict), optional
+            Given for a chart in a notebook's frame: the format the notebook
+            shows the plain figure in and the arguments it saves it with.
+            The SVG is then given that figure's size and shape, and the
+            frame's stylesheet a class to find it by.
         """
         svg_buffer = io.StringIO()
         self._fig.savefig(svg_buffer, format="svg")
@@ -1245,6 +1278,14 @@ class Maidr:
                     # In the page, at the size and shape it gives the same
                     # figure without maidr; see ``size_like_plain_figure``.
                     size_like_plain_figure(self._fig, element)
+            elif shown_as is not None:
+                # In a notebook's frame, likewise, and shrinking with it; see
+                # ``maidr/assets/frame.css``.
+                size_like_plain_figure(self._fig, element, shown_as)
+                element.set(
+                    "class",
+                    " ".join(filter(None, [element.get("class"), FRAME_SVG_CLASS])),
+                )
             if embed_data:
                 # Compact on purpose: an attribute value is one line to a
                 # reader anyway (newlines become `&#10;`), and `indent`
