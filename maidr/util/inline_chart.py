@@ -399,7 +399,9 @@ def _backdrop(
     unless ``savefig.facecolor`` or ``savefig.transparent`` say otherwise --
     as the plain figure paints all of its box. The canvas is left out of the
     path, so a colour that is not opaque is not laid over itself. None when
-    the box lies within the canvas or the colour is transparent.
+    the box lies within the canvas or the colour is transparent, or when the
+    figure's patch is hidden, which leaves the canvas unpainted in the SVG
+    and the whole box in the plain figure.
     """
     import matplotlib as mpl
     from matplotlib.colors import to_hex, to_rgba
@@ -409,7 +411,7 @@ def _backdrop(
     _, _, canvas_w, canvas_h = canvas
     if left >= 0 and top >= 0 and right <= canvas_w and bottom <= canvas_h:
         return None
-    if mpl.rcParams["savefig.transparent"]:
+    if mpl.rcParams["savefig.transparent"] or not fig.patch.get_visible():
         return None
     colour = mpl.rcParams["savefig.facecolor"]
     if isinstance(colour, str) and colour == "auto":

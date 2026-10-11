@@ -336,6 +336,26 @@ def test_a_transparent_figure_is_not_painted(kernel, rc):
     assert _backdrop(svg) is None
 
 
+def test_a_hidden_figure_patch_is_not_painted(kernel):
+    """``fig.patch.set_visible(False)`` leaves the plain figure's whole box bare.
+
+    The SVG leaves its canvas unpainted too, so on a dark page a band painted
+    in the (hidden) face colour would show below the canvas alone.
+    """
+    kernel("png")
+    fig, _ = _figure()
+    fig.patch.set_visible(False)
+
+    svg = _sized(fig)
+    plain = PIL.open(io.BytesIO(print_figure(fig, "png", bbox_inches="tight")))
+    corner = plain.convert("RGBA").getpixel((0, plain.height - 1))
+
+    _left, top, _width, height = _view(svg)
+    assert top + height > 216, "the box must grow past the canvas to test this"
+    assert corner[3] == 0
+    assert _backdrop(svg) is None
+
+
 def test_savefig_facecolor_is_the_colour_the_canvas_was_painted(kernel):
     kernel("retina")
     with plt.rc_context({"savefig.facecolor": "#eeeeee"}):
