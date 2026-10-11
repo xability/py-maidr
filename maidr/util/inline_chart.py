@@ -42,6 +42,7 @@ import contextlib
 import contextvars
 import io
 import json
+import logging
 import re
 import uuid
 from functools import lru_cache
@@ -51,6 +52,8 @@ from typing import Any, Iterator, Literal
 from htmltools import HTML, Tag, tags
 
 from maidr.util.environment import Environment
+
+_logger = logging.getLogger(__name__)
 
 _SVG = "{http://www.w3.org/2000/svg}"
 _XLINK_HREF = "{http://www.w3.org/1999/xlink}href"
@@ -259,7 +262,12 @@ def size_like_plain_figure(fig: Any, svg: Any) -> None:
         backdrop = _backdrop(fig, view, canvas)
     except Exception:
         # The chart works at matplotlib's size; a measurement must never be
-        # why a render fails.
+        # why a render fails. Logged, for whoever asks why it kept that size.
+        _logger.debug(
+            "maidr: kept the chart at matplotlib's size; measuring the plain "
+            "figure's failed",
+            exc_info=True,
+        )
         return
     svg.set("viewBox", " ".join(_number(v) for v in view))
     svg.set("width", f"{_number(width * per_inch)}px")
@@ -297,6 +305,9 @@ def _plain_figure_format() -> tuple[str | None, dict[str, Any]]:
         printer = _figure_printer()
     except Exception:
         printer = None
+    # The formatter wins: it is what shows the plain figure in this kernel.
+    # With none registered, ``quarto_figure_format`` probes for it once more
+    # and then answers from Quarto's execute info (``fig-format``).
     if printer is None:
         return Environment.quarto_figure_format(), {}
     keywords = getattr(printer[1], "keywords", None)
@@ -354,6 +365,9 @@ def _tight_box(fig: Any, figure_format: str | None, keywords: dict[str, Any]) ->
     else:
         dpi = fig.dpi
     extra = keywords.get("bbox_extra_artists")
+    # Changed for the measurement only. The render holds the figure's lock
+    # (``figure_lock`` in ``Maidr._create_html_tag``), so nothing else draws
+    # it at this dpi meanwhile.
     original = fig.dpi
     try:
         if dpi != original:
