@@ -423,18 +423,15 @@
     }
     var active = document.activeElement;
     var wrapper = wrapperOf(active);
-    var parent = wrapper && wrapper.parentElement;
-    if (!parent || active.closest('[role="dialog"],[aria-modal="true"]')) return;
+    if (!wrapper || active.closest('[role="dialog"],[aria-modal="true"]')) return;
     var stops = document.querySelectorAll(TABBABLE);
     for (var i = 0; i < stops.length && stops[i] !== active; i++) {
       if (reachable(stops[i])) return;
     }
     event.preventDefault();
-    // From the wrapper's parent: neither the wrapper nor maidr's own
-    // <article> inside it is somewhere to hand the reader to.
-    var section = parent.closest('section,article,[role="region"]');
+    var section = wrapper.closest('section,article,[role="region"]');
     var candidates = section ? [section] : [];
-    for (var node = parent; node; node = node.parentElement) {
+    for (var node = wrapper.parentElement; node; node = node.parentElement) {
       if (node !== section) candidates.push(node);
     }
     for (var j = 0; j < candidates.length; j++) {
