@@ -2,7 +2,7 @@ import json
 import os
 import subprocess
 import sys
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 #: The pandoc writers whose output is a page a browser runs scripts in, as a
 #: Quarto render names them in ``format.pandoc.to``. A dashboard is ``html``
@@ -187,6 +187,36 @@ class Environment:
             # Broad on purpose, as in is_shiny: a probe must never be why a
             # render fails, and an answer of None keeps the iframe.
             return None
+
+    @staticmethod
+    def quarto_figure_format() -> Optional[str]:
+        """The figure format a Quarto render shows a plain figure in, or None.
+
+        Read off the kernel's display formatter, which Quarto's setup cell
+        sets up, and otherwise off the ``QUARTO_EXECUTE_INFO`` file
+        (``execute.fig-format``).
+
+        Returns
+        -------
+        str or None
+            ``retina``, ``png``, ``jpeg``, ``svg`` or ``pdf``, or None when
+            neither says.
+        """
+        try:
+            printer = _figure_printer()
+        except Exception:
+            # Broad, as in quarto_writer: a probe must never fail a render.
+            printer = None
+        if printer is not None:
+            return printer[0]
+        path = os.environ.get("QUARTO_EXECUTE_INFO")
+        if not path:
+            return None
+        try:
+            info = Environment._read_quarto_info(path) or _quarto_info.get(path)
+        except Exception:
+            return None
+        return info[1] if info else None
 
     @staticmethod
     def _read_quarto_info(path: str) -> "Optional[tuple[Optional[str], Optional[str]]]":
@@ -467,6 +497,25 @@ def _figure_format() -> Optional[str]:
     matplotlib figure: ``retina_figure`` for ``retina``, ``print_figure``
     for the others, under the format's MIME type.
     """
+    printer = _figure_printer()
+    return printer[0] if printer is not None else None
+
+
+def _figure_printer() -> "Optional[tuple[str, Any]]":
+    """The kernel's one display formatter for a matplotlib figure, and its format.
+
+    What shows a plain figure in the page a Quarto render builds; see
+    :func:`_figure_format`. The formatter is a ``functools.partial`` whose
+    ``keywords`` are the ``savefig`` arguments the figure is shown with:
+    ``InlineBackend.print_figure_kwargs`` when Quarto's setup cell ran.
+
+    Returns
+    -------
+    tuple of (str, callable) or None
+        The format -- ``retina``, ``png``, ``jpeg``, ``svg`` or ``pdf`` --
+        and the formatter, or None when there is no shell, or no formatter or
+        more than one for a figure.
+    """
     from IPython import get_ipython
     from matplotlib.figure import Figure
 
@@ -490,7 +539,7 @@ def _figure_format() -> Optional[str]:
             getattr(printer, "func", None), "__name__", ""
         )
         if mime == "image/png" and name == "retina_figure":
-            found.append("retina")
+            found.append(("retina", printer))
         elif mime in names:
-            found.append(names[mime])
+            found.append((names[mime], printer))
     return found[0] if len(found) == 1 else None

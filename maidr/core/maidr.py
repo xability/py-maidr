@@ -64,6 +64,7 @@ from maidr.util.inline_chart import (
     inline_applies,
     loader_js,
     showing,
+    size_like_plain_figure,
 )
 from maidr.util.quarto_cell import fig_alt as quarto_fig_alt
 
@@ -1230,6 +1231,10 @@ class Maidr:
                     current_schema = inline.scope(element, current_schema)
                 except InlineUnsupported as refusal:
                     inline.refused = refusal
+                else:
+                    # In the page, at the size and shape it gives the same
+                    # figure without maidr; see ``size_like_plain_figure``.
+                    size_like_plain_figure(self._fig, element)
             if embed_data:
                 # Compact on purpose: an attribute value is one line to a
                 # reader anyway (newlines become `&#10;`), and `indent`

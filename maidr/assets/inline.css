@@ -24,6 +24,14 @@
   height: auto;
 }
 
+/* reveal.js keeps an image to 95% of the width it is given, and a chart is
+ * kept to the same. On the wrapper, not the svg: the element maidr.js puts
+ * around the svg is as wide as the svg, and 95% of it would shrink every
+ * chart. */
+.reveal .maidr-inline {
+  max-width: 95%;
+}
+
 /* A Quarto figure's fig-align: centred by default, which centred an
  * inline-block frame and does not centre a block. */
 .quarto-figure-center .maidr-inline,

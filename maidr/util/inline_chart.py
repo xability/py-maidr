@@ -26,6 +26,8 @@ that, so this module carries it over:
 * **The runtime.** Quarto puts require.js on these pages, and the UMD
   ``maidr.js`` hands itself to it and never runs unless kept from it; see
   :func:`loader_js`.
+* **Its size.** A chart is given the box and size of the figure Quarto
+  shows in its place without maidr (:func:`size_like_plain_figure`).
 
 A notebook, Shiny, Streamlit, Gradio, Flask and a Pyodide page keep their
 iframes: in each, a key pressed in an inline chart reaches a shortcut of the
@@ -36,6 +38,7 @@ from __future__ import annotations
 
 import contextlib
 import contextvars
+import io
 import json
 import re
 import uuid
@@ -179,6 +182,254 @@ def inline_applies(use_iframe: bool) -> bool:
         True for a cell output of a Quarto render that builds a web page.
     """
     return in_quarto_render(use_iframe) and Environment.is_quarto_page()
+
+
+#: The figure formats IPython shows as a raster, which the page shows a dot
+#: to a CSS pixel (``retina`` at half its dots): a figure ``w`` inches wide
+#: at ``fig-dpi`` is ``w * fig-dpi`` pixels wide there.
+_RASTER_FORMATS = frozenset({"retina", "png", "jpeg"})
+
+#: CSS pixels to the inch, which an SVG figure, sized in points, is shown at.
+_CSS_PX_PER_INCH = 96.0
+
+#: SVG user units, which matplotlib's are points, to the inch.
+_POINTS_PER_INCH = 72.0
+
+
+def size_like_plain_figure(fig: Any, svg: Any) -> None:
+    """Give a chart's ``<svg>`` the size and shape the page gives a plain figure.
+
+    A Quarto render shows a plain matplotlib figure through the kernel's
+    display formatter, which saves it with ``InlineBackend.print_figure_kwargs``:
+    ``bbox_inches="tight"`` by default, so the figure is cut to what is drawn
+    and padded by ``savefig.pad_inches``, growing past the canvas where an
+    axis label or a legend lies outside it. A raster (``fig-format``
+    ``retina``, the default, ``png`` or ``jpeg``) is shown at the figure's
+    dpi, which Quarto sets to ``fig-dpi``, in CSS pixels to the inch; an
+    ``svg`` or ``pdf`` one at 96. matplotlib's SVG is the whole canvas at 96
+    pixels to the inch: another size and shape than the plain figure, and
+    without what is drawn outside the canvas.
+
+    Only the root's ``viewBox``, ``width`` and ``height`` change, so the
+    user-space coordinates every selector, highlight and
+    :func:`maidr.util.svg_utils.data_to_svg_coords` point is written in stay
+    as they are. Where the box grows past the canvas it is painted in the
+    colour the SVG painted the canvas, as the plain figure is. A formatter
+    that does not cut the figure (``bbox_inches=None``) shows the canvas,
+    and one given a box of its own that box; its ``dpi`` and ``pad_inches``
+    count as they do for the plain figure.
+
+    Left as matplotlib wrote it when the box cannot be measured, or the SVG
+    is not the whole canvas in points (``savefig.bbox`` cut it already): its
+    coordinates would not be the figure's then.
+
+    Parameters
+    ----------
+    fig : matplotlib.figure.Figure
+        The figure the SVG was saved from, after the save.
+    svg : lxml.etree._Element
+        Its root ``<svg>``.
+    """
+    try:
+        width_in, height_in = (float(v) for v in fig.get_size_inches())
+        canvas = (0.0, 0.0, width_in * _POINTS_PER_INCH, height_in * _POINTS_PER_INCH)
+        if not _is_view_box(svg.get("viewBox"), canvas):
+            return
+        figure_format, keywords = _plain_figure_format()
+        box = _shown_box(fig, figure_format, keywords)
+        if box is None:
+            x0, y1, width, height = 0.0, height_in, width_in, height_in
+        else:
+            x0, y1, width, height = box.x0, box.y1, box.width, box.height
+        values = (x0, y1, width, height)
+        if not all(v == v and abs(v) != float("inf") for v in values):
+            return
+        if not (width > 0 and height > 0):
+            return
+        per_inch = _px_per_inch(fig, figure_format, keywords)
+        # In points, with y down from the canvas's top as SVG has it.
+        view = (
+            x0 * _POINTS_PER_INCH,
+            (height_in - y1) * _POINTS_PER_INCH,
+            width * _POINTS_PER_INCH,
+            height * _POINTS_PER_INCH,
+        )
+        backdrop = _backdrop(fig, view, canvas)
+    except Exception:
+        # The chart works at matplotlib's size; a measurement must never be
+        # why a render fails.
+        return
+    svg.set("viewBox", " ".join(_number(v) for v in view))
+    svg.set("width", f"{_number(width * per_inch)}px")
+    svg.set("height", f"{_number(height * per_inch)}px")
+    if backdrop is not None:
+        svg.insert(0, svg.makeelement(f"{_SVG}path", backdrop))
+
+
+def _number(value: float) -> str:
+    """A length for an SVG attribute: three decimals at most, no ``-0``."""
+    text = f"{value:.3f}".rstrip("0").rstrip(".")
+    return "0" if text in ("", "-0") else text
+
+
+def _is_view_box(value: str | None, expected: tuple[float, ...]) -> bool:
+    """Whether a ``viewBox`` attribute is ``expected``, to within a hundredth."""
+    try:
+        numbers = [float(part) for part in (value or "").replace(",", " ").split()]
+    except ValueError:
+        return False
+    return len(numbers) == 4 and all(
+        abs(a - b) < 0.01 for a, b in zip(numbers, expected)
+    )
+
+
+def _plain_figure_format() -> tuple[str | None, dict[str, Any]]:
+    """The format the page shows a plain figure in, and its ``savefig`` arguments.
+
+    The arguments are the ``keywords`` of the kernel's figure formatter, a
+    ``functools.partial`` of IPython's ``print_figure`` or ``retina_figure``.
+    """
+    from maidr.util.environment import _figure_printer
+
+    try:
+        printer = _figure_printer()
+    except Exception:
+        printer = None
+    if printer is None:
+        return Environment.quarto_figure_format(), {}
+    keywords = getattr(printer[1], "keywords", None)
+    return printer[0], dict(keywords) if isinstance(keywords, dict) else {}
+
+
+def _shown_box(fig: Any, figure_format: str | None, keywords: dict[str, Any]) -> Any:
+    """The part of the figure, in inches, a plain figure shows; None for the canvas.
+
+    As ``FigureCanvasBase.print_figure`` decides it, from the arguments
+    IPython's ``print_figure`` passes it: ``bbox_inches`` defaults to
+    ``"tight"`` there, and ``None`` falls back to ``savefig.bbox``.
+    """
+    import matplotlib as mpl
+    from matplotlib.layout_engine import ConstrainedLayoutEngine
+    from matplotlib.transforms import BboxBase
+
+    bbox_inches = keywords.get("bbox_inches", "tight")
+    if bbox_inches is None:
+        bbox_inches = mpl.rcParams["savefig.bbox"]
+    if isinstance(bbox_inches, BboxBase):
+        return bbox_inches
+    if not (isinstance(bbox_inches, str) and bbox_inches == "tight"):
+        return None
+    box = _tight_box(fig, figure_format, keywords)
+    pad = keywords.get("pad_inches")
+    engine = fig.get_layout_engine()
+    if isinstance(engine, ConstrainedLayoutEngine) and pad == "layout":
+        w_pad, h_pad = engine.get()["w_pad"], engine.get()["h_pad"]
+    else:
+        if pad is None or pad == "layout":
+            pad = mpl.rcParams["savefig.pad_inches"]
+        w_pad = h_pad = pad
+    return box.padded(w_pad, h_pad)
+
+
+def _tight_box(fig: Any, figure_format: str | None, keywords: dict[str, Any]) -> Any:
+    """The figure's tight box, in inches, measured as the plain figure's save does.
+
+    At the dpi a raster is saved at, twice the figure's for ``retina``, and
+    with the SVG renderer for ``svg``, at 72: hinted text, matplotlib's
+    default, measures differently at another dpi or in another renderer, by
+    a pixel or so. The figure's dpi is changed while it is measured, as
+    ``savefig`` changes it while it saves.
+    """
+    renderer = None
+    if figure_format in _RASTER_FORMATS:
+        dpi = _save_dpi(fig, figure_format, keywords)
+    elif figure_format == "svg":
+        from matplotlib.backends.backend_svg import RendererSVG
+
+        dpi = _POINTS_PER_INCH
+        width, height = fig.get_size_inches() * _POINTS_PER_INCH
+        renderer = RendererSVG(width, height, io.StringIO())
+    else:
+        dpi = fig.dpi
+    extra = keywords.get("bbox_extra_artists")
+    original = fig.dpi
+    try:
+        if dpi != original:
+            fig.dpi = dpi
+        return fig.get_tightbbox(renderer, bbox_extra_artists=extra)
+    finally:
+        if fig.dpi != original:
+            fig.dpi = original
+
+
+def _save_dpi(fig: Any, figure_format: str | None, keywords: dict[str, Any]) -> float:
+    """The dpi IPython saves a raster figure at.
+
+    The figure's, twice it for ``retina``, unless the formatter's arguments
+    name a ``dpi`` of their own.
+    """
+    dpi = keywords.get("dpi")
+    if isinstance(dpi, (int, float)) and not isinstance(dpi, bool) and dpi > 0:
+        return float(dpi)
+    return float(fig.dpi) * (2 if figure_format == "retina" else 1)
+
+
+def _px_per_inch(
+    fig: Any, figure_format: str | None, keywords: dict[str, Any]
+) -> float:
+    """CSS pixels to the inch the page shows a plain figure at.
+
+    A raster at a pixel to a dot, which Quarto shows a ``retina`` one at
+    half of; anything else at 96, as an SVG's points are.
+    """
+    if figure_format not in _RASTER_FORMATS:
+        return _CSS_PX_PER_INCH
+    dpi = _save_dpi(fig, figure_format, keywords)
+    return dpi / 2 if figure_format == "retina" else dpi
+
+
+def _backdrop(
+    fig: Any, view: tuple[float, ...], canvas: tuple[float, ...]
+) -> dict[str, str] | None:
+    """The attributes of a path painting the box where it grows past the canvas.
+
+    In the colour the SVG painted the canvas -- the figure's face colour,
+    unless ``savefig.facecolor`` or ``savefig.transparent`` say otherwise --
+    as the plain figure paints all of its box. The canvas is left out of the
+    path, so a colour that is not opaque is not laid over itself. None when
+    the box lies within the canvas or the colour is transparent.
+    """
+    import matplotlib as mpl
+    from matplotlib.colors import to_hex, to_rgba
+
+    left, top, width, height = view
+    right, bottom = left + width, top + height
+    _, _, canvas_w, canvas_h = canvas
+    if left >= 0 and top >= 0 and right <= canvas_w and bottom <= canvas_h:
+        return None
+    if mpl.rcParams["savefig.transparent"]:
+        return None
+    colour = mpl.rcParams["savefig.facecolor"]
+    if isinstance(colour, str) and colour == "auto":
+        colour = fig.get_facecolor()
+    rgba = to_rgba(colour)
+    if rgba[3] <= 0:
+        return None
+    # The canvas, as far as it lies within the box.
+    inner = (max(left, 0.0), max(top, 0.0), min(right, canvas_w), min(bottom, canvas_h))
+    outer = (left, top, right, bottom)
+    subpaths = [outer]
+    if inner[0] < inner[2] and inner[1] < inner[3]:
+        subpaths.append(inner)
+    d = " ".join(
+        f"M {_number(x0)} {_number(y0)} H {_number(x1)} V {_number(y1)} "
+        f"H {_number(x0)} Z"
+        for x0, y0, x1, y1 in subpaths
+    )
+    style = f"fill: {to_hex(rgba)}; fill-rule: evenodd; stroke: none"
+    if rgba[3] < 1:
+        style += f"; fill-opacity: {_number(rgba[3])}"
+    return {"d": d, "style": style}
 
 
 def _split_selector(selector: str) -> list[str]:
