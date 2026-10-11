@@ -1081,8 +1081,9 @@ mentions a key, it refers back to this table rather than restating the binding.
 
 When Quarto renders a document to a web page — an `html` document, a website
 or book, a `dashboard`, or a `revealjs` deck — a matplotlib or seaborn chart is
-written into the page itself, as an `<svg>` the page sizes like an image, and
-the page loads `maidr.js` once for all of its charts. (In a notebook each chart
+written into the page itself, as an `<svg>` the size of the figure Quarto
+shows without maidr (see *Size and placement* below), and the page loads
+`maidr.js` once for all of its charts. (In a notebook each chart
 has an iframe of its own; see below.) It needs Quarto 1.8 or newer, which tells
 the kernel what it is rendering to. With an older Quarto, and for any format
 that is not a web page, a chart keeps the iframe it had before. Plotly, Altair
@@ -1131,6 +1132,49 @@ each highlight their own marks.
 A chart whose SVG holds something that cannot be kept to it on a page — a
 `<script>`, a `<foreignObject>`, or a stylesheet with an at-rule — is shown in
 an iframe instead, with a warning.
+
+### Size and placement
+
+A chart has the size and shape of the figure Quarto shows when the same cell
+runs without maidr:
+
+* **Cut to what is drawn**, as Quarto cuts its figure (through the kernel's
+  `InlineBackend.print_figure_kwargs`, `bbox_inches="tight"` unless you set
+  it otherwise), so an axis label below a small figure or a legend placed
+  beside the axes is shown, and the margins matplotlib leaves around the
+  axes are not.
+* **Sized by `fig-dpi`** with `fig-format: retina` (the default), `png` or
+  `jpeg`, at that many pixels to the inch, and at 96 pixels to the inch with
+  `svg`, as Quarto's figure is.
+* **Sized by `fig-width` and `fig-height`** in the document's or project's
+  options. In a cell, set the size with `plt.subplots(figsize=(w, h))`:
+  Quarto's Jupyter engine does not apply a cell's `fig-width` and
+  `fig-height` to any figure, with maidr or without.
+* **Laid out as you laid it out.** A violin or regression chart keeps the
+  figure's own layout, or the layout engine it was given (`layout="constrained"`).
+
+Where a chart differs from Quarto's figure, on purpose or not:
+
+* **A chart shrinks to a narrow column**, a phone's included, keeping its
+  shape, where Quarto's retina figure keeps its size and its column scrolls
+  sideways. It does so with `fig-responsive: false` too, so that a reader on
+  a phone or with the page magnified sees all of it at once.
+* **`fig-align` has no effect on a chart.** Quarto applies it to image
+  outputs only, and leaves a captioned chart (a `fig-` label with `fig-cap`)
+  centred whatever it says. For a chart without a caption,
+  `#| classes: quarto-figure-center` or `quarto-figure-right` on the cell
+  centres or right-aligns it. A `fig-cap` without a `fig-` label is set as a
+  paragraph below the chart, not as a figure caption.
+* **In a dashboard card**, a chart is as large as the card allows, keeping
+  its shape and centred in it, as Quarto's figure is, but with a line left
+  below it for maidr's text; the card scrolls to the braille and review
+  fields when they open, and a card shown full screen takes its chart with
+  it. A dashboard also shows the value of every line of a cell, and Quarto
+  drops matplotlib's (`<BarContainer ...>`, `Text(0.5, 0, 'x')`) only beside
+  an image: beside a chart they stay in its card. Draw the chart in a
+  function, or assign those values (`_ = ax.set_xlabel("x")`).
+* **On a reveal.js slide**, a chart is kept to 95% of the width it is given,
+  as reveal.js keeps an image.
 
 ## Quarto reveal.js Slides
 
