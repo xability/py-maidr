@@ -301,27 +301,35 @@ def test_the_area_past_the_canvas_is_painted_in_the_figures_colour(kernel):
     assert backdrop is not None
     assert "fill: #336699" in backdrop.get("style")
     assert "fill-opacity" not in backdrop.get("style")
-    # The box, less the part of the canvas inside it, so nothing is painted twice.
+    # The whole box, under the canvas: a path with the canvas cut out of it
+    # let a hairline of the page show where its edge met the canvas's.
     left, top, width, height = _view(svg)
     subpaths = [s.split() for s in backdrop.get("d").split("Z") if s.strip()]
-    assert len(subpaths) == 2
+    assert len(subpaths) == 1
     outer = [float(subpaths[0][i]) for i in (1, 2, 4, 6)]
     assert outer == pytest.approx([left, top, left + width, top + height], abs=0.001)
-    inner = [float(subpaths[1][i]) for i in (1, 2, 4, 6)]
-    assert inner == pytest.approx(
-        [max(left, 0), max(top, 0), min(left + width, 288), min(top + height, 216)],
-        abs=0.001,
-    )
 
 
 def test_a_translucent_face_keeps_its_alpha(kernel):
     kernel("retina")
     fig, _ = _figure(facecolor=(1, 0, 0, 0.5))
 
-    style = _backdrop(_sized(fig)).get("style")
+    svg = _sized(fig)
+    backdrop = _backdrop(svg)
+    style = backdrop.get("style")
 
     assert "fill: #ff0000" in style
     assert "fill-opacity: 0.5" in style
+    # The box, less the part of the canvas inside it, so that the colour is
+    # not laid over itself there.
+    left, top, width, height = _view(svg)
+    subpaths = [s.split() for s in backdrop.get("d").split("Z") if s.strip()]
+    assert len(subpaths) == 2
+    inner = [float(subpaths[1][i]) for i in (1, 2, 4, 6)]
+    assert inner == pytest.approx(
+        [max(left, 0), max(top, 0), min(left + width, 288), min(top + height, 216)],
+        abs=0.001,
+    )
 
 
 @pytest.mark.parametrize(

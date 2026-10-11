@@ -411,8 +411,11 @@ def _backdrop(
 
     In the colour the SVG painted the canvas -- the figure's face colour,
     unless ``savefig.facecolor`` or ``savefig.transparent`` say otherwise --
-    as the plain figure paints all of its box. The canvas is left out of the
-    path, so a colour that is not opaque is not laid over itself. None when
+    as the plain figure paints all of its box. An opaque colour paints the
+    whole box, under the canvas: left out of the path, the canvas's edge and
+    the path's, each drawn smoothed, let a hairline of the page show between
+    them. A colour that is not opaque leaves the canvas out, so that it is
+    not laid over itself. None when
     the box lies within the canvas or the colour is transparent, or when the
     figure's patch is hidden, which leaves the canvas unpainted in the SVG
     and the whole box in the plain figure.
@@ -437,7 +440,7 @@ def _backdrop(
     inner = (max(left, 0.0), max(top, 0.0), min(right, canvas_w), min(bottom, canvas_h))
     outer = (left, top, right, bottom)
     subpaths = [outer]
-    if inner[0] < inner[2] and inner[1] < inner[3]:
+    if rgba[3] < 1 and inner[0] < inner[2] and inner[1] < inner[3]:
         subpaths.append(inner)
     d = " ".join(
         f"M {_number(x0)} {_number(y0)} H {_number(x1)} V {_number(y1)} "
