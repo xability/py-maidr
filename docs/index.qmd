@@ -1152,6 +1152,9 @@ runs without maidr:
   `fig-height` to any figure, with maidr or without.
 * **Laid out as you laid it out.** A violin or regression chart keeps the
   figure's own layout, or the layout engine it was given (`layout="constrained"`).
+  Anywhere else — a notebook, `save_html`, `show` — the chart is the figure's
+  canvas, and such a figure without a layout engine is laid out tight, so
+  that its axis labels fit on it.
 
 Where a chart differs from Quarto's figure, on purpose or not:
 

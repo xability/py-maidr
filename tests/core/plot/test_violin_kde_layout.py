@@ -15,10 +15,12 @@ the same layout the SVG was then saved from, so that is what these assert --
 never SVG bytes or the ``svg_*`` floats themselves, which a single layout
 pass is free to move by a fraction of a point.
 
-Settling draws the figure without rendering it, which runs the figure's own
-layout engine and no other: it used to run ``tight_layout``, which re-laid-out
-a figure that had none, so the chart no longer looked like the same figure
-shown without maidr, and replaced a constrained layout with a tight one.
+A figure with a layout engine of its own is laid out by it and no other: it
+used to be laid out tight, which replaced a constrained layout with a tight
+one. One without is laid out tight, as it always was, except for a chart
+written into a Quarto page, which keeps the layout of the plain figure
+beside it and is only drawn. A render settles the figure once, however many
+violins it holds.
 """
 
 from __future__ import annotations
@@ -38,6 +40,8 @@ from matplotlib.figure import Figure  # noqa: E402
 import maidr  # noqa: E402
 from maidr.core.enum.plot_type import PlotType  # noqa: E402
 from maidr.core.figure_manager import FigureManager  # noqa: E402
+from maidr.util import svg_utils  # noqa: E402
+from maidr.util.svg_utils import settling  # noqa: E402
 
 #: Four categories, so the RDP pass has something to thin on every violin.
 CATEGORIES = ["ash", "birch", "cedar", "dogwood"]
@@ -47,6 +51,18 @@ CATEGORIES = ["ash", "birch", "cedar", "dogwood"]
 def _close_figures():
     yield
     plt.close("all")
+
+
+@pytest.fixture(params=[False, True], ids=["elsewhere", "in-a-page"])
+def in_page(request, mocker):
+    """A render outside a Quarto page, and one writing the chart into it."""
+    mocker.patch("maidr.core.maidr.inline_applies", return_value=request.param)
+    return request.param
+
+
+def _pass(keep_layout: bool) -> str:
+    """What settles a figure without a layout engine."""
+    return "draw_without_rendering" if keep_layout else "tight_layout"
 
 
 def _violins(orientation: str, layout: str | None = None):
@@ -84,34 +100,68 @@ def _svg_coords_now(fig, ax, x: float, y: float) -> tuple[float, float]:
     return float(figpix[0, 0] * width_pts), float((1 - figpix[0, 1]) * height_pts)
 
 
+@pytest.mark.parametrize("keep_layout", [False, True])
 @pytest.mark.parametrize("orientation", ["vert", "horz"])
-def test_one_layout_pass_per_extraction(mocker, orientation: str) -> None:
+def test_one_layout_pass_per_extraction(
+    mocker, orientation: str, keep_layout: bool
+) -> None:
     """Extracting the KDE layer settles the layout once, however many points."""
     fig, _ = _violins(orientation)
     layer = _kde_layer(fig)
-    spy = mocker.spy(Figure, "draw_without_rendering")
+    spy = mocker.spy(Figure, _pass(keep_layout))
 
-    points = sum(len(violin) for violin in layer.render()["data"])
+    with settling(keep_layout=keep_layout):
+        points = sum(len(violin) for violin in layer.render()["data"])
 
     assert points > 4, "the fixture must retain several levels per violin"
     assert spy.call_count == 1
 
 
-def test_one_layout_pass_per_render(mocker) -> None:
+def test_one_layout_pass_per_render(mocker, in_page) -> None:
     """A whole ``maidr.render`` of a violin figure settles the layout once."""
     fig, _ = _violins("vert")
-    spy = mocker.spy(Figure, "draw_without_rendering")
+    spy = mocker.spy(Figure, _pass(in_page))
 
     maidr.render(fig)
 
     assert spy.call_count == 1
 
 
+@pytest.mark.parametrize("layout", [None, "constrained", "tight"])
+def test_a_render_settles_a_grid_of_violins_once(mocker, in_page, layout) -> None:
+    """Six violin layers, one settle: the figure is the same for each of them.
+
+    A figure with a layout engine is settled through SVG saves, a few of
+    them; six layers made six times as many, and a render four or five
+    times as long.
+    """
+    rng = np.random.default_rng(731)
+    fig, axes = plt.subplots(2, 3, layout=layout)
+    for ax in axes.flat:
+        cats = [cat for cat in CATEGORIES[:3] for _ in range(20)]
+        sns.violinplot(x=cats, y=rng.normal(size=60).tolist(), ax=ax)
+    engine = mocker.spy(svg_utils, "_settle_engine")
+    other = mocker.spy(Figure, _pass(in_page))
+    saved = mocker.spy(Figure, "savefig")
+
+    maidr.render(fig)
+
+    layers = [
+        plot
+        for plot in FigureManager.get_maidr(fig).plots
+        if plot.type is PlotType.VIOLIN_KDE
+    ]
+    assert len(layers) == 6
+    assert engine.call_count + other.call_count == 1
+    # The settle's saves, at most, and the chart's own.
+    assert saved.call_count <= svg_utils._ENGINE_PASSES + 1
+
+
 @pytest.mark.parametrize("hinting", ["no_hinting", "force_autohint"])
 @pytest.mark.parametrize("layout", [None, "constrained", "tight"])
 @pytest.mark.parametrize("orientation", ["vert", "horz"])
 def test_svg_coords_match_the_layout_the_svg_was_saved_from(
-    orientation, layout, hinting
+    orientation, layout, hinting, in_page
 ) -> None:
     """
     After a render, every ``svg_*`` agrees with the figure's transform.
@@ -169,8 +219,11 @@ def test_data_coordinates_do_not_follow_the_layout(orientation: str) -> None:
     assert after != before, "the layout change did not reach the svg_* keys"
 
 
-def test_a_figure_without_a_layout_engine_keeps_its_layout() -> None:
-    """The violins sit where they sit in the same figure shown without maidr."""
+def test_in_a_page_a_figure_without_a_layout_engine_keeps_its_layout(
+    mocker,
+) -> None:
+    """The violins sit where they sit in the plain figure beside the chart."""
+    mocker.patch("maidr.core.maidr.inline_applies", return_value=True)
     fig, ax = _violins("vert")
     params = vars(fig.subplotpars).copy()
     position = ax.get_position().bounds
@@ -183,7 +236,7 @@ def test_a_figure_without_a_layout_engine_keeps_its_layout() -> None:
 
 
 @pytest.mark.parametrize("layout", ["constrained", "compressed", "tight"])
-def test_a_figures_own_layout_engine_is_kept_and_run(recwarn, layout) -> None:
+def test_a_figures_own_layout_engine_is_kept_and_run(recwarn, layout, in_page) -> None:
     """A constrained layout stays constrained, with no warning that it changed.
 
     The axes end where the same figure's own engine puts them without maidr,
