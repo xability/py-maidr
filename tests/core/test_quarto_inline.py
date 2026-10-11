@@ -705,14 +705,19 @@ def test_the_cells_fig_alt_names_the_chart_and_comes_before_its_title(
 ):
     """As r-maidr's ``fig.alt`` does: the author's words, read first."""
     quarto("html")
-    monkeypatch.setattr(maidr_core, "quarto_fig_alt", lambda: 'Sales "rise" <steadily>')
+    monkeypatch.setattr(
+        maidr_core, "quarto_fig_alt", lambda: 'Sales & costs "rise" <steadily>'
+    )
     html = _render(_bar(title="Sales"))
     svg_id = _svg(html).get("id")
 
-    assert 'aria-label="Sales &quot;rise&quot; &lt;steadily&gt;"' in _wrapper(html)
+    assert (
+        'aria-label="Sales &amp; costs &quot;rise&quot; &lt;steadily&gt;"'
+        in _wrapper(html)
+    )
     alt = re.search(
         rf'<span id="{svg_id}-alt" class="maidr-inline-alt" hidden[^>]*>'
-        r'Sales "rise" &lt;steadily&gt;</span>',
+        r'Sales &amp; costs "rise" &lt;steadily&gt;</span>',
         html,
     )
     assert alt is not None

@@ -26,6 +26,10 @@ from maidr.util.environment import Environment
 #: one space (``nb_cell_yaml_lines`` in Quarto's ``notebook.py``).
 _OPTION_LINE = re.compile(r"^#\s*\| ?")
 
+#: The header of a YAML block scalar: ``|`` or ``>``, then its chomping and
+#: indentation indicators, if any.
+_BLOCK_SCALAR = re.compile(r"^[|>][1-9+-]*$")
+
 #: The code cells of each notebook read so far, by path, with the file's
 #: modification time and size, so that a later render rereads it.
 _notebooks: dict[str, tuple[tuple[int, int], list[tuple[str, dict[str, Any]]]]] = {}
@@ -110,7 +114,9 @@ def _notebook_path() -> Optional[str]:
     stem = os.path.splitext(name)[0]
     # Quarto adds _1, _2 ... when an earlier one was left behind, so the one
     # this render wrote is the newest.
-    candidates = glob.glob(os.path.join(directory, glob.escape(stem) + ".quarto_ipynb*"))
+    candidates = glob.glob(
+        os.path.join(directory, glob.escape(stem) + ".quarto_ipynb*")
+    )
     return max(candidates, key=os.path.getmtime) if candidates else None
 
 
@@ -196,24 +202,61 @@ def _parse_options(lines: list[str]) -> dict[str, Any]:
 def _parse_simple_options(lines: list[str]) -> dict[str, Any]:
     """``key: value`` lines, for a kernel without PyYAML.
 
-    A value is read as JSON when it is one -- a double-quoted string, a list
-    such as ``["a", "b"]``, ``true`` or ``false`` -- as a single-quoted string
-    when it is quoted so, and otherwise as the text it is.
+    As in YAML, a value goes on over the lines after its key that are
+    indented or are items of a list. Those of a block scalar (``>`` or
+    ``|``) are its text, ``- item`` lines are a list, and any other value
+    is one line with the lines that go on folded into it by spaces, read
+    by :func:`_simple_value`.
     """
-    options: dict[str, Any] = {}
+    entries: list[tuple[str, list[str]]] = []
     for line in lines:
-        key, separator, value = line.partition(":")
-        if not separator or line[:1].isspace():
-            continue
-        value = value.strip()
-        if len(value) >= 2 and value[0] == value[-1] == "'":
-            options[key.strip()] = value[1:-1].replace("''", "'")
-            continue
-        try:
-            options[key.strip()] = json.loads(value)
-        except ValueError:
-            options[key.strip()] = value
+        if entries and (line[:1].isspace() or _is_list_item(line)):
+            entries[-1][1].append(line.strip())
+        elif ":" in line and not line[:1].isspace():
+            key, _, value = line.partition(":")
+            entries.append((key.strip(), [value.strip()]))
+    options: dict[str, Any] = {}
+    for key, (value, *rest) in entries:
+        rest = [text for text in rest if text]
+        if _BLOCK_SCALAR.match(value):
+            options[key] = ("\n" if value[0] == "|" else " ").join(rest)
+        elif not value and rest and _is_list_item(rest[0]):
+            options[key] = _list_items(rest)
+        else:
+            options[key] = _simple_value(" ".join([value, *rest]))
     return options
+
+
+def _is_list_item(line: str) -> bool:
+    """Whether a line starts an item of a block list."""
+    return line == "-" or line.startswith("- ")
+
+
+def _list_items(lines: list[str]) -> list[Any]:
+    """The items of a block list, each with the lines folded into it."""
+    items: list[list[str]] = []
+    for line in lines:
+        if _is_list_item(line):
+            items.append([line[1:].strip()])
+        elif items:
+            items[-1].append(line)
+    return [_simple_value(" ".join(item)) for item in items]
+
+
+def _simple_value(text: str) -> Any:
+    """A value written on one line.
+
+    It is read as JSON when it is JSON -- a double-quoted string, a list
+    such as ``["a", "b"]``, ``true`` or ``false`` -- as a single-quoted
+    string when it is quoted so, and otherwise as the text it is.
+    """
+    text = text.strip()
+    if len(text) >= 2 and text[0] == text[-1] == "'":
+        return text[1:-1].replace("''", "'")
+    try:
+        return json.loads(text)
+    except ValueError:
+        return text
 
 
 def _pick(value: Any, index: int) -> Optional[str]:

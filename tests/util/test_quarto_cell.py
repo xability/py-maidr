@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 
 import pytest
@@ -156,6 +157,45 @@ def test_without_pyyaml_plain_quoted_and_list_values_are_read(
         read.append(quarto_cell.fig_alt())
 
     assert read == ["Plain text, unquoted", "It's quoted", "Listed."]
+
+
+@pytest.mark.parametrize(
+    "options",
+    [
+        "#| fig-alt: >\n#|   Sales rise\n#|   every quarter.",
+        "#| fig-alt: |-\n#|   Sales rise\n#|   every quarter.",
+        "#| fig-alt: Sales rise\n#|   every quarter.",
+        '#| fig-alt: "Sales rise\n#|   every quarter."',
+        '#| fig-alt:\n#|   - "First chart."\n#|   - Second chart.',
+        '#| fig-alt:\n#| - "First chart."\n#| - Second\n#|   chart.',
+        '#| fig-alt: ["First chart.",\n#|   "Second chart."]',
+    ],
+    ids=[
+        "folded",
+        "literal",
+        "plain",
+        "double-quoted",
+        "list",
+        "list-unindented",
+        "flow-list",
+    ],
+)
+def test_without_pyyaml_a_value_over_several_lines_is_read_as_yaml_reads_it(
+    kernel, tmp_path, monkeypatch, options
+):
+    """Rather than read ``>`` as the alt text, or only its first line."""
+    yaml = pytest.importorskip("yaml")
+    written = yaml.safe_load(re.sub(r"^#\| ?", "", options, flags=re.M))["fig-alt"]
+    if not isinstance(written, list):
+        written = [written]
+    expected = [text.strip() for text in written]
+    monkeypatch.setitem(sys.modules, "yaml", None)
+    _notebook(tmp_path / "doc.quarto_ipynb", options + "\ndraw()")
+    kernel.run("draw()")
+
+    read = [quarto_cell.fig_alt() for _ in expected]
+
+    assert read == expected
 
 
 def test_a_cell_that_is_not_run_is_not_taken_for_the_one_that_is(kernel, tmp_path):
