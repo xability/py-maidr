@@ -79,3 +79,18 @@ a:focus-visible,
     outline: none !important;
   }
 }
+
+/* A chart that takes the width of its container -- a Bokeh sizing_mode of
+ * stretch_width or scale_width, a Vega-Lite width of "container" -- and
+ * maidr.js's focusable element, which is as wide as what it holds
+ * (width: fit-content): a Bokeh chart shrank to its smallest width in it,
+ * and a Vega-Lite one grew without end. The element is as wide as the frame
+ * for those charts instead. vega-embed's own container is an inline-block,
+ * as wide as the chart, which it needs to be as wide as the frame too. */
+.maidr-frame-fill figure[id^="maidr-figure-"] > div[tabindex] {
+  width: auto !important;
+}
+.maidr-frame-fill [id^="maidr-altair-"] {
+  display: block;
+  width: 100%;
+}

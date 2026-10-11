@@ -104,6 +104,11 @@ _CURSOR_LINE_WIDTH = 3
 _WAIT_MS = 30000
 
 
+#: The ``sizing_mode`` values under which a plot or layout is as wide as the
+#: element it is embedded in.
+_FILLS_WIDTH = frozenset({"stretch_width", "stretch_both", "scale_width", "scale_both"})
+
+
 class BokehMaidr:
     """
     Render a Bokeh plot or layout with MAIDR accessibility.
@@ -358,6 +363,18 @@ class BokehMaidr:
         for row, col, layers in cells:
             grid[row][col] = layers[0].plot
         return grid
+
+    def _fills_width(self) -> bool:
+        """Whether the plot or layout takes the width of its container.
+
+        A ``sizing_mode`` that stretches or scales the width, or a
+        ``width_policy`` of ``"max"``. BokehJS then sizes it to the element
+        it is embedded in, which maidr.js makes as wide as what it holds,
+        and it shrank to its smallest width there.
+        """
+        mode = str(getattr(self._model, "sizing_mode", None) or "")
+        policy = str(getattr(self._model, "width_policy", None) or "")
+        return mode in _FILLS_WIDTH or policy == "max"
 
     def _highlight_map(self, cursors: dict[tuple, str]) -> dict[str, dict]:
         """
@@ -691,6 +708,7 @@ class BokehMaidr:
                 alt,
                 in_notebook=in_notebook_frame(use_iframe),
                 keep_padding=True,
+                fill_width=self._fills_width(),
             )
         return with_chart_title(base_html, chart_title)
 

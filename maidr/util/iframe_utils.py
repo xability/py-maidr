@@ -202,8 +202,8 @@ def frame_style() -> str:
     """The stylesheet of a chart's frame in a notebook, as a ``<style>`` element.
 
     See ``maidr/assets/frame.css``: the frame's margins and the figure's are
-    reset, the chart shrinks with a narrow output area, and focus rings are
-    drawn inside the frame.
+    reset, the chart shrinks with a narrow output area, focus rings are drawn
+    inside the frame, and a chart sized by its container fills the frame.
 
     Returns
     -------
@@ -527,6 +527,7 @@ def wrap_in_iframe_plotly(
     *,
     in_notebook: bool = False,
     keep_padding: bool = False,
+    fill_width: bool = False,
 ) -> Tag:
     """Wrap Plotly HTML in an auto-resizing iframe for notebooks.
 
@@ -561,6 +562,11 @@ def wrap_in_iframe_plotly(
         Bokeh plot, which is an HTML output itself, and an Altair chart,
         which vega-embed's menu keeps further from that edge. A Plotly
         chart takes the padding, as plotly's own renderer does.
+    fill_width : bool, default=False
+        Whether the chart takes the width of its container (a Bokeh
+        ``sizing_mode`` that stretches or scales its width, a Vega-Lite
+        ``width`` of ``"container"``): in a notebook it is then as wide as
+        the frame; see ``maidr/assets/frame.css``.
 
     Returns
     -------
@@ -705,6 +711,8 @@ def wrap_in_iframe_plotly(
         }} catch (_) {{}}
     """
 
+    if in_notebook and fill_width:
+        base_html.add_class("maidr-frame-fill")
     srcdoc = str(base_html.get_html_string())
     if in_notebook:
         width_first = "" if keep_padding else _OUTPUT_WIDTH_FIRST

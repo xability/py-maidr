@@ -94,6 +94,16 @@ def test_maidrs_fields_keep_to_the_frame(css):
         assert css[selector] == {"max-width": "100%", "box-sizing": "border-box"}
 
 
+def test_a_chart_sized_by_its_container_fills_the_frame(css):
+    assert css['.maidr-frame-fill figure[id^="maidr-figure-"] > div[tabindex]'] == {
+        "width": "auto !important"
+    }
+    assert css['.maidr-frame-fill [id^="maidr-altair-"]'] == {
+        "display": "block",
+        "width": "100%",
+    }
+
+
 def test_the_stylesheet_is_one_style_element():
     style = frame_style()
 
@@ -180,11 +190,20 @@ def test_a_frame_can_keep_clear_of_the_output_areas_padding():
     assert "var keepsPadding = true;" in _attribute(frame, "onload")
 
 
+def test_a_chart_sized_by_its_container_is_marked_in_a_notebook():
+    frame = wrap_in_iframe_plotly(
+        tags.div("chart"), "Sales", in_notebook=True, fill_width=True
+    )
+
+    assert 'class="maidr-frame-fill"' in _attribute(frame, "srcdoc")
+
+
 def test_outside_a_notebook_the_plotly_frame_is_left_as_it_was():
-    frame = wrap_in_iframe_plotly(tags.div("chart"), "Sales")
+    frame = wrap_in_iframe_plotly(tags.div("chart"), "Sales", fill_width=True)
 
     srcdoc = _attribute(frame, "srcdoc")
     assert not srcdoc.startswith("<style>")
+    assert "maidr-frame-fill" not in srcdoc
     assert "var fitsOutput = false;" in _attribute(frame, "onload")
 
 
