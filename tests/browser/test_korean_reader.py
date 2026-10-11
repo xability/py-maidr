@@ -58,7 +58,13 @@ def _notebook(tmp_path: Path) -> str:
 
 
 def _visit(browser, url: str, locale: str):
-    """Load ``url`` in ``locale``; return external requests, statuses, text."""
+    """Load ``url`` in ``locale``; return external requests, statuses, text.
+
+    The text is what a reader is given: the page's own, then every element's
+    name and description. A newer ``maidr.js`` names the chart by its title
+    and type and gives its instructions as the description
+    (xability/maidr#1384); an older one names it by the instructions.
+    """
     context = browser.new_context(locale=locale)
     page = context.new_page()
     requests: list[str] = []
@@ -71,7 +77,11 @@ def _visit(browser, url: str, locale: str):
         frame.evaluate(
             "document.body ? document.body.innerText + ' ' + "
             "Array.from(document.querySelectorAll('[aria-label]'))"
-            ".map(e => e.getAttribute('aria-label')).join(' ') : ''"
+            ".map(e => e.getAttribute('aria-label')).join(' ') + ' ' + "
+            "Array.from(document.querySelectorAll('[aria-describedby]'))"
+            ".flatMap(e => e.getAttribute('aria-describedby').split(/\\s+/))"
+            ".map(id => (document.getElementById(id) || {}).textContent || '')"
+            ".join(' ') : ''"
         )
         for frame in page.frames
     )
