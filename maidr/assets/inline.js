@@ -200,7 +200,7 @@
   // that does not fill, a phone's single column. A chart is given the same
   // size and place, less a line kept below it for maidr's text. inline.css
   // centres it across the card; the card scrolls to maidr's braille and
-  // review fields when they are open.
+  // review fields when they are open, and to a text longer than the line.
   var FITTED = '.html-fill-item > .maidr-inline';
 
   // The height of a line of maidr's text, which is set in the wrapper's.
@@ -302,6 +302,50 @@
         target.scrollIntoView({ block: 'nearest', inline: 'nearest' });
       }
     });
+  }
+
+  // maidr's text, below the chart, is given one line. A longer one -- a
+  // value that wraps in a narrow card -- grows past a card the chart fills,
+  // and the card is scrolled as far as it takes to show it, as the reader
+  // moves through the chart. The chart keeps its size: one that shrank and
+  // grew back as the text did would move every mark under a reader's
+  // magnifier. The instructions maidr shows as the chart takes the focus are
+  // left where they run: scrolled to, the chart would move away from a
+  // reader coming into it, and from under the pointer that clicked it.
+  var TEXT = '[id^="maidr-text-container"]';
+  var textObserver = null;
+  // The chart the reader has pressed a key in since the focus came into it.
+  var steered = null;
+
+  function showText(wrapper) {
+    if (!wrapper || wrapper !== steered || !wrapper.matches(FITTED) ||
+        !wrapper.contains(document.activeElement)) return;
+    var text = wrapper.querySelector(TEXT);
+    // The text's own element and the rotor's below it.
+    var area = text && text.parentElement;
+    if (!area) return;
+    var box = wrapper.parentElement;
+    var top = box.getBoundingClientRect().top + box.clientTop;
+    var r = area.getBoundingClientRect();
+    var over = r.bottom - (top + box.clientHeight);
+    // No further than keeps the text's first line in view.
+    if (over > 0.5) box.scrollTop += Math.min(over, Math.max(0, r.top - top));
+  }
+
+  // maidr.js puts its text in the chart's figure when the chart takes the
+  // focus, and takes it out when it loses it; the figure grows with it.
+  function watchText(target, from) {
+    var wrapper = wrapperOf(target);
+    if (wrapperOf(from) !== wrapper) steered = null;
+    if (!wrapper || !wrapper.matches(FITTED) || !window.ResizeObserver) return;
+    var figure = wrapper.querySelector('figure[id^="maidr-figure"]');
+    if (!figure) return;
+    if (!textObserver) {
+      textObserver = new ResizeObserver(function (entries) {
+        for (var i = 0; i < entries.length; i++) showText(wrapperOf(entries[i].target));
+      });
+    }
+    textObserver.observe(figure);
   }
 
   function fitCharts() {
@@ -714,6 +758,7 @@
 
   window.addEventListener('keydown', function (event) {
     if (!focusInChart()) return;
+    steered = wrapperOf(document.activeElement);
     shimHosts();
     handOff(event);
   }, true);
@@ -731,6 +776,7 @@
     if (target.matches && target.matches(PLOT)) describe(target);
     sizeDialogs(wrapperOf(target));
     keepInView(target);
+    watchText(target, event.relatedTarget);
   }, true);
 
   function onReady() {

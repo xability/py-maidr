@@ -856,11 +856,13 @@ import matplotlib.pyplot as plt
 {maidr}
 
 
+# Labels long enough for maidr's text of a value to take two lines.
 def bars(title):
     fig, ax = plt.subplots()
     ax.bar(["A", "B", "C", "D"], [3, 7, 2, 5])
     ax.set_title(title)
-    ax.set_xlabel("Store")
+    ax.set_xlabel("Store of the northern sales region")
+    ax.set_ylabel("Thousands of units sold over the last quarter")
     plt.show()
 ```
 
@@ -884,6 +886,50 @@ bars("East")
 def shared_cards(tmp_path_factory):
     """Two dashboards whose cards hold more than a chart, served."""
     yield from _served(tmp_path_factory.mktemp("shared"), _SHARED)
+
+
+#: maidr's text below a chart in a card, and the chart, against what of
+#: their box is shown.
+_TEXT_IN_VIEW = """() => {
+  const wrapper = document.activeElement.closest('.maidr-inline');
+  const area = wrapper.querySelector('[id^="maidr-text-container"]').parentElement;
+  const plot = wrapper.querySelector('figure[id^="maidr-figure"] > [tabindex]');
+  const box = area.closest('.cell-output-display');
+  const r = area.getBoundingClientRect(), b = box.getBoundingClientRect();
+  const top = b.top + box.clientTop, bottom = top + box.clientHeight;
+  const line = parseFloat(getComputedStyle(area).lineHeight);
+  return {text: area.textContent.trim(), lines: Math.round(r.height / line),
+    in_view: r.top >= top - 1 && r.bottom <= bottom + 1,
+    chart_in_view: plot.getBoundingClientRect().top >= top - 1};
+}"""
+
+
+def test_maidrs_text_is_in_view_in_a_card(browser: Browser, shared_cards):
+    """A value longer than the line kept for it: the card is scrolled to show it.
+
+    Below a chart whose share of its card's height is the limit. The
+    instructions maidr shows as the chart takes the focus, several lines
+    here, are left where they run: the chart stays where the reader, or
+    the pointer that clicked it, found it.
+    """
+    _plain, charted = shared_cards
+    page = _open(browser, charted, 1280, 800)
+    try:
+        page.wait_for_function(f"() => ({_BOUND})() === 3", timeout=60_000)
+        page.locator(_PLOT).first.focus()
+        page.wait_for_timeout(600)
+        instructions = page.evaluate(_TEXT_IN_VIEW)
+        page.keyboard.press("ArrowRight")
+        page.wait_for_timeout(600)
+        value = page.evaluate(_TEXT_IN_VIEW)
+    finally:
+        page.close()
+
+    assert instructions["lines"] > 1, instructions
+    assert instructions["chart_in_view"], instructions
+    # More than the line kept for it, below a chart that fills the rest.
+    assert value["lines"] > 1, value
+    assert value["in_view"], value
 
 
 @pytest.mark.parametrize("viewport", [(1280, 800), (390, 844)])

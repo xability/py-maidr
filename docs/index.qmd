@@ -1174,7 +1174,11 @@ Where a chart differs from Quarto's figure, on purpose or not:
   it. A card that holds more than the chart — two charts from one cell, or
   printed text before one — shares its height among them as it does among
   plain figures. The card scrolls to the braille and review fields when they
-  open. A dashboard also shows the value of every line of a cell, and Quarto
+  open, and to maidr's text when a value runs past its line, as a long one
+  does in a narrow card. The instructions maidr shows as the chart takes the
+  focus can run past it in a small card too, and are left there, so that
+  the chart stays where the reader found it; a screen reader reads them
+  out. A dashboard also shows the value of every line of a cell, and Quarto
   drops matplotlib's (`<BarContainer ...>`, `Text(0.5, 0, 'x')`) only beside
   an image: beside a chart they stay in its card. Draw the chart in a
   function, or assign those values (`_ = ax.set_xlabel("x")`).
