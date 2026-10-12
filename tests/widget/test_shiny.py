@@ -476,7 +476,48 @@ def test_the_route_is_named_for_the_output(fake_session):
     _render(first)
     _render(second)
 
-    assert set(fake_session._dynamic_routes) == {"maidr-first", "maidr-second"}
+    assert set(fake_session._dynamic_routes) == {"maidr_first", "maidr_second"}
+
+
+def test_a_chart_renders_inside_a_module(fake_session):
+    """A module's session names the route as an id, and a hyphen is not one.
+
+    ``SessionProxy.dynamic_route`` namespaces the name with ``ns()``, which
+    takes letters, digits and underscores only; ``maidr-<id>`` raised there,
+    so no ``render_maidr`` ever rendered inside a module. Shiny's own proxy
+    method is borrowed, over the fake root session, so the check is Shiny's.
+    """
+    from shiny import module
+    from shiny.session import session_context
+    from shiny.session._session import SessionProxy
+
+    class ModuleSession:
+        """A module's view of ``fake_session``, as ``SessionProxy`` gives it."""
+
+        def __init__(self, root) -> None:
+            self._root_session = root
+            self.id = root.id
+            self.app = root.app
+            self.ns = module.ResolvedId("mod")
+
+        dynamic_route = SessionProxy.dynamic_route
+
+        def on_ended(self, fn):
+            return self._root_session.on_ended(fn)
+
+        def _process_ui(self, ui):
+            return self._root_session._process_ui(ui)
+
+    @render_maidr
+    def chart():
+        return _bar_axes()
+
+    with session_context(ModuleSession(fake_session)):  # type: ignore[arg-type]
+        html = _render(chart)["html"]
+
+    assert set(fake_session._dynamic_routes) == {"mod-maidr_chart"}
+    assert "dynamic_route/mod-maidr_chart?" in html
+    assert "<svg" in _fetch(fake_session, html).body.decode()
 
 
 def test_the_route_serves_the_latest_render_and_holds_no_other(fake_session):

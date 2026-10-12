@@ -71,7 +71,7 @@ def test_the_chart_loads_from_a_session_route_and_the_flush_stays_small(
 
     frame = _chart_frame(page)
     assert frame is not None, "no chart frame found on the page"
-    assert "/dynamic_route/maidr-bars?" in frame.url, frame.url
+    assert "/dynamic_route/maidr_bars?" in frame.url, frame.url
     first_url = frame.url
 
     # The document at that URL is the whole chart -- the weight that used
