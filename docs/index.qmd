@@ -1110,7 +1110,8 @@ shows when the same cell runs without maidr (matplotlib_inline's):
 
 `%config InlineBackend.figure_formats = [...]`,
 `%config InlineBackend.print_figure_kwargs = {...}` and
-`set_matplotlib_formats(...)` all count, in any cell after `import maidr`.
+`set_matplotlib_formats(...)` all count, in any cell, before `import maidr`
+or after it.
 maidr's backend replaces the inline one, so `import maidr` lists the inline
 backend's settings with the kernel for `%config` to reach, as the inline
 backend does; once one of them is set, a figure left as a cell's last
