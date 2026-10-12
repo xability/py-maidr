@@ -242,7 +242,7 @@ cookieconsent.run({
 <meta name="DC.format" content="text/html">
 <meta name="DC.language" content="en">
 <meta name="DC.rights" content="GPL-3.0-or-later">
-<meta name="DC.date" content="2026-10-08">
+<meta name="DC.date" content="2026-10-12">
 </head>
 
 <body class="nav-sidebar docked nav-fixed quarto-light">
@@ -654,7 +654,7 @@ cookieconsent.run({
 <section id="sec-examples" class="level2">
 <h2 class="anchored" data-anchor-id="sec-examples">Matplotlib / Seaborn Examples</h2>
 <p>Making accessible data representation with <strong>maidr</strong> is easy and straightforward. If you already have data visualization code using <strong>matplotlib</strong> or <strong>seaborn</strong>, you can make your plots accessible with <strong>maidr</strong> in just a few lines of code. For <strong>Plotly</strong> examples, see the <a href="./examples-plotly.html">Plotly Examples</a> page, and for <strong>Altair</strong> the <a href="./examples-altair.html">Altair Examples</a> page.</p>
-<p>Simply <code>import maidr</code> and call <code>plt.show()</code> as usual. <strong>maidr</strong> automatically activates a custom matplotlib backend, so <code>plt.show()</code> renders accessible HTML output (with sonification, braille, and tactile support) instead of a static image.</p>
+<p>Simply <code>import maidr</code> and call <code>plt.show()</code> as usual. <strong>maidr</strong> automatically activates a custom matplotlib backend, so <code>plt.show()</code> renders accessible HTML output (with sonification, braille, and tactile support) instead of a static image. In a notebook a cell does not need <code>plt.show()</code>: as without maidr, the figures it draws are shown, as charts, when it ends.</p>
 <section id="custom-backend" class="level3">
 <h3 class="anchored" data-anchor-id="custom-backend">Custom Backend</h3>
 <p>When you <code>import maidr</code>, a custom matplotlib backend is automatically activated. This means <code>plt.show()</code> renders accessible HTML output instead of a static image.</p>
