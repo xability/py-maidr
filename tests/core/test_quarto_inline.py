@@ -1343,28 +1343,33 @@ def test_an_older_bundle_offline_carries_every_copy(quarto, bundled):
     assert _carries(html) == _ALL
 
 
-def test_a_chart_on_4_15_leaves_its_selectors_to_maidr_js():
-    """maidr.js 4.15.0 resolves each chart's selectors inside the chart."""
+@pytest.mark.parametrize("compat", [True, False])
+def test_a_chart_on_any_maidr_js_scopes_its_selectors(compat):
+    """Each chart's own schema: an older maidr.js may read it on a mixed page.
+
+    maidr.js 4.15.0 resolves each chart's selectors inside the chart, where
+    the scoping finds the same marks; on a page whose first chart was pinned
+    to an older maidr.js, that one reads this chart's schema too.
+    """
     markup = (
         f'<svg xmlns="{SVG}" id="{SVG_ID}"><g id="series"><path/></g>'
         f'<g id="maidr-{SVG_ID}"><path/></g></svg>'
     )
     svg = etree.fromstring(markup.encode())
-    scope = InlineScope("Chart", compat=False)
+    scope = InlineScope("Chart", compat=compat)
     schema = scope.scope(
         svg,
         {"layers": [{"selectors": ["g[id^='maidr-'] path", "g[id='series'] path"]}]},
     )
 
-    # Renamed with the ids, which are still the chart's own, but not scoped.
     assert schema["layers"][0]["selectors"] == [
-        "g[id^='maidr-'] path",
+        f"[id=\"{SVG_ID}\"] g[id^='maidr-'] path",
         f"g[id='series-{scope.key}'] path",
     ]
 
 
 @pytest.mark.parametrize(("pin", "compat"), [("4.15.0", False), (OLDER, True)])
-def test_a_render_scopes_its_selectors_only_for_an_older_maidr_js(
+def test_a_render_carries_the_copies_only_for_an_older_maidr_js(
     quarto, pinned, monkeypatch, pin, compat
 ):
     seen: list[InlineScope] = []

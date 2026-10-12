@@ -947,25 +947,64 @@ def test_a_selector_that_names_no_chart_finds_its_own_charts_marks(
 
     It matches both charts' lines. The bundled maidr.js looks for a chart's
     marks inside the chart (xability/maidr#1386); for the older one,
-    py-maidr scopes the selector to the chart's svg.
+    py-maidr scopes the selector to the chart's svg, which it does on every
+    maidr.js: see the next test.
     """
-    from lxml import html as lxml_html
-
-    unanchored = "g[id^='series'] path"
-    with mock.patch(
-        "maidr.core.plot.lineplot.MultiLinePlot._get_selector",
-        return_value=[unanchored],
-    ):
+    with _unanchored():
         outputs = _outputs(tmp_path, runtime is not None)
-    for output in outputs:
-        svg = lxml_html.fragment_fromstring(output, create_parent="div").xpath(
-            ".//svg[@maidr]"
-        )[0]
-        layer = json.loads(svg.get("maidr"))["subplots"][0][0]["layers"][0]
-        scoped = f'[id="{svg.get("id")}"] {unanchored}'
-        assert layer["selectors"] == [unanchored if runtime is None else scoped]
+    _assert_scoped(outputs)
     page = _page(browser, tmp_path, _deck(outputs))
     try:
         _highlights_own(page, 2)
     finally:
         page.close()
+
+
+def test_a_page_mixing_an_older_pin_and_the_bundle_highlights_each_charts_own(
+    browser, tmp_path, runtime
+):
+    """A chart pinned to 4.14.0, then one on the bundled maidr.js.
+
+    The first chart's loader loads 4.14.0 for the page, and the second chart
+    carries none of the copies; 4.14.0 reads its selectors across the page,
+    so they must be scoped to its svg all the same.
+    """
+    if runtime is None:
+        pytest.skip("the page runs the older maidr.js, which the first chart loads")
+    (tmp_path / "older").mkdir()
+    (tmp_path / "bundled").mkdir()
+    with _unanchored():
+        older = _outputs(tmp_path / "older", older=True)
+        bundled = _outputs(tmp_path / "bundled", older=False)
+    outputs = [older[0], bundled[1]]
+    _assert_scoped(outputs)
+    page = _page(browser, tmp_path, _deck(outputs))
+    try:
+        assert page.evaluate("window.maidrLive.version") is None  # 4.14.0
+        assert page.evaluate("window.maidrLive.features") is None
+        _highlights_own(page, 2)
+    finally:
+        page.close()
+
+
+#: A selector that names nothing of its chart's own: it matches both lines.
+_UNANCHORED = "g[id^='series'] path"
+
+
+def _unanchored():
+    return mock.patch(
+        "maidr.core.plot.lineplot.MultiLinePlot._get_selector",
+        return_value=[_UNANCHORED],
+    )
+
+
+def _assert_scoped(outputs: list[str]) -> None:
+    """Each chart's selector is scoped to its own svg."""
+    from lxml import html as lxml_html
+
+    for output in outputs:
+        svg = lxml_html.fragment_fromstring(output, create_parent="div").xpath(
+            ".//svg[@maidr]"
+        )[0]
+        layer = json.loads(svg.get("maidr"))["subplots"][0][0]["layers"][0]
+        assert layer["selectors"] == [f'[id="{svg.get("id")}"] {_UNANCHORED}']

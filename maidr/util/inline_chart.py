@@ -221,11 +221,9 @@ def carries_copies(use_cdn: bool | Literal["auto"]) -> bool:
     """Whether a chart in the page carries copies of what ``maidr.js`` does.
 
     Those copies are ``maidr/assets/inline-compat.js`` and
-    ``inline-compat.css``, and the scoping of a selector that names nothing of
-    the chart's own to the chart's ``<svg>`` (:class:`InlineScope`). They are
-    left out when every ``maidr.js`` the chart's loader may run is
-    :data:`COPIES_SHIPPED_IN` or newer, decided at render time from the
-    versions the page will load:
+    ``inline-compat.css``. They are left out when every ``maidr.js`` the
+    chart's loader may run is :data:`COPIES_SHIPPED_IN` or newer, decided at
+    render time from the versions the page will load:
 
     * under ``use_cdn=False``, the bundled copy the chart carries -- or, when
       the bundle is missing, the release :func:`maidr.util.cdn.bundled_cdn_url`
@@ -240,10 +238,15 @@ def carries_copies(use_cdn: bool | Literal["auto"]) -> bool:
     A version that cannot be compared -- a pin to ``latest``, whose URL
     jsDelivr and a browser may answer with a release cached a week ago, or a
     bundle whose ``VERSION`` will not read -- keeps them. So does a
-    prerelease of :data:`COPIES_SHIPPED_IN`. The page runs the first chart's
-    scripts and loads its ``maidr.js``, so a page whose charts were rendered
-    under different pins still gets copies when the runtime it loads needs
-    them. The copies leave the page's shortcuts to a ``maidr.js`` that guards
+    prerelease of :data:`COPIES_SHIPPED_IN`.
+
+    The first chart's loader loads the page's ``maidr.js``, and that chart
+    carries the copies when the runtime needs them, so a page whose charts
+    were rendered under different pins has them then; they act on the whole
+    page. The scoping of a selector to its chart's ``<svg>`` lives in each
+    chart's own schema instead, so it is never left out (:class:`InlineScope`).
+
+    The copies leave the page's shortcuts to a ``maidr.js`` that guards
     them itself (``maidrLive.features.hostGuards``), and are harmless beside
     it otherwise.
 
@@ -650,9 +653,12 @@ class InlineScope:
     A selector that names nothing unique to the chart once that is done --
     ``g[id^='maidr-'] path``, the fallback of a violin or regression layer
     with no group of its own -- is scoped to the chart's own ``<svg>``, so it
-    cannot find another chart's marks. That scoping is a copy of what
-    maidr.js 4.15.0 does itself, resolving each chart's selectors inside the
-    chart (xability/maidr#1386), and is left to it unless ``compat``.
+    cannot find another chart's marks. maidr.js 4.15.0 and later does as
+    much itself, resolving each chart's selectors inside the chart
+    (xability/maidr#1386), and the scoping is harmless there; it is kept
+    whatever ``compat`` says, because it lives in the chart's own schema,
+    which an older ``maidr.js`` reads when another chart's loader brings
+    that one to the page (:func:`carries_copies`).
 
     The SVG's ``<metadata>`` is dropped, and its ``<style>`` moves out of it,
     each rule scoped to the chart by a class of its own (:attr:`css`).
@@ -664,8 +670,8 @@ class InlineScope:
         #: What the chart is called until maidr.js names it.
         self.name = name
         #: Whether the chart carries copies of what an older maidr.js lacks:
-        #: the selector scoping above, ``inline-compat.js`` and
-        #: ``inline-compat.css`` (:func:`carries_copies`).
+        #: ``inline-compat.js`` and ``inline-compat.css``
+        #: (:func:`carries_copies`).
         self.compat = compat
         #: The author's alt text, from the cell's ``fig-alt``: the chart's name
         #: until maidr.js names it, and the first of its description after.
@@ -816,7 +822,7 @@ class InlineScope:
         parts = []
         for part in _split_selector(self._rename_in_selector(selector)):
             stripped = part.strip()
-            if stripped and self.compat and not self._anchored(stripped):
+            if stripped and not self._anchored(stripped):
                 part = f'[id="{self.svg_id}"] {stripped}'
             parts.append(part)
         return ",".join(parts)
