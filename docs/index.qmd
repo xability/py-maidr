@@ -1077,6 +1077,86 @@ inside that scope.
 @tbl-shortcuts is the canonical list. Where another section of this page
 mentions a key, it refers back to this table rather than restating the binding.
 
+## Jupyter Notebooks
+
+In a notebook — JupyterLab, Notebook 7, VS Code and Colab, and the HTML
+`nbconvert` exports of them — `plt.show()`, `maidr.show()` and `maidr.render()`
+show a chart in an iframe of its own, which keeps the notebook's shortcuts off
+the keys a reader presses in it.
+
+### Size and placement
+
+A matplotlib or seaborn chart has the size and shape of the image the notebook
+shows when the same cell runs without maidr (matplotlib_inline's). This was
+measured in JupyterLab and Notebook 7; VS Code and Colab run the same kernel
+code, but their own frontends were not measured:
+
+* **Cut to what is drawn**, through `InlineBackend.print_figure_kwargs`
+  (`bbox_inches="tight"` unless you set it otherwise, padded by `pad_inches`
+  or `savefig.pad_inches`), so an axis label below a small figure, a legend
+  placed beside or below the axes and long rotated tick labels are shown, and
+  the margins matplotlib leaves around the axes are not. With
+  `bbox_inches=None` the chart is the whole canvas, and with a `Bbox` of your
+  own that box. `savefig.bbox: tight`, in `rcParams` or a `matplotlibrc`, cuts
+  it the same way.
+* **Sized by the figure's dpi** (`figure.dpi`, `plt.subplots(dpi=...)`) with
+  `InlineBackend.figure_formats` `png` (the default), `retina` and `jpeg`, at
+  that many pixels to the inch, and at 96 pixels to the inch with `svg` and
+  `pdf`, as the image is. A `dpi` in `print_figure_kwargs` wins, and
+  `savefig.dpi` counts for neither.
+* **Sized by the figure's size in inches**: `figsize`,
+  `rcParams["figure.figsize"]`, `fig.set_size_inches()`, a seaborn figure's
+  `height` and `aspect`.
+* **Laid out as you laid it out.** A violin or regression chart keeps the
+  figure's own layout, or the layout engine it was given.
+
+`%config InlineBackend.figure_formats = [...]`,
+`%config InlineBackend.print_figure_kwargs = {...}` and
+`set_matplotlib_formats(...)` all count, in any cell, before `import maidr`
+or after it.
+maidr's backend replaces the inline one, so `import maidr` lists the inline
+backend's settings with the kernel for `%config` to reach, as the inline
+backend does; once one of them is set, a figure left as a cell's last
+expression is shown as the image it describes, as it is without maidr.
+
+**In a narrow output area** the chart shrinks to its width, keeping its shape,
+as the image does, rather than the output area scrolling sideways. That is
+the area's whole width: the 20px JupyterLab and Notebook 7 keep to the right
+of an HTML output, and not of an image, are the chart's too. maidr's
+text, braille and review fields keep to the same width.
+
+**While one of maidr's dialogs is open** — help, settings, the chat — the
+frame is as tall as the part of the notebook you see (the area JupyterLab and
+Notebook 7 scroll the notebook in, or the window of an exported page), and
+as wide as the dialog where the chart is narrower, and it is scrolled to the
+middle of that part, so that the dialog is shown whole. A chart taller than
+that keeps its height, and the dialog keeps to the part you see. The frame
+goes back to the chart's size when the dialog closes.
+
+Where a chart differs from the plain one:
+
+* **An `svg` image is not shrunk** by JupyterLab in a narrow output area, and
+  scrolls; the chart shrinks.
+* **plotnine** shows a plot itself, not through the inline backend: the whole
+  figure, `figure_size` at the theme's `dpi`, not cut to what is drawn. A
+  plotnine chart is sized so too.
+* **Plotly**: a figure with no height of its own is as tall as the notebook's
+  plotly renderer draws it — 360px with `plotly_mimetype`, JupyterLab's,
+  Notebook 7's and VS Code's, the default there, and 525px with plotly's HTML
+  renderers (`notebook`, `notebook_connected`, `colab` and the like). A
+  figure of a fixed width wider than the output area scrolls sideways, as the
+  plain figure does, though moving the focus into the chart scrolls the
+  output area back to its left edge, where maidr.js keeps the element that
+  takes the focus. A figure without a width of its own is as wide as the
+  output area when it is drawn, and keeps that width when the area later
+  narrows or widens.
+* **Bokeh**: a `sizing_mode` that stretches or scales the width fills the
+  output area. A plot of a fixed width wider than the output area scrolls
+  sideways, as the plain plot does.
+* **Altair**: a chart of `width="container"` fills the output area. A chart
+  of a fixed width wider than the output area scrolls sideways, where
+  JupyterLab's own Vega renderer shrinks it.
+
 ## Quarto Documents
 
 When Quarto renders a document to a web page — an `html` document, a website
@@ -1142,7 +1222,8 @@ runs without maidr:
   `InlineBackend.print_figure_kwargs`, `bbox_inches="tight"` unless you set
   it otherwise), so an axis label below a small figure or a legend placed
   beside the axes is shown, and the margins matplotlib leaves around the
-  axes are not.
+  axes are not. `savefig.bbox: tight`, in `rcParams` or a `matplotlibrc`,
+  cuts it the same way.
 * **Sized by `fig-dpi`** with `fig-format: retina` (the default), `png` or
   `jpeg`, at that many pixels to the inch, and at 96 pixels to the inch with
   `svg`, as Quarto's figure is.
@@ -1151,10 +1232,11 @@ runs without maidr:
   Quarto's Jupyter engine does not apply a cell's `fig-width` and
   `fig-height` to any figure, with maidr or without.
 * **Laid out as you laid it out.** A violin or regression chart keeps the
-  figure's own layout, or the layout engine it was given (`layout="constrained"`).
-  Anywhere else — a notebook, `save_html`, `show` — the chart is the figure's
-  canvas, and such a figure without a layout engine is laid out tight, so
-  that its axis labels fit on it.
+  figure's own layout, or the layout engine it was given (`layout="constrained"`),
+  as it does in a notebook (see *Jupyter Notebooks*). Anywhere else —
+  `save_html`, `show` outside a notebook — the chart is the figure's canvas,
+  and such a figure without a layout engine is laid out tight, so that its
+  axis labels fit on it.
 
 Where a chart differs from Quarto's figure, on purpose or not:
 

@@ -51,6 +51,7 @@ from maidr.util.cdn import (
 from maidr.util.environment import Environment
 from maidr.util.iframe_utils import with_chart_title, wrap_in_iframe_plotly
 from maidr.util.inline_chart import in_quarto_render
+from maidr.util.notebook_figure import in_notebook_frame
 from maidr.util.pyodide_display import show_in_page
 from maidr.util.quarto_cell import fig_alt as quarto_fig_alt
 
@@ -191,7 +192,10 @@ class AltairMaidr:
         ):
             # A Quarto cell's ``fig-alt`` names the frame.
             alt = quarto_fig_alt() if in_quarto_render(use_iframe) else None
-            return with_chart_title(self._wrap_in_iframe(base_html, alt), title)
+            frame = self._wrap_in_iframe(
+                base_html, alt, in_notebook=in_notebook_frame(use_iframe)
+            )
+            return with_chart_title(frame, title)
         return with_chart_title(base_html, title)
 
     def _create_html_doc(self, use_iframe: bool = True) -> HTMLDocument:
@@ -281,7 +285,9 @@ class AltairMaidr:
         ]
         return tags.div(*children)
 
-    def _wrap_in_iframe(self, inner: Tag, alt: str | None = None) -> Tag:
+    def _wrap_in_iframe(
+        self, inner: Tag, alt: str | None = None, *, in_notebook: bool = False
+    ) -> Tag:
         """Wrap ``inner`` in an auto-resizing iframe (notebook / Shiny / Flask).
 
         Delegates to :func:`maidr.util.iframe_utils.wrap_in_iframe_plotly`
@@ -297,8 +303,27 @@ class AltairMaidr:
         adapter reads the spec directly. Without a name the frame is
         announced as an unnamed frame (#453). The alt text of the Quarto
         cell the chart is drawn in, when there is one, names it instead.
+
+        A chart whose width is its container's (``width="container"``) is
+        as wide as a notebook's frame; see :meth:`_fills_width`.
         """
-        return wrap_in_iframe_plotly(inner, self._spec_title(), alt)
+        return wrap_in_iframe_plotly(
+            inner,
+            self._spec_title(),
+            alt,
+            in_notebook=in_notebook,
+            keep_padding=True,
+            fill_width=self._fills_width(),
+        )
+
+    def _fills_width(self) -> bool:
+        """Whether the chart takes the width of its container.
+
+        A Vega-Lite ``width`` of ``"container"``: vega-embed then sizes the
+        chart to the element it is embedded in, which maidr.js makes as wide
+        as what it holds, and the chart grew without end in it.
+        """
+        return self._spec.get("width") == "container"
 
     def _spec_title(self) -> str:
         """

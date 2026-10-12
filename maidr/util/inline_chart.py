@@ -147,6 +147,14 @@ def standalone_document() -> Iterator[None]:
         _STANDALONE.reset(token)
 
 
+def in_standalone_document() -> bool:
+    """Whether charts are being rendered as documents of their own just now.
+
+    See :func:`standalone_document`.
+    """
+    return _STANDALONE.get()
+
+
 def in_quarto_render(use_iframe: bool) -> bool:
     """Whether a chart rendered now becomes a cell output of a Quarto render.
 
@@ -201,7 +209,9 @@ _CSS_PX_PER_INCH = 96.0
 _POINTS_PER_INCH = 72.0
 
 
-def size_like_plain_figure(fig: Any, svg: Any) -> None:
+def size_like_plain_figure(
+    fig: Any, svg: Any, shown_as: tuple[str | None, dict[str, Any]] | None = None
+) -> None:
     """Give a chart's ``<svg>`` the size and shape the page gives a plain figure.
 
     A Quarto render shows a plain matplotlib figure through the kernel's
@@ -224,9 +234,16 @@ def size_like_plain_figure(fig: Any, svg: Any) -> None:
     and one given a box of its own that box; its ``dpi`` and ``pad_inches``
     count as they do for the plain figure.
 
-    Left as matplotlib wrote it when the box cannot be measured, or the SVG
-    is not the whole canvas in points (``savefig.bbox`` cut it already): its
-    coordinates would not be the figure's then.
+    An SVG ``savefig.bbox: tight`` cut already is the figure's tight box, the
+    one the plain figure shows unless it is given a box of its own: it keeps
+    that box, and is sized as the plain figure is, at its pixels to the inch.
+    Left as matplotlib wrote it when the box cannot be measured, or when the
+    SVG was cut and the plain figure shows another box: its coordinates are
+    not the figure's then.
+
+    A notebook shows a plain figure the same way, and a chart in its frame
+    is sized here too, from what :func:`maidr.util.notebook_figure.notebook_figure_format`
+    reads of the kernel's inline backend.
 
     Parameters
     ----------
@@ -234,13 +251,21 @@ def size_like_plain_figure(fig: Any, svg: Any) -> None:
         The figure the SVG was saved from, after the save.
     svg : lxml.etree._Element
         Its root ``<svg>``.
+    shown_as : tuple of (str or None, dict), optional
+        The format the plain figure is shown in and the ``savefig``
+        arguments it is shown with, as IPython's ``print_figure`` takes them.
+        By default those of the kernel's figure formatter, in the page of a
+        Quarto render.
     """
     try:
         width_in, height_in = (float(v) for v in fig.get_size_inches())
         canvas = (0.0, 0.0, width_in * _POINTS_PER_INCH, height_in * _POINTS_PER_INCH)
+        figure_format, keywords = (
+            _plain_figure_format() if shown_as is None else shown_as
+        )
         if not _is_view_box(svg.get("viewBox"), canvas):
+            _size_cut_svg(fig, svg, figure_format, keywords)
             return
-        figure_format, keywords = _plain_figure_format()
         box = _shown_box(fig, figure_format, keywords)
         if box is None:
             x0, y1, width, height = 0.0, height_in, width_in, height_in
@@ -274,6 +299,52 @@ def size_like_plain_figure(fig: Any, svg: Any) -> None:
     svg.set("height", f"{_number(height * per_inch)}px")
     if backdrop is not None:
         svg.insert(0, svg.makeelement(f"{_SVG}path", backdrop))
+
+
+def _size_cut_svg(
+    fig: Any, svg: Any, figure_format: str | None, keywords: dict[str, Any]
+) -> None:
+    """Size an SVG ``savefig.bbox: tight`` cut as the plain figure is shown.
+
+    The cut is the figure's tight box, which the plain figure shows too
+    unless the formatter's ``bbox_inches`` names a box of its own. Its
+    ``viewBox`` is that box in points; it is kept, and the SVG given the
+    width and height the plain figure is shown at. Left as it is otherwise.
+
+    The size is the box as the plain figure's own save measures it, at its
+    dpi (``_shown_box``), not the box the SVG save measured at 72: hinted
+    text can put the two a pixel or so apart, which the ``viewBox``'s
+    default ``xMidYMid meet`` takes up.
+    """
+    import matplotlib as mpl
+
+    if mpl.rcParams["savefig.bbox"] != "tight":
+        return
+    bbox_inches = keywords.get("bbox_inches", "tight")
+    if bbox_inches is None:
+        bbox_inches = mpl.rcParams["savefig.bbox"]
+    if not (isinstance(bbox_inches, str) and bbox_inches == "tight"):
+        return
+    try:
+        numbers = [
+            float(v) for v in (svg.get("viewBox") or "").replace(",", " ").split()
+        ]
+    except ValueError:
+        return
+    if len(numbers) != 4 or not all(v == v and abs(v) != float("inf") for v in numbers):
+        return
+    width, height = numbers[2] / _POINTS_PER_INCH, numbers[3] / _POINTS_PER_INCH
+    if not (width > 0 and height > 0):
+        return
+    try:
+        shown = _shown_box(fig, figure_format, keywords)
+    except Exception:
+        shown = None
+    if shown is not None and shown.width > 0 and shown.height > 0:
+        width, height = shown.width, shown.height
+    per_inch = _px_per_inch(fig, figure_format, keywords)
+    svg.set("width", f"{_number(width * per_inch)}px")
+    svg.set("height", f"{_number(height * per_inch)}px")
 
 
 def _number(value: float) -> str:
@@ -411,8 +482,11 @@ def _backdrop(
 
     In the colour the SVG painted the canvas -- the figure's face colour,
     unless ``savefig.facecolor`` or ``savefig.transparent`` say otherwise --
-    as the plain figure paints all of its box. The canvas is left out of the
-    path, so a colour that is not opaque is not laid over itself. None when
+    as the plain figure paints all of its box. An opaque colour paints the
+    whole box, under the canvas: left out of the path, the canvas's edge and
+    the path's, each drawn smoothed, let a hairline of the page show between
+    them. A colour that is not opaque leaves the canvas out, so that it is
+    not laid over itself. None when
     the box lies within the canvas or the colour is transparent, or when the
     figure's patch is hidden, which leaves the canvas unpainted in the SVG
     and the whole box in the plain figure.
@@ -437,7 +511,7 @@ def _backdrop(
     inner = (max(left, 0.0), max(top, 0.0), min(right, canvas_w), min(bottom, canvas_h))
     outer = (left, top, right, bottom)
     subpaths = [outer]
-    if inner[0] < inner[2] and inner[1] < inner[3]:
+    if rgba[3] < 1 and inner[0] < inner[2] and inner[1] < inner[3]:
         subpaths.append(inner)
     d = " ".join(
         f"M {_number(x0)} {_number(y0)} H {_number(x1)} V {_number(y1)} "
@@ -712,10 +786,12 @@ class InlineScope:
 
 @lru_cache(maxsize=None)
 def _asset(name: str) -> str:
-    """One of ``maidr/assets/inline.{js,css}``, its comments and indents dropped.
+    """One of ``maidr/assets/``, its comments and indents dropped.
 
-    Every chart carries them, so that a chart whose cell hides its output
-    takes nothing from the charts after it; they run once per page.
+    Every chart carries ``inline.{js,css}``, so that a chart whose cell hides
+    its output takes nothing from the charts after it; they run once per
+    page. Every notebook frame carries ``frame.css``; see
+    :func:`maidr.util.iframe_utils.frame_style`.
     """
     text = resources.files("maidr").joinpath("assets", name).read_text(encoding="utf-8")
     text = re.sub(r"/\*.*?\*/", "", text, flags=re.S)

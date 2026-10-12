@@ -301,27 +301,35 @@ def test_the_area_past_the_canvas_is_painted_in_the_figures_colour(kernel):
     assert backdrop is not None
     assert "fill: #336699" in backdrop.get("style")
     assert "fill-opacity" not in backdrop.get("style")
-    # The box, less the part of the canvas inside it, so nothing is painted twice.
+    # The whole box, under the canvas: a path with the canvas cut out of it
+    # let a hairline of the page show where its edge met the canvas's.
     left, top, width, height = _view(svg)
     subpaths = [s.split() for s in backdrop.get("d").split("Z") if s.strip()]
-    assert len(subpaths) == 2
+    assert len(subpaths) == 1
     outer = [float(subpaths[0][i]) for i in (1, 2, 4, 6)]
     assert outer == pytest.approx([left, top, left + width, top + height], abs=0.001)
-    inner = [float(subpaths[1][i]) for i in (1, 2, 4, 6)]
-    assert inner == pytest.approx(
-        [max(left, 0), max(top, 0), min(left + width, 288), min(top + height, 216)],
-        abs=0.001,
-    )
 
 
 def test_a_translucent_face_keeps_its_alpha(kernel):
     kernel("retina")
     fig, _ = _figure(facecolor=(1, 0, 0, 0.5))
 
-    style = _backdrop(_sized(fig)).get("style")
+    svg = _sized(fig)
+    backdrop = _backdrop(svg)
+    style = backdrop.get("style")
 
     assert "fill: #ff0000" in style
     assert "fill-opacity: 0.5" in style
+    # The box, less the part of the canvas inside it, so that the colour is
+    # not laid over itself there.
+    left, top, width, height = _view(svg)
+    subpaths = [s.split() for s in backdrop.get("d").split("Z") if s.strip()]
+    assert len(subpaths) == 2
+    inner = [float(subpaths[1][i]) for i in (1, 2, 4, 6)]
+    assert inner == pytest.approx(
+        [max(left, 0), max(top, 0), min(left + width, 288), min(top + height, 216)],
+        abs=0.001,
+    )
 
 
 @pytest.mark.parametrize(
@@ -395,9 +403,47 @@ def test_only_the_root_changes(kernel):
     assert after[0].tag == f"{SVG}path"
 
 
-def test_an_svg_the_save_already_cut_is_left_as_it_is(kernel):
-    """``savefig.bbox: tight`` cuts maidr's own SVG, whose points are not the figure's."""
-    kernel("retina")
+@pytest.mark.parametrize("figure_format", ["retina", "png", "svg"])
+@pytest.mark.parametrize("dpi", [96, 150])
+def test_an_svg_the_save_already_cut_is_sized_as_the_plain_figure(
+    kernel, figure_format, dpi
+):
+    """``savefig.bbox: tight`` cut maidr's own SVG to the box the plain figure shows.
+
+    It was left at its size in points, 96 pixels to the inch, whatever the
+    figure's dpi: a third smaller than the plain figure at a dpi of 150.
+    """
+    kernel(figure_format)
+    fig, _ = _figure(dpi=dpi)
+    with plt.rc_context({"savefig.bbox": "tight"}):
+        svg = _svg(fig)
+        before = copy.deepcopy(svg)
+        size_like_plain_figure(fig, svg)
+        if figure_format == "retina":
+            _, shown = retina_figure(fig)
+            width, height = shown["width"], shown["height"]
+        elif figure_format == "png":
+            width, height = _png_size(print_figure(fig, "png", bbox_inches="tight"))
+        else:
+            plain = etree.fromstring(
+                print_figure(fig, "svg", bbox_inches="tight").encode()
+            )
+            # Points, which the page shows at 96 to the inch.
+            width = float(plain.get("width").removesuffix("pt")) * 96 / 72
+            height = float(plain.get("height").removesuffix("pt")) * 96 / 72
+
+    # The box the save cut, and nothing in it moved.
+    assert svg.get("viewBox") == before.get("viewBox")
+    assert [e.attrib for e in svg.iterdescendants()] == [
+        e.attrib for e in before.iterdescendants()
+    ]
+    assert _px(svg.get("width")) == pytest.approx(width, abs=1.5)
+    assert _px(svg.get("height")) == pytest.approx(height, abs=1.5)
+
+
+def test_an_svg_the_save_cut_is_left_as_it_is_for_a_box_of_its_own(kernel):
+    """The plain figure shows another box than the one the save cut."""
+    kernel("retina", bbox_inches=Bbox([[0.5, 0.5], [3.5, 2.5]]))
     fig, _ = _figure()
     with plt.rc_context({"savefig.bbox": "tight"}):
         svg = _svg(fig)

@@ -289,6 +289,22 @@ except Exception:  # pragma: no cover - never block import on notebook setup
     _logger.debug("init_notebook() raised during import", exc_info=True)
 
 
+# A chart in a notebook takes the size of the image the inline backend would
+# show of its figure, and ``%config InlineBackend...`` sets that; it reaches
+# only what the shell lists, and with maidr's backend nothing lists the
+# inline backend's settings unless this does. See
+# ``maidr/util/notebook_figure.py``.
+try:
+    from .util.environment import Environment as _Environment  # noqa: E402
+
+    if _Environment.is_notebook():
+        from .util.notebook_figure import register_inline_backend  # noqa: E402
+
+        register_inline_backend()
+except Exception:  # pragma: no cover - never block import on notebook setup
+    _logger.debug("registering the inline backend's settings raised", exc_info=True)
+
+
 __all__ = [
     "BUNDLE_WARNING_ENV_VAR",
     "BUNDLED_TAG",

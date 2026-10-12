@@ -216,11 +216,39 @@ class _PlotnineFigure(Maidr):
     def _figure_metadata(self) -> dict:
         return dict(self._metadata)
 
+    def _plain_figure_shown_as(self) -> tuple[str | None, dict[str, Any]]:
+        """How a notebook shows the ``ggplot`` drawn without maidr.
+
+        plotnine shows a plot itself (``ggplot._repr_mimebundle_``), not
+        through matplotlib_inline's formatter: the whole figure, not cut to
+        what is drawn, at the theme's ``dpi`` -- which the drawn figure has
+        -- in plotnine's ``figure_format`` option, else the kernel's
+        ``InlineBackend.figure_format`` configuration, else ``retina``.
+        """
+        return _plotnine_figure_format(), {"bbox_inches": None}
+
     def _grid_coordinates(self) -> tuple[Callable[[int], int], Callable[[int], int]]:
         return (lambda row: row), (lambda col: col)
 
     def _drop_superseded_layers(self) -> None:
         return None
+
+
+def _plotnine_figure_format() -> str:
+    """The format plotnine shows a plot in, in a notebook, as it decides it."""
+    try:
+        from plotnine.options import get_option
+
+        chosen = get_option("figure_format")
+        if not chosen:
+            from IPython import get_ipython
+
+            shell = get_ipython()
+            if shell is not None:
+                chosen = shell.config.InlineBackend.get("figure_format")
+    except Exception:
+        chosen = None
+    return str(chosen) if chosen else "retina"
 
 
 def _read(built: Any, drawn: list) -> tuple[list[PlotnineLayer], dict]:
