@@ -798,12 +798,17 @@ def _shiny_frame_version() -> str:
 
     The digest is in the URL Shiny serves it from, so that a browser holding
     an older copy fetches the new one even where the package's version has
-    not moved, as it does not between development builds.
+    not moved, as it does not between development builds. It is a local
+    version label led by ``g``, as setuptools-scm writes a commit's: twelve
+    hex digits that happened to be all numbers with a leading zero would
+    otherwise be normalised -- ``0123`` to ``123`` -- and the version Shiny
+    serves it under would not be the one written here.
     """
     from maidr import __version__
 
     text = (SHINY_FRAME_DIR / SHINY_FRAME_FILE).read_bytes()
-    return f"{__version__}+{hashlib.sha256(text).hexdigest()[:12]}"
+    local = "." if "+" in __version__ else "+"
+    return f"{__version__}{local}g{hashlib.sha256(text).hexdigest()[:12]}"
 
 
 def shiny_frame_dependency() -> HTMLDependency:

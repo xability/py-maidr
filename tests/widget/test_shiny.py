@@ -18,6 +18,7 @@ from urllib.parse import unquote
 
 import matplotlib
 import pytest
+from packaging.version import Version
 
 matplotlib.use("Agg")
 
@@ -35,6 +36,7 @@ from maidr.util.dependencies import maidr_js_version, read_bundled_js  # noqa: E
 from maidr.util.iframe_utils import (  # noqa: E402
     SHINY_FRAME_NAME,
     SHINY_FRAME_ROUTE,
+    _shiny_frame_version,
     shiny_frame_script,
 )
 from maidr.util.locale_pack import get_locale_base_url  # noqa: E402
@@ -428,9 +430,11 @@ def test_the_frame_script_is_served_once_rather_than_sent(fake_session):
     source = Path(served.source_path_map()["source"]) / "frame.js"
     assert source.read_text(encoding="utf-8") == shiny_frame_script()
     # Versioned by its content, so a browser never keeps a stale copy.
-    assert str(served.version).endswith(
-        "+" + hashlib.sha256(source.read_bytes()).hexdigest()[:12]
-    )
+    digest = hashlib.sha256(source.read_bytes()).hexdigest()[:12]
+    assert str(served.version).endswith("+g" + digest), served.version
+    # A local label packaging keeps as written, whatever the digits.
+    assert str(Version(_shiny_frame_version())) == _shiny_frame_version()
+    assert str(Version("1.26.0+g012345678901")) == "1.26.0+g012345678901"
 
 
 @pytest.mark.parametrize("plotly", [False, True])
