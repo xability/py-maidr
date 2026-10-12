@@ -229,7 +229,8 @@ def flush_figures() -> None:
         from matplotlib._pylab_helpers import Gcf
 
         open_figures = [manager.canvas.figure for manager in Gcf.get_all_fig_managers()]
-        if _close_figures():
+        close = _close_figures()
+        if close:
             shown = open_figures
         else:
             shown = [fig for fig in _state.to_draw if fig in open_figures]
@@ -238,7 +239,7 @@ def flush_figures() -> None:
                 if figure not in _state.displayed:
                     _show(figure)
         finally:
-            if _close_figures() and Gcf.get_all_fig_managers():
+            if close and Gcf.get_all_fig_managers():
                 import matplotlib.pyplot as plt
 
                 plt.close("all")
@@ -436,6 +437,8 @@ def install(shell: Any = None) -> bool:
         )
         _register_figure_formatter(shell)
         _hook_ipywidgets()
+        # Once per process: a later install, from set_backend(True), must not
+        # undo a plt.ioff() the reader made since.
         if _state.shell is None:
             matplotlib.interactive(True)
         _state.shell = shell
