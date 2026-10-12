@@ -244,8 +244,14 @@
         }
         // A chart that takes its height from its container -- a Plotly
         // figure with no height of its own, a Bokeh plot stretched or
-        // scaled to it -- given this height.
-        function maidrFillHeight(doc, height) {
+        // scaled to it -- given this height. plotly.js draws it again at
+        // that height later, after a debounce: the frame was measured
+        // before it had, and kept the old plot's height until something
+        // else measured it -- full screen left a Plotly chart's text below
+        // its frame, out of sight. ``redrawn`` measures it once plotly.js
+        // has drawn it; the height is then the one set, so that measuring
+        // resizes nothing.
+        function maidrFillHeight(doc, height, redrawn) {
             var plot = doc.querySelector(
                 '.js-plotly-plot, [id^="maidr-bokeh-"][id$="-plot"]'
             );
@@ -258,7 +264,7 @@
                     && plot._fullLayout) {
                 try {
                     var done = plotly.Plots.resize(plot);
-                    if (done && done.catch) done.catch(function() {});
+                    if (done && done.then) done.then(redrawn, redrawn);
                 } catch (_) {}
             }
         }
@@ -532,7 +538,9 @@
             if (options.fillHeight) {
                 maidrFillHeight(doc, fit.room > 0
                     ? fit.room - maidrTextLine(doc)
-                    : options.fillHeight);
+                    : options.fillHeight, function() {
+                        requestAnimationFrame(resizeIframe);
+                    });
             }
 
             // WIDTH, in a notebook: a chart of a fixed width wider than the

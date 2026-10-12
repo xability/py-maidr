@@ -428,16 +428,18 @@ def test_a_dialog_is_shown_whole_in_a_short_output(browser, shiny_size_app_url, 
         page.close()
 
 
-#: How much of an element in the chart's frame is on screen, in page pixels:
-#: cut by the frame, by every container of it that clips, and by the window.
-_SHOWN = r"""(selector) => {
+#: How much of an element in the chart's frame is shown, in page pixels:
+#: cut by the frame, by every container of it that clips, and, unless
+#: ``inPage`` (what scrolling the page would show), by the window.
+_SHOWN = r"""([selector, inPage]) => {
   const frame = document.querySelector('#m iframe');
   const el = frame.contentDocument.querySelector(selector);
   if (!el) return null;
   const f = frame.getBoundingClientRect();
   const r = el.getBoundingClientRect();
-  let top = Math.max(r.top + f.top, f.top, 0);
-  let bottom = Math.min(r.bottom + f.top, f.bottom, window.innerHeight);
+  let top = Math.max(r.top + f.top, f.top, inPage ? -Infinity : 0);
+  let bottom = Math.min(
+    r.bottom + f.top, f.bottom, inPage ? Infinity : window.innerHeight);
   for (let a = frame.parentElement; a && a !== document.body; a = a.parentElement) {
     if (getComputedStyle(a).overflowY === 'visible') continue;
     const ar = a.getBoundingClientRect();
@@ -486,7 +488,7 @@ def test_a_dialog_is_shown_whole_in_a_card_that_follows_its_content(
             ".setAttribute('data-close', '')"
         )
         for part in (".MuiDialog-paper", "[data-close]"):
-            shown = page.evaluate(_SHOWN, part)
+            shown = page.evaluate(_SHOWN, [part, False])
             assert shown["shown"] >= shown["height"] - 1, (part, shown, dialog)
 
         page.keyboard.press("Escape")
@@ -628,6 +630,46 @@ def test_a_plotly_chart_fills_a_card_and_full_screen(browser, shiny_size_app_url
         # plotly.js throws once ("reading 'mo'") when it is resized with a
         # point highlighted; that is all.
         assert all("'mo'" in error for error in page.errors), page.errors  # type: ignore[attr-defined]
+    finally:
+        page.close()
+
+
+@pytest.mark.parametrize("width", [1280, 390])
+def test_a_plotly_charts_frame_follows_its_box(browser, shiny_size_app_url, width):
+    """Full screen and back, and a window made shorter and taller.
+
+    plotly.js draws the chart at its new height after a debounce, and the
+    frame was measured before it had: entering full screen at 390px left
+    the text line below the frame, out of sight, a taller window at 1280px
+    likewise, and leaving full screen left the frame as tall as the full
+    screen chart had been, 276px of it blank.
+    """
+    page = _open(browser, f"{shiny_size_app_url}/plotly_card/", width)
+    try:
+        frame = _chart_frame(page)
+        frame.locator(CHART).first.focus()
+        page.wait_for_timeout(400)
+        page.keyboard.press("ArrowRight")
+        page.wait_for_timeout(800)
+
+        def assert_text_shown(when: str) -> None:
+            seen = _settle(page)
+            shown = page.evaluate(_SHOWN, ["#maidr-text-container", True])
+            assert shown is not None, when
+            assert shown["shown"] >= shown["height"] - 1, (when, shown, seen)
+            # And no more: the frame is the chart and its line.
+            assert seen["frame"]["height"] <= _plot_height(page) + 60, (when, seen)
+
+        assert_text_shown("in the card")
+        _full_screen(page, True)
+        assert_text_shown("full screen")
+        _full_screen(page, False)
+        assert_text_shown("back from full screen")
+        page.set_viewport_size({"width": width, "height": 500})
+        assert_text_shown("in a 500px window")
+        page.set_viewport_size({"width": width, "height": 900})
+        assert_text_shown("in a 900px window")
+        assert "Apples" in frame.evaluate(_READING)["said"]
     finally:
         page.close()
 
