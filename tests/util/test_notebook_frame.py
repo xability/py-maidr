@@ -34,7 +34,11 @@ from maidr.core.figure_manager import FigureManager  # noqa: E402
 from maidr.util.environment import Environment  # noqa: E402
 from maidr.util.iframe_utils import (  # noqa: E402
     FRAME_SVG_CLASS,
+    SHINY_FRAME_DIR,
+    SHINY_FRAME_FILE,
+    SHINY_FRAME_NAME,
     frame_style,
+    shiny_frame_script,
     wrap_in_iframe_matplotlib,
     wrap_in_iframe_plotly,
 )
@@ -318,20 +322,24 @@ def test_a_shiny_apps_frame_fits_its_output(monkeypatch):
 
     raw = _render(_bar())
     html = html_module.unescape(raw)
+    script = shiny_frame_script()
 
     assert 'srcdoc="&lt;style&gt;' in raw
     assert re.search(rf'<svg[^>]*class="{FRAME_SVG_CLASS}"', html)
-    assert "let fitsOutput = true;" in html
+    # The frame names the served script, which does the sizing.
+    assert "maidrShinyFrame(f,'matplotlib',{})" in html
+    assert "function resizeIframe" not in html
+    assert "let fitsOutput = true;" in script
     # No padding to take back, as a notebook's output area has.
-    assert "let keepsPadding = true;" in html
-    assert "let fitsBox = true;" in html
-    assert "maidrWatchBox(iframe, scheduleResize);" in html
+    assert "let keepsPadding = true;" in script
+    assert "let fitsBox = true;" in script
+    assert "maidrWatchBox(iframe, scheduleResize);" in script
     assert "display: block" in html
 
 
 def test_a_shiny_frame_fits_the_chart_to_a_box_with_a_height():
     """Fitted as object-fit: contain fits an image, a line kept for the text."""
-    script = _attribute(_frame(in_shiny=True), "onload")
+    script = shiny_frame_script()
 
     for part in (
         "function maidrBoxRoom(iframe)",
@@ -349,13 +357,38 @@ def test_a_shiny_frame_fits_the_chart_to_a_box_with_a_height():
     assert "function maidrBoxRoom" not in _attribute(_frame(in_notebook=True), "onload")
 
 
-def test_a_shiny_frames_script_is_compact_but_whole():
-    """Sent with every flush, so without comments; the same script otherwise."""
-    shiny = _attribute(_frame(in_shiny=True), "onload")
-    notebook = _attribute(_frame(in_notebook=True), "onload")
+def test_a_shiny_frame_names_the_served_script():
+    """The script rides no flush: the frame's onload names its kind alone."""
+    matplotlib = _frame(in_shiny=True)
+    plotly = wrap_in_iframe_plotly(
+        tags.div("chart"), "Sales", in_shiny=True, fill_width=True
+    )
 
-    assert "//" not in shiny
-    assert "\n            " not in shiny
-    assert len(shiny) < len(notebook)
-    for statement in ("resizeIframe();", "maidrShowField(iframeDocument, resized);"):
-        assert statement in shiny
+    for tag, call in (
+        (matplotlib, "maidrShinyFrame(f,'matplotlib',{})"),
+        (plotly, "maidrShinyFrame(f,'plotly',{\"widens\":false})"),
+    ):
+        onload = _attribute(tag, "onload")
+        assert call in onload, onload
+        assert len(onload) < 200
+        [dependency] = tag.get_dependencies()
+        assert dependency.name == SHINY_FRAME_NAME
+    # Each kind reads the frame it was handed, not one found by its id.
+    script = shiny_frame_script()
+    assert "getElementById" not in script
+    assert "var widens = options.widens;" in script
+    assert "window.maidrShinyFrame = function (frame, kind, options)" in script
+    # A notebook's frame still carries its own.
+    assert "function resizeIframe" in _attribute(_frame(in_notebook=True), "onload")
+    assert not _frame(in_notebook=True).get_dependencies()
+
+
+def test_the_served_frame_script_is_the_one_written_out():
+    """``maidr/assets/shiny/frame.js`` is :func:`shiny_frame_script`, written."""
+    written = (SHINY_FRAME_DIR / SHINY_FRAME_FILE).read_text(encoding="utf-8")
+
+    assert written == shiny_frame_script(), (
+        "maidr/assets/shiny/frame.js is out of date; write it again with "
+        "python -c 'from maidr.util.iframe_utils import "
+        "write_shiny_frame_script; write_shiny_frame_script()'"
+    )

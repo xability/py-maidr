@@ -12,9 +12,13 @@ plots in Jupyter notebooks, Google Colab, VSCode, Flask, and Shiny environments.
 # outright on the oldest supported interpreter.
 from __future__ import annotations
 
+import hashlib
+import json
 import uuid
+from functools import lru_cache
+from pathlib import Path
 
-from htmltools import Tag, tags
+from htmltools import HTMLDependency, Tag, tags
 
 # What the frame is called when the chart it holds has no title of its own.
 _UNTITLED_NAME = "Accessible chart"
@@ -520,42 +524,129 @@ _NOTEBOOK_LISTENERS_JS = """
 """
 
 
-def _compact_js(script: str) -> str:
-    """A frame's script without its indentation, blank lines and comment lines.
+#: Where a Shiny app's frames find their script: see :func:`shiny_frame_script`.
+SHINY_FRAME_DIR = Path(__file__).resolve().parent.parent / "assets" / "shiny"
+SHINY_FRAME_FILE = "frame.js"
 
-    A Shiny app sends the frame, script and all, over its websocket with
-    every flush of the output; the comments and indentation were half of
-    what it sent, and every line break is five bytes in an attribute
-    (``&#10;``). A line is joined to the next only where it ends in what
-    cannot end a statement -- ``{``, ``;``, ``,``, ``(``, an operator --
-    so nothing that relies on a line break, a statement without its
-    semicolon, changes.
+#: The dependency that serves it, under ``lib/<name>-<version>/``.
+SHINY_FRAME_NAME = "maidr-shiny-frame"
 
-    Parameters
-    ----------
-    script : str
-        The script.
+
+def shiny_frame_script() -> str:
+    """The script every chart frame in a Shiny app sizes itself with.
+
+    A Shiny app sends a frame, ``onload`` and all, over its websocket with
+    every flush of the output, and the script that sizes it was most of
+    what it sent: 11 KB, every chart, every time an input moved. It is
+    served once instead, as :func:`shiny_frame_dependency`, which the
+    browser keeps, and a frame's ``onload`` only names its kind and its
+    options (:func:`_shiny_onload`). What it runs is what a notebook's
+    frame runs, and the fitting to the output's box only Shiny's needs;
+    see :data:`_BOX_JS`.
+
+    ``maidr/assets/shiny/frame.js`` is this, written out; a test keeps the
+    two the same. After changing what goes into it, write it again::
+
+        python -c "from maidr.util.iframe_utils import write_shiny_frame_script; write_shiny_frame_script()"
 
     Returns
     -------
     str
-        The same script, smaller.
+        The script.
     """
-    lines = [line.strip() for line in script.splitlines()]
-    kept = [line for line in lines if line and not line.startswith("//")]
-    out: list[str] = []
-    for line in kept:
-        # Never onto a line with a comment at its end, which would take
-        # the joined line into the comment.
-        if (
-            out
-            and "//" not in out[-1]
-            and out[-1].endswith(("{", ";", ",", "(", "&&", "||", "?", ":", "="))
-        ):
-            out[-1] += " " + line
-        else:
-            out.append(line)
-    return "\n".join(out)
+    helpers = _NOTEBOOK_JS + _WATCH_JS + _BOX_JS + _WATCH_BOX_JS
+    matplotlib = _matplotlib_resizer("frame", fits_output=True, in_shiny=True)
+    plotly = _plotly_resizer("frame", fits_output=True, in_shiny=True)
+    script = f"""// The script that sizes a maidr chart's frame in a Shiny app, served
+// once rather than sent with every flush of the output. Written by
+// maidr/util/iframe_utils.py (shiny_frame_script); do not edit by hand.
+(function () {{
+    if (window.maidrShinyFrame) return;
+{helpers}
+    function matplotlibFrame(frame, options) {{
+{matplotlib}
+    }}
+    function plotlyFrame(frame, options) {{
+{plotly}
+    }}
+    window.maidrShinyFrame = function (frame, kind, options) {{
+        (kind === 'plotly' ? plotlyFrame : matplotlibFrame)(frame, options || {{}});
+    }};
+}})();
+"""
+    lines = (line.rstrip() for line in script.splitlines())
+    return "\n".join(lines).replace("\n\n\n", "\n\n") + "\n"
+
+
+def write_shiny_frame_script() -> None:
+    """Write :func:`shiny_frame_script` to ``maidr/assets/shiny/frame.js``."""
+    (SHINY_FRAME_DIR / SHINY_FRAME_FILE).write_text(
+        shiny_frame_script(), encoding="utf-8"
+    )
+
+
+@lru_cache(maxsize=1)
+def _shiny_frame_version() -> str:
+    """The served script's version: the package's, and its content's digest.
+
+    The digest is in the URL Shiny serves it from, so that a browser holding
+    an older copy fetches the new one even where the package's version has
+    not moved, as it does not between development builds.
+    """
+    from maidr import __version__
+
+    text = (SHINY_FRAME_DIR / SHINY_FRAME_FILE).read_bytes()
+    return f"{__version__}+{hashlib.sha256(text).hexdigest()[:12]}"
+
+
+def shiny_frame_dependency() -> HTMLDependency:
+    """The dependency that serves :func:`shiny_frame_script` to a Shiny page.
+
+    A child of every chart frame made in a Shiny app, so that any output
+    showing one -- :class:`maidr.widget.shiny.render_maidr`'s, or a
+    ``render.ui`` returning :func:`maidr.render` -- loads it. Shiny loads a
+    dependency's scripts before it puts the output's HTML in the page, and
+    then once per page however many charts name it.
+
+    Returns
+    -------
+    htmltools.HTMLDependency
+        The dependency.
+    """
+    return HTMLDependency(
+        name=SHINY_FRAME_NAME,
+        version=_shiny_frame_version(),
+        source={"package": "maidr", "subdir": "assets/shiny"},
+        script={"src": SHINY_FRAME_FILE},
+    )
+
+
+def _shiny_onload(kind: str, options: dict | None = None) -> str:
+    """A Shiny app's frame's ``onload``: its kind and options, for the served script.
+
+    Shiny puts the output's HTML in the page once the served script has
+    loaded, so it is there when the frame loads; it is waited for, briefly,
+    should anything put a frame in a page another way.
+
+    Parameters
+    ----------
+    kind : {"matplotlib", "plotly"}
+        Which script sizes the frame: a matplotlib chart's, or the one
+        Plotly, Bokeh and Altair charts share.
+    options : dict, optional
+        What differs from one such chart to the next.
+
+    Returns
+    -------
+    str
+        The ``onload`` attribute's script.
+    """
+    given = json.dumps(options or {}, separators=(",", ":"))
+    return (
+        "var f=this;(function g(n){if(window.maidrShinyFrame)"
+        f"maidrShinyFrame(f,'{kind}',{given});"
+        "else if(n<200)setTimeout(function(){g(n+1)},50)})(0)"
+    )
 
 
 def _frame_css(in_shiny: bool) -> str:
@@ -614,12 +705,59 @@ def wrap_in_iframe_matplotlib(
     """
     unique_id = _generate_unique_id()
     fits_output = in_notebook or in_shiny
+    if in_shiny:
+        onload = _shiny_onload("matplotlib")
+    else:
+        helpers = _NOTEBOOK_JS + _WATCH_JS if fits_output else ""
+        onload = helpers + _matplotlib_resizer(
+            f"document.getElementById('{unique_id}')", fits_output=fits_output
+        )
+
+    srcdoc = str(base_html.get_html_string())
+    if fits_output:
+        srcdoc = frame_style() + srcdoc
+    return tags.iframe(
+        *([shiny_frame_dependency()] if in_shiny else []),
+        id=unique_id,
+        title=iframe_title(chart_title, alt),
+        # Marks this frame as maidr's own. A host page may put other
+        # iframes in the same container, and anything keying off "an
+        # iframe is the chart" -- the Shiny focus restore does -- would
+        # otherwise act on one of those. See `maidr/widget/_focus.py`.
+        **{"data-maidr-chart": ""},
+        allow=_ALLOWED_FEATURES,
+        srcdoc=srcdoc,
+        width="100%",
+        height="100%",
+        scrolling="no",
+        style=_frame_css(in_shiny),
+        frameBorder=0,
+        onload=onload,
+    )
+
+
+def _matplotlib_resizer(
+    frame: str, *, fits_output: bool, in_shiny: bool = False
+) -> str:
+    """The script that sizes a matplotlib chart's frame, as its ``onload`` runs it.
+
+    Parameters
+    ----------
+    frame : str
+        A JavaScript expression for the frame.
+    fits_output : bool
+        Whether the frame fits its output: a notebook's or a Shiny app's.
+    in_shiny : bool, default=False
+        Whether it is a Shiny app's, which also fits the chart to its box.
+
+    Returns
+    -------
+    str
+        The script, without the helpers it calls.
+    """
     fits = "true" if fits_output else "false"
     keeps = "true" if in_shiny else "false"
     boxes = "true" if in_shiny else "false"
-    helpers = _NOTEBOOK_JS + _WATCH_JS if fits_output else ""
-    if in_shiny:
-        helpers += _BOX_JS + _WATCH_BOX_JS
     # In a notebook the frame is measured again when the output area narrows
     # or widens -- a change of the frame's width only: its height is set as
     # it is measured, at none for a moment, which resizes its window too, and
@@ -645,13 +783,12 @@ def wrap_in_iframe_matplotlib(
     # each document its own listeners and observers. It replaced itself after
     # its first run, which left a document loaded again with only a resize
     # listener, and no height.
-    resizing_script = f"""
-        {helpers}
+    return f"""
         function resizeIframe() {{
             let fitsOutput = {fits};
             let keepsPadding = {keeps};
             let fitsBox = {boxes};
-            let iframe = document.getElementById('{unique_id}');
+            let iframe = {frame};
             if (fitsOutput && maidrNotLaidOut(iframe)) return;
             if (
                 iframe && iframe.contentWindow &&
@@ -783,7 +920,7 @@ def wrap_in_iframe_matplotlib(
                 }}
             }}
         }}
-        let iframe = document.getElementById('{unique_id}');
+        let iframe = {frame};
         resizeIframe();
         // Delegate focus events for braille textarea (by id prefix)
         iframe.contentWindow.document.addEventListener('focusin', (e) => {{
@@ -836,27 +973,6 @@ def wrap_in_iframe_matplotlib(
             }}
         }} catch (_) {{}}
     """
-
-    srcdoc = str(base_html.get_html_string())
-    if fits_output:
-        srcdoc = frame_style() + srcdoc
-    return tags.iframe(
-        id=unique_id,
-        title=iframe_title(chart_title, alt),
-        # Marks this frame as maidr's own. A host page may put other
-        # iframes in the same container, and anything keying off "an
-        # iframe is the chart" -- the Shiny focus restore does -- would
-        # otherwise act on one of those. See `maidr/widget/_focus.py`.
-        **{"data-maidr-chart": ""},
-        allow=_ALLOWED_FEATURES,
-        srcdoc=srcdoc,
-        width="100%",
-        height="100%",
-        scrolling="no",
-        style=_frame_css(in_shiny),
-        frameBorder=0,
-        onload=_compact_js(resizing_script) if in_shiny else resizing_script,
-    )
 
 
 def wrap_in_iframe_plotly(
@@ -927,22 +1043,80 @@ def wrap_in_iframe_plotly(
     """
     unique_id = _generate_unique_id()
     fits_output = in_notebook or in_shiny
+    if in_shiny:
+        # A chart that takes its container's width never widens the frame.
+        onload = _shiny_onload("plotly", {"widens": not fill_width})
+    else:
+        helpers = _WATCH_JS + (_NOTEBOOK_JS if fits_output else "")
+        onload = helpers + _plotly_resizer(
+            f"document.getElementById('{unique_id}')",
+            fits_output=fits_output,
+            keep_padding=keep_padding,
+        )
+
+    if fits_output and fill_width:
+        base_html.add_class("maidr-frame-fill")
+    srcdoc = str(base_html.get_html_string())
+    if fits_output:
+        width_first = "" if keep_padding or in_shiny else _OUTPUT_WIDTH_FIRST
+        srcdoc = frame_style() + width_first + srcdoc
+    return tags.iframe(
+        *([shiny_frame_dependency()] if in_shiny else []),
+        id=unique_id,
+        title=iframe_title(chart_title, alt),
+        # Marks this frame as maidr's own. A host page may put other
+        # iframes in the same container, and anything keying off "an
+        # iframe is the chart" -- the Shiny focus restore does -- would
+        # otherwise act on one of those. See `maidr/widget/_focus.py`.
+        **{"data-maidr-chart": ""},
+        allow=_ALLOWED_FEATURES,
+        srcdoc=srcdoc,
+        width="100%",
+        height="100%",
+        scrolling="no",
+        style=_frame_css(in_shiny),
+        frameBorder=0,
+        onload=onload,
+    )
+
+
+def _plotly_resizer(
+    frame: str,
+    *,
+    fits_output: bool,
+    keep_padding: bool = False,
+    in_shiny: bool = False,
+) -> str:
+    """The script that sizes a Plotly, Bokeh or Altair chart's frame.
+
+    Parameters
+    ----------
+    frame : str
+        A JavaScript expression for the frame.
+    fits_output : bool
+        Whether the frame fits its output: a notebook's or a Shiny app's.
+    keep_padding : bool, default=False
+        See :func:`wrap_in_iframe_plotly`.
+    in_shiny : bool, default=False
+        Whether it is a Shiny app's, whose script reads what differs from
+        one chart to the next from ``options``; see :func:`_shiny_onload`.
+
+    Returns
+    -------
+    str
+        The script, without the helpers it calls.
+    """
     fits = "true" if fits_output else "false"
     keeps = "true" if keep_padding or in_shiny else "false"
-    widens = "false" if in_shiny and fill_width else "true"
-    helpers = _WATCH_JS + (_NOTEBOOK_JS if fits_output else "")
-    watch_box = ""
-    if in_shiny:
-        helpers += _WATCH_BOX_JS
-        watch_box = "maidrWatchBox(iframe, scheduleResize);"
+    widens = "options.widens" if in_shiny else "true"
+    watch_box = "maidrWatchBox(iframe, scheduleResize);" if in_shiny else ""
 
-    resizing_script = f"""
-        {helpers}
+    return f"""
         function resizeIframe() {{
             var fitsOutput = {fits};
             var keepsPadding = {keeps};
             var widens = {widens};
-            var iframe = document.getElementById('{unique_id}');
+            var iframe = {frame};
             if (!iframe || !iframe.contentWindow || !iframe.contentWindow.document) {{
                 return;
             }}
@@ -1037,7 +1211,7 @@ def wrap_in_iframe_plotly(
             }}
         }}
 
-        var iframe = document.getElementById('{unique_id}');
+        var iframe = {frame};
         resizeIframe();
 
         // Measure again when the frame's window changes width. Its height is
@@ -1091,27 +1265,3 @@ def wrap_in_iframe_plotly(
             iframe.contentWindow.document.addEventListener('focusout', resizeIframe, true);
         }} catch (_) {{}}
     """
-
-    if fits_output and fill_width:
-        base_html.add_class("maidr-frame-fill")
-    srcdoc = str(base_html.get_html_string())
-    if fits_output:
-        width_first = "" if keep_padding or in_shiny else _OUTPUT_WIDTH_FIRST
-        srcdoc = frame_style() + width_first + srcdoc
-    return tags.iframe(
-        id=unique_id,
-        title=iframe_title(chart_title, alt),
-        # Marks this frame as maidr's own. A host page may put other
-        # iframes in the same container, and anything keying off "an
-        # iframe is the chart" -- the Shiny focus restore does -- would
-        # otherwise act on one of those. See `maidr/widget/_focus.py`.
-        **{"data-maidr-chart": ""},
-        allow=_ALLOWED_FEATURES,
-        srcdoc=srcdoc,
-        width="100%",
-        height="100%",
-        scrolling="no",
-        style=_frame_css(in_shiny),
-        frameBorder=0,
-        onload=_compact_js(resizing_script) if in_shiny else resizing_script,
-    )

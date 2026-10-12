@@ -7,6 +7,7 @@ inside a session context -- without starting a server.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import re
 import sys
 import threading
@@ -30,6 +31,10 @@ from shiny.render.renderer import Renderer  # noqa: E402
 
 from maidr.core.figure_manager import FigureManager  # noqa: E402
 from maidr.util.dependencies import maidr_js_version, read_bundled_js  # noqa: E402
+from maidr.util.iframe_utils import (  # noqa: E402
+    SHINY_FRAME_NAME,
+    shiny_frame_script,
+)
 from maidr.util.locale_pack import get_locale_base_url  # noqa: E402
 from maidr.util.served_bundle import SERVED_BUNDLE_NAME  # noqa: E402
 from maidr.widget.shiny import output_maidr, render_maidr  # noqa: E402
@@ -349,13 +354,52 @@ def test_the_frame_fits_its_box_in_a_shiny_session(fake_session):
     def chart():
         return _bar_axes()
 
-    html = unescape(_render(chart)["html"])
-    document = _iframe_document(fake_session, _render(chart)["html"])
+    payload = _render(chart)
+    html = unescape(payload["html"])
+    document = _iframe_document(fake_session, payload["html"])
 
-    assert "let fitsBox = true;" in html
-    assert "maidrWatchBox(iframe, scheduleResize);" in html
+    assert "maidrShinyFrame(f,'matplotlib',{})" in html
+    assert SHINY_FRAME_NAME in [dep["name"] for dep in payload["deps"]]
     assert 'class="maidr-frame-svg"' in document
     assert document.startswith("<style>")
+
+
+def test_the_frame_script_is_served_once_rather_than_sent(fake_session):
+    """The script that sizes the frame rides no flush; the app serves it.
+
+    It was 11 KB of every flush of every chart's output, most of what the
+    websocket carried for it. A frame's ``onload`` now names only its kind
+    and its options, and the script is a dependency Shiny loads once per
+    page, before it puts the frame in it.
+    """
+    from pathlib import Path
+
+    @render_maidr
+    def chart():
+        return _bar_axes()
+
+    payload = _render(chart)
+    onload = unescape(re.search(r'onload="([^"]*)"', payload["html"]).group(1))
+
+    assert len(onload) < 200, onload
+    # The frame and the focus restore: a fraction of the 16 KB that marks a
+    # chart's document riding the flush
+    # (``test_the_payload_references_the_chart_rather_than_carrying_it``).
+    assert len(payload["html"]) < 6_000, len(payload["html"])
+    assert "resizeIframe" not in onload
+    [sent] = [dep for dep in payload["deps"] if dep["name"] == SHINY_FRAME_NAME]
+    assert [script["src"].rsplit("/", 1)[-1] for script in sent["script"]] == [
+        "frame.js"
+    ]
+    [served] = [
+        dep for dep in fake_session.app.registered if dep.name == SHINY_FRAME_NAME
+    ]
+    source = Path(served.source_path_map()["source"]) / "frame.js"
+    assert source.read_text(encoding="utf-8") == shiny_frame_script()
+    # Versioned by its content, so a browser never keeps a stale copy.
+    assert str(served.version).endswith(
+        "+" + hashlib.sha256(source.read_bytes()).hexdigest()[:12]
+    )
 
 
 def test_a_plotly_figure_has_a_height_of_its_own_in_shiny(fake_session):
@@ -508,9 +552,9 @@ def test_each_cdn_mode_ships_the_source_it_promises(
     assert ("cdn.jsdelivr.net/npm/maidr" in loader) is expect_cdn
     assert _BUNDLE_HEAD not in document, "the bundle is still inlined"
     assert (_SERVED_JS in document) is expect_served
-    names = [dep["name"] for dep in payload["deps"]]
+    names = [dep["name"] for dep in _bundle_deps(payload)]
     assert names == ([SERVED_BUNDLE_NAME] if expect_served else []), names
-    assert [dep.name for dep in fake_session.app.registered] == names
+    assert [dep.name for dep in _registered_bundles(fake_session)] == names
 
 
 # ---------------------------------------------------------------------------
@@ -527,6 +571,21 @@ def _bars(n: int):
 
 def _src_of(html: str) -> str:
     return re.search(r'src="([^"]*)"', html).group(1)
+
+
+def _bundle_deps(payload: dict) -> list:
+    """The served bundle among a payload's dependencies.
+
+    Every chart frame also names the script Shiny's frames size themselves
+    with (``maidr-shiny-frame``), whatever ``use_cdn`` is; see
+    ``test_the_frame_script_is_served_once_rather_than_sent``.
+    """
+    return [dep for dep in payload["deps"] if dep["name"] == SERVED_BUNDLE_NAME]
+
+
+def _registered_bundles(session) -> list:
+    """The served bundle among what a session's app was asked to serve."""
+    return [dep for dep in session.app.registered if dep.name == SERVED_BUNDLE_NAME]
 
 
 def test_the_payload_references_the_chart_rather_than_carrying_it(fake_session):
@@ -805,7 +864,7 @@ def test_a_session_that_registers_no_route_keeps_the_document_in_the_frame(
     assert chart._served == {}
     assert _BUNDLE_HEAD[:40] in unescape(html)
     assert _SERVED_JS not in html
-    assert payload["deps"] == []
+    assert _bundle_deps(payload) == []
 
 
 def test_a_render_that_is_not_a_frame_is_passed_through(fake_session, monkeypatch):
@@ -900,7 +959,7 @@ def test_the_served_bundle_resolves_to_what_the_app_serves(
     document = _iframe_document(fake_session, payload["html"])
     loaded = urljoin(frame_url, _SERVED_SCRIPT.search(document).group(1))
 
-    [dep] = fake_session.app.registered
+    [dep] = _registered_bundles(fake_session)
     href = dep.source_path_map(lib_prefix=lib_prefix)["href"]
     assert loaded == urljoin(page, f"{href}/maidr.js"), (loaded, frame_url)
     assert loaded.startswith(page), "the URL climbed out of the app's prefix"
@@ -924,14 +983,14 @@ def test_the_app_serves_what_the_runtime_asks_for_and_loads_nothing(fake_session
 
     payload = _render(chart)
 
-    [dep] = fake_session.app.registered
+    [dep] = _registered_bundles(fake_session)
     source = Path(dep.source_path_map()["source"])
     assert (source / "maidr.js").is_file()
     assert (source / "maidr-math.css").is_file()
     assert dep.all_files
     assert str(dep.version) == maidr_js_version()
 
-    [sent] = payload["deps"]
+    [sent] = _bundle_deps(payload)
     assert (sent["script"], sent["stylesheet"]) == ([], [])
 
 
@@ -958,7 +1017,7 @@ def test_a_missing_bundle_is_not_named(fake_session, monkeypatch):
     document = _iframe_document(fake_session, payload["html"])
 
     assert _SERVED_JS not in document
-    assert payload["deps"] == []
+    assert _bundle_deps(payload) == []
 
 
 @pytest.mark.parametrize("use_cdn", [False, "auto"])
@@ -992,7 +1051,7 @@ def test_plotly_and_bokeh_charts_name_the_served_bundle_too(fake_session, use_cd
         name = type(value).__module__
         assert _BUNDLE_HEAD not in document, f"{name} still inlines the bundle"
         assert _SERVED_JS in document, f"{name} does not name the served bundle"
-        assert [d["name"] for d in payload["deps"]] == [SERVED_BUNDLE_NAME]
+        assert [d["name"] for d in _bundle_deps(payload)] == [SERVED_BUNDLE_NAME]
 
 
 def test_an_altair_chart_registers_nothing(fake_session):
@@ -1018,7 +1077,7 @@ def test_an_altair_chart_registers_nothing(fake_session):
 
     assert "maidrVegaLite" in document
     assert _SERVED_JS not in document
-    assert payload["deps"] == []
+    assert _bundle_deps(payload) == []
 
 
 def test_the_served_bundle_is_scoped_to_the_render(fake_session):
