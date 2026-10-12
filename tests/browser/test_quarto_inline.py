@@ -523,9 +523,9 @@ def test_the_focus_ring_survives_a_page_that_removes_them(page):
     """maidr.js's ring from 4.15.0, inline-compat.css's before: the same ring.
 
     Inside the chart, with a light band inside it on the svg, and on the
-    braille field.
+    braille field, which "b" opens once maidr.js has taken the focus.
     """
-    page.locator(_PLOT).first.focus()
+    _focus_in(page)
     blue, white = "rgb(26, 95, 180)", "rgb(255, 255, 255)"
     assert page.evaluate(f"({_OUTLINE})(document.activeElement)") == [
         "solid",
