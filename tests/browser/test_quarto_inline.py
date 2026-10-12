@@ -23,7 +23,7 @@ unchanged would find the other chart's line.
 Every test runs on two maidr.js: the bundled one, with ``use_cdn=False``,
 which does all of that itself and whose charts carry none of py-maidr's
 copies of it; and 4.14.0 pinned on the CDN, whose charts carry them
-(``inline-compat.js``, ``inline-compat.css``; see
+(``inline-amd.js``, ``inline-compat.js``, ``inline-compat.css``; see
 ``maidr.util.inline_chart.carries_copies``). That one is fetched by Python
 and handed to the page, and its tests skip where it cannot be fetched.
 """
@@ -42,7 +42,7 @@ import pytest
 
 from maidr.core.figure_manager import FigureManager
 from maidr.util.environment import Environment
-from tests.browser.conftest import OLDER_MAIDR_JS
+from tests.browser.conftest import JSDELIVR, OLDER_MAIDR_JS
 
 if TYPE_CHECKING:
     from playwright.sync_api import Browser, Page
@@ -325,14 +325,26 @@ def compat_outputs(tmp_path_factory) -> list[str]:
     return _outputs(tmp_path_factory.mktemp("compat"), older=False, compat=True)
 
 
-def _page(browser: Browser, tmp_path: Path, body: str, head: str = _HEAD) -> Page:
+def _page(
+    browser: Browser,
+    tmp_path: Path,
+    body: str,
+    head: str = _HEAD,
+    *,
+    locale: str | None = None,
+) -> Page:
+    """The page, open in ``browser``, once maidr.js has bound its charts.
+
+    ``locale`` is the reader's language, which the browser says the reader
+    prefers; maidr.js reads it from there.
+    """
     path = tmp_path / "doc.html"
     path.write_text(
         f"<!doctype html><html lang='en'><head>{head}</head><body>{body}"
         "<button id='after'>After</button></body></html>",
         encoding="utf-8",
     )
-    page = browser.new_page(viewport={"width": 1100, "height": 900})
+    page = browser.new_page(viewport={"width": 1100, "height": 900}, locale=locale)
     page.on("console", lambda m: page.__dict__.setdefault("logs", []).append(m.text))
     page.goto(path.as_uri(), wait_until="load")
     page.wait_for_function(
@@ -386,7 +398,7 @@ def _press_in(page: Page, chart: int, key: str) -> None:
 def test_both_charts_are_bound_by_one_maidr_js_despite_require_js(page, runtime):
     """maidr.js ran, rather than handing itself to ``define`` as a module.
 
-    The older, UMD one runs because inline-compat.js runs its factory and
+    The older, UMD one runs because inline-amd.js runs its factory and
     keeps it from ``define``. The bundled one runs before it registers with
     ``define`` (xability/maidr#1385), by a name of its own: an anonymous
     module is what require.js rejects when it did not load the script.
@@ -983,6 +995,35 @@ def test_a_page_mixing_an_older_pin_and_the_bundle_highlights_each_charts_own(
         assert page.evaluate("window.maidrLive.version") is None  # 4.14.0
         assert page.evaluate("window.maidrLive.features") is None
         _highlights_own(page, 2)
+    finally:
+        page.close()
+
+
+def test_a_configured_directory_of_older_locale_packs_runs_under_require_js(
+    browser, tmp_path, runtime, request
+):
+    """A reader's language, from packs older than 4.15.0 that a site hosts.
+
+    ``MAIDR_LOCALE_BASE_URL`` names them, whatever maidr.js the page loads.
+    They are UMD, which hands itself to require.js's ``define`` and never
+    runs; inline-amd.js runs them, and every chart carries it then.
+    """
+    jsdelivr = request.getfixturevalue("jsdelivr")
+    packs = f"{JSDELIVR}{OLDER_MAIDR_JS}/dist/"
+    with mock.patch.dict("os.environ", {"MAIDR_LOCALE_BASE_URL": packs}):
+        outputs = _outputs(tmp_path, runtime is not None)
+    assert all("window.__maidrInlineWithoutAmd = withoutAmd" in o for o in outputs)
+    if runtime is None:
+        browser = _Serving(browser, jsdelivr)
+    page = _page(browser, tmp_path, _deck(outputs), locale="ko-KR")
+    try:
+        _press_in(page, 0, "ArrowRight")
+        page.wait_for_function(
+            "() => /[\\uAC00-\\uD7A3]/.test(document.getElementById("
+            "'maidr-text-container')?.innerText || '')",
+            timeout=15_000,
+        )
+        assert [name for name in page.evaluate("window.__amdCalls") if not name] == []
     finally:
         page.close()
 

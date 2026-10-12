@@ -1255,7 +1255,10 @@ pins still highlights each chart's own marks. A chart
 whose render loads an older `maidr.js` — a pin such as
 `MAIDR_CDN_VERSION=4.14.0` or `maidr.set_cdn_version("4.14.0")` — carries
 the copies, and so does one pinned to `latest`, whose version py-maidr cannot
-know when it renders.
+know when it renders. A chart keeps the require.js handling as well when a
+directory of locale packs is configured (`maidr.set_locale_base_url()` or
+`MAIDR_LOCALE_BASE_URL`): packs from before 4.15.0 would not run under
+require.js, and the reader would stay in English.
 
 A chart whose SVG holds something that cannot be kept to it on a page — a
 `<script>`, a `<foreignObject>`, or a stylesheet with an at-rule — is shown in

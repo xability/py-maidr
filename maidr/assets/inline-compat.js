@@ -6,8 +6,6 @@
  * to `latest`); see carries_copies in maidr/util/inline_chart.py. Each copy,
  * and the change to maidr.js that ships it:
  *
- * - require.js: the UMD maidr.js and its locale packs hand themselves to
- *   define() and never run (xability/maidr#1385 builds them to run first).
  * - High contrast: maidr.js paints document.body, which inline is the whole
  *   page (xability/maidr#1388 paints the chart).
  * - The page's shortcuts, the Shift+Tab hand-off on a deck's slide and the
@@ -21,7 +19,9 @@
  * card's Escape -- and only while the focus is in a chart, unless maidr.js
  * does so itself.
  *
- * inline-compat.css holds the stylesheet's copies. */
+ * inline-compat.css holds the stylesheet's copies, and inline-amd.js the
+ * one of what maidr.js 4.15.0 does on a page with require.js
+ * (xability/maidr#1385). */
 (function () {
   'use strict';
   if (window.__maidrInlineCompat) return;
@@ -41,35 +41,6 @@
   function wrapperOf(node) {
     return node && node.closest ? node.closest('.maidr-inline') : null;
   }
-
-  // --- require.js ------------------------------------------------------------
-
-  // Quarto puts require.js on every page a Jupyter render writes HTML into.
-  // maidr.js and its locale packs are UMD, so under it they hand themselves to
-  // define() as anonymous modules and never run: no chart is bound, and no
-  // error says so. A script passed here runs its factory itself instead;
-  // every other script's define() reaches require.js unchanged.
-  var noAmd = [];
-  function withoutAmd(script) {
-    var amd = window.define;
-    if (typeof amd !== 'function' || !amd.amd) return;
-    noAmd.push(script);
-    if (amd.__maidrInline) return;
-    var shim = function () {
-      var factory = arguments[arguments.length - 1];
-      if (noAmd.indexOf(document.currentScript) >= 0 && typeof factory === 'function') {
-        return factory();
-      }
-      return amd.apply(this, arguments);
-    };
-    for (var key in amd) shim[key] = amd[key];
-    shim.__maidrInline = true;
-    window.define = shim;
-  }
-  window.__maidrInlineWithoutAmd = withoutAmd;
-
-  // A locale pack maidr.js adds to the page for a reader's language.
-  var PACK = /\/locale-[a-z]{2,3}(?:-[A-Za-z0-9]+)?\.js(?:[?#]|$)/;
 
   // --- High contrast ---------------------------------------------------------
 
@@ -314,22 +285,6 @@
   }
 
   // --- Start -----------------------------------------------------------------
-
-  // Created before maidr.js loads, so this sees a locale pack it adds.
-  if (window.MutationObserver) {
-    new MutationObserver(function (records) {
-      for (var i = 0; i < records.length; i++) {
-        var added = records[i].addedNodes;
-        for (var j = 0; j < added.length; j++) {
-          var node = added[j];
-          // Seen before it runs: a script added with a src waits for it.
-          if (node.nodeType === 1 && node.tagName === 'SCRIPT' && PACK.test(node.src || '')) {
-            withoutAmd(node);
-          }
-        }
-      }
-    }).observe(document.documentElement, { childList: true, subtree: true });
-  }
 
   window.addEventListener('keydown', function (event) {
     if (!focusInChart()) return;
