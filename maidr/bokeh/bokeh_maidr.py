@@ -88,7 +88,7 @@ from maidr.util.iframe_utils import (
     wrap_in_iframe_plotly,
 )
 from maidr.util.inline_chart import in_quarto_render
-from maidr.util.notebook_figure import in_notebook_frame
+from maidr.util.notebook_figure import in_notebook_frame, in_shiny_frame
 from maidr.util.pyodide_display import show_in_page
 from maidr.util.quarto_cell import fig_alt as quarto_fig_alt
 from maidr.util.script_json import script_json
@@ -709,6 +709,7 @@ class BokehMaidr:
                 in_notebook=in_notebook_frame(use_iframe),
                 keep_padding=True,
                 fill_width=self._fills_width(),
+                in_shiny=in_shiny_frame(use_iframe),
             )
         return with_chart_title(base_html, chart_title)
 

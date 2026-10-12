@@ -186,6 +186,12 @@ def served_bundle_app_url():
 
 
 @pytest.fixture(scope="session")
+def shiny_size_app_url():
+    """A Shiny app per way of sizing a chart, each mounted under ``/<case>/``."""
+    yield from _serve("shiny_size_app.py")
+
+
+@pytest.fixture(scope="session")
 def streamlit_keys_app_url():
     """A Streamlit app with a rerun counter, for the key-collision test."""
     yield from _serve("streamlit_keys_app.py", runner="streamlit")

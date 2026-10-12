@@ -215,6 +215,168 @@ def test_output_maidr_applies_module_namespacing():
 
 
 # ---------------------------------------------------------------------------
+# Size: the output keeps its box, and the chart's box takes the sizes
+# ---------------------------------------------------------------------------
+
+
+def _style(tag) -> dict[str, str]:
+    """A tag's inline style, as ``{property: value}``."""
+    style = str(tag.attrs.get("style", ""))
+    return {
+        part.split(":", 1)[0].strip(): part.split(":", 1)[1].strip()
+        for part in style.split(";")
+        if ":" in part
+    }
+
+
+def test_the_output_keeps_a_box_once_a_chart_is_in_it():
+    """Shiny's ``display: contents`` took the output's size with its box.
+
+    ``div:where(.shiny-html-output):has(>*) { display: contents }`` makes a
+    UI output a pass-through container as soon as it has children, so the
+    width and height it was given applied only while it was empty. A
+    ``display`` of its own, inline, wins over that rule. The output is a
+    column the chart's box fills, and may shrink below the chart's height.
+    """
+    style = _style(output_maidr("chart", width="400px", height="300px"))
+
+    assert style["display"] == "flex"
+    assert style["flex-direction"] == "column"
+    assert (style["width"], style["height"]) == ("400px", "300px")
+    assert style["min-height"] == "0"
+    assert style["max-width"] == "100%"
+
+
+@pytest.mark.parametrize(
+    ("given", "css"), [(500, "500px"), (300.5, "300.5px"), ("50vh", "50vh")]
+)
+def test_a_number_is_pixels_as_shiny_takes_it(given, css):
+    """``500`` was written as ``width: 500``, which CSS drops."""
+    style = _style(output_maidr("chart", width=given, height=given))
+
+    assert (style["width"], style["height"]) == (css, css)
+
+
+def test_a_size_of_the_wrong_type_fails_where_it_is_written():
+    with pytest.raises(TypeError, match="width"):
+        output_maidr("chart", width=None)  # type: ignore[arg-type]
+    with pytest.raises(TypeError, match="height"):
+        render_maidr(height=True)  # type: ignore[arg-type]
+
+
+def test_the_output_fills_a_fillable_container_by_default():
+    """As ``output_plot`` does; ``fill=False`` keeps it to its own height."""
+    filled = output_maidr("chart")
+    kept = output_maidr("chart", fill=False)
+
+    assert "html-fill-item" in filled.attrs["class"]
+    assert "html-fill-item" not in kept.attrs["class"]
+    # Either way a fillable container, for the chart's box to fill.
+    for tag in (filled, kept):
+        assert "html-fill-container" in tag.attrs["class"]
+
+
+def _box(html: str) -> str:
+    """The opening tag of the box the frame is fitted to."""
+    match = re.search(r'<div class="maidr-shiny-box[^"]*"[^>]*>', html)
+    assert match, "the frame is not in a box"
+    return unescape(match.group(0))
+
+
+def test_the_frame_is_in_a_box_that_fills_the_output(fake_session):
+    """The box the frame's script fits the chart to, and scrolls in."""
+
+    @render_maidr
+    def chart():
+        return _bar_axes()
+
+    html = _render(chart)["html"]
+    box = _box(html)
+
+    assert "html-fill-item" in box
+    assert "overflow: auto" in box
+    # No size of its own: it fills the output.
+    assert "width:" not in box and "height:" not in box
+    assert html.index(box[:30]) < html.index("<iframe")
+
+
+def test_render_maidrs_size_is_the_charts_box(fake_session):
+    """``@render_maidr(width=500, height=300)`` sized nothing outside Express.
+
+    It now sizes the box the chart is fitted to, as ``@render.plot``'s
+    sizes the image: at most the output's width, and a height that does
+    not grow to fill the output. Each reads a custom property first, which
+    only the output Express places sets.
+    """
+
+    @render_maidr(width=500, height=300)
+    def chart():
+        return _bar_axes()
+
+    box = _box(_render(chart)["html"])
+
+    assert "width: var(--maidr-chart-width, 500px)" in box
+    assert "max-width: 100%" in box
+    assert "height: var(--maidr-chart-height, 300px)" in box
+    assert "flex: var(--maidr-chart-flex, 0 0 auto)" in box
+
+
+def test_express_sizes_the_output_and_the_box_fills_it(fake_session):
+    """The output Express places takes the size, once.
+
+    The box reads the custom properties this output sets before its own
+    size, so a width of 50% is half the page, not a quarter.
+    """
+
+    @render_maidr(width="50%", height=300, fill=False)
+    def chart():
+        return _bar_axes()
+
+    container = chart.auto_output_ui()
+    style = _style(container)
+
+    assert (style["width"], style["height"]) == ("50%", "300px")
+    assert "html-fill-item" not in container.attrs["class"]
+    assert style["--maidr-chart-width"] == "auto"
+    assert style["--maidr-chart-height"] == "auto"
+    assert style["--maidr-chart-flex"] == "1 1 auto"
+
+
+def test_the_frame_fits_its_box_in_a_shiny_session(fake_session):
+    """The chart is sized as a notebook shows the plain figure, and fitted."""
+
+    @render_maidr
+    def chart():
+        return _bar_axes()
+
+    html = unescape(_render(chart)["html"])
+    document = _iframe_document(fake_session, _render(chart)["html"])
+
+    assert "let fitsBox = true;" in html
+    assert "maidrWatchBox(iframe, scheduleResize);" in html
+    assert 'class="maidr-frame-svg"' in document
+    assert document.startswith("<style>")
+
+
+def test_a_plotly_figure_has_a_height_of_its_own_in_shiny(fake_session):
+    """Plotly's ``height: 100%`` was the frame's, which grew with maidr's text."""
+    go = pytest.importorskip("plotly.graph_objects")
+
+    def chart_of(fig):
+        @render_maidr
+        def chart():
+            return fig
+
+        return _iframe_document(fake_session, _render(chart)["html"])
+
+    plain = go.Figure(go.Bar(x=["a", "b"], y=[1, 2]))
+    assert "height:450px" in chart_of(plain).replace(" ", "")
+
+    tall = go.Figure(go.Bar(x=["a", "b"], y=[1, 2]), layout={"height": 700})
+    assert "height:700px" in chart_of(tall).replace(" ", "")
+
+
+# ---------------------------------------------------------------------------
 # Rendered payload
 # ---------------------------------------------------------------------------
 

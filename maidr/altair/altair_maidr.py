@@ -51,7 +51,7 @@ from maidr.util.cdn import (
 from maidr.util.environment import Environment
 from maidr.util.iframe_utils import with_chart_title, wrap_in_iframe_plotly
 from maidr.util.inline_chart import in_quarto_render
-from maidr.util.notebook_figure import in_notebook_frame
+from maidr.util.notebook_figure import in_notebook_frame, in_shiny_frame
 from maidr.util.pyodide_display import show_in_page
 from maidr.util.quarto_cell import fig_alt as quarto_fig_alt
 
@@ -193,7 +193,10 @@ class AltairMaidr:
             # A Quarto cell's ``fig-alt`` names the frame.
             alt = quarto_fig_alt() if in_quarto_render(use_iframe) else None
             frame = self._wrap_in_iframe(
-                base_html, alt, in_notebook=in_notebook_frame(use_iframe)
+                base_html,
+                alt,
+                in_notebook=in_notebook_frame(use_iframe),
+                in_shiny=in_shiny_frame(use_iframe),
             )
             return with_chart_title(frame, title)
         return with_chart_title(base_html, title)
@@ -286,7 +289,12 @@ class AltairMaidr:
         return tags.div(*children)
 
     def _wrap_in_iframe(
-        self, inner: Tag, alt: str | None = None, *, in_notebook: bool = False
+        self,
+        inner: Tag,
+        alt: str | None = None,
+        *,
+        in_notebook: bool = False,
+        in_shiny: bool = False,
     ) -> Tag:
         """Wrap ``inner`` in an auto-resizing iframe (notebook / Shiny / Flask).
 
@@ -305,7 +313,8 @@ class AltairMaidr:
         cell the chart is drawn in, when there is one, names it instead.
 
         A chart whose width is its container's (``width="container"``) is
-        as wide as a notebook's frame; see :meth:`_fills_width`.
+        as wide as a notebook's or a Shiny app's frame; see
+        :meth:`_fills_width`.
         """
         return wrap_in_iframe_plotly(
             inner,
@@ -314,6 +323,7 @@ class AltairMaidr:
             in_notebook=in_notebook,
             keep_padding=True,
             fill_width=self._fills_width(),
+            in_shiny=in_shiny,
         )
 
     def _fills_width(self) -> bool:

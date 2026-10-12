@@ -465,13 +465,28 @@ def test_show_outside_a_notebook_keeps_the_canvas_in_points(monkeypatch):
     )
 
 
-def test_a_frame_in_a_shiny_app_keeps_the_canvas(shell, monkeypatch):
+def test_a_frame_in_a_shiny_app_is_the_plain_figure_with_the_defaults(
+    shell, monkeypatch
+):
+    """Sized as the notebook shows the plain figure, whatever the kernel says.
+
+    A Shiny server has no kernel whose inline backend could say otherwise;
+    one that runs in a notebook's still shows its charts in its own page.
+    """
     monkeypatch.setattr(Environment, "is_shiny", staticmethod(lambda: True))
+    _config(shell, "InlineBackend.figure_formats = ['svg']")
+    _config(shell, "InlineBackend.print_figure_kwargs = {'bbox_inches': None}")
     fig = _figure()
 
     svg = _chart_svg(_render(fig))
 
-    assert svg.get("viewBox") == "0 0 288 216"
+    # Cut to what is drawn, at the figure's dpi: the inline backend's
+    # defaults, not the whole canvas the kernel asks for.
+    assert svg.get("viewBox") != "0 0 288 216"
+    assert svg.get("class") and FRAME_CLASS in svg.get("class")
+    width = float(svg.get("width").removesuffix("px"))
+    view_width = float(svg.get("viewBox").split()[2])
+    assert width == pytest.approx(view_width / 72 * 100, abs=0.01)
 
 
 # --- A layout of the user's own ---------------------------------------------------

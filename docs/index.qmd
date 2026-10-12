@@ -1191,6 +1191,88 @@ Where a chart differs from the plain one:
   of a fixed width wider than the output area scrolls sideways, where
   JupyterLab's own Vega renderer shrinks it.
 
+## Shiny Apps
+
+`output_maidr()` places a chart in a Shiny app's UI and `@render_maidr` fills
+it, from a function that returns a matplotlib, seaborn, plotnine, Plotly,
+Bokeh or Altair chart. Under Shiny Express, `@render_maidr` places its own
+output.
+
+```python
+import matplotlib.pyplot as plt
+from shiny import App, ui
+from maidr.widget.shiny import output_maidr, render_maidr
+
+app_ui = ui.page_fillable(
+    ui.card(ui.card_header("Sales"), output_maidr("bars"), full_screen=True)
+)
+
+def server(input, output, session):
+    @render_maidr
+    def bars():
+        fig, ax = plt.subplots()
+        ax.bar(["North", "South", "East"], [3, 7, 2])
+        return ax
+
+app = App(app_ui, server)
+```
+
+The chart is shown in an iframe of its own, which keeps the app's shortcuts
+off the keys a reader presses in it and its stylesheet off the chart's focus
+ring.
+
+### Size and placement
+
+The chart takes the size of its output, as a plot from `render.plot` does:
+
+* **`output_maidr(id, width="100%", height="auto", fill=True)`.** A width
+  or height is a CSS length, or a number of pixels (`height=400`). The
+  output is never wider than the container it is in.
+* **With the default `height="auto"`** the output is as tall as the chart.
+  A matplotlib, seaborn or plotnine chart has the size and shape of the
+  image a notebook shows of the same figure: the figure's size in inches at
+  its dpi, cut to what is drawn (`bbox_inches="tight"`). In a narrower
+  output it shrinks to the output's width, keeping its shape, rather than
+  the page scrolling sideways; it is never wider than that size.
+* **With a height of its own** — `height="300px"`, `height="50vh"` — the
+  chart is fitted inside the output as `object-fit: contain` fits an image:
+  as large as the output allows, larger or smaller than its own size,
+  keeping its shape, centred, with a line kept below it for maidr's text.
+* **In a fillable container** — a `ui.card()`, `ui.page_fillable()`, a
+  sidebar layout's main area — the output fills it (`fill=True`, as
+  `output_plot()` does) and the chart is fitted to it. It follows the card
+  into full screen and back, and the window as it is resized, at once and
+  without the server drawing it again. `fill=False` keeps the output to its
+  own height.
+* **`@render_maidr(width=500, height=300)`** gives the chart a 500 by 300
+  pixel box, fitted the same way, inside its output, as
+  `@render.plot(width=500, height=300)` gives the image that size; it is
+  never wider than the output. Under Shiny Express, the renderer's `width`,
+  `height` and `fill` are the output's, as are those of `@output_args(...)`.
+
+What the output does not have room for, it scrolls to rather than cutting
+off: maidr's braille and review fields, which open below the chart, and a
+text longer than its line. While a dialog of maidr's is open — help,
+settings, the chat — it is kept to an output with a height of its own, and
+otherwise the frame is as tall as the window while it is open, and scrolled
+into view.
+
+Where a chart differs from `render.plot`'s:
+
+* **It is scaled, not drawn again at the output's size.** `render.plot`
+  draws the figure again whenever its output changes size, at that size,
+  and so ignores the figure's own size; its text stays the same size. A
+  maidr chart is drawn once, at the figure's size, and scaled, so its text
+  is scaled with it: larger in a large card, smaller on a phone. Draw the
+  figure at the size you mean it to be read at (`figsize`, `dpi`).
+* **Plotly**: a figure with no height of its own is 450px tall, plotly.js's
+  default, and as wide as the output. A figure of a fixed width wider than
+  the output is reached by scrolling the output sideways.
+* **Bokeh**: a `sizing_mode` that stretches or scales the width fills the
+  output; a plot of a fixed width wider than the output is reached by
+  scrolling the output sideways. **Altair**: a chart of `width="container"`
+  fills the output.
+
 ## Quarto Documents
 
 When Quarto renders a document to a web page — an `html` document, a website

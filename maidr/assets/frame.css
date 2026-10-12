@@ -1,9 +1,9 @@
 /* maidr frame: the document of the iframe py-maidr shows a chart in, in a
- * notebook. A matplotlib or seaborn chart stands where the notebook would
- * show the figure's image, at that image's size (inline_chart.py's
- * size_like_plain_figure), and the frame holds it as the output area holds
- * the image. The rules follow inline.css, which styles a chart written into
- * a Quarto page. */
+ * notebook or a Shiny app. A matplotlib or seaborn chart stands where the
+ * notebook would show the figure's image, at that image's size
+ * (inline_chart.py's size_like_plain_figure), and the frame holds it as the
+ * output area holds the image. The rules follow inline.css, which styles a
+ * chart written into a Quarto page. */
 
 /* The chart starts at the frame's edge, as the image starts at the output
  * area's. */
@@ -27,6 +27,14 @@ svg.maidr-frame-svg {
   display: block;
   max-width: 100%;
   height: auto;
+}
+
+/* In a Shiny app, a chart fitted to a box with a height of its own (the
+ * frame's script, iframe_utils.py's _BOX_JS, marks the root) is centred
+ * across it, as an image object-fit: contain holds is. */
+html[data-maidr-fit-box] figure[id^="maidr-figure-"] > div[tabindex] {
+  margin-left: auto;
+  margin-right: auto;
 }
 
 /* A visible focus (WCAG 2.4.7), drawn inside the chart: the frame's edge is

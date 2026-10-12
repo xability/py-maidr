@@ -10,8 +10,11 @@ the chart's own width, measures it again only when its width or its content
 changes, keeps the notebook where it is scrolled while it measures it, and
 makes room for maidr's dialogs.
 
-Elsewhere -- Shiny, Flask, a Pyodide page -- the frame is left as it was.
-What a browser makes of it is ``tests/browser/test_notebook_figure_size.py``.
+A Shiny app's frame fits its output the same way, without the padding a
+notebook keeps to an output's right, and fits the chart to a box with a height
+of its own (``tests/browser/test_shiny_chart_size.py``). Elsewhere -- Flask,
+a Pyodide page -- the frame is left as it was. What a browser makes of a
+notebook's is ``tests/browser/test_notebook_figure_size.py``.
 """
 
 from __future__ import annotations
@@ -134,8 +137,10 @@ def test_a_notebook_frame_fits_the_output_area():
     assert "let fitsOutput = true;" in script
     assert f"svg.{FRAME_SVG_CLASS}" in script
     # As wide as the output area, its end padding included, up to the
-    # chart's own width.
-    assert "iframe.style.width = maidrOutputWidth(iframe, false);" in script
+    # chart's own width; never fitted to a box, which only Shiny's has.
+    assert "let keepsPadding = false;" in script
+    assert "let fitsBox = false;" in script
+    assert "iframe.style.width = maidrOutputWidth(iframe, keepsPadding);" in script
     assert "'calc(100% + ' + pad + 'px)'" in script
     assert "iframe.style.marginRight = pad > 0 ? (-pad) + 'px' : '';" in script
     assert "iframe.style.maxWidth" in script
@@ -297,12 +302,60 @@ def test_a_notebook_render_is_framed_for_the_output_area(monkeypatch):
     assert "let fitsOutput = true;" in html
 
 
-@pytest.mark.parametrize("host", ["is_shiny", "is_flask"])
-def test_an_apps_frame_is_left_as_it_was(monkeypatch, host):
-    monkeypatch.setattr(Environment, host, staticmethod(lambda: True))
+def test_a_flask_apps_frame_is_left_as_it_was(monkeypatch):
+    monkeypatch.setattr(Environment, "is_flask", staticmethod(lambda: True))
 
     html = html_module.unescape(_render(_bar()))
 
     assert "let fitsOutput = false;" in html
     assert not re.search(rf'<svg[^>]*class="{FRAME_SVG_CLASS}"', html)
     assert 'srcdoc="&lt;style&gt;' not in _render(_bar())
+
+
+def test_a_shiny_apps_frame_fits_its_output(monkeypatch):
+    """Shiny's frame fits its output as a notebook's does, and its box too."""
+    monkeypatch.setattr(Environment, "is_shiny", staticmethod(lambda: True))
+
+    raw = _render(_bar())
+    html = html_module.unescape(raw)
+
+    assert 'srcdoc="&lt;style&gt;' in raw
+    assert re.search(rf'<svg[^>]*class="{FRAME_SVG_CLASS}"', html)
+    assert "let fitsOutput = true;" in html
+    # No padding to take back, as a notebook's output area has.
+    assert "let keepsPadding = true;" in html
+    assert "let fitsBox = true;" in html
+    assert "maidrWatchBox(iframe, scheduleResize);" in html
+    assert "display: block" in html
+
+
+def test_a_shiny_frame_fits_the_chart_to_a_box_with_a_height():
+    """Fitted as object-fit: contain fits an image, a line kept for the text."""
+    script = _attribute(_frame(in_shiny=True), "onload")
+
+    for part in (
+        "function maidrBoxRoom(iframe)",
+        "iframe.style.height = '4000px';",
+        "Math.abs(tall - short) >= 1",
+        "var scale = Math.min(width / w, Math.max(space, 96) / h);",
+        "var space = room - maidrTextLine(doc);",
+        "root.setAttribute('data-maidr-fit-box', '');",
+    ):
+        assert part in script, part
+    # Fitted, the frame is as wide as the box; left to its own height, no
+    # wider than the chart.
+    assert "iframe.style.maxWidth = boxRoom > 0" in script
+    # A notebook's frame has none of it.
+    assert "function maidrBoxRoom" not in _attribute(_frame(in_notebook=True), "onload")
+
+
+def test_a_shiny_frames_script_is_compact_but_whole():
+    """Sent with every flush, so without comments; the same script otherwise."""
+    shiny = _attribute(_frame(in_shiny=True), "onload")
+    notebook = _attribute(_frame(in_notebook=True), "onload")
+
+    assert "//" not in shiny
+    assert "\n            " not in shiny
+    assert len(shiny) < len(notebook)
+    for statement in ("resizeIframe();", "maidrShowField(iframeDocument, resized);"):
+        assert statement in shiny

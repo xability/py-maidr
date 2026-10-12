@@ -399,9 +399,100 @@ _WATCH_JS = """
         }
 """
 
-#: What only a notebook's frame calls. A frame elsewhere leaves it out: a
-#: Shiny app sends a frame's script with every flush of its output.
+#: What only a frame that fits its output calls: a notebook's, and a Shiny
+#: app's. A frame elsewhere -- Flask, a Pyodide page -- leaves it out.
 _NOTEBOOK_JS = _OUTPUT_WIDTH_JS + _KEEP_SCROLL_JS + _NOT_LAID_OUT_JS + _DIALOG_ROOM_JS
+
+#: How a Shiny app's matplotlib frame fits the box it is shown in: the box
+#: :class:`maidr.widget.shiny.render_maidr` puts around it, which is the
+#: output's whole box unless the renderer was given a size of its own.
+#:
+#: A box with a height of its own -- an output given one, or one that fills
+#: a fillable container (a card, ``page_fillable``) -- holds the chart as
+#: ``object-fit: contain`` holds an image: as large as the box allows,
+#: larger or smaller than the chart's own size, keeping its shape, centred,
+#: less a line kept below it for maidr's text. As
+#: ``maidr/assets/inline.js`` (``fitCard``) fits a chart to a Quarto
+#: dashboard's card, and told apart the same way: a box that keeps its
+#: height with the frame at none and at 4000px has one of its own. A box
+#: that takes its height from the frame leaves the chart as a notebook's
+#: frame has it: as wide as the box, up to its own width, shrinking with a
+#: narrower one. The box scrolls to whatever does not fit -- maidr's braille
+#: and review fields, a text longer than the line -- rather than cutting it
+#: off. ``maidrWatchBox`` fits the chart again whenever the box changes size:
+#: a window resized, a card taken full screen or back, a sidebar closed,
+#: with nothing sent to the server.
+_BOX_JS = """
+        function maidrBoxRoom(iframe) {
+            var box = iframe.parentElement;
+            if (!box || !box.clientWidth) return 0;
+            iframe.style.height = '0px';
+            var short = box.clientHeight;
+            iframe.style.height = '4000px';
+            var tall = box.clientHeight;
+            iframe.style.height = '0px';
+            if (!(short > 0) || Math.abs(tall - short) >= 1) return 0;
+            var style = iframe.ownerDocument.defaultView.getComputedStyle(box);
+            return short - (parseFloat(style.paddingTop) || 0)
+                - (parseFloat(style.paddingBottom) || 0);
+        }
+        function maidrBoxWidth(iframe) {
+            var box = iframe.parentElement;
+            var style = iframe.ownerDocument.defaultView.getComputedStyle(box);
+            return box.clientWidth - (parseFloat(style.paddingLeft) || 0)
+                - (parseFloat(style.paddingRight) || 0);
+        }
+        // The room kept below the chart for a line of maidr's text: one
+        // line of the frame's text (line-height normal, about 1.15em; 1.25
+        // to be safe) and the margins of the paragraph maidr.js sets it in,
+        // 1em above and below. 52px at the frame's 16px; maidr.js 3.x takes
+        // 50px for it.
+        function maidrTextLine(doc) {
+            var style = doc.defaultView.getComputedStyle(doc.body);
+            var size = parseFloat(style.fontSize) || 16;
+            var line = parseFloat(style.lineHeight);
+            if (!(line > 0)) line = 1.25 * size;
+            return Math.ceil(line + 2 * size);
+        }
+        function maidrFitChart(doc, chart, room, width) {
+            var root = doc.documentElement;
+            chart.style.width = '';
+            chart.style.height = '';
+            chart.style.maxWidth = '';
+            doc.body.style.paddingTop = '';
+            if (!(room > 0) || !(width > 0)) {
+                root.removeAttribute('data-maidr-fit-box');
+                return;
+            }
+            root.setAttribute('data-maidr-fit-box', '');
+            var w = chart.width.baseVal.value;
+            var h = chart.height.baseVal.value;
+            var space = room - maidrTextLine(doc);
+            var scale = Math.min(width / w, Math.max(space, 96) / h);
+            chart.style.width = (w * scale) + 'px';
+            chart.style.height = (h * scale) + 'px';
+            chart.style.maxWidth = 'none';
+            if (space > h * scale) {
+                doc.body.style.paddingTop = ((space - h * scale) / 2) + 'px';
+            }
+        }
+"""
+
+#: How a Shiny app's frame hears that the box it is shown in changed size,
+#: which its own window does not report when the frame keeps its width or
+#: height: a box that grew taller, or wider than a frame a fixed-width chart
+#: had widened. Every Shiny frame has it; see :data:`_BOX_JS`.
+_WATCH_BOX_JS = """
+        function maidrWatchBox(iframe, onChange) {
+            var box = iframe.parentElement;
+            var win = iframe.ownerDocument.defaultView;
+            if (!box || !win.ResizeObserver) return;
+            // One observer per box: a frame loaded again replaces its own.
+            if (box.maidrBoxObserver) box.maidrBoxObserver.disconnect();
+            box.maidrBoxObserver = new win.ResizeObserver(onChange);
+            box.maidrBoxObserver.observe(box);
+        }
+"""
 
 #: How a notebook's matplotlib frame hears that it needs measuring again; see
 #: :func:`wrap_in_iframe_matplotlib`. ``FRAME_SVG_CLASS`` stands for the class.
@@ -429,12 +520,58 @@ _NOTEBOOK_LISTENERS_JS = """
 """
 
 
+def _compact_js(script: str) -> str:
+    """A frame's script without its indentation, blank lines and comment lines.
+
+    A Shiny app sends the frame, script and all, over its websocket with
+    every flush of the output; the comments and indentation were half of
+    what it sent, and every line break is five bytes in an attribute
+    (``&#10;``). A line is joined to the next only where it ends in what
+    cannot end a statement -- ``{``, ``;``, ``,``, ``(``, an operator --
+    so nothing that relies on a line break, a statement without its
+    semicolon, changes.
+
+    Parameters
+    ----------
+    script : str
+        The script.
+
+    Returns
+    -------
+    str
+        The same script, smaller.
+    """
+    lines = [line.strip() for line in script.splitlines()]
+    kept = [line for line in lines if line and not line.startswith("//")]
+    out: list[str] = []
+    for line in kept:
+        # Never onto a line with a comment at its end, which would take
+        # the joined line into the comment.
+        if (
+            out
+            and "//" not in out[-1]
+            and out[-1].endswith(("{", ";", ",", "(", "&&", "||", "?", ":", "="))
+        ):
+            out[-1] += " " + line
+        else:
+            out.append(line)
+    return "\n".join(out)
+
+
+def _frame_css(in_shiny: bool) -> str:
+    """The frame's own style; a block in a Shiny app's box, so that no line's
+    descent is left below it, which made the box taller than the frame."""
+    style = "background-color: #fff; position: relative; border: none"
+    return style + "; display: block" if in_shiny else style
+
+
 def wrap_in_iframe_matplotlib(
     base_html: Tag,
     chart_title: str | None = None,
     alt: str | None = None,
     *,
     in_notebook: bool = False,
+    in_shiny: bool = False,
 ) -> Tag:
     """Wrap matplotlib HTML in an auto-resizing iframe for notebooks.
 
@@ -448,8 +585,12 @@ def wrap_in_iframe_matplotlib(
     while a dialog of maidr's is open the frame is as tall as the part of
     the notebook a reader sees, and the dialog is scrolled into it. The
     notebook's scroll position is kept while the frame is measured.
-    Elsewhere -- Shiny, Flask, a Pyodide page -- the frame is as wide as its
-    content.
+
+    In a Shiny app (``in_shiny``) the frame fits its output the same way,
+    without the padding a notebook keeps to an output's right, and fits the
+    chart to the box it is shown in when that box has a height of its own;
+    see :data:`_BOX_JS`. Elsewhere -- Flask, a Pyodide page -- the frame is
+    as wide as its content.
 
     Parameters
     ----------
@@ -463,6 +604,8 @@ def wrap_in_iframe_matplotlib(
         the frame instead.
     in_notebook : bool, default=False
         Whether the frame goes into a notebook's output.
+    in_shiny : bool, default=False
+        Whether the frame goes into a Shiny app's output.
 
     Returns
     -------
@@ -470,8 +613,13 @@ def wrap_in_iframe_matplotlib(
         An iframe tag wrapping the original HTML with auto-resizing logic.
     """
     unique_id = _generate_unique_id()
-    fits = "true" if in_notebook else "false"
-    helpers = _NOTEBOOK_JS + _WATCH_JS if in_notebook else ""
+    fits_output = in_notebook or in_shiny
+    fits = "true" if fits_output else "false"
+    keeps = "true" if in_shiny else "false"
+    boxes = "true" if in_shiny else "false"
+    helpers = _NOTEBOOK_JS + _WATCH_JS if fits_output else ""
+    if in_shiny:
+        helpers += _BOX_JS + _WATCH_BOX_JS
     # In a notebook the frame is measured again when the output area narrows
     # or widens -- a change of the frame's width only: its height is set as
     # it is measured, at none for a moment, which resizes its window too, and
@@ -484,9 +632,13 @@ def wrap_in_iframe_matplotlib(
     # reader scrolled to it.
     notebook_listeners = (
         _NOTEBOOK_LISTENERS_JS.replace("FRAME_SVG_CLASS", FRAME_SVG_CLASS)
-        if in_notebook
+        if fits_output
         else ""
     )
+    if in_shiny:
+        notebook_listeners += """
+            maidrWatchBox(iframe, scheduleResize);
+"""
 
     # The script runs as the frame's document loads, and again whenever it
     # is loaded again (a frame taken out of the page and put back), giving
@@ -497,6 +649,8 @@ def wrap_in_iframe_matplotlib(
         {helpers}
         function resizeIframe() {{
             let fitsOutput = {fits};
+            let keepsPadding = {keeps};
+            let fitsBox = {boxes};
             let iframe = document.getElementById('{unique_id}');
             if (fitsOutput && maidrNotLaidOut(iframe)) return;
             if (
@@ -526,18 +680,28 @@ def wrap_in_iframe_matplotlib(
                 let own = chart && chart.width && chart.width.baseVal
                     ? chart.width.baseVal.value
                     : 0;
+                // In a Shiny app, the height of the box the frame is shown
+                // in, when it has one of its own: the chart is fitted to it.
+                let boxRoom = 0;
                 if (own > 0) {{
                     // While a dialog of maidr's is open, the frame
                     // may be as wide as MUI makes a dialog (600px, and 32px
                     // either side), so that a small chart's frame does not
                     // squeeze it.
                     let dialogOpen = iframeDocument.querySelector('.MuiDialog-root');
-                    iframe.style.width = maidrOutputWidth(iframe, false);
-                    iframe.style.maxWidth = Math.max(own + side, dialogOpen ? 664 : 0) + 'px';
+                    iframe.style.width = maidrOutputWidth(iframe, keepsPadding);
+                    if (fitsBox) {{
+                        boxRoom = maidrBoxRoom(iframe);
+                        maidrFitChart(iframeDocument, chart, boxRoom, maidrBoxWidth(iframe));
+                    }}
+                    // A chart fitted to its box is as wide as the box.
+                    iframe.style.maxWidth = boxRoom > 0
+                        ? ''
+                        : Math.max(own + side, dialogOpen ? 664 : 0) + 'px';
                 }} else if (fitsOutput) {{
                     // Until maidr.js has put the chart back: narrowed to
                     // nothing, the frame had no width to measure it at.
-                    iframe.style.width = maidrOutputWidth(iframe, false);
+                    iframe.style.width = maidrOutputWidth(iframe, keepsPadding);
                     iframe.style.maxWidth = '';
                 }} else {{
                     // The width comes first, so the height below is measured
@@ -606,6 +770,9 @@ def wrap_in_iframe_matplotlib(
                 }} else if (isReviewInputActive) {{
                     height += 50;
                 }}
+                // A dialog over a chart fitted to its box is kept to the
+                // box, which scrolls to nothing then.
+                if (boxRoom > 0 && room > 0) room = Math.floor(boxRoom);
                 height = Math.max(height, room);
                 iframe.style.height = (height) + 'px';
                 if (restoreScroll) restoreScroll();
@@ -671,7 +838,7 @@ def wrap_in_iframe_matplotlib(
     """
 
     srcdoc = str(base_html.get_html_string())
-    if in_notebook:
+    if fits_output:
         srcdoc = frame_style() + srcdoc
     return tags.iframe(
         id=unique_id,
@@ -686,9 +853,9 @@ def wrap_in_iframe_matplotlib(
         width="100%",
         height="100%",
         scrolling="no",
-        style="background-color: #fff; position: relative; border: none",
+        style=_frame_css(in_shiny),
         frameBorder=0,
-        onload=resizing_script,
+        onload=_compact_js(resizing_script) if in_shiny else resizing_script,
     )
 
 
@@ -700,6 +867,7 @@ def wrap_in_iframe_plotly(
     in_notebook: bool = False,
     keep_padding: bool = False,
     fill_width: bool = False,
+    in_shiny: bool = False,
 ) -> Tag:
     """Wrap Plotly HTML in an auto-resizing iframe for notebooks.
 
@@ -716,6 +884,14 @@ def wrap_in_iframe_plotly(
     the frame cutting it off; the output area keeps where it was scrolled to
     when the frame is measured. A dialog of maidr's gets room, as in the
     matplotlib frame.
+
+    In a Shiny app (``in_shiny``) the frame fits its output the same way,
+    without the padding a notebook keeps to an output's right; the box
+    :class:`maidr.widget.shiny.render_maidr` puts around it scrolls to a
+    chart wider than the output. A chart that takes its container's width
+    (``fill_width``) never widens the frame there: it is narrower once it
+    has followed a narrower output, and measured before it had, it held the
+    frame at its old width for good.
 
     Parameters
     ----------
@@ -738,8 +914,11 @@ def wrap_in_iframe_plotly(
     fill_width : bool, default=False
         Whether the chart takes the width of its container (a Bokeh
         ``sizing_mode`` that stretches or scales its width, a Vega-Lite
-        ``width`` of ``"container"``): in a notebook it is then as wide as
-        the frame; see ``maidr/assets/frame.css``.
+        ``width`` of ``"container"``, a Plotly figure with no width): in a
+        notebook or a Shiny app it is then as wide as the frame; see
+        ``maidr/assets/frame.css``.
+    in_shiny : bool, default=False
+        Whether the frame goes into a Shiny app's output.
 
     Returns
     -------
@@ -747,15 +926,22 @@ def wrap_in_iframe_plotly(
         An iframe tag wrapping the original HTML with auto-resizing logic.
     """
     unique_id = _generate_unique_id()
-    fits = "true" if in_notebook else "false"
-    keeps = "true" if keep_padding else "false"
-    helpers = _WATCH_JS + (_NOTEBOOK_JS if in_notebook else "")
+    fits_output = in_notebook or in_shiny
+    fits = "true" if fits_output else "false"
+    keeps = "true" if keep_padding or in_shiny else "false"
+    widens = "false" if in_shiny and fill_width else "true"
+    helpers = _WATCH_JS + (_NOTEBOOK_JS if fits_output else "")
+    watch_box = ""
+    if in_shiny:
+        helpers += _WATCH_BOX_JS
+        watch_box = "maidrWatchBox(iframe, scheduleResize);"
 
     resizing_script = f"""
         {helpers}
         function resizeIframe() {{
             var fitsOutput = {fits};
             var keepsPadding = {keeps};
+            var widens = {widens};
             var iframe = document.getElementById('{unique_id}');
             if (!iframe || !iframe.contentWindow || !iframe.contentWindow.document) {{
                 return;
@@ -783,7 +969,7 @@ def wrap_in_iframe_plotly(
                     iframe.maidrHostWidth = hostWidth;
                     iframe.style.width = maidrOutputWidth(iframe, keepsPadding);
                 }}
-                if (de.scrollWidth > iframe.contentWindow.innerWidth + 1) {{
+                if (widens && de.scrollWidth > iframe.contentWindow.innerWidth + 1) {{
                     iframe.style.width = de.scrollWidth + 'px';
                 }}
             }}
@@ -885,6 +1071,7 @@ def wrap_in_iframe_plotly(
             // maidr's text and fields, which can lie past the body's box, and
             // a dialog maidr opens or closes, which needs room or gives it back.
             maidrWatch(iframe.contentWindow.document, scheduleResize);
+            {watch_box}
 
             if (typeof iframe.contentWindow.ResizeObserver !== 'undefined') {{
                 new iframe.contentWindow.ResizeObserver(scheduleResize).observe(
@@ -905,11 +1092,11 @@ def wrap_in_iframe_plotly(
         }} catch (_) {{}}
     """
 
-    if in_notebook and fill_width:
+    if fits_output and fill_width:
         base_html.add_class("maidr-frame-fill")
     srcdoc = str(base_html.get_html_string())
-    if in_notebook:
-        width_first = "" if keep_padding else _OUTPUT_WIDTH_FIRST
+    if fits_output:
+        width_first = "" if keep_padding or in_shiny else _OUTPUT_WIDTH_FIRST
         srcdoc = frame_style() + width_first + srcdoc
     return tags.iframe(
         id=unique_id,
@@ -924,7 +1111,7 @@ def wrap_in_iframe_plotly(
         width="100%",
         height="100%",
         scrolling="no",
-        style="background-color: #fff; position: relative; border: none",
+        style=_frame_css(in_shiny),
         frameBorder=0,
-        onload=resizing_script,
+        onload=_compact_js(resizing_script) if in_shiny else resizing_script,
     )

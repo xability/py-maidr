@@ -60,7 +60,7 @@ from maidr.util.iframe_utils import (
     wrap_in_iframe_plotly,
 )
 from maidr.util.inline_chart import in_quarto_render
-from maidr.util.notebook_figure import in_notebook_frame
+from maidr.util.notebook_figure import in_notebook_frame, in_shiny_frame
 from maidr.util.pyodide_display import show_in_page
 from maidr.util.quarto_cell import fig_alt as quarto_fig_alt
 from maidr.util.script_json import script_json
@@ -1702,6 +1702,31 @@ class PlotlyMaidr:
             "subplots": subplot_grid,
         }
 
+    def _own_layout_size(self, key: str) -> Any:
+        """The figure's own ``width`` or ``height``: its layout's, or its template's.
+
+        Where :meth:`plotly.io.to_html` reads it, so a figure that has one
+        is drawn at it whatever default it is given.
+
+        Parameters
+        ----------
+        key : {"width", "height"}
+            The size asked for.
+
+        Returns
+        -------
+        Any
+            The size in pixels, or ``None`` when the figure has none.
+        """
+        try:
+            layout = self._fig.layout
+            own = layout[key]
+            if own is None and layout.template is not None:
+                own = layout.template.layout[key]
+        except Exception:
+            return None
+        return own
+
     def _get_plotly_html(self, div_id: str, default_height: int | None = None) -> str:
         """Get Plotly's interactive HTML div.
 
@@ -1916,12 +1941,19 @@ class PlotlyMaidr:
         # still gives each init script a div of its own to wait on.
         plot_div_id = str(uuid.uuid4())
         # In a notebook's frame, a figure with no height of its own is as tall
-        # as the notebook's own plotly renderer draws it.
+        # as the notebook's own plotly renderer draws it. In a Shiny app's, as
+        # tall as plotly.js draws one: its height was the frame's, which
+        # starts at an iframe's 150px, and once maidr's text was measured into
+        # the frame plotly filled the taller frame, pushing the text below it
+        # again, on every key press.
         in_frame = in_notebook_frame(use_iframe)
-        plotly_div = self._get_plotly_html(
-            plot_div_id,
-            default_height=notebook_default_height() if in_frame else None,
-        )
+        in_shiny = not in_frame and in_shiny_frame(use_iframe)
+        default_height = None
+        if in_frame:
+            default_height = notebook_default_height()
+        elif in_shiny:
+            default_height = SHINY_DEFAULT_HEIGHT
+        plotly_div = self._get_plotly_html(plot_div_id, default_height=default_height)
         init_script = self._build_init_script(
             schema,
             use_cdn=use_cdn,
@@ -1955,7 +1987,12 @@ class PlotlyMaidr:
             # matplotlib chart written into the page.
             alt = quarto_fig_alt() if in_quarto_render(use_iframe) else None
             base_html = wrap_in_iframe_plotly(
-                base_html, chart_title, alt, in_notebook=in_frame
+                base_html,
+                chart_title,
+                alt,
+                in_notebook=in_frame,
+                in_shiny=in_shiny,
+                fill_width=in_shiny and self._own_layout_size("width") is None,
             )
 
         return with_chart_title(base_html, chart_title)
@@ -2000,6 +2037,12 @@ class PlotlyMaidr:
         )
         webbrowser.open(f"file://{html_file_path}")
 
+
+#: How tall a figure with no height of its own is drawn in a Shiny app: as
+#: tall as plotly.js draws one (its ``layout.height`` default), the size the
+#: figure's own layout was made for. A fixed height rather than the output's:
+#: one that followed the frame grew with maidr's text below it.
+SHINY_DEFAULT_HEIGHT = 450
 
 #: plotly's renderers that hand a figure to the notebook frontend's own
 #: plotly renderer (JupyterLab's, Notebook 7's, VS Code's, nteract's), which
