@@ -159,6 +159,17 @@ def set_backend(use_maidr: bool = True) -> None:
 
     if use_maidr:
         plt.switch_backend("module://maidr.backend")
+        # In a notebook, figures are shown at the end of a cell and as a
+        # cell's value again; ``%matplotlib widget`` replaces the latter.
+        try:
+            from .util.environment import Environment
+
+            if Environment.is_notebook():
+                from .util.notebook_display import install
+
+                install()
+        except Exception:
+            _logger.debug("installing the notebook display raised", exc_info=True)
         return
 
     backend = _original_backend or "agg"
@@ -294,13 +305,20 @@ except Exception:  # pragma: no cover - never block import on notebook setup
 # only what the shell lists, and with maidr's backend nothing lists the
 # inline backend's settings unless this does. See
 # ``maidr/util/notebook_figure.py``.
+#
+# The inline backend is also what shows a figure in a notebook: at the end of
+# the cell that drew it, without ``plt.show()``, and as a cell's value. maidr's
+# backend does both in its place, with the chart. See
+# ``maidr/util/notebook_display.py``.
 try:
     from .util.environment import Environment as _Environment  # noqa: E402
 
     if _Environment.is_notebook():
+        from .util.notebook_display import install as _install  # noqa: E402
         from .util.notebook_figure import register_inline_backend  # noqa: E402
 
         register_inline_backend()
+        _install()
 except Exception:  # pragma: no cover - never block import on notebook setup
     _logger.debug("registering the inline backend's settings raised", exc_info=True)
 

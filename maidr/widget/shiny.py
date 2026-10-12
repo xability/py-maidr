@@ -31,6 +31,7 @@ import maidr
 from maidr.core.figure_manager import FigureManager
 from maidr.util.dependencies import bundled_js_path
 from maidr.util.hover_mode import HoverMode, check_hover_mode
+from maidr.util.notebook_display import elsewhere
 from maidr.util.served_bundle import (
     ServedBundle,
     served_bundle_dependency,
@@ -456,7 +457,7 @@ class render_maidr(Renderer[Any]):
         # Entered here, on the worker thread, rather than around the
         # ``to_thread`` call: the value is then set in the context the
         # render actually runs in, whatever the executor does with contexts.
-        with serving_bundle(bundle):
+        with serving_bundle(bundle), elsewhere():
             return maidr.render(value, use_cdn=self.use_cdn, hover_mode=self.hover_mode)
 
     def _route(self, session: Session) -> Optional[_ServedChart]:

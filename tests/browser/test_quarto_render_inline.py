@@ -311,6 +311,80 @@ def test_a_dashboards_charts_stay_in_their_cards(tmp_path):
         assert card, "a chart was moved out of its card"
 
 
+_NO_SHOW = """\
+---
+title: No show
+---
+
+```{python}
+#| include: false
+import matplotlib.pyplot as plt
+import maidr
+maidr.set_use_cdn(False)
+```
+
+```{python}
+#| fig-alt: "Two bars: b is twice a."
+fig, ax = plt.subplots()
+_ = ax.bar(["a", "b"], [1, 2])
+```
+
+```{python}
+#| label: fig-line
+#| fig-cap: "A line."
+fig, ax = plt.subplots()
+_ = ax.plot([1, 2, 3], [2, 3, 1])
+```
+
+See @fig-line.
+
+```{python}
+fig, ax = plt.subplots()
+_ = ax.bar(["x", "y"], [2, 1])
+fig
+```
+"""
+
+
+def test_a_cell_without_show_has_its_chart_its_alt_text_and_its_float(tmp_path):
+    """Each figure is shown when its own cell ends (``maidr.util.notebook_display``).
+
+    Before, the charts of cells without ``plt.show()`` were left open and all
+    came out under the last cell's, without their alt text, and the float a
+    ``fig-`` label makes was left empty.
+    """
+    from lxml import html as lxml_html
+
+    quarto = _quarto()
+    (tmp_path / "noshow.qmd").write_text(_NO_SHOW, encoding="utf-8")
+    env = {**os.environ, "QUARTO_PYTHON": sys.executable, "MPLBACKEND": "Agg"}
+    result = subprocess.run(
+        [quarto, "render", "noshow.qmd", "--to", "html"],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=600,
+    )
+    if result.returncode != 0:
+        pytest.fail(f"quarto render failed:\n{result.stderr[-4000:]}")
+    page = lxml_html.parse(str(tmp_path / "noshow.html"))
+
+    def charts(node):
+        return node.xpath(
+            ".//div[contains(concat(' ', @class, ' '), ' maidr-inline ')]"
+        )
+
+    cells = page.xpath("//div[contains(concat(' ', @class, ' '), ' cell ')]")
+    # The setup cell is left out of the page (include: false).
+    assert [len(charts(cell)) for cell in cells] == [1, 1, 1]
+    assert page.xpath('//*[@aria-label="Two bars: b is twice a."]')
+    float_ = page.xpath('//*[@id="fig-line"]')[0]
+    assert len(charts(float_)) == 1
+    assert "A line." in float_.text_content()
+    assert page.xpath('//a[@href="#fig-line"]')
+
+
 _SAME_CODE = """\
 ---
 title: Same code
