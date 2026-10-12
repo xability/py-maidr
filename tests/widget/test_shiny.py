@@ -536,6 +536,9 @@ def test_a_bokeh_plot_that_takes_its_containers_height_is_given_one(
     assert ("fillHeight" in options) is fills, options
     if fills:
         assert options["fillHeight"] == 450
+    # Scaled both ways, it keeps its shape within that height too: Bokeh
+    # sizes it by its container's width alone.
+    assert options.get("keepsShape", False) is (mode == "scale_both"), options
 
 
 # ---------------------------------------------------------------------------

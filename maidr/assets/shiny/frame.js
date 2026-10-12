@@ -251,12 +251,14 @@
         // its frame, out of sight. ``redrawn`` measures it once plotly.js
         // has drawn it; the height is then the one set, so that measuring
         // resizes nothing.
-        function maidrFillHeight(doc, height, redrawn) {
+        function maidrFillHeight(doc, height, redrawn, keepsShape) {
             var plot = doc.querySelector(
                 '.js-plotly-plot, [id^="maidr-bokeh-"][id$="-plot"]'
             );
             if (!plot) return;
-            var px = Math.max(Math.floor(height), 96) + 'px';
+            height = Math.max(Math.floor(height), 96);
+            if (keepsShape) height = maidrKeepShape(plot, height);
+            var px = height + 'px';
             if (plot.style.height === px) return;
             plot.style.height = px;
             var plotly = doc.defaultView.Plotly;
@@ -267,6 +269,26 @@
                     if (done && done.then) done.then(redrawn, redrawn);
                 } catch (_) {}
             }
+        }
+        // A Bokeh plot scaled both ways (sizing_mode="scale_both") keeps
+        // its shape, and takes its size from its container's width alone:
+        // given the box's height, it was as tall as it was wide, 1256px in
+        // a 450px plot, and painted over maidr's text. Once Bokeh has drawn
+        // it, it is kept as wide as that height allows at its shape, and
+        // centred; the height it is then given is the one its width
+        // allows, where that is less.
+        function maidrKeepShape(plot, height) {
+            var drawn = plot.firstElementChild;
+            var rect = drawn && drawn.getBoundingClientRect();
+            if (!rect || !(rect.width > 0) || !(rect.height > 0)) return height;
+            var shape = rect.width / rect.height;
+            var px = Math.floor(height * shape) + 'px';
+            if (plot.style.maxWidth !== px) {
+                plot.style.maxWidth = px;
+                plot.style.marginLeft = 'auto';
+                plot.style.marginRight = 'auto';
+            }
+            return Math.max(Math.min(height, Math.floor(plot.clientWidth / shape)), 96);
         }
         // maidr's text, once it changed, in the box, which alone is
         // scrolled: as maidrShowField shows a field, without moving the page.
@@ -540,7 +562,7 @@
                     ? fit.room - maidrTextLine(doc)
                     : options.fillHeight, function() {
                         requestAnimationFrame(resizeIframe);
-                    });
+                    }, options.keepsShape);
             }
 
             // WIDTH, in a notebook: a chart of a fixed width wider than the

@@ -737,6 +737,71 @@ def test_a_stretched_bokeh_plot_is_given_a_height(browser, shiny_size_app_url, c
         page.close()
 
 
+#: Where Bokeh drew the plot, and what is painted at the middle of maidr's
+#: text, in the frame's own pixels.
+_BOKEH_DRAWN = r"""() => {
+  const host = [...document.querySelectorAll('div')].find(e => e.shadowRoot);
+  const text = document.getElementById('maidr-text-container');
+  const r = host.getBoundingClientRect();
+  const t = text && text.textContent.trim() ? text.getBoundingClientRect() : null;
+  const hit = t && document.elementFromPoint(
+    (t.left + t.right) / 2, (t.top + t.bottom) / 2);
+  return {
+    plot: {left: r.left, top: r.top, right: r.right, bottom: r.bottom,
+           width: r.width, height: r.height},
+    text: t && {top: t.top, bottom: t.bottom},
+    textOnTop: !!(hit && text.contains(hit)),
+    window: [window.innerWidth, window.innerHeight],
+  };
+}"""
+
+
+@pytest.mark.parametrize(
+    ("case", "width"),
+    [("bokeh_scaled", 1280), ("bokeh_scaled_card", 1280), ("bokeh_scaled", 390)],
+)
+def test_a_bokeh_plot_scaled_both_ways_fits_its_box(
+    browser, shiny_size_app_url, case, width
+):
+    """``sizing_mode="scale_both"``: its shape kept, within the box's height.
+
+    Bokeh takes such a plot's size from its container's width alone. Given
+    the box's height, it was as tall as it was wide -- 1256px in a 450px
+    plot, 1198px in a 778px card -- and its canvas painted over maidr's
+    text, below what the focus ring outlined; on a phone it left a blank
+    band above the text.
+    """
+    page = _open(browser, f"{shiny_size_app_url}/{case}/", width)
+    try:
+        frame = _chart_frame(page)
+        frame.locator(CHART).first.focus()
+        page.wait_for_timeout(400)
+        page.keyboard.press("ArrowRight")
+        page.wait_for_timeout(800)
+        seen = _settle(page)
+        drawn = frame.evaluate(_BOKEH_DRAWN)
+        plot = drawn["plot"]
+        # Its shape, square, kept.
+        assert plot["width"] == pytest.approx(plot["height"], abs=2), drawn
+        # Within the frame, above maidr's text, which nothing paints over.
+        assert plot["right"] <= drawn["window"][0] + 1, drawn
+        assert plot["bottom"] <= drawn["text"]["top"] + 1, drawn
+        assert drawn["textOnTop"], drawn
+        # Right below it, with no band left blank where a phone's width,
+        # not the height, limits it (366px in a 450px plot).
+        assert drawn["text"]["top"] - plot["bottom"] <= 20, drawn
+        assert _inside(seen["text"], seen["boxShown"]), seen
+        # As large as the box allows: its width, or its height less the line.
+        room = seen["box"]["height"] - 60 if case.endswith("card") else 450 - 2
+        assert (
+            plot["width"] >= drawn["window"][0] - 2 or plot["height"] >= room
+        ), (drawn, seen)
+        assert "Apples" in frame.evaluate(_READING)["said"]
+        assert page.errors == []  # type: ignore[attr-defined]
+    finally:
+        page.close()
+
+
 # ---------------------------------------------------------------------------
 # The renderer's own size, under Express too; outputs written other ways
 # ---------------------------------------------------------------------------

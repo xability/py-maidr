@@ -1291,10 +1291,11 @@ Where a chart differs from `render.plot`'s:
   reached by scrolling the output sideways.
 * **Bokeh**: a `sizing_mode` that stretches or scales the width fills the
   output's width, and one that stretches or scales the height
-  (`stretch_both`, `stretch_height`, `scale_both`, `scale_height`) its
-  height less a line for maidr's text, or is 450px tall in an output with
-  no height of its own; a plot of a fixed width wider than the output is
-  reached by scrolling the output sideways. **Altair**: a chart of
+  (`stretch_both`, `stretch_height`, `scale_height`) its height less a line
+  for maidr's text, or is 450px tall in an output with no height of its
+  own. `scale_both` keeps the plot's shape within both: it is as large as
+  the output's width and that height allow, and centred. A plot of a fixed
+  width wider than the output is reached by scrolling the output sideways. **Altair**: a chart of
   `width="container"` fills the output.
 
 The script that sizes a chart's frame is served by the app once, as a web

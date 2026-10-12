@@ -582,12 +582,14 @@ _BOX_JS = """
         // its frame, out of sight. ``redrawn`` measures it once plotly.js
         // has drawn it; the height is then the one set, so that measuring
         // resizes nothing.
-        function maidrFillHeight(doc, height, redrawn) {
+        function maidrFillHeight(doc, height, redrawn, keepsShape) {
             var plot = doc.querySelector(
                 '.js-plotly-plot, [id^="maidr-bokeh-"][id$="-plot"]'
             );
             if (!plot) return;
-            var px = Math.max(Math.floor(height), 96) + 'px';
+            height = Math.max(Math.floor(height), 96);
+            if (keepsShape) height = maidrKeepShape(plot, height);
+            var px = height + 'px';
             if (plot.style.height === px) return;
             plot.style.height = px;
             var plotly = doc.defaultView.Plotly;
@@ -598,6 +600,26 @@ _BOX_JS = """
                     if (done && done.then) done.then(redrawn, redrawn);
                 } catch (_) {}
             }
+        }
+        // A Bokeh plot scaled both ways (sizing_mode="scale_both") keeps
+        // its shape, and takes its size from its container's width alone:
+        // given the box's height, it was as tall as it was wide, 1256px in
+        // a 450px plot, and painted over maidr's text. Once Bokeh has drawn
+        // it, it is kept as wide as that height allows at its shape, and
+        // centred; the height it is then given is the one its width
+        // allows, where that is less.
+        function maidrKeepShape(plot, height) {
+            var drawn = plot.firstElementChild;
+            var rect = drawn && drawn.getBoundingClientRect();
+            if (!rect || !(rect.width > 0) || !(rect.height > 0)) return height;
+            var shape = rect.width / rect.height;
+            var px = Math.floor(height * shape) + 'px';
+            if (plot.style.maxWidth !== px) {
+                plot.style.maxWidth = px;
+                plot.style.marginLeft = 'auto';
+                plot.style.marginRight = 'auto';
+            }
+            return Math.max(Math.min(height, Math.floor(plot.clientWidth / shape)), 96);
         }
         // maidr's text, once it changed, in the box, which alone is
         // scrolled: as maidrShowField shows a field, without moving the page.
@@ -1214,6 +1236,7 @@ def wrap_in_iframe_plotly(
     fill_width: bool = False,
     in_shiny: bool = False,
     fill_height: int = 0,
+    keep_shape: bool = False,
 ) -> Tag:
     """Wrap Plotly HTML in an auto-resizing iframe for notebooks.
 
@@ -1272,6 +1295,9 @@ def wrap_in_iframe_plotly(
         with no height of its own; in a box with one, it is as tall as the
         box less a line for maidr's text. 0 for a chart with a height of
         its own.
+    keep_shape : bool, default=False
+        Whether such a chart keeps its shape, as a Bokeh plot scaled both
+        ways does: it is then no wider than that height allows.
 
     Returns
     -------
@@ -1285,6 +1311,8 @@ def wrap_in_iframe_plotly(
         options: dict = {"widens": not fill_width}
         if fill_height:
             options["fillHeight"] = int(fill_height)
+            if keep_shape:
+                options["keepsShape"] = True
         onload = _shiny_onload("plotly", options, src=_shiny_frame_fallback())
     else:
         helpers = _WATCH_JS + (_NOTEBOOK_JS if fits_output else "")
@@ -1365,7 +1393,7 @@ def _plotly_resizer(
                     ? fit.room - maidrTextLine(doc)
                     : options.fillHeight, function() {
                         requestAnimationFrame(resizeIframe);
-                    });
+                    }, options.keepsShape);
             }
 """
         if in_shiny

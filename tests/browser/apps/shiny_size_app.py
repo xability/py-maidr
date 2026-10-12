@@ -8,7 +8,7 @@ announcement three lines long, in a card of a page that is not fillable and
 in a sidebar layout, as an HTML string a ``render.ui`` returns, and
 Plotly figures (with no height of their
 own, in an output with one, and with ``autosize`` off), Bokeh plots (of a
-fixed width, and stretched both ways) and an Altair chart.
+fixed width, stretched both ways, and scaled both ways) and an Altair chart.
 ``tests/browser/test_shiny_chart_size.py`` drives them.
 """
 
@@ -64,6 +64,15 @@ def _bokeh_stretched():
     from bokeh.plotting import figure
 
     plot = figure(x_range=LABELS, sizing_mode="stretch_both", title="Fruit sold")
+    plot.vbar(x=LABELS, top=VALUES, width=0.8)
+    return plot
+
+
+def _bokeh_scaled():
+    """A square plot scaled both ways: Bokeh takes its size from the width."""
+    from bokeh.plotting import figure
+
+    plot = figure(x_range=LABELS, sizing_mode="scale_both", title="Fruit sold")
     plot.vbar(x=LABELS, top=VALUES, width=0.8)
     return plot
 
@@ -135,6 +144,8 @@ CASES = {
     "hand_written": (_hand_written, None, {}, _bars),
     "card_fluid_h300": (_card_in_fluid, output_maidr("m", height=300), {}, _bars),
     "sidebar": (_sidebar, output_maidr("m"), {}, _bars),
+    "bokeh_scaled": (_fluid, output_maidr("m"), {}, _bokeh_scaled),
+    "bokeh_scaled_card": (_card, output_maidr("m"), {}, _bokeh_scaled),
 }
 
 

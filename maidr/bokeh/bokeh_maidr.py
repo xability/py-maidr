@@ -397,6 +397,15 @@ class BokehMaidr:
         policy = str(getattr(self._model, "height_policy", None) or "")
         return mode in _FILLS_HEIGHT or policy == "max"
 
+    def _keeps_shape(self) -> bool:
+        """Whether the plot is scaled both ways, keeping its shape.
+
+        Bokeh then takes its size from its container's width alone, and it
+        is as tall as its shape makes it, whatever the container's height;
+        in a Shiny box it is kept within that height too.
+        """
+        return str(getattr(self._model, "sizing_mode", None) or "") == "scale_both"
+
     def _highlight_map(self, cursors: dict[tuple, str]) -> dict[str, dict]:
         """
         What the page's ``onNavigate`` needs, keyed by layer id.
@@ -735,6 +744,7 @@ class BokehMaidr:
                 fill_height=(
                     _SHINY_FILL_HEIGHT if in_shiny and self._fills_height() else 0
                 ),
+                keep_shape=self._keeps_shape(),
             )
         return with_chart_title(base_html, chart_title)
 
