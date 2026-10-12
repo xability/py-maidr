@@ -294,9 +294,19 @@ def _announced(page: Page) -> str:
     )
 
 
-def _press_in(page: Page, chart: int, key: str) -> None:
+def _focus_in(page: Page, chart: int = 0) -> None:
+    """Focus a chart and wait for maidr.js to take it.
+
+    maidr.js builds a chart's controller, and with it the keys it handles, a
+    task after the chart takes the focus, so a key pressed at once can reach
+    the page before them.
+    """
     page.locator(_PLOT).nth(chart).focus()
     page.wait_for_timeout(300)
+
+
+def _press_in(page: Page, chart: int, key: str) -> None:
+    _focus_in(page, chart)
     page.keyboard.press(key)
     page.wait_for_timeout(300)
 
@@ -479,7 +489,7 @@ def test_maidr_names_the_chart_and_the_page_describes_it(page):
 
 def test_shift_tab_from_the_first_chart_hands_the_reader_to_its_slide(page):
     """Not to the browser's own controls, where no key reaches the deck."""
-    page.locator(_PLOT).first.focus()
+    _focus_in(page)
     page.keyboard.press("Shift+Tab")
     assert page.evaluate("document.activeElement.tagName") == "SECTION"
 
@@ -494,12 +504,12 @@ def test_a_link_out_of_the_tab_order_does_not_keep_shift_tab_off_the_slide(
     link = "<a id='line' href='#line' tabindex='-1'>1</a>"
     page = _page(browser, tmp_path, _deck([link + outputs[0], outputs[1]]))
     try:
-        page.locator(_PLOT).first.focus()
+        _focus_in(page)
         page.keyboard.press("Shift+Tab")
         assert page.evaluate("document.activeElement.tagName") == "SECTION"
 
         page.evaluate("document.getElementById('line').removeAttribute('tabindex')")
-        page.locator(_PLOT).first.focus()
+        _focus_in(page)
         page.keyboard.press("Shift+Tab")
         assert page.evaluate("document.activeElement.id") == "line"
     finally:
@@ -508,7 +518,7 @@ def test_a_link_out_of_the_tab_order_does_not_keep_shift_tab_off_the_slide(
 
 def test_shift_tab_is_the_browsers_on_a_page_that_is_not_a_deck(plain_page):
     """There the elements above a chart are its wrappers or the page's."""
-    plain_page.locator(_PLOT).first.focus()
+    _focus_in(plain_page)
     plain_page.keyboard.press("Shift+Tab")
     after = plain_page.evaluate(
         """() => ({
