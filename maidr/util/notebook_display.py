@@ -121,6 +121,7 @@ def maidr_backend_active() -> bool:
     try:
         backend = matplotlib.get_backend()
     except Exception:
+        _logger.debug("maidr: could not read matplotlib's backend", exc_info=True)
         return False
     return str(backend).lower() == MAIDR_BACKEND
 
@@ -179,6 +180,9 @@ def _close_figures() -> bool:
 
         return bool(InlineBackend.instance().close_figures)
     except Exception:
+        _logger.debug(
+            "maidr: could not read InlineBackend.close_figures", exc_info=True
+        )
         return True
 
 
@@ -308,6 +312,7 @@ def display_plain(figure: Any) -> bool:
 
         extra = _fetch_figure_metadata(figure)
     except Exception:
+        _logger.debug("maidr: could not read the figure's metadata", exc_info=True)
         extra = None
     if extra:
         metadata = {**metadata, **extra}
