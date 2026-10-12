@@ -187,10 +187,19 @@ def _close_figures() -> bool:
 
 
 def _show(figure: Any) -> None:
-    """Show one figure as ``plt.show()`` would, and say so if it fails."""
+    """Show one figure as ``plt.show()`` would, and say so if it fails.
+
+    A figure with nothing drawn on it yet -- ``fig, ax = plt.subplots()`` in a
+    cell that sets it up for the next to draw on -- is shown as the empty
+    image the notebook shows without maidr, and without the warning
+    ``plt.show()`` gives it: nobody asked maidr for a chart of it.
+    """
     from maidr.backend import show_figure
+    from maidr.exception.unsupported_plot_error import has_drawn_artists
 
     try:
+        if not has_drawn_artists(figure) and display_plain(figure):
+            return
         show_figure(figure)
     except Exception:
         shell = _state.shell

@@ -322,6 +322,25 @@ def test_a_figure_with_no_chart_is_the_image_the_notebook_shows_of_it(kernel):
     assert _png_size(images[0]) == _png_size(expected)
 
 
+def test_a_figure_set_up_for_a_later_cell_is_its_empty_image_and_no_warning(kernel):
+    """``fig, ax = plt.subplots()`` alone: nothing was asked of maidr."""
+    import warnings
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        captured, _ = _run(kernel, "fig, ax = plt.subplots()")
+
+    assert not [w for w in caught if issubclass(w.category, UserWarning)]
+    images = _images(captured)
+    assert len(images) == 1
+    assert not _charts(captured)
+
+    same, _ = plt.subplots()
+    assert _png_size(images[0]) == _png_size(
+        print_figure(same, "png", bbox_inches="tight")
+    )
+
+
 # -- install ----------------------------------------------------------------
 
 
