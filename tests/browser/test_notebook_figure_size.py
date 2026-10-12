@@ -18,7 +18,10 @@ the sizes the chart is given to IPython's; this holds what a browser shows:
 * the highlight lands on the mark it names;
 * a frame is measured again only when something in it, or its width,
   changes, and the notebook stays where it was scrolled, down or across,
-  when it is.
+  when it is;
+* maidr's dialogs are shown whole in the part of the notebook a reader
+  sees, over a chart smaller than a dialog, in a narrow output area, and
+  over a chart taller than the window.
 
 The other half is the libraries maidr shows in the same frame: a Plotly
 figure without a height is as tall as the notebook's renderer draws it and
@@ -127,7 +130,11 @@ def _plain_image(fig) -> str:
 
 
 def _notebook_page(
-    tmp_path: Path, cases: dict[str, tuple[Callable[[], Any], int]], **config: Any
+    tmp_path: Path,
+    cases: dict[str, tuple[Callable[[], Any], int]],
+    *,
+    scroller: int | None = None,
+    **config: Any,
 ) -> str:
     """A notebook's outputs: each figure's plain image, then its chart.
 
@@ -137,6 +144,10 @@ def _notebook_page(
         Where to write the page.
     cases : dict
         ``name -> (make the figure, the output area's width)``.
+    scroller : int, optional
+        The height of a box the outputs scroll in, below a toolbar, as
+        JupyterLab's and Notebook 7's do. By default the page scrolls, as
+        an nbconvert export does.
     **config
         ``InlineBackend`` settings, as ``%config`` would set them.
 
@@ -173,12 +184,20 @@ def _notebook_page(
                 )
     finally:
         InlineBackend.clear_instance()
+    body = "".join(outputs)
+    if scroller is not None:
+        body = (
+            '<div class="toolbar" style="height: 120px"></div>'
+            f'<div class="scroller" style="height: {scroller}px; overflow-y: auto">'
+            f'<div style="height: 300px"></div>{body}'
+            '<div style="height: 300px"></div></div>'
+        )
     out = tmp_path / "notebook.html"
     out.write_text(
         f"<!doctype html><html><head><meta charset='utf-8'>"
         f"<style>{_PAGE_STYLE}</style></head><body>"
         f"<script>window.__maidrJsSource = {source};</script>"
-        f"{''.join(outputs)}</body></html>",
+        f"{body}</body></html>",
         encoding="utf-8",
     )
     return out.as_uri()
@@ -514,6 +533,160 @@ def test_a_chart_above_the_readers_place_leaves_it_where_it_was(browser, png_pag
 
     assert before == pytest.approx(100, abs=1)
     assert after == pytest.approx(before, abs=1)
+
+
+# --- maidr's dialogs: the part of the notebook a reader sees --------------------
+
+_DIALOG_CASES = {
+    # Narrower than a dialog: the frame widens to the output area.
+    "narrow": (lambda: _figure(), 320),
+    # Smaller than a dialog: the frame widens to one, 664px.
+    "tiny": (lambda: _figure(size=(3, 2)), 1100),
+    # Taller than the window: the dialog is kept to the window's height.
+    "tall": (lambda: _figure(size=(6, 11)), 1100),
+}
+
+#: The open dialog, the frame and the output area, and the part of the
+#: notebook a reader sees: the box it scrolls in, or the window.
+_DIALOG = """(name) => {
+  const output = document.querySelector(`#chart-${name}`);
+  const frame = output.querySelector('iframe');
+  const doc = frame.contentDocument;
+  const f = frame.getBoundingClientRect();
+  const paper = doc.querySelector('.MuiDialog-paper');
+  const p = paper.getBoundingClientRect();
+  const content = paper.querySelector('.MuiDialogContent-root');
+  const box = document.querySelector('.scroller');
+  const v = box ? box.getBoundingClientRect() : {top: 0, bottom: innerHeight};
+  return {
+    frame: {width: f.width, height: f.height},
+    output: output.clientWidth,
+    paper: {top: f.top + p.top, bottom: f.top + p.bottom,
+            left: f.left + p.left, right: f.left + p.right, width: p.width},
+    view: {top: Math.max(v.top, 0), bottom: Math.min(v.bottom, innerHeight),
+           height: box ? box.clientHeight : innerHeight},
+    contentScrolls: content ? content.scrollHeight > content.clientHeight + 1 : null,
+  };
+}"""
+
+_FRAME_HEIGHT = (
+    "(name) => document.querySelector(`#chart-${name} iframe`)"
+    ".getBoundingClientRect().height"
+)
+
+_OPEN = {"help": "Control+Slash", "settings": "Control+Comma", "chat": "Shift+Slash"}
+
+
+@pytest.fixture(scope="module")
+def dialog_page(tmp_path_factory) -> str:
+    return _notebook_page(tmp_path_factory.mktemp("dialogs"), _DIALOG_CASES)
+
+
+@pytest.fixture(scope="module")
+def scrolled_dialog_page(tmp_path_factory) -> str:
+    """The outputs in a box 600px tall, as JupyterLab's notebook is."""
+    return _notebook_page(
+        tmp_path_factory.mktemp("scrolled"),
+        {"tiny": _DIALOG_CASES["tiny"]},
+        scroller=600,
+    )
+
+
+def _open_dialog(page: Page, name: str, dialog: str) -> tuple[Frame, float]:
+    """Open one of maidr's dialogs; the frame, and its height before it opened."""
+    frame = _chart_frame(page, name)
+    frame.focus(_PLOT)
+    page.keyboard.press("ArrowRight")
+    frame.wait_for_function(_ANNOUNCED, timeout=10_000)
+    page.wait_for_timeout(300)
+    before = page.evaluate(_FRAME_HEIGHT, name)
+    page.keyboard.press(_OPEN[dialog])
+    frame.wait_for_selector(".MuiDialog-paper", state="visible", timeout=10_000)
+    # Measured a frame after the dialog comes, and scrolled to.
+    page.wait_for_timeout(700)
+    return frame, before
+
+
+def _close_dialog(page: Page, frame: Frame) -> None:
+    page.keyboard.press("Escape")
+    frame.wait_for_selector(".MuiDialog-root", state="detached", timeout=10_000)
+    page.wait_for_timeout(400)
+
+
+def _assert_in_view(seen: dict, what: str) -> None:
+    paper, view = seen["paper"], seen["view"]
+    assert (
+        paper["top"] >= view["top"] - 0.5
+    ), f"{what}: the dialog's top is {view['top'] - paper['top']:.0f}px out of view"
+    assert paper["bottom"] <= view["bottom"] + 0.5, (
+        f"{what}: the dialog's bottom is {paper['bottom'] - view['bottom']:.0f}px "
+        "out of view"
+    )
+    assert paper["left"] >= -0.5 and paper["right"] <= 1_200.5, what
+
+
+@pytest.mark.parametrize("dialog", ["help", "settings", "chat"])
+@pytest.mark.parametrize("name", ["narrow", "tiny", "tall"])
+def test_a_dialog_is_shown_whole_in_the_readers_view(
+    browser, dialog_page, name, dialog
+):
+    page = _open(browser, dialog_page, frames=len(_DIALOG_CASES))
+    try:
+        frame, before = _open_dialog(page, name, dialog)
+        seen = page.evaluate(_DIALOG, name)
+        _close_dialog(page, frame)
+        closed = page.evaluate(_FRAME_HEIGHT, name)
+    finally:
+        page.close()
+
+    _assert_in_view(seen, f"{name} {dialog}")
+    # As wide as a dialog, or as the output area where that is narrower.
+    assert seen["frame"]["width"] == pytest.approx(min(664, seen["output"]), abs=1)
+    # As tall as the reader's view, or as the chart where that is taller.
+    assert seen["frame"]["height"] == pytest.approx(
+        max(seen["view"]["height"], before), abs=1
+    )
+    if dialog == "settings":
+        assert seen["contentScrolls"] is False, "the settings scroll in their dialog"
+    # Back to the chart's height once it is closed.
+    assert closed == pytest.approx(before, abs=1)
+
+
+def test_a_dialog_is_shown_whole_in_the_box_the_notebook_scrolls_in(
+    browser, scrolled_dialog_page
+):
+    page = _open(browser, scrolled_dialog_page, frames=1)
+    try:
+        frame, _ = _open_dialog(page, "tiny", "help")
+        seen = page.evaluate(_DIALOG, "tiny")
+        _close_dialog(page, frame)
+    finally:
+        page.close()
+
+    # The box's height, not the window's.
+    assert seen["view"]["height"] == 600
+    assert seen["frame"]["height"] == pytest.approx(600, abs=1)
+    _assert_in_view(seen, "help")
+
+
+def test_the_settings_tabs_leave_the_frame_as_it_is(browser, dialog_page):
+    """The frame was as tall as each tab, and moved the notebook at each."""
+    page = _open(browser, dialog_page, frames=len(_DIALOG_CASES))
+    heights = []
+    try:
+        frame, _ = _open_dialog(page, "tiny", "settings")
+        tabs = frame.locator('[role="tab"]')
+        assert tabs.count() > 1
+        for i in range(tabs.count()):
+            tabs.nth(i).focus()
+            page.keyboard.press("Enter")
+            page.wait_for_timeout(400)
+            heights.append(page.evaluate(_DIALOG, "tiny")["frame"]["height"])
+        _close_dialog(page, frame)
+    finally:
+        page.close()
+
+    assert max(heights) - min(heights) <= 1, heights
 
 
 # --- Plotly, Bokeh and Altair in the same frame -------------------------------

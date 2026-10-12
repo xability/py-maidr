@@ -172,6 +172,25 @@ def test_a_frame_keeps_the_notebook_where_it_is_scrolled():
         assert kept < measured < restored
 
 
+def test_a_notebook_frame_makes_room_for_maidrs_dialogs():
+    script = _attribute(_frame(in_notebook=True), "onload")
+
+    assert "maidrDialogRoom(iframeDocument, iframe)" in script
+    assert "maidrWatch(iframe.contentWindow.document, scheduleResize)" in script
+    assert "iframe.scrollIntoView({block: 'center', inline: 'nearest'})" in script
+
+
+def test_a_dialog_over_a_tall_chart_keeps_to_the_readers_view(css):
+    band = "html[data-maidr-dialog-room]"
+    assert css[f"{band} .MuiDialog-container"] == {
+        "height": "var(--maidr-dialog-room) !important",
+        "margin-top": "calc((100vh - var(--maidr-dialog-room)) / 2) !important",
+    }
+    assert css[f"{band} .MuiDialog-paper"] == {
+        "max-height": "calc(var(--maidr-dialog-room) - 64px) !important"
+    }
+
+
 def test_any_other_frame_is_left_as_it_was():
     frame = _frame()
 

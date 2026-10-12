@@ -1119,9 +1119,15 @@ expression is shown as the image it describes, as it is without maidr.
 as the image does, rather than the output area scrolling sideways. That is
 the area's whole width: the 20px JupyterLab and Notebook 7 keep to the right
 of an HTML output, and not of an image, are the chart's too. maidr's
-text, braille and review fields keep to the same width, and while maidr's help
-or settings dialog is open the frame grows to hold it, up to the window's
-height, and widens to the dialog's width when the chart is narrower.
+text, braille and review fields keep to the same width.
+
+**While one of maidr's dialogs is open** — help, settings, the chat — the
+frame is as tall as the part of the notebook you see (the area JupyterLab and
+Notebook 7 scroll the notebook in, or the window of an exported page), and
+as wide as the dialog where the chart is narrower, and it is scrolled to the
+middle of that part, so that the dialog is shown whole. A chart taller than
+that keeps its height, and the dialog keeps to the part you see. The frame
+goes back to the chart's size when the dialog closes.
 
 Where a chart differs from the plain one:
 
