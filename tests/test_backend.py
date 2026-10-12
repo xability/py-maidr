@@ -153,8 +153,20 @@ class TestBackendShow:
 
         plt.show()
 
-        mock_fallback.assert_called_once_with(fig)
+        mock_fallback.assert_called_once_with(fig, stacklevel=6)
         assert len(Gcf.get_all_fig_managers()) == 0
+
+    def test_the_fallback_warning_names_the_line_that_called_show(self, mocker):
+        """Past ``show_figure``, the backend's ``show`` and ``pyplot.show``."""
+        fig, ax = plt.subplots()
+        ax.text(0.5, 0.5, "hello")
+        mocker.patch("maidr.backend.webbrowser.open")
+        mocker.patch.object(fig, "savefig")
+
+        with pytest.warns(UserWarning, match="not yet supported") as record:
+            plt.show()
+
+        assert record[0].filename == __file__
 
     def test_show_fallback_emits_warning(self, mocker):
         """_show_fallback() should emit a warning about unsupported plot types."""
@@ -201,20 +213,22 @@ class TestBackendShow:
         mock_ipython_display.display.assert_called_once()
         mock_browser.assert_not_called()
 
-    def test_show_cleans_up_maidr_figure_manager(self, mocker):
-        """plt.show() should remove figures from maidr's FigureManager.figs."""
+    def test_show_keeps_maidr_record_of_the_figure(self, mocker):
+        """A figure plt.show() closed is still its chart when shown again.
+
+        The record lives on the figure (#456) and goes with it, so keeping it
+        leaks nothing; a notebook cell that shows the figure again, as its
+        value, then shows its chart, with everything drawn on it.
+        """
         fig, ax = plt.subplots()
         ax.bar([1, 2, 3], [4, 5, 6])
-
-        # Verify figure is tracked before show
-        assert fig in FigureManager.figs
-
+        maidr_obj = FigureManager.get_maidr(fig)
         mocker.patch("maidr.core.maidr.Maidr.show")
 
         plt.show()
 
-        # After show, figure should be cleaned up from maidr's tracking
-        assert fig not in FigureManager.figs
+        assert len(Gcf.get_all_fig_managers()) == 0
+        assert FigureManager.get_maidr(fig) is maidr_obj
 
     def test_show_multiple_figures(self, mocker):
         """plt.show() should render and clean up all open figures."""
@@ -237,10 +251,8 @@ class TestBackendShow:
         mock_show1.assert_called_once_with(clear_fig=False, use_cdn="auto")
         mock_show2.assert_called_once_with(clear_fig=False, use_cdn="auto")
 
-        # Both should be cleaned up from matplotlib and maidr
+        # Both are closed; maidr's records go with the figures themselves.
         assert len(Gcf.get_all_fig_managers()) == 0
-        assert fig1 not in FigureManager.figs
-        assert fig2 not in FigureManager.figs
 
 
 class TestSetBackend:

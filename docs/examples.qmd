@@ -10,7 +10,7 @@ filters:
 
 Making accessible data representation with **maidr** is easy and straightforward. If you already have data visualization code using **matplotlib** or **seaborn**, you can make your plots accessible with **maidr** in just a few lines of code. For **Plotly** examples, see the [Plotly Examples](examples-plotly.qmd) page, and for **Altair** the [Altair Examples](examples-altair.qmd) page.
 
-Simply `import maidr` and call `plt.show()` as usual. **maidr** automatically activates a custom matplotlib backend, so `plt.show()` renders accessible HTML output (with sonification, braille, and tactile support) instead of a static image.
+Simply `import maidr` and call `plt.show()` as usual. **maidr** automatically activates a custom matplotlib backend, so `plt.show()` renders accessible HTML output (with sonification, braille, and tactile support) instead of a static image. In a notebook a cell does not need `plt.show()`: as without maidr, the figures it draws are shown, as charts, when it ends.
 
 ### Custom Backend
 

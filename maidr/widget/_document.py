@@ -27,6 +27,7 @@ from maidr.util.dependencies import inline_bundle_tags, read_bundled_js
 from maidr.util.hover_mode import HoverMode
 from maidr.util.iframe_utils import chart_title_on
 from maidr.util.inline_chart import standalone_document
+from maidr.util.notebook_display import elsewhere
 
 #: Accepted by ``use_cdn``; ``None`` defers to :func:`maidr.get_use_cdn`.
 UseCdn = Optional[Union[bool, Literal["auto"]]]
@@ -69,8 +70,10 @@ def render(
     # while the chart was built from another.
     resolved = maidr.get_use_cdn() if use_cdn is None else use_cdn
     # A document of its own, even when made during a Quarto render: not one
-    # of the charts that render writes into its page.
-    with standalone_document():
+    # of the charts that render writes into its page. Nor is it put in a
+    # notebook's output, so a figure drawn in a notebook cell is still shown
+    # at the end of it (``maidr.util.notebook_display``).
+    with standalone_document(), elsewhere():
         rendered = maidr.render(plot, use_cdn=resolved, hover_mode=hover_mode)
     # Before the bundle is inlined, so the pass reads the chart and not the
     # ~1.9 MB of runtime beside it; see ``_stable_ids`` for why at all.

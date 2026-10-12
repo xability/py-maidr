@@ -68,6 +68,7 @@ from maidr.util.inline_chart import (
     showing,
     size_like_plain_figure,
 )
+from maidr.util.notebook_display import note_displayed
 from maidr.util.notebook_figure import in_notebook_frame, notebook_figure_format
 from maidr.util.quarto_cell import fig_alt as quarto_fig_alt
 
@@ -311,6 +312,9 @@ class Maidr:
             so maidr.js uses its default, ``"pointermove"``. See
             :func:`maidr.render`.
         """
+        # In a notebook, a figure whose chart a cell has rendered is not
+        # shown again at the end of the cell; see ``maidr.util.notebook_display``.
+        note_displayed(self._fig)
         return self._create_html_tag(
             use_iframe=True, use_cdn=use_cdn, hover_mode=hover_mode
         )
@@ -434,6 +438,10 @@ class Maidr:
                 # bootstrap will surface a helpful console warning if
                 # the bundle is unreachable.
                 pass
+
+        # In a notebook, a figure a cell has shown is not shown again at the
+        # end of the cell; see ``maidr.util.notebook_display``.
+        note_displayed(self._fig)
 
         # Use the passed renderer parameter, fallback to auto-detection
         if renderer == "auto":

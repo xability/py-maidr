@@ -8,6 +8,11 @@ static image window.
 
 The backend is automatically activated when ``import maidr`` is executed.
 Users can also set it manually via ``matplotlib.use("module://maidr.backend")``.
+
+In a notebook it also stands in for matplotlib_inline, the backend it
+replaces there: a figure pyplot opens is queued to be shown at the end of the
+cell (:func:`new_figure_manager_given_figure`), as matplotlib_inline queues
+it; see :mod:`maidr.util.notebook_display`.
 """
 
 from __future__ import annotations
@@ -21,6 +26,8 @@ import webbrowser
 from typing import Any
 
 from matplotlib._pylab_helpers import Gcf
+from matplotlib.backend_bases import FigureManagerBase
+from matplotlib.backends import backend_agg
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
 
@@ -37,7 +44,66 @@ _logger = logging.getLogger(__name__)
 FigureCanvas = FigureCanvasAgg
 FigureManager = FigureCanvasAgg.manager_class
 
-__all__ = ["FigureCanvas", "FigureManager", "show"]
+__all__ = [
+    "FigureCanvas",
+    "FigureManager",
+    "new_figure_manager",
+    "new_figure_manager_given_figure",
+    "show",
+]
+
+
+def new_figure_manager(
+    num: Any, *args: Any, FigureClass: Any = Figure, **kwargs: Any
+) -> FigureManagerBase:
+    """Return a manager for a new figure, as pyplot asks a backend for one.
+
+    Defined, as matplotlib_inline defines it, so that the backend learns of
+    every figure pyplot opens; see :func:`new_figure_manager_given_figure`.
+
+    Parameters
+    ----------
+    num : int or str
+        The figure's number or label.
+    *args : Any
+        Positional arguments for the figure class.
+    FigureClass : type, default Figure
+        The figure class.
+    **kwargs : Any
+        Keyword arguments for the figure class.
+
+    Returns
+    -------
+    matplotlib.backend_bases.FigureManagerBase
+        The manager.
+    """
+    return new_figure_manager_given_figure(num, FigureClass(*args, **kwargs))
+
+
+def new_figure_manager_given_figure(num: Any, figure: Figure) -> FigureManagerBase:
+    """Return a manager for a figure, and queue the figure for a notebook.
+
+    The manager is Agg's. In a notebook, the figure is queued to be shown at
+    the end of the cell, as matplotlib_inline queues the figures it is given
+    a manager for: see :func:`maidr.util.notebook_display.note_new_figure`.
+
+    Parameters
+    ----------
+    num : int or str
+        The figure's number or label.
+    figure : Figure
+        The figure.
+
+    Returns
+    -------
+    matplotlib.backend_bases.FigureManagerBase
+        The manager.
+    """
+    from maidr.util.notebook_display import note_new_figure
+
+    manager = backend_agg.new_figure_manager_given_figure(num, figure)
+    note_new_figure(figure)
+    return manager
 
 
 def show(*args: Any, **kwargs: Any) -> None:
@@ -61,7 +127,6 @@ def show(*args: Any, **kwargs: Any) -> None:
         silently ignored.
     """
     from maidr.api import _resolve_use_cdn
-    from maidr.core.figure_manager import FigureManager as MaidrFigureManager
     from maidr.util.environment import Environment
     from maidr.util.pyodide_display import warn_no_page
 
@@ -88,28 +153,49 @@ def show(*args: Any, **kwargs: Any) -> None:
     use_cdn = _resolve_use_cdn(kwargs.pop("use_cdn", None))
 
     for manager in list(managers):
-        fig = manager.canvas.figure
-        try:
-            maidr_obj = MaidrFigureManager.get_maidr(fig)
-        except KeyError:
-            # Figure not tracked by maidr (e.g. unsupported plot type).
-            # Fall back to displaying a static image so the user still
-            # sees their plot.
-            _show_fallback(fig)
-        else:
-            # clear_fig=False because the backend handles figure cleanup.
-            maidr_obj.show(clear_fig=False, use_cdn=use_cdn)
-            # Drop maidr's record now rather than waiting for the figure to
-            # be collected: `clear_fig=False` skips the `plt.close()` ->
-            # `clear.py` path, and `Gcf.destroy` below is what actually
-            # releases the figure. Since #456 the record no longer outlives
-            # the figure on its own, so this is timeliness rather than the
-            # difference between bounded and unbounded.
-            MaidrFigureManager.destroy(fig)
+        # The warning for a figure maidr has no chart of names the caller of
+        # ``plt.show()``: past this function and ``pyplot.show``.
+        show_figure(manager.canvas.figure, use_cdn=use_cdn, stacklevel=3)
         Gcf.destroy(manager.num)
 
 
-def _show_fallback(fig: Figure) -> None:
+def show_figure(fig: Figure, use_cdn: Any = None, *, stacklevel: int = 1) -> None:
+    """Show one figure as ``plt.show()`` does, leaving it open.
+
+    Its maidr chart, or, for a figure maidr has no chart of, a static image
+    and a warning; see :func:`_show_fallback`.
+
+    maidr's record of the figure is kept: it lives on the figure (#456) and
+    goes with it, and a figure shown again later -- the value of a later
+    notebook cell -- is then still its chart, with every layer drawn on it.
+
+    Parameters
+    ----------
+    fig : Figure
+        The figure.
+    use_cdn : bool, {"auto"}, or None, default None
+        See :func:`maidr.render`; ``None`` defers to :func:`maidr.get_use_cdn`.
+    stacklevel : int, default 1
+        Whose line the warning for a figure maidr has no chart of names, as
+        :func:`warnings.warn` counts it from this function's caller: 1 is
+        the caller.
+    """
+    from maidr.api import _resolve_use_cdn
+    from maidr.core.figure_manager import FigureManager as MaidrFigureManager
+
+    try:
+        maidr_obj = MaidrFigureManager.get_maidr(fig)
+    except KeyError:
+        # Figure not tracked by maidr (e.g. unsupported plot type).
+        # Fall back to displaying a static image so the user still
+        # sees their plot.
+        _show_fallback(fig, stacklevel=stacklevel + 3)
+    else:
+        # clear_fig=False because the caller closes the figure.
+        maidr_obj.show(clear_fig=False, use_cdn=_resolve_use_cdn(use_cdn))
+
+
+def _show_fallback(fig: Figure, *, stacklevel: int = 5) -> None:
     """Display a figure as a static image when maidr does not support it.
 
     Emits a warning and renders the figure using IPython's display system
@@ -120,22 +206,36 @@ def _show_fallback(fig: Figure) -> None:
     ----------
     fig : Figure
         The matplotlib figure to display.
+    stacklevel : int, default 5
+        Passed to :func:`warn_unsupported`, which hands it to
+        :func:`warnings.warn`: 1 names the line in ``warn_unsupported``, 2
+        the line here, and each level after that one frame further out.
+        :func:`show_figure` counts it for its own callers.
     """
-    # stacklevel=5 traces through: user code → plt.show() → backend.show()
-    # → _show_fallback() → warn_unsupported() → warnings.warn().  If the
-    # internal call chain changes, this value must be updated.
+    # The level counts the frames between the warning and the line it
+    # names: user code → plt.show() → backend.show() → show_figure()
+    # → _show_fallback() → warn_unsupported() → warnings.warn(). If the
+    # internal call chain changes, ``show_figure``'s count must be updated.
     #
     # The sentence itself lives in `maidr.util.fallback` because the API
     # entry points need the same one: `maidr.render()`, `maidr.show()` and
     # `maidr.save_html()` used to raise a bare KeyError where this path
     # warned and drew a picture (#443). Two copies of a message that must
     # agree is how the previous hand-listed one drifted.
-    warn_unsupported(fig, stacklevel=5)
+    warn_unsupported(fig, stacklevel=stacklevel)
 
     from maidr.util.environment import Environment
 
     if Environment.is_notebook():
         try:
+            from maidr.util.notebook_display import display_plain
+
+            # The image the notebook shows of the figure without maidr, at
+            # the size it shows it; a PNG of our own where no formatter for
+            # a figure is registered to make that image.
+            if display_plain(fig):
+                return
+
             import io
 
             from IPython.display import Image, display

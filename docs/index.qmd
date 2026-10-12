@@ -621,7 +621,7 @@ pip install -U git+https://github.com/xability/py-maidr.git
 
 Making accessible data representation with **maidr** is easy and straightforward. If you already have data visualization code using **matplotlib** or **seaborn**, you can make your plots accessible with **maidr** in just a few lines of code.
 
-Simply `import maidr` and call `plt.show()` as usual. **maidr** automatically activates a custom matplotlib backend, so `plt.show()` renders accessible HTML output (with sonification, braille, and tactile support) instead of a static image. You can then interact with the accessible plots using keyboard shortcuts (refer to @tbl-shortcuts).
+Simply `import maidr` and call `plt.show()` as usual. **maidr** automatically activates a custom matplotlib backend, so `plt.show()` renders accessible HTML output (with sonification, braille, and tactile support) instead of a static image. In a notebook, as without maidr, a cell does not need `plt.show()`: the figures it draws are shown as charts when it ends (see [Jupyter Notebooks](#jupyter-notebooks)). You can then interact with the accessible plots using keyboard shortcuts (refer to @tbl-shortcuts).
 
 Check more examples in the [galleries](examples.qmd#sec-examples).
 
@@ -691,7 +691,7 @@ If you want to set the backend manually, use `matplotlib.use("module://maidr.bac
 
 #### Unsupported Plot Types
 
-For plot types not yet supported by maidr (e.g. 3D plots; see [Plot Type Stability](stability.qmd) for what is stable and what is experimental), `plt.show()` will automatically fall back to displaying a static image and emit a warning. No code changes are needed: your plots will always be visible.
+For plot types not yet supported by maidr (e.g. 3D plots; see [Plot Type Stability](stability.qmd) for what is stable and what is experimental), `plt.show()` will automatically fall back to displaying a static image and emit a warning. No code changes are needed: your plots will always be visible. In a notebook, the image is the one the notebook shows without maidr, at the same size.
 
 ### Hover Mode
 
@@ -1084,6 +1084,38 @@ In a notebook — JupyterLab, Notebook 7, VS Code and Colab, and the HTML
 show a chart in an iframe of its own, which keeps the notebook's shortcuts off
 the keys a reader presses in it.
 
+### When a chart is shown
+
+A chart is shown where and when the notebook shows the figure without maidr,
+as an image:
+
+* **At the end of a cell.** A cell does not need `plt.show()`. When it ends,
+  every figure it drew through pyplot (`plt.subplots()`, seaborn, pandas'
+  `.plot()`) is shown as a chart, and closed, so the next cell starts with a
+  figure of its own.
+* **As a cell's value**, or passed to `display()`: `fig` on a cell's last
+  line, or a function that returns one, shows its chart there. A figure
+  shown again in a later cell is still its chart, with what was drawn on it
+  since.
+* **Once.** A figure the cell has already shown, through `plt.show()`,
+  `maidr.show()`, `maidr.render()` or as its value, is not shown again when
+  it ends. Without maidr the image is shown a second time.
+
+The inline backend's own settings work as they do without maidr:
+
+* `plt.ioff()`, or a figure made inside `with plt.ioff():`, is not shown at
+  the end of the cell, and stays open for `plt.show()` to show.
+* `%config InlineBackend.close_figures = False` leaves figures open: each
+  cell shows the figures it made, and a later cell can draw on them and show
+  them again.
+* `maidr.set_backend(use_maidr=False)`, or `%matplotlib inline`, shows images
+  again, and `maidr.set_backend(use_maidr=True)` charts.
+
+A figure maidr has no chart of, such as a 3D plot, is shown as the notebook's
+own image, with a warning. A figure saved with `maidr.save_html()` or logged
+with `maidr.log_mlflow_chart()` is still shown at the end of the cell, as a
+plain figure saved with `savefig` is.
+
 ### Size and placement
 
 A matplotlib or seaborn chart has the size and shape of the image the notebook
@@ -1115,9 +1147,8 @@ code, but their own frontends were not measured:
 `set_matplotlib_formats(...)` all count, in any cell, before `import maidr`
 or after it.
 maidr's backend replaces the inline one, so `import maidr` lists the inline
-backend's settings with the kernel for `%config` to reach, as the inline
-backend does; once one of them is set, a figure left as a cell's last
-expression is shown as the image it describes, as it is without maidr.
+backend's settings with the kernel for `%config` to reach, and registers the
+image a figure maidr has no chart of is shown as, as the inline backend does.
 
 **In a narrow output area** the chart shrinks to its width, keeping its shape,
 as the image does, rather than the output area scrolling sideways. That is
