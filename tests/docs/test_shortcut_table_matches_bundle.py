@@ -72,6 +72,9 @@ def _bundle_help_keys() -> dict[str, str]:
 #: table row as it must still read). All three are literals on purpose: when
 #: this fails, the message can name what the bundle says and what the page
 #: says, and a reader can compare them without decoding a normalizer.
+#:
+#: Since maidr.js 4.15.0 (xability/maidr#1392) a help key spells out a
+#: symbol it names, ``? (question mark)``, as the table always has.
 _ROWS: list[tuple[str, str, str]] = [
     (
         "stopAutoplay",
@@ -90,18 +93,18 @@ _ROWS: list[tuple[str, str, str]] = [
     ),
     (
         "openSettings",
-        "${ctrl} + ,",
+        "${ctrl} + , (comma)",
         "| Open settings, including AI providers and API keys "
         "| Ctrl + Comma (,) | CMD + Comma (,) |",
     ),
     (
         "openChat",
-        "?",
+        "? (question mark)",
         "| Open the AI chat | Shift + Slash (?) | Shift + Slash (?) |",
     ),
     (
         "openCloseHelp",
-        "${ctrl} + /",
+        "${ctrl} + / (slash)",
         "| Open the keyboard help | Ctrl + Slash (/) | CMD + Slash (/) |",
     ),
 ]
