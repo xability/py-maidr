@@ -310,6 +310,11 @@ def _size_cut_svg(
     unless the formatter's ``bbox_inches`` names a box of its own. Its
     ``viewBox`` is that box in points; it is kept, and the SVG given the
     width and height the plain figure is shown at. Left as it is otherwise.
+
+    The size is the box as the plain figure's own save measures it, at its
+    dpi (``_shown_box``), not the box the SVG save measured at 72: hinted
+    text can put the two a pixel or so apart, which the ``viewBox``'s
+    default ``xMidYMid meet`` takes up.
     """
     import matplotlib as mpl
 
@@ -331,6 +336,12 @@ def _size_cut_svg(
     width, height = numbers[2] / _POINTS_PER_INCH, numbers[3] / _POINTS_PER_INCH
     if not (width > 0 and height > 0):
         return
+    try:
+        shown = _shown_box(fig, figure_format, keywords)
+    except Exception:
+        shown = None
+    if shown is not None and shown.width > 0 and shown.height > 0:
+        width, height = shown.width, shown.height
     per_inch = _px_per_inch(fig, figure_format, keywords)
     svg.set("width", f"{_number(width * per_inch)}px")
     svg.set("height", f"{_number(height * per_inch)}px")
