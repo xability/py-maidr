@@ -50,6 +50,24 @@ figure[id^="maidr-figure"] > div[tabindex="0"]:focus svg.maidr-frame-svg {
   outline-offset: -5px !important;
 }
 
+/* A Plotly chart's ring likewise. maidr.js draws it around plotly's own
+ * container (.svg-container:focus-within, 2px outside it) and takes the ring
+ * off the focused element inside; the frame's edge is the container's, and
+ * cut all but the ring's bottom edge off -- none of it in an output with a
+ * height of its own. Drawn inside, over the chart: an outline inside the
+ * container is painted under plotly's layers, which are positioned in it. */
+.js-plotly-plot .svg-container:focus-within {
+  outline: none !important;
+}
+.js-plotly-plot .svg-container:focus-within::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 3px solid #1a5fb4;
+  pointer-events: none;
+  z-index: 1000;
+}
+
 /* maidr's braille and review fields are as wide as their text; in a narrow
  * output area they keep to the frame. Those two only: the fields of its
  * settings, chat and command palette are MUI's, sized with content-box, and
@@ -85,6 +103,9 @@ a:focus-visible,
   }
   figure[id^="maidr-figure"] > div[tabindex="0"]:focus svg.maidr-frame-svg {
     outline: none !important;
+  }
+  .js-plotly-plot .svg-container:focus-within::after {
+    border-color: Highlight;
   }
 }
 

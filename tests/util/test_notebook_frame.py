@@ -95,6 +95,23 @@ def test_focus_rings_are_drawn_inside_the_frame(css):
         assert rule["outline"].startswith("3px solid")
 
 
+def test_a_plotly_charts_ring_is_drawn_inside_the_frame(css):
+    """maidr.js draws it 2px outside plotly's container, at the frame's edge.
+
+    Drawn over the chart inside the container instead, since an outline
+    inside it is painted under plotly's layers (``test_plotly_focus_ring``
+    in the browser tests reads it off the screen).
+    """
+    container = ".js-plotly-plot .svg-container:focus-within"
+    ring = css[f"{container}::after"]
+
+    assert css[container]["outline"] == "none !important"
+    assert ring["position"] == "absolute"
+    assert ring["inset"] == "0"
+    assert ring["border"] == "3px solid #1a5fb4"
+    assert ring["pointer-events"] == "none"
+
+
 def test_maidrs_fields_keep_to_the_frame(css):
     for selector in (
         'textarea[id^="maidr-braille-textarea"]',
