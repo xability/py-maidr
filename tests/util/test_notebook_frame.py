@@ -6,7 +6,9 @@ frame's edge as the image starts at the output area's; the chart shrinks
 with a narrow output area, keeping its shape; focus rings are drawn inside
 the frame, whose edge is now the chart's; and a chart sized by its container
 fills the frame. Its script makes the frame as wide as the output area up to
-the chart's own width, and makes room for maidr's dialogs.
+the chart's own width, measures it again only when its width or its content
+changes, keeps the notebook where it is scrolled while it measures it, and
+makes room for maidr's dialogs.
 
 Elsewhere -- Shiny, Flask, a Pyodide page -- the frame is left as it was.
 What a browser makes of it is ``tests/browser/test_notebook_figure_size.py``.
@@ -137,11 +139,37 @@ def test_a_notebook_frame_fits_the_output_area():
     assert "'calc(100% + ' + pad + 'px)'" in script
     assert "iframe.style.marginRight = pad > 0 ? (-pad) + 'px' : '';" in script
     assert "iframe.style.maxWidth" in script
-    # Measured again as the frame's width and its content change.
-    assert "addEventListener('resize', scheduleResize)" in script
-    assert "childList: true }" in script
-    # Room for maidr's dialogs.
-    assert "maidrDialogRoom(iframeDocument, window)" in script
+    # Until maidr.js has put the chart back, as wide as the output area, not
+    # narrowed to nothing.
+    assert "}} else if (fitsOutput) {{" not in script
+    assert "} else if (fitsOutput) {" in script
+
+
+def test_a_notebook_frame_is_measured_again_only_when_something_changed():
+    """Its own measuring resized its window, which measured it again, forever."""
+    script = _attribute(_frame(in_notebook=True), "onload")
+
+    assert "addEventListener('resize', scheduleResize)" not in script
+    assert "addEventListener('resize', resizeIframe)" not in script
+    assert "if (width !== lastWidth) {" in script
+    # A frame out of view, or hidden, keeps its height until it has a width.
+    assert "if (fitsOutput && maidrNotLaidOut(iframe)) return;" in script
+    # The chart maidr.js puts back as it draws it, which a frame out of view
+    # hears of from nothing else.
+    assert "chartBack.disconnect();" in script
+
+
+def test_a_frame_keeps_the_notebook_where_it_is_scrolled():
+    for frame in (
+        _frame(in_notebook=True),
+        wrap_in_iframe_plotly(tags.div("chart"), "Sales", in_notebook=True),
+    ):
+        script = _attribute(frame, "onload")
+        # Kept before the frame is measured, and put back once it is.
+        kept = script.index("fitsOutput ? maidrKeepScroll(iframe) : null;")
+        measured = script.index("iframe.style.height = fitsOutput ? '0px' : 'auto';")
+        restored = script.index("if (restoreScroll) restoreScroll();")
+        assert kept < measured < restored
 
 
 def test_any_other_frame_is_left_as_it_was():
@@ -178,6 +206,20 @@ def test_a_notebook_plotly_frame_carries_the_stylesheet():
     # leaves out, and a frame widened to content wider than the output area.
     assert "de.scrollHeight" in script
     assert "iframe.style.width = de.scrollWidth + 'px'" in script
+    # Given the output area's width again only when that has changed.
+    assert "if (iframe.maidrHostWidth !== hostWidth) {" in script
+    assert "maidrWatch(iframe.contentWindow.document, scheduleResize)" in script
+
+
+def test_any_plotly_frame_is_measured_again_only_when_its_width_changes():
+    """Its height is set as it is measured, which resized its window."""
+    for in_notebook in (True, False):
+        frame = wrap_in_iframe_plotly(
+            tags.div("chart"), "Sales", in_notebook=in_notebook
+        )
+        script = _attribute(frame, "onload")
+        assert "addEventListener('resize', resizeIframe)" not in script
+        assert "if (width !== lastWidth) {" in script
 
 
 def test_a_frame_can_keep_clear_of_the_output_areas_padding():

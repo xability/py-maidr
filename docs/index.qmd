@@ -1135,7 +1135,9 @@ Where a chart differs from the plain one:
   Notebook 7's and VS Code's, the default there, and 525px with plotly's HTML
   renderers (`notebook`, `notebook_connected`, `colab` and the like). A
   figure of a fixed width wider than the output area scrolls sideways, as the
-  plain figure does. A figure without a width of its own is as wide as the
+  plain figure does, though moving the focus into the chart scrolls the
+  output area back to its left edge, where maidr.js keeps the element that
+  takes the focus. A figure without a width of its own is as wide as the
   output area when it is drawn, and keeps that width when the area later
   narrows or widens.
 * **Bokeh**: a `sizing_mode` that stretches or scales the width fills the

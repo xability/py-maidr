@@ -249,6 +249,63 @@ _OUTPUT_WIDTH_FIRST = (
     " } catch (e) {} })();</script>"
 )
 
+#: The scroll positions of the boxes a frame scrolls in, kept while it is
+#: measured. A frame is measured at no height, and a Plotly, Bokeh or Altair
+#: one at the output area's width, for a moment; the boxes around it clamp
+#: their scroll positions to what then fits, and a reader scrolled down a
+#: notebook, or across a chart wider than its output area, was moved back to
+#: its top or left edge every time the frame was measured.
+#: ``maidrKeepScroll`` returns what puts them back. A frame wholly above what
+#: a box shows moves what it shows by as much as the frame grew, as the
+#: browser's scroll anchoring would have, so the reader's place stays put.
+#: ``maidrShowField`` shows the whole of a field of maidr's that has the
+#: focus once its frame has grown to hold it.
+_KEEP_SCROLL_JS = """
+        function maidrKeepScroll(iframe) {
+            var page = iframe.ownerDocument;
+            var frame = iframe.getBoundingClientRect();
+            var kept = [];
+            for (var el = iframe.parentElement; el; el = el.parentElement) {
+                if (el.scrollTop || el.scrollLeft) {
+                    var whole = el === page.documentElement || el === page.body;
+                    var shown = whole ? 0 : el.getBoundingClientRect().top + el.clientTop;
+                    kept.push([el, el.scrollTop, el.scrollLeft, frame.bottom <= shown]);
+                }
+            }
+            return function() {
+                var grew = iframe.getBoundingClientRect().height - frame.height;
+                for (var i = 0; i < kept.length; i++) {
+                    var el = kept[i][0];
+                    var top = kept[i][1] + (kept[i][3] ? grew : 0);
+                    if (el.scrollTop !== top) el.scrollTop = top;
+                    if (el.scrollLeft !== kept[i][2]) el.scrollLeft = kept[i][2];
+                }
+            };
+        }
+        function maidrShowField(doc, resized) {
+            // maidr's braille or review field, opened below the chart, took
+            // the focus before the frame grew to hold it: the browser then
+            // showed what it could of it, the frame's bottom edge.
+            var field = doc.activeElement;
+            if (resized && field && field.matches && field.matches(
+                '[id^="maidr-braille-textarea"], [id^="maidr-review-input"], '
+                + '.maidr-review-input, .maidr-review-input *'
+            )) {
+                field.scrollIntoView({block: 'nearest', inline: 'nearest'});
+            }
+        }
+"""
+
+#: Whether a notebook's frame is not laid out: in an output the notebook
+#: hides, or in a cell JupyterLab does not draw while it is out of view. Such
+#: a frame has no width, and measured as nothing; it keeps its height until it
+#: has one again, which its window's resize reports.
+_NOT_LAID_OUT_JS = """
+        function maidrNotLaidOut(iframe) {
+            return !!(iframe && iframe.contentWindow && !iframe.contentWindow.innerWidth);
+        }
+"""
+
 #: Room for maidr's help and settings dialogs, which MUI fixes in the frame's
 #: viewport, centred, at least 32px from its edges, and scrolls within when
 #: the viewport is shorter than they are. While one is open, a notebook's
@@ -276,6 +333,73 @@ _DIALOG_ROOM_JS = """
         }
 """
 
+#: What changes a frame's height that its body's size does not show: maidr's
+#: text, braille and review fields, which can lie past the body's box (a
+#: Plotly or Bokeh chart's do), coming, going or changing. Their frame was
+#: measured again on every frame, which this replaces: its text came out
+#: below a Plotly chart's frame without it.
+_WATCH_JS = """
+        function maidrWatch(doc, onChange) {
+            var parts = '#maidr-text-container, #maidr-rotor-area, '
+                + '[id^="maidr-braille-textarea"], [id^="maidr-review-input"], '
+                + '.maidr-review-input';
+            function counts(node) {
+                return node.nodeType === 1
+                    && (node.matches(parts) || !!node.querySelector(parts));
+            }
+            new MutationObserver(function(records) {
+                for (var i = 0; i < records.length; i++) {
+                    var target = records[i].target;
+                    var el = target.nodeType === 1 ? target : target.parentElement;
+                    if (el && el.closest(parts)) {
+                        onChange();
+                        return;
+                    }
+                    var nodes = Array.prototype.slice.call(records[i].addedNodes)
+                        .concat(Array.prototype.slice.call(records[i].removedNodes));
+                    for (var j = 0; j < nodes.length; j++) {
+                        if (counts(nodes[j])) {
+                            onChange();
+                            return;
+                        }
+                    }
+                }
+            }).observe(doc.body, {childList: true, subtree: true, characterData: true});
+        }
+"""
+
+#: What only a notebook's frame calls. A frame elsewhere leaves it out: a
+#: Shiny app sends a frame's script with every flush of its output.
+_NOTEBOOK_JS = _OUTPUT_WIDTH_JS + _KEEP_SCROLL_JS + _NOT_LAID_OUT_JS + _DIALOG_ROOM_JS
+
+#: How a notebook's matplotlib frame hears that it needs measuring again; see
+#: :func:`wrap_in_iframe_matplotlib`. ``FRAME_SVG_CLASS`` stands for the class.
+_NOTEBOOK_LISTENERS_JS = """
+            var lastWidth = iframe.contentWindow.innerWidth;
+            iframe.contentWindow.addEventListener('resize', function() {
+                var width = iframe.contentWindow.innerWidth;
+                if (width !== lastWidth) {
+                    lastWidth = width;
+                    scheduleResize();
+                }
+            });
+            iframe.contentWindow.document.addEventListener('focusin', scheduleResize, true);
+            iframe.contentWindow.document.addEventListener('focusout', scheduleResize, true);
+            new MutationObserver(scheduleResize).observe(
+                iframe.contentWindow.document.body, { childList: true }
+            );
+            maidrWatch(iframe.contentWindow.document, scheduleResize);
+            var chartBack = new MutationObserver(function() {
+                if (iframe.contentWindow.document.querySelector('svg.FRAME_SVG_CLASS')) {
+                    chartBack.disconnect();
+                    scheduleResize();
+                }
+            });
+            chartBack.observe(
+                iframe.contentWindow.document.body, { childList: true, subtree: true }
+            );
+"""
+
 
 def wrap_in_iframe_matplotlib(
     base_html: Tag,
@@ -294,8 +418,9 @@ def wrap_in_iframe_matplotlib(
     scrolling sideways. Its document has :func:`frame_style`. Its height is
     measured again whenever the frame's width or its content changes, and
     grows while maidr's help or settings dialog is open, so that the dialog
-    fits. Elsewhere -- Shiny, Flask, a Pyodide page -- the frame is as wide
-    as its content.
+    fits. The notebook's scroll position is kept while the frame is
+    measured. Elsewhere -- Shiny, Flask, a Pyodide page -- the frame is as
+    wide as its content.
 
     Parameters
     ----------
@@ -317,13 +442,34 @@ def wrap_in_iframe_matplotlib(
     """
     unique_id = _generate_unique_id()
     fits = "true" if in_notebook else "false"
+    helpers = _NOTEBOOK_JS + _WATCH_JS if in_notebook else ""
+    # In a notebook the frame is measured again when the output area narrows
+    # or widens -- a change of the frame's width only: its height is set as
+    # it is measured, at none for a moment, which resizes its window too, and
+    # measured it again on every frame for as long as the notebook was open
+    # -- when maidr's text or fields come, go or change (``maidrWatch``), when
+    # a dialog maidr opens or closes is added to or taken from the body, when
+    # the focus moves, and once maidr.js has put the chart back in the
+    # document, which it takes out as it starts: in a cell JupyterLab does not
+    # draw while it is out of view, the frame's window reports no resize, and
+    # the frame was left with no height until the reader scrolled to it.
+    notebook_listeners = (
+        _NOTEBOOK_LISTENERS_JS.replace("FRAME_SVG_CLASS", FRAME_SVG_CLASS)
+        if in_notebook
+        else ""
+    )
 
+    # The script runs as the frame's document loads, and again whenever it
+    # is loaded again (a frame taken out of the page and put back), giving
+    # each document its own listeners and observers. It replaced itself after
+    # its first run, which left a document loaded again with only a resize
+    # listener, and no height.
     resizing_script = f"""
-        {_OUTPUT_WIDTH_JS}
-        {_DIALOG_ROOM_JS}
+        {helpers}
         function resizeIframe() {{
             let fitsOutput = {fits};
             let iframe = document.getElementById('{unique_id}');
+            if (fitsOutput && maidrNotLaidOut(iframe)) return;
             if (
                 iframe && iframe.contentWindow &&
                 iframe.contentWindow.document &&
@@ -332,6 +478,8 @@ def wrap_in_iframe_matplotlib(
                 let iframeDocument = iframe.contentWindow.document;
                 let body = iframeDocument.body;
                 let de = iframeDocument.documentElement;
+                let restoreScroll = fitsOutput ? maidrKeepScroll(iframe) : null;
+                let before = iframe.style.height;
 
                 let bodyStyle = iframe.contentWindow.getComputedStyle(body);
                 let side = (parseFloat(bodyStyle.marginLeft) || 0)
@@ -356,6 +504,11 @@ def wrap_in_iframe_matplotlib(
                     let dialogOpen = iframeDocument.querySelector('.MuiDialog-root');
                     iframe.style.width = maidrOutputWidth(iframe, false);
                     iframe.style.maxWidth = Math.max(own + side, dialogOpen ? 664 : 0) + 'px';
+                }} else if (fitsOutput) {{
+                    // Until maidr.js has put the chart back: narrowed to
+                    // nothing, the frame had no width to measure it at.
+                    iframe.style.width = maidrOutputWidth(iframe, false);
+                    iframe.style.maxWidth = '';
                 }} else {{
                     // The width comes first, so the height below is measured
                     // at the width the frame keeps. body.scrollWidth is never
@@ -427,14 +580,14 @@ def wrap_in_iframe_matplotlib(
                     height = Math.max(height, maidrDialogRoom(iframeDocument, window));
                 }}
                 iframe.style.height = (height) + 'px';
+                if (restoreScroll) restoreScroll();
+                if (fitsOutput) {{
+                    maidrShowField(iframeDocument, iframe.style.height !== before);
+                }}
             }}
         }}
         let iframe = document.getElementById('{unique_id}');
         resizeIframe();
-        iframe.onload = function() {{
-            resizeIframe();
-            iframe.contentWindow.addEventListener('resize', resizeIframe);
-        }};
         // Delegate focus events for braille textarea (by id prefix)
         iframe.contentWindow.document.addEventListener('focusin', (e) => {{
             try {{
@@ -471,18 +624,7 @@ def wrap_in_iframe_matplotlib(
                 }});
             }};
 
-            if ({fits}) {{
-                // A narrower or wider output area resizes the frame, and the
-                // chart in it; a dialog maidr opens or closes is added to or
-                // taken from the body, and moves the focus.
-                iframe.contentWindow.addEventListener('resize', scheduleResize);
-                iframe.contentWindow.document.addEventListener('focusin', scheduleResize, true);
-                iframe.contentWindow.document.addEventListener('focusout', scheduleResize, true);
-                new MutationObserver(scheduleResize).observe(
-                    iframe.contentWindow.document.body, {{ childList: true }}
-                );
-            }}
-
+            {notebook_listeners}
             // Try ResizeObserver first (modern, more efficient)
             if (typeof iframe.contentWindow.ResizeObserver !== 'undefined') {{
                 new iframe.contentWindow.ResizeObserver(scheduleResize).observe(
@@ -541,8 +683,9 @@ def wrap_in_iframe_plotly(
     the bottom of a Bokeh chart, its x-axis label with it, and a chart of a
     fixed width wider than the output area widens the frame, so that the
     output area scrolls to it as it scrolls to the plain chart, rather than
-    the frame cutting it off. The frame grows while maidr's help or settings
-    dialog is open, as the matplotlib one does.
+    the frame cutting it off; the output area keeps where it was scrolled to
+    when the frame is measured. The frame grows while maidr's help or
+    settings dialog is open, as the matplotlib one does.
 
     Parameters
     ----------
@@ -576,10 +719,10 @@ def wrap_in_iframe_plotly(
     unique_id = _generate_unique_id()
     fits = "true" if in_notebook else "false"
     keeps = "true" if keep_padding else "false"
+    helpers = _WATCH_JS + (_NOTEBOOK_JS if in_notebook else "")
 
     resizing_script = f"""
-        {_OUTPUT_WIDTH_JS}
-        {_DIALOG_ROOM_JS}
+        {helpers}
         function resizeIframe() {{
             var fitsOutput = {fits};
             var keepsPadding = {keeps};
@@ -588,17 +731,27 @@ def wrap_in_iframe_plotly(
                 return;
             }}
 
+            if (fitsOutput && maidrNotLaidOut(iframe)) return;
             var doc = iframe.contentWindow.document;
             var body = doc.body;
             if (!body) return;
             var de = doc.documentElement;
+            var restoreScroll = fitsOutput ? maidrKeepScroll(iframe) : null;
+            var before = iframe.style.height;
 
             // WIDTH, in a notebook: a chart of a fixed width wider than the
             // output area widens the frame, so the output area scrolls to it
             // as it does to the plain chart, where scrolling="no" cut it off.
-            // One that takes the frame's width never overflows it.
+            // One that takes the frame's width never overflows it. The
+            // frame is given the output area's width again only when that
+            // has changed.
             if (fitsOutput) {{
-                iframe.style.width = maidrOutputWidth(iframe, keepsPadding);
+                var host = iframe.parentElement;
+                var hostWidth = host ? host.clientWidth : 0;
+                if (iframe.maidrHostWidth !== hostWidth) {{
+                    iframe.maidrHostWidth = hostWidth;
+                    iframe.style.width = maidrOutputWidth(iframe, keepsPadding);
+                }}
                 if (de.scrollWidth > iframe.contentWindow.innerWidth + 1) {{
                     iframe.style.width = de.scrollWidth + 'px';
                 }}
@@ -661,14 +814,28 @@ def wrap_in_iframe_plotly(
             }}
 
             iframe.style.height = height + 'px';
+            if (restoreScroll) restoreScroll();
+            if (fitsOutput) {{
+                maidrShowField(doc, iframe.style.height !== before);
+            }}
         }}
 
         var iframe = document.getElementById('{unique_id}');
         resizeIframe();
 
-        // Setup resize listener on contentWindow
+        // Measure again when the frame's window changes width. Its height is
+        // set here, and the window is resized when it is, measured at
+        // 'auto' or none included, which measured the frame again on every
+        // frame, for as long as the page was open.
         try {{
-            iframe.contentWindow.addEventListener('resize', resizeIframe);
+            var lastWidth = iframe.contentWindow.innerWidth;
+            iframe.contentWindow.addEventListener('resize', function() {{
+                var width = iframe.contentWindow.innerWidth;
+                if (width !== lastWidth) {{
+                    lastWidth = width;
+                    resizeIframe();
+                }}
+            }});
         }} catch (_) {{}}
 
         // Delayed retries to catch async MAIDR content (plotly.js + maidr.js loading)
@@ -691,6 +858,9 @@ def wrap_in_iframe_plotly(
                     iframe.contentWindow.document.body, {{ childList: true }}
                 );
             }}
+
+            // maidr's text and fields, which can lie past the body's box.
+            maidrWatch(iframe.contentWindow.document, scheduleResize);
 
             if (typeof iframe.contentWindow.ResizeObserver !== 'undefined') {{
                 new iframe.contentWindow.ResizeObserver(scheduleResize).observe(

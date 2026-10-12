@@ -15,7 +15,10 @@ the sizes the chart is given to IPython's; this holds what a browser shows:
   the image does, to the same width, though JupyterLab pads an HTML output
   on its right and an image not; and maidr's text, braille and review
   fields and its help and settings dialogs stay inside the frame;
-* the highlight lands on the mark it names.
+* the highlight lands on the mark it names;
+* a frame is measured again only when something in it, or its width,
+  changes, and the notebook stays where it was scrolled, down or across,
+  when it is.
 
 The other half is the libraries maidr shows in the same frame: a Plotly
 figure without a height is as tall as the notebook's renderer draws it and
@@ -392,6 +395,127 @@ def test_in_a_narrow_output_maidrs_fields_and_dialogs_stay_in_the_frame(
     assert seen["after"]["frame"]["width"] == pytest.approx(320, abs=1)
 
 
+# --- A notebook left idle, and scrolled ---------------------------------------
+
+#: How many times the frames' sizes are set in ``ms`` milliseconds.
+_STYLE_CHANGES = """async (ms) => {
+  const frames = Array.from(document.querySelectorAll('iframe[data-maidr-chart]'));
+  let changes = 0;
+  const watch = new MutationObserver((records) => { changes += records.length; });
+  for (const f of frames) watch.observe(f, {attributes: true, attributeFilter: ['style']});
+  await new Promise((done) => setTimeout(done, ms));
+  watch.disconnect();
+  return changes;
+}"""
+
+#: Something in a chart's frame changes size, which measures the frame again.
+_GROW = (
+    "() => { const d = document.createElement('div');"
+    " d.style.height = '1px'; document.body.appendChild(d); }"
+)
+
+
+def test_an_idle_notebook_leaves_its_frames_alone(browser, png_page):
+    """A frame's own measuring resized its window, which measured it again.
+
+    On every frame, for as long as the notebook was open: the notebook
+    could not be scrolled for it, and every chart kept the browser busy.
+    """
+    page = _open(browser, png_page, frames=len(_SIZES))
+    try:
+        changes = page.evaluate(_STYLE_CHANGES, 1_000)
+    finally:
+        page.close()
+
+    assert changes == 0
+
+
+def test_a_frame_loaded_again_is_measured_again(browser, png_page):
+    """A frame taken out of the page and put back loads its document again.
+
+    That document was left with a resize listener and nothing else: no
+    height, as maidr.js had not drawn the chart yet when it ran.
+    """
+    page = _open(browser, png_page, frames=len(_SIZES))
+    size = "() => { const r = document.querySelector('#chart-small iframe')"
+    size += ".getBoundingClientRect(); return [r.width, r.height]; }"
+    try:
+        before = page.evaluate(size)
+        page.evaluate(
+            "() => { const f = document.querySelector('#chart-small iframe');"
+            " const p = f.parentElement; p.removeChild(f); p.appendChild(f); }"
+        )
+        _chart_frame(page, "small").wait_for_function(_BOUND, timeout=_PARSE_TIMEOUT_MS)
+        page.wait_for_timeout(1_500)
+        after = page.evaluate(size)
+        changes = page.evaluate(_STYLE_CHANGES, 1_000)
+    finally:
+        page.close()
+
+    assert after == pytest.approx(before, abs=1)
+    assert changes == 0
+
+
+def test_the_notebook_stays_where_it_is_scrolled(browser, png_page):
+    """Measured at no height, a frame let the page clamp its scroll position.
+
+    Near the end of a notebook, the page went back up each time the last
+    chart was measured: as a reader scrolled down to it, and as its content
+    changed while they read it.
+    """
+    page = _open(browser, png_page, frames=len(_SIZES))
+    scrolled = "() => Math.round(window.scrollY)"
+    try:
+        bottom = page.evaluate(
+            "() => { window.scrollTo(0, document.documentElement.scrollHeight);"
+            " return Math.round(window.scrollY); }"
+        )
+        page.evaluate("(y) => window.scrollTo(0, y)", bottom - 300)
+        page.wait_for_timeout(200)
+        # Beside the outputs, which are 1100px wide.
+        page.mouse.move(1_150, 450)
+        wheeled = []
+        for _ in range(3):
+            page.mouse.wheel(0, 100)
+            page.wait_for_timeout(300)
+            wheeled.append(page.evaluate(scrolled))
+        _chart_frame(page, "narrow").evaluate(_GROW)
+        page.wait_for_timeout(300)
+        after = page.evaluate(scrolled)
+    finally:
+        page.close()
+
+    assert wheeled == [bottom - 200, bottom - 100, bottom]
+    assert after == pytest.approx(bottom, abs=1)
+
+
+def test_a_chart_above_the_readers_place_leaves_it_where_it_was(browser, png_page):
+    """A frame above what the page shows grows: the browser keeps the reader's
+    place by scrolling as far (scroll anchoring), which keeping the page's
+    scroll position while the frame is measured must not undo."""
+    page = _open(browser, png_page, frames=len(_SIZES))
+    place = "() => document.querySelector('#chart-small').getBoundingClientRect().top"
+    try:
+        page.evaluate(
+            "() => window.scrollTo(0, window.scrollY"
+            " + document.querySelector('#chart-small').getBoundingClientRect().top"
+            " - 100)"
+        )
+        page.wait_for_timeout(300)
+        before = page.evaluate(place)
+        _chart_frame(page, "default").evaluate(
+            "() => { const d = document.createElement('div');"
+            " d.style.height = '100px'; document.body.appendChild(d); }"
+        )
+        page.wait_for_timeout(500)
+        after = page.evaluate(place)
+    finally:
+        page.close()
+
+    assert before == pytest.approx(100, abs=1)
+    assert after == pytest.approx(before, abs=1)
+
+
 # --- Plotly, Bokeh and Altair in the same frame -------------------------------
 
 _PLOTLY_CDN = re.compile(r"^https://cdn\.plot\.ly/plotly-[^/]+\.min\.js$")
@@ -470,6 +594,70 @@ def _settle(page: Page, names: list[str], drawn: str) -> None:
     page.wait_for_timeout(3_500)
 
 
+#: Scroll an output area to its right end; where it is a moment later, and
+#: once its chart has been measured again.
+_SCROLL_ACROSS = """async ([name, grow]) => {
+  const output = document.querySelector(`#chart-${name}`);
+  const frame = output.querySelector('iframe');
+  const end = output.scrollWidth - output.clientWidth;
+  output.scrollLeft = end;
+  for (let i = 0; i < 6; i++) await new Promise((done) => requestAnimationFrame(done));
+  const later = output.scrollLeft;
+  frame.contentWindow.eval(`(${grow})()`);
+  await new Promise((done) => setTimeout(done, 300));
+  return {end, later, measured: output.scrollLeft};
+}"""
+
+
+def _assert_stays_scrolled(page: Page, name: str, *, keys: bool = False) -> None:
+    """A frame measured at the output area's width scrolled it back to its start.
+
+    With ``keys``, the reader then moves into the chart and through it, which
+    measures the frame again too. Not for a Plotly chart: there maidr.js's
+    focusable element is a 0x0 box at the chart's left edge, which the browser
+    scrolls to as it takes the focus.
+    """
+    seen = page.evaluate(_SCROLL_ACROSS, [name, _GROW])
+    assert seen["end"] > 0, f"{name}: the output area does not scroll"
+    assert seen["later"] == seen["end"], f"{name}: {seen}"
+    assert seen["measured"] == seen["end"], f"{name}: {seen}"
+    if keys:
+        frame = _chart_frame(page, name)
+        frame.focus(_PLOT)
+        page.keyboard.press("ArrowRight")
+        frame.wait_for_function(_ANNOUNCED, timeout=10_000)
+        page.wait_for_timeout(400)
+        left = page.evaluate(
+            "(name) => document.querySelector(`#chart-${name}`).scrollLeft", name
+        )
+        assert left == seen["end"], f"{name}: moved to {left} from {seen['end']}"
+
+
+#: Where maidr's text line lies in its frame once the chart has announced
+#: a point: [its bottom, the frame's height].
+_TEXT_LINE = """() => {
+  const text = document.querySelector('#maidr-text-container');
+  return [text.getBoundingClientRect().bottom, window.innerHeight];
+}"""
+
+
+def _assert_text_in_frame(page: Page, name: str) -> None:
+    """maidr's text line, below a Plotly or Bokeh chart's body, is in its frame.
+
+    Nothing measured the frame again as the text came, once the frame no
+    longer measured itself on every frame.
+    """
+    frame = _chart_frame(page, name)
+    frame.focus(_PLOT)
+    page.keyboard.press("ArrowRight")
+    frame.wait_for_function(_ANNOUNCED, timeout=10_000)
+    page.wait_for_timeout(400)
+    bottom, height = frame.evaluate(_TEXT_LINE)
+    assert (
+        bottom <= height + 0.5
+    ), f"{name}: maidr's text runs {bottom - height:.0f}px past the frame"
+
+
 def _assert_whole(seen: dict, name: str) -> None:
     drawn, view = seen["drawn"], seen["view"]
     assert drawn is not None, f"{name}: nothing was drawn"
@@ -504,8 +692,13 @@ def test_plotly_charts_are_whole_and_as_tall_as_the_notebook_draws_them(
         seen = {
             name: page.evaluate(_LIBRARY, [name, "svg.main-svg"]) for name in charts
         }
+        idle = page.evaluate(_STYLE_CHANGES, 1_000)
+        _assert_stays_scrolled(page, "wide")
+        _assert_text_in_frame(page, "auto")
     finally:
         page.close()
+
+    assert idle == 0, "the frames measure themselves again with nothing changed"
 
     for name in charts:
         _assert_whole(seen[name], name)
@@ -539,9 +732,13 @@ def test_bokeh_charts_are_whole_and_a_stretched_one_fills_the_frame(browser, tmp
         page.goto(_library_page(tmp_path, charts), wait_until="load")
         _settle(page, list(charts), drawn)
         seen = {name: page.evaluate(_LIBRARY, [name, drawn]) for name in charts}
+        idle = page.evaluate(_STYLE_CHANGES, 1_000)
+        _assert_stays_scrolled(page, "wide", keys=True)
+        _assert_text_in_frame(page, "fixed")
     finally:
         page.close()
 
+    assert idle == 0, "the frames measure themselves again with nothing changed"
     for name in charts:
         _assert_whole(seen[name], name)
     assert seen["fixed"]["drawn"]["width"] == pytest.approx(400, abs=1)
