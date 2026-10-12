@@ -163,6 +163,12 @@ def offline_app_url():
 
 
 @pytest.fixture(scope="session")
+def module_app_url():
+    """Two instances of a module that each render a chart."""
+    yield from _serve("module_app.py")
+
+
+@pytest.fixture(scope="session")
 def two_charts_app_url():
     """Two charts, both re-rendering, for the isolation test."""
     yield from _serve("two_charts_app.py")

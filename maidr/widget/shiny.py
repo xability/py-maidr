@@ -471,7 +471,9 @@ class render_maidr(Renderer[Any]):
 
         The route is per output and per session, dropped, document and all,
         when the session ends. Under a module the session is a proxy that
-        namespaces the route name itself.
+        namespaces the route name itself -- as an id, which takes letters,
+        digits and underscores only: a name with a hyphen in it raised there,
+        and no chart was ever shown inside a module.
 
         Parameters
         ----------
@@ -489,7 +491,7 @@ class render_maidr(Renderer[Any]):
         if served is None:
             served = _ServedChart()
             served.route = session.dynamic_route(
-                f"maidr-{self.output_id}", served.serve
+                f"maidr_{self.output_id}", served.serve
             )
             if not served.route:
                 return None
