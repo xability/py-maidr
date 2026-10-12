@@ -18,12 +18,19 @@ are the page's and the browser's. On a third, a chart is in a card shown full
 screen, which Escape pressed anywhere leaves, as a Quarto dashboard's is.
 
 Both charts draw a line with the same ``gid``, so a selector that named it
-unchanged would find the other chart's line. Built with ``use_cdn=False``,
-so the page needs no network.
+unchanged would find the other chart's line.
+
+Every test runs on two maidr.js: the bundled one, with ``use_cdn=False``,
+which does all of that itself and whose charts carry none of py-maidr's
+copies of it; and 4.14.0 pinned on the CDN, whose charts carry them
+(``inline-compat.js``, ``inline-compat.css``; see
+``maidr.util.inline_chart.carries_copies``). That one is fetched by Python
+and handed to the page, and its tests skip where it cannot be fetched.
 """
 
 from __future__ import annotations
 
+import contextlib
 import json
 import re
 from pathlib import Path
@@ -35,6 +42,7 @@ import pytest
 
 from maidr.core.figure_manager import FigureManager
 from maidr.util.environment import Environment
+from tests.browser.conftest import OLDER_MAIDR_JS
 
 if TYPE_CHECKING:
     from playwright.sync_api import Browser, Page
@@ -48,8 +56,11 @@ _PLOT = 'figure[id^="maidr-figure"] > [tabindex]'
 
 _AMD = """
   // require.js, as far as a UMD bundle can tell: takes it, never runs it.
-  window.__amdCalls = 0;
-  window.define = function () { window.__amdCalls += 1; };
+  // Each call's module name is kept, null for an anonymous one.
+  window.__amdCalls = [];
+  window.define = function (name) {
+    window.__amdCalls.push(typeof name === 'string' ? name : null);
+  };
   window.define.amd = {};
 """
 
@@ -203,12 +214,22 @@ class _Kernel:
         self.user_ns.update(variables)
 
 
-def _outputs(tmp_path: Path, *, same_figure: bool = False) -> list[str]:
+def _outputs(
+    tmp_path: Path,
+    older: bool,
+    *,
+    same_figure: bool = False,
+    compat: bool | None = None,
+) -> list[str]:
     """Two charts, rendered as the kernel of a Quarto ``html`` render does.
 
-    With ``same_figure``, one figure rendered twice, as ``show()`` called on
-    it twice renders it.
+    On the bundled maidr.js, or with ``older`` on :data:`OLDER_MAIDR_JS`,
+    pinned on the CDN. With ``same_figure``, one figure rendered twice, as
+    ``show()`` called on it twice renders it. ``compat`` says whether they
+    carry py-maidr's copies of what maidr.js does, which the version decides
+    otherwise: for the older one alone.
     """
+    carries = older if compat is None else compat
     info = tmp_path / "info.json"
     info.write_text(
         json.dumps(
@@ -217,6 +238,9 @@ def _outputs(tmp_path: Path, *, same_figure: bool = False) -> list[str]:
     )
     kernel = _Kernel()
     env = {"QUARTO_FIG_FORMAT": "png", "QUARTO_EXECUTE_INFO": str(info)}
+    use_cdn = older
+    if older:
+        env["MAIDR_CDN_VERSION"] = OLDER_MAIDR_JS
     outputs = []
     alts = [] if same_figure else [_FIRST_ALT, None]
     with (
@@ -228,29 +252,77 @@ def _outputs(tmp_path: Path, *, same_figure: bool = False) -> list[str]:
             "maidr.core.maidr.quarto_fig_alt",
             side_effect=lambda: alts.pop(0) if alts else None,
         ),
+        contextlib.nullcontext()
+        if compat is None
+        else mock.patch("maidr.core.maidr.carries_copies", return_value=compat),
     ):
         if same_figure:
             fig = _line("Twice")
             try:
                 for _ in range(2):
                     outputs.append(
-                        str(FigureManager.get_maidr(fig).render(use_cdn=False))
+                        str(FigureManager.get_maidr(fig).render(use_cdn=use_cdn))
                     )
             finally:
                 plt.close(fig)
         for title in () if same_figure else ("First", "Second"):
             fig = _line(title)
             try:
-                outputs.append(str(FigureManager.get_maidr(fig).render(use_cdn=False)))
+                outputs.append(
+                    str(FigureManager.get_maidr(fig).render(use_cdn=use_cdn))
+                )
             finally:
                 plt.close(fig)
     assert all('class="maidr-inline"' in html for html in outputs)
+    assert all(
+        ("window.__maidrInlineCompat = true" in html) is carries for html in outputs
+    )
     return outputs
 
 
+@pytest.fixture(scope="module", params=["bundled", OLDER_MAIDR_JS])
+def runtime(request):
+    """The maidr.js the page runs: the bundled one, or the older one.
+
+    The older one's files on jsDelivr, or None for the bundled one.
+    """
+    return None if request.param == "bundled" else request.getfixturevalue("jsdelivr")
+
+
+class _Serving:
+    """A browser whose pages are given maidr's files on jsDelivr."""
+
+    def __init__(self, browser: Browser, cdn) -> None:
+        self._browser = browser
+        self._cdn = cdn
+
+    def new_page(self, **kwargs) -> Page:
+        page = self._browser.new_page(**kwargs)
+        self._cdn.serve(page)
+        return page
+
+
 @pytest.fixture(scope="module")
-def outputs(tmp_path_factory) -> list[str]:
-    return _outputs(tmp_path_factory.mktemp("render"))
+def browser(browser, runtime):
+    """The session's browser, serving the older maidr.js to a page that loads it."""
+    return browser if runtime is None else _Serving(browser, runtime)
+
+
+@pytest.fixture(scope="module")
+def outputs(tmp_path_factory, runtime) -> list[str]:
+    return _outputs(tmp_path_factory.mktemp("render"), runtime is not None)
+
+
+@pytest.fixture(scope="module")
+def compat_outputs(tmp_path_factory) -> list[str]:
+    """The two charts, carrying the copies, on the bundled maidr.js.
+
+    As a pin to ``latest`` renders them when the page then loads 4.15.0 or
+    newer. The bundle runs from the page, before it has loaded, so the copies
+    find maidr.js there whenever they look; loaded from the CDN, it can come
+    after they have guarded the page, and leaves what they marked alone.
+    """
+    return _outputs(tmp_path_factory.mktemp("compat"), older=False, compat=True)
 
 
 def _page(browser: Browser, tmp_path: Path, body: str, head: str = _HEAD) -> Page:
@@ -301,14 +373,24 @@ def _press_in(page: Page, chart: int, key: str) -> None:
     page.wait_for_timeout(300)
 
 
-def test_both_charts_are_bound_by_one_maidr_js_despite_require_js(page):
-    """The UMD bundle ran instead of handing itself to ``define``."""
+def test_both_charts_are_bound_by_one_maidr_js_despite_require_js(page, runtime):
+    """maidr.js ran, rather than handing itself to ``define`` as a module.
+
+    The older, UMD one runs because inline-compat.js runs its factory and
+    keeps it from ``define``. The bundled one runs before it registers with
+    ``define`` (xability/maidr#1385), by a name of its own: an anonymous
+    module is what require.js rejects when it did not load the script.
+    """
     assert (
         page.evaluate("document.querySelectorAll('article[id^=maidr-article-]').length")
         == 2
     )
     assert page.evaluate("typeof window.maidrLive") == "object"
-    assert page.evaluate("window.__amdCalls") == 0
+    calls = page.evaluate("window.__amdCalls")
+    if runtime is None:
+        assert calls and all(name and name.startswith("maidr") for name in calls)
+    else:
+        assert calls == []
     assert not [log for log in getattr(page, "logs", []) if "redefined" in log]
 
 
@@ -420,13 +502,35 @@ def test_the_charts_stylesheets_are_in_the_head_once(page):
     assert placed == {"inCharts": 0, "shared": 1}
 
 
+_OUTLINE = """element => {
+  const s = getComputedStyle(element);
+  return [s.outlineStyle, parseFloat(s.outlineWidth), s.outlineColor,
+    parseFloat(s.outlineOffset)];
+}"""
+
+
 def test_the_focus_ring_survives_a_page_that_removes_them(page):
+    """maidr.js's ring from 4.15.0, inline-compat.css's before: the same ring.
+
+    Inside the chart, with a light band inside it on the svg, and on the
+    braille field.
+    """
     page.locator(_PLOT).first.focus()
-    outline = page.evaluate(
-        "() => { const s = getComputedStyle(document.activeElement);"
-        " return [s.outlineStyle, parseFloat(s.outlineWidth)]; }"
-    )
-    assert outline == ["solid", 3]
+    blue, white = "rgb(26, 95, 180)", "rgb(255, 255, 255)"
+    assert page.evaluate(f"({_OUTLINE})(document.activeElement)") == [
+        "solid",
+        3,
+        blue,
+        -3,
+    ]
+    band = page.locator(_PLOT).first.locator("svg").first.evaluate(_OUTLINE)
+    assert band == ["solid", 2, white, -5]
+
+    page.keyboard.press("b")
+    field = page.locator('textarea[id^="maidr-braille-textarea"]')
+    field.wait_for(state="visible")
+    assert page.evaluate("document.activeElement.tagName") == "TEXTAREA"
+    assert field.evaluate(_OUTLINE) == ["solid", 3, blue, 1]
 
 
 def test_maidr_names_the_chart_and_the_page_describes_it(page):
@@ -544,9 +648,9 @@ _BEHIND_THE_PLOT = """plot => {
 def test_high_contrast_paints_the_chart_not_the_page(page):
     """What the reader sees, whichever element maidr.js paints.
 
-    maidr.js 4.14 paints the body, and inline.js gives the page its colours
-    back and the chart's wrapper maidr's; a maidr.js that paints the chart's
-    own article leaves inline.js nothing to do.
+    maidr.js 4.14 paints the body, and inline-compat.js gives the page its
+    colours back and the chart's wrapper maidr's; a maidr.js that paints the
+    chart's own article (xability/maidr#1388) needs no copy of that.
     """
     page.add_style_tag(
         content="body { background: rgb(250, 240, 230); color: rgb(20, 20, 20); }"
@@ -626,17 +730,17 @@ def test_the_braille_and_review_fields_keep_to_a_narrow_column(
 
 
 def test_a_maidr_js_that_guards_the_page_itself_is_left_to_it(
-    browser, tmp_path, outputs
+    browser, tmp_path, compat_outputs
 ):
-    """Told so by ``maidrLive.features``, inline.js wraps nothing of the page's.
+    """Told so by ``maidrLive.features``, inline-compat.js wraps nothing of the page's.
 
     What is wrapped, if anything, is maidr.js's own, which marks it. A
-    bundled maidr.js that only says so, guarding nothing, leaves every key to
-    the page: inline.js neither stops Ctrl+Shift+F nor hands Shift+Tab to the
-    slide.
+    maidr.js that only says so, guarding nothing, leaves every key to the
+    page: inline-compat.js neither stops Ctrl+Shift+F nor hands Shift+Tab to
+    the slide.
     """
     head = _head(_NATIVE_GUARDS, _AMD, _DECK, _PAGE_KEYS, _CARD)
-    page = _page(browser, tmp_path, _carded(outputs), head=head)
+    page = _page(browser, tmp_path, _carded(compat_outputs), head=head)
     try:
         assert page.evaluate("window.maidrLive.features.hostGuards") == 1
         for key in ("ArrowRight", "s", "Escape", "Control+Shift+F", "Shift+Tab"):
@@ -814,12 +918,43 @@ def test_a_preview_of_a_figure_on_another_page_keeps_what_it_draws_with(
         page.close()
 
 
-def test_one_figure_shown_twice_highlights_in_each_output(browser, tmp_path):
+def test_one_figure_shown_twice_highlights_in_each_output(browser, tmp_path, runtime):
     """py-maidr mints a figure's group ids once, not each time it renders it."""
-    twice = _outputs(tmp_path, same_figure=True)
+    twice = _outputs(tmp_path, runtime is not None, same_figure=True)
     page = _page(
         browser, tmp_path, "".join(f"<section>{html}</section>" for html in twice)
     )
+    try:
+        _highlights_own(page, 2)
+    finally:
+        page.close()
+
+
+def test_a_selector_that_names_no_chart_finds_its_own_charts_marks(
+    browser, tmp_path, runtime
+):
+    """As the fallback of a violin or regression layer with no group of its own.
+
+    It matches both charts' lines. The bundled maidr.js looks for a chart's
+    marks inside the chart (xability/maidr#1386); for the older one,
+    py-maidr scopes the selector to the chart's svg.
+    """
+    from lxml import html as lxml_html
+
+    unanchored = "g[id^='series'] path"
+    with mock.patch(
+        "maidr.core.plot.lineplot.MultiLinePlot._get_selector",
+        return_value=[unanchored],
+    ):
+        outputs = _outputs(tmp_path, runtime is not None)
+    for output in outputs:
+        svg = lxml_html.fragment_fromstring(output, create_parent="div").xpath(
+            ".//svg[@maidr]"
+        )[0]
+        layer = json.loads(svg.get("maidr"))["subplots"][0][0]["layers"][0]
+        scoped = f'[id="{svg.get("id")}"] {unanchored}'
+        assert layer["selectors"] == [unanchored if runtime is None else scoped]
+    page = _page(browser, tmp_path, _deck(outputs))
     try:
         _highlights_own(page, 2)
     finally:

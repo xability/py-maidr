@@ -61,6 +61,7 @@ from maidr.util.iframe_utils import (
 from maidr.util.inline_chart import (
     InlineScope,
     InlineUnsupported,
+    carries_copies,
     chart_tag as inline_chart_tag,
     in_quarto_render,
     inline_applies,
@@ -739,8 +740,16 @@ class Maidr:
         # Read once for each chart the cell shows, which takes the next item
         # of a list.
         alt = quarto_fig_alt() if in_quarto_render(use_iframe) else None
+        # Copies of what a maidr.js older than 4.15.0 lacks, decided from the
+        # versions the page will load; see ``carries_copies``.
         inline = (
-            InlineScope(alt or iframe_title(chart_title), alt=alt) if in_page else None
+            InlineScope(
+                alt or iframe_title(chart_title),
+                alt=alt,
+                compat=carries_copies(use_cdn),
+            )
+            if in_page
+            else None
         )
 
         # In a notebook's frame, the chart stands where the notebook would
@@ -1771,5 +1780,5 @@ class Maidr:
             inline,
             chart_title,
             before_runtime=before_runtime,
-            loader=loader_js(mode, cdn_url, locale_fallback),
+            loader=loader_js(mode, cdn_url, locale_fallback, compat=inline.compat),
         )

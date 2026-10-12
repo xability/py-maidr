@@ -1,0 +1,56 @@
+/* maidr inline, for a maidr.js older than 4.15.0 (#895): copies of rules
+ * maidr.js has of its own from 4.15.0, which a chart carries, with
+ * inline-compat.js, only when its render loads an older one. maidr.js 4.15.0
+ * draws this focus ring on a chart bound from the page (xability/maidr#1390,
+ * maidrLive.features.focusRing), and paints the chart rather than the page
+ * for high contrast (xability/maidr#1388). */
+
+/* A visible focus (WCAG 2.4.7) that survives a page that removes every
+ * outline (*:focus { outline: none !important }): this selector is more
+ * specific. The ring is drawn inside the chart, because a cell's output box
+ * (overflow: auto), a dashboard card and a reveal.js slide (overflow:
+ * hidden) clip one drawn outside it. A light band inside the ring, the
+ * outline of the svg itself, keeps it visible on a dark plot background. */
+.maidr-inline figure[id^="maidr-figure"] > div[tabindex="0"]:focus {
+  outline: 3px solid #1a5fb4 !important;
+  outline-offset: -3px !important;
+}
+.maidr-inline figure[id^="maidr-figure"] > div[tabindex="0"]:focus .maidr-inline-svg {
+  outline: 2px solid #ffffff !important;
+  outline-offset: -5px !important;
+}
+
+/* The braille and review fields, and maidr's buttons, take the focus in
+ * their modes, and need a ring as much as the chart does. */
+.maidr-inline textarea:focus,
+.maidr-inline input:focus,
+.maidr-inline select:focus,
+.maidr-inline button:focus-visible,
+.maidr-inline a:focus-visible,
+.maidr-inline [role="button"]:focus-visible {
+  outline: 3px solid #1a5fb4 !important;
+  outline-offset: 1px !important;
+}
+
+@media (forced-colors: active) {
+  .maidr-inline figure[id^="maidr-figure"] > div[tabindex="0"]:focus,
+  .maidr-inline textarea:focus,
+  .maidr-inline input:focus,
+  .maidr-inline select:focus,
+  .maidr-inline button:focus-visible,
+  .maidr-inline a:focus-visible,
+  .maidr-inline [role="button"]:focus-visible {
+    outline-color: Highlight !important;
+  }
+  .maidr-inline figure[id^="maidr-figure"] > div[tabindex="0"]:focus .maidr-inline-svg {
+    outline: none !important;
+  }
+}
+
+/* High contrast: maidr.js paints the body, which inline is the page's;
+ * inline-compat.js gives it the page's own colours back and the chart's
+ * wrapper maidr's. */
+html.maidr-inline-contrast body {
+  background-color: var(--maidr-inline-page-bg) !important;
+  color: var(--maidr-inline-page-fg) !important;
+}

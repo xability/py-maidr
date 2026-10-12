@@ -11,6 +11,10 @@ without maidr, and holds each chart to the size, shape and place Quarto gives
 the plain figure in the same place.
 
 The charts are rendered with ``use_cdn=False``, so the page needs no network.
+The first part renders its documents again pinned to maidr.js 4.14.0 on the
+CDN, whose charts carry py-maidr's copies of what the bundled maidr.js does
+itself (``maidr.util.inline_chart.carries_copies``); that one is fetched by
+Python and handed to the page, and skipped where it cannot be fetched.
 """
 
 from __future__ import annotations
@@ -20,12 +24,14 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 import pytest
 
+from tests.browser.conftest import OLDER_MAIDR_JS
+
 if TYPE_CHECKING:
-    from playwright.sync_api import Browser
+    from playwright.sync_api import Browser, Page
 
 pytestmark = pytest.mark.browser
 
@@ -73,11 +79,16 @@ def _quarto() -> str:
     return quarto
 
 
-def _render(tmp_path: Path, to: str) -> Path:
+def _render(tmp_path: Path, to: str, pin: str | None = None) -> Path:
+    """Render :data:`_DOCUMENT`; with ``pin``, loading that maidr.js from the CDN."""
     quarto = _quarto()
     source = tmp_path / "doc.qmd"
-    source.write_text(_DOCUMENT, encoding="utf-8")
+    document = _DOCUMENT
     env = {**os.environ, "QUARTO_PYTHON": sys.executable, "MPLBACKEND": "Agg"}
+    if pin is not None:
+        document = document.replace("set_use_cdn(False)", "set_use_cdn(True)")
+        env["MAIDR_CDN_VERSION"] = pin
+    source.write_text(document, encoding="utf-8")
     result = subprocess.run(
         [quarto, "render", str(source), "--to", to, "--output", f"{to}.html"],
         cwd=tmp_path,
@@ -91,26 +102,51 @@ def _render(tmp_path: Path, to: str) -> Path:
     return tmp_path / f"{to}.html"
 
 
-@pytest.fixture(scope="module", params=["html", "revealjs"])
-def rendered(request, tmp_path_factory) -> tuple[str, Path]:
-    return request.param, _render(tmp_path_factory.mktemp(request.param), request.param)
+class Rendered(NamedTuple):
+    """A rendered page, and maidr's files on jsDelivr when it loads them."""
+
+    to: str
+    path: Path
+    cdn: object | None
+
+
+@pytest.fixture(
+    scope="module",
+    params=["html", "revealjs", f"html@{OLDER_MAIDR_JS}", f"revealjs@{OLDER_MAIDR_JS}"],
+)
+def rendered(request, tmp_path_factory) -> Rendered:
+    """Each format on the bundled maidr.js, and on an older one, pinned."""
+    to, _, pin = request.param.partition("@")
+    cdn = request.getfixturevalue("jsdelivr") if pin else None
+    path = _render(tmp_path_factory.mktemp(to), to, pin or None)
+    return Rendered(to, path, cdn)
+
+
+def _open_rendered(browser: Browser, rendered: Rendered) -> Page:
+    """A page for ``rendered``, given the maidr.js it loads from the CDN."""
+    page = browser.new_page(viewport={"width": 1200, "height": 900})
+    if rendered.cdn is not None:
+        rendered.cdn.serve(page)
+    return page
 
 
 def test_the_charts_are_in_the_page(rendered):
-    _to, path = rendered
-    html = path.read_text(encoding="utf-8")
+    html = rendered.path.read_text(encoding="utf-8")
 
     assert html.count('class="maidr-inline"') == 2
     assert "<iframe" not in html
     # What a frame kept away from the page: Quarto puts require.js there.
     assert "require" in html
+    # py-maidr's copies of what maidr.js does, for the older one alone.
+    carries = html.count("window.__maidrInlineCompat = true")
+    assert carries == (2 if rendered.cdn is not None else 0)
 
 
 def test_maidr_takes_over_every_chart_and_leaves_the_page_alone(
     browser: Browser, rendered
 ):
-    to, path = rendered
-    page = browser.new_page(viewport={"width": 1200, "height": 900})
+    to, path = rendered.to, rendered.path
+    page = _open_rendered(browser, rendered)
     errors: list[str] = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     try:
@@ -146,13 +182,13 @@ def test_a_cells_fig_alt_names_its_chart_and_describes_it_first(
     """Quarto takes ``#| fig-alt`` off before the kernel runs the cell, and
     puts none on a cell's HTML output; the chart reads it from the notebook
     Quarto executes, as r-maidr reads ``fig.alt`` from knitr."""
-    _to, path = rendered
+    path = rendered.path
     alt = "Three bars: a is the tallest, b the shortest."
     html = path.read_text(encoding="utf-8")
     assert html.count('class="maidr-inline-alt"') == 1
     assert f'aria-label="{alt}"' in html
 
-    page = browser.new_page(viewport={"width": 1200, "height": 900})
+    page = _open_rendered(browser, rendered)
     try:
         page.goto(path.as_uri(), wait_until="load")
         page.wait_for_function(f"() => ({_BOUND})() === 2", timeout=60_000)
@@ -175,22 +211,24 @@ _SEARCH_BOX = (
 )
 
 
-@pytest.mark.parametrize("rendered", ["revealjs"], indirect=True)
+@pytest.mark.parametrize(
+    "rendered", ["revealjs", f"revealjs@{OLDER_MAIDR_JS}"], indirect=True
+)
 def test_a_decks_search_and_shift_tab_leave_a_chart_on_its_slide(
     browser: Browser, rendered
 ):
-    """inline.js knows a deck, and its search plugin, as Quarto loads them.
+    """maidr.js knows a deck, and its search plugin, as Quarto loads them;
+    so does inline-compat.js, for an older maidr.js.
 
-    It holds Ctrl+Shift+F and Shift+Tab only on a deck, and knows one by the
+    Each holds Ctrl+Shift+F and Shift+Tab only on a deck, and knows one by the
     globals reveal.js and its search plugin leave. This checks that Quarto's
     own deck has them: with a check that missed it, the search would open
     from a chart and Shift+Tab would leave the slide. Ctrl+F with Caps Lock
     on is the plugin's key as well.
     """
-    _to, path = rendered
-    page = browser.new_page(viewport={"width": 1200, "height": 900})
+    page = _open_rendered(browser, rendered)
     try:
-        page.goto(path.as_uri(), wait_until="load")
+        page.goto(rendered.path.as_uri(), wait_until="load")
         page.wait_for_function(f"() => ({_BOUND})() === 2", timeout=60_000)
         page.evaluate("Reveal.slide(1)")
         page.wait_for_timeout(800)
@@ -219,7 +257,9 @@ def test_a_decks_search_and_shift_tab_leave_a_chart_on_its_slide(
         page.close()
 
 
-@pytest.mark.parametrize("rendered", ["revealjs"], indirect=True)
+@pytest.mark.parametrize(
+    "rendered", ["revealjs", f"revealjs@{OLDER_MAIDR_JS}"], indirect=True
+)
 def test_the_decks_search_key_can_be_recorded_in_maidrs_settings(
     browser: Browser, rendered
 ):
@@ -227,10 +267,9 @@ def test_the_decks_search_key_can_be_recorded_in_maidrs_settings(
 
     The plugin toggles its box, so it is looked at after each press.
     """
-    _to, path = rendered
-    page = browser.new_page(viewport={"width": 1200, "height": 900})
+    page = _open_rendered(browser, rendered)
     try:
-        page.goto(path.as_uri(), wait_until="load")
+        page.goto(rendered.path.as_uri(), wait_until="load")
         page.wait_for_function(f"() => ({_BOUND})() === 2", timeout=60_000)
         page.evaluate("Reveal.slide(1)")
         page.wait_for_timeout(800)
