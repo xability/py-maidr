@@ -428,6 +428,77 @@ def test_a_dialog_is_shown_whole_in_a_short_output(browser, shiny_size_app_url, 
         page.close()
 
 
+#: How much of an element in the chart's frame is on screen, in page pixels:
+#: cut by the frame, by every container of it that clips, and by the window.
+_SHOWN = r"""(selector) => {
+  const frame = document.querySelector('#m iframe');
+  const el = frame.contentDocument.querySelector(selector);
+  if (!el) return null;
+  const f = frame.getBoundingClientRect();
+  const r = el.getBoundingClientRect();
+  let top = Math.max(r.top + f.top, f.top, 0);
+  let bottom = Math.min(r.bottom + f.top, f.bottom, window.innerHeight);
+  for (let a = frame.parentElement; a && a !== document.body; a = a.parentElement) {
+    if (getComputedStyle(a).overflowY === 'visible') continue;
+    const ar = a.getBoundingClientRect();
+    top = Math.max(top, ar.top + a.clientTop);
+    bottom = Math.min(bottom, ar.top + a.clientTop + a.clientHeight);
+  }
+  return {height: r.height, shown: Math.max(0, bottom - top)};
+}"""
+
+
+@pytest.mark.parametrize(
+    ("case", "width"),
+    [
+        ("card_fluid_h300", 1280),
+        ("card_fluid_h300", 390),
+        ("card", 390),
+        ("sidebar", 390),
+    ],
+)
+@pytest.mark.parametrize("key", ["Control+/", "Control+,"])
+def test_a_dialog_is_shown_whole_in_a_card_that_follows_its_content(
+    browser, shiny_size_app_url, case, width, key
+):
+    """Help and settings in a card, or a sidebar layout, as tall as its content.
+
+    A card's body clips the output and grows with it. The dialog was kept
+    to the body's height, which was the chart's own: help showed 104px of
+    its text in a 300px output, in a card of a page that is not fillable,
+    and on a phone, where bslib gives up filling, in every card (110px) and
+    sidebar layout (65px); settings' Close button was below what showed.
+    """
+    page = _open(browser, f"{shiny_size_app_url}/{case}/", width, height=800)
+    try:
+        _read(page)
+        own = _settle(page)["box"]["height"]
+        page.keyboard.press(key)
+        page.wait_for_timeout(1500)
+        _settle(page)
+        dialog = page.evaluate(_DIALOG)
+        assert dialog is not None, "no dialog opened"
+        assert dialog["text"] >= 400, dialog
+        page.evaluate(
+            "() => [...document.querySelector('#m iframe').contentDocument"
+            ".querySelectorAll('.MuiDialog-paper button')]"
+            ".find(b => b.textContent.trim() === 'Close')"
+            ".setAttribute('data-close', '')"
+        )
+        for part in (".MuiDialog-paper", "[data-close]"):
+            shown = page.evaluate(_SHOWN, part)
+            assert shown["shown"] >= shown["height"] - 1, (part, shown, dialog)
+
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(1200)
+        back = _settle(page)
+        assert page.evaluate(_DIALOG) is None
+        assert back["box"]["height"] == pytest.approx(own, abs=1), (own, back)
+        assert page.errors == []  # type: ignore[attr-defined]
+    finally:
+        page.close()
+
+
 #: The fitted chart, and the element its focus ring is drawn on, against what
 #: of the frame shows: its window, and the box's room beside its scrollbar.
 _CUT = r"""() => {

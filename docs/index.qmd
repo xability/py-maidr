@@ -1263,8 +1263,11 @@ narrows the chart with it rather than covering its edge.
 output is as tall as the part of the window you see, however short its own
 height, and is scrolled into view, so that the dialog is shown whole and its
 Close button can be reached; it goes back to its own height when the dialog
-closes. In a card, the dialog keeps to the card's body: take the card full
-screen for more room.
+closes. That holds in a card or a sidebar layout whose height follows its
+content, as every card's does on a phone: it grows with the output. In one
+of a height of its own — a card in `ui.page_fillable()` on a wide screen, a
+card given a `height` — the dialog keeps to what the card shows, and scrolls
+within it; take the card full screen for more room.
 
 Where a chart differs from `render.plot`'s:
 

@@ -4,7 +4,8 @@ Each case is a Shiny app mounted under ``/<case>/``: the chart in a fluid
 page with the default figure or a wide one, in outputs of a fixed height,
 in a fillable card that can be taken full screen, with a size given to the
 renderer (in a card too), in a ``ui.output_ui`` written by hand, with an
-announcement three lines long, and Plotly figures (with no height of their
+announcement three lines long, in a card of a page that is not fillable and
+in a sidebar layout, and Plotly figures (with no height of their
 own, in an output with one, and with ``autosize`` off), Bokeh plots (of a
 fixed width, and stretched both ways) and an Altair chart.
 ``tests/browser/test_shiny_chart_size.py`` drives them.
@@ -91,6 +92,20 @@ def _card(output):
     )
 
 
+def _card_in_fluid(output):
+    """A card in a page that is not fillable: its height is its content's."""
+    return ui.page_fluid(
+        ui.h4("Before the chart"), ui.card(ui.card_header("Chart card"), output)
+    )
+
+
+def _sidebar(output):
+    """A sidebar layout, fillable at 1280px and following its content at 390."""
+    return ui.page_fillable(
+        ui.layout_sidebar(ui.sidebar(ui.p("Filters"), ui.p("More filters")), output)
+    )
+
+
 def _hand_written(output):
     """The output written by hand, as ``ui.output_ui``, not ``output_maidr``."""
     return _fluid(ui.output_ui("m"))
@@ -116,6 +131,8 @@ CASES = {
     "renderer_card": (_card, output_maidr("m"), {"height": 300}, _bars),
     "long_text": (_fluid, output_maidr("m", height=300), {}, _long_labels),
     "hand_written": (_hand_written, None, {}, _bars),
+    "card_fluid_h300": (_card_in_fluid, output_maidr("m", height=300), {}, _bars),
+    "sidebar": (_sidebar, output_maidr("m"), {}, _bars),
 }
 
 

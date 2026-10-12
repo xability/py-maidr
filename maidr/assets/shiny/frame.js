@@ -29,8 +29,12 @@
                 for (var i = 0; i < kept.length; i++) {
                     var el = kept[i][0];
                     var top = kept[i][1] + (kept[i][3] ? grew : 0);
-                    if (el.scrollTop !== top) el.scrollTop = top;
-                    if (el.scrollLeft !== kept[i][2]) el.scrollLeft = kept[i][2];
+                    if (el.scrollTop === top && el.scrollLeft === kept[i][2]) continue;
+                    // At once: a page whose scroll-behavior is smooth
+                    // (Bootstrap's, so every Shiny app's) scrolled back
+                    // over a third of a second, and was stopped short by
+                    // the next measure.
+                    el.scrollTo({top: top, left: kept[i][2], behavior: 'instant'});
                 }
             };
         }
@@ -86,8 +90,13 @@
             }
             if (opened && (!was || resized)) {
                 // The dialog is centred in the frame: centring the frame in
-                // the reader's view shows it whole.
-                iframe.scrollIntoView({block: 'center', inline: 'nearest'});
+                // the reader's view shows it whole. At once, whatever the
+                // page's scroll-behavior: Bootstrap's is smooth, and the
+                // frame measured again while it scrolled stopped it short
+                // (a Shiny app's settings dialog lost its Close button).
+                iframe.scrollIntoView(
+                    {block: 'center', inline: 'nearest', behavior: 'instant'}
+                );
             }
         }
 
@@ -152,8 +161,8 @@
         }
         // The box's room, measured unless a dialog of maidr's holds the box
         // taller, and the room the dialog gets: what the reader sees of the
-        // window, or of the container that clips the output (a card's
-        // body), never less than the box's own.
+        // window, or of a container of a height of its own that clips the
+        // output (a fillable card's body), never less than the box's own.
         function maidrBox(iframe, doc) {
             var open = !!doc.querySelector('.MuiDialog-root');
             if (!open || iframe.maidrBoxRoom === undefined) {
@@ -165,21 +174,32 @@
             maidrHoldBox(iframe, room > 0 ? dialog : 0);
             return {room: room, dialog: dialog};
         }
+        // The box is held at the window's room first. A container that
+        // clips the output but grows with its content -- a card's body in a
+        // page that is not fillable, every card on a phone -- grows with it
+        // and is no limit: capping the room at its height capped it at the
+        // chart's own, and a help dialog in a 300px output showed 104px of
+        // its text. One whose height is its own -- a fillable card's body,
+        // a sidebar layout's main area, a card given a height -- is then
+        // overflowed, and the room is what it shows.
         function maidrBoxDialogRoom(iframe, own) {
             var page = iframe.ownerDocument;
             var win = page.defaultView;
             var room = win.innerHeight || 0;
             if (win !== win.top) room = Math.max(room, 480);
+            room = Math.max(room, own);
+            maidrHoldBox(iframe, Math.floor(room));
             var box = iframe.parentElement;
             for (var el = box && box.parentElement; el && el !== page.body;
                     el = el.parentElement) {
                 var style = win.getComputedStyle(el);
-                if (style.overflowY !== 'visible' && style.display !== 'contents') {
-                    room = Math.min(room, el.clientHeight
-                        - (parseFloat(style.paddingTop) || 0)
-                        - (parseFloat(style.paddingBottom) || 0));
-                    break;
+                if (style.overflowY === 'visible' || style.display === 'contents'
+                        || el.scrollHeight <= el.clientHeight + 1) {
+                    continue;
                 }
+                room = Math.min(room, el.clientHeight
+                    - (parseFloat(style.paddingTop) || 0)
+                    - (parseFloat(style.paddingBottom) || 0));
             }
             return Math.floor(Math.max(room, own));
         }

@@ -203,7 +203,11 @@ def test_a_notebook_frame_makes_room_for_maidrs_dialogs():
 
     assert "maidrDialogRoom(iframeDocument, iframe)" in script
     assert "maidrWatch(iframe.contentWindow.document, scheduleResize)" in script
-    assert "iframe.scrollIntoView({block: 'center', inline: 'nearest'})" in script
+    # At once, not as a page with a smooth scroll-behavior would scroll it.
+    assert (
+        "iframe.scrollIntoView(\n"
+        "                    {block: 'center', inline: 'nearest', behavior: 'instant'}"
+    ) in script
 
 
 def test_a_dialog_over_a_tall_chart_keeps_to_the_readers_view(css):
