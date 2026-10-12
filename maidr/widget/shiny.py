@@ -134,9 +134,15 @@ def output_maidr(
     does not fit -- the braille and review fields, a long text -- rather
     than cutting it off. Unlike :func:`shiny.render.plot`, the figure is
     not drawn again at the output's size: the chart drawn once is scaled,
-    so its text grows and shrinks with it. A Plotly, Bokeh or Altair chart
-    is as wide as the output, or its own fixed width, which the output
-    then scrolls to, and its own height.
+    so its text grows and shrinks with it; a figure sized near the output
+    keeps its text near its own size. A Plotly, Bokeh or Altair chart is as
+    wide as the output, or its own fixed width, which the output then
+    scrolls to. A Plotly figure with no height of its own, and a Bokeh
+    plot stretched or scaled to its container's height, are as tall as an
+    output with a height of its own less the line for maidr's text, and
+    450px in one with none; any other keeps its own height. While one of
+    maidr's dialogs is open the output is as tall as the part of the
+    window a reader sees, and goes back to its own height once it closes.
 
     The container keeps a box of its own once a chart is in it. Shiny's
     stylesheet makes a UI output a pass-through container as soon as it

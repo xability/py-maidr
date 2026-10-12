@@ -901,8 +901,8 @@ One thing this does not do. Renders of the **same figure** are serialized, becau
 
 | | over the websocket, before | over the websocket, now | fetched out of band |
 |---|---|---|---|
-| `use_cdn=True` / `"auto"` | 28 KB | **10 KB** | 51 KB |
-| `use_cdn=False` | 2.2 MB | **10 KB** | 51 KB, and the bundle once per app |
+| `use_cdn=True` / `"auto"` | 28 KB | **3 KB** | 51 KB |
+| `use_cdn=False` | 2.2 MB | **3 KB** | 51 KB, and the bundle once per app |
 
 Read the table across, not only down: on the CDN settings the bytes per flush go *up* — a smaller payload plus a separate fetch of the document. With `use_cdn=False` they fall, but that is the bundle leaving the document (below), not the move off the websocket. What falls in every case is what the websocket carries, which is the channel every input and output on the page waits on.
 
@@ -1221,13 +1221,13 @@ The chart is shown in an iframe of its own, which keeps the app's shortcuts
 off the keys a reader presses in it and its stylesheet off the chart's focus
 ring.
 
-### Size and placement
+### Size and placement {#shiny-size-and-placement}
 
 The chart takes the size of its output, as a plot from `render.plot` does:
 
 * **`output_maidr(id, width="100%", height="auto", fill=True)`.** A width
-  or height is a CSS length, or a number of pixels (`height=400`). The
-  output is never wider than the container it is in.
+  or height is a CSS length, a number of pixels (`height=400`), or `None`
+  for none. The output is never wider than the container it is in.
 * **With the default `height="auto"`** the output is as tall as the chart.
   A matplotlib, seaborn or plotnine chart has the size and shape of the
   image a notebook shows of the same figure: the figure's size in inches at
@@ -1245,33 +1245,58 @@ The chart takes the size of its output, as a plot from `render.plot` does:
   without the server drawing it again. `fill=False` keeps the output to its
   own height.
 * **`@render_maidr(width=500, height=300)`** gives the chart a 500 by 300
-  pixel box, fitted the same way, inside its output, as
+  pixel box at the top left of its output, fitted the same way, as
   `@render.plot(width=500, height=300)` gives the image that size; it is
-  never wider than the output. Under Shiny Express, the renderer's `width`,
-  `height` and `fill` are the output's, as are those of `@output_args(...)`.
+  never wider than the output. That holds in a fillable card too, where the
+  output fills the card around the box, and under Shiny Express, where the
+  output Express places takes the renderer's `fill`, and its size only
+  from `@output_args(...)`. A size you leave unset, or `None`, follows the
+  output.
 
 What the output does not have room for, it scrolls to rather than cutting
 off: maidr's braille and review fields, which open below the chart, and a
-text longer than its line. While a dialog of maidr's is open — help,
-settings, the chat — it is kept to an output with a height of its own, and
-otherwise the frame is as tall as the window while it is open, and scrolled
-into view.
+text longer than its line, which is scrolled into the output as it changes
+(the output alone; the page stays where it is). A scrollbar the output takes
+narrows the chart with it rather than covering its edge.
+
+**While one of maidr's dialogs is open** — help, settings, the chat — the
+output is as tall as the part of the window you see, however short its own
+height, and is scrolled into view, so that the dialog is shown whole and its
+Close button can be reached; it goes back to its own height when the dialog
+closes. In a card, the dialog keeps to the card's body: take the card full
+screen for more room.
 
 Where a chart differs from `render.plot`'s:
 
-* **It is scaled, not drawn again at the output's size.** `render.plot`
-  draws the figure again whenever its output changes size, at that size,
-  and so ignores the figure's own size; its text stays the same size. A
-  maidr chart is drawn once, at the figure's size, and scaled, so its text
-  is scaled with it: larger in a large card, smaller on a phone. Draw the
-  figure at the size you mean it to be read at (`figsize`, `dpi`).
-* **Plotly**: a figure with no height of its own is 450px tall, plotly.js's
-  default, and as wide as the output. A figure of a fixed width wider than
-  the output is reached by scrolling the output sideways.
+* **It is scaled, not drawn again at the output's size, and its text is
+  scaled with it.** `render.plot` draws the figure again whenever its
+  output changes size, at that size, so its text stays the same size. A
+  maidr chart is drawn once, at the figure's size, and scaled to fit, so
+  every label in it grows and shrinks with the chart: larger in a large
+  card, smaller in a short output or on a phone (a default figure's tick
+  labels are about 7px in a 300px-tall output). To keep the text large,
+  give the figure a size near the output's, less the line kept for maidr's
+  text — `plt.subplots(figsize=(5, 2.5))` for a 300px-tall output, 250
+  pixels at matplotlib's 100 dpi — or a larger font
+  (`plt.rcParams["font.size"]`); the chart is then scaled little, or not at
+  all.
+* **Plotly**: a figure with no height of its own is as tall as an output
+  with a height of its own less a line for maidr's text — in a card, it
+  follows the card into full screen — and 450px, plotly.js's default, in
+  one with none; it is as wide as the output. A figure with `autosize=False`,
+  or a fixed width, keeps its width, and one wider than the output is
+  reached by scrolling the output sideways.
 * **Bokeh**: a `sizing_mode` that stretches or scales the width fills the
-  output; a plot of a fixed width wider than the output is reached by
-  scrolling the output sideways. **Altair**: a chart of `width="container"`
-  fills the output.
+  output's width, and one that stretches or scales the height
+  (`stretch_both`, `stretch_height`, `scale_both`, `scale_height`) its
+  height less a line for maidr's text, or is 450px tall in an output with
+  no height of its own; a plot of a fixed width wider than the output is
+  reached by scrolling the output sideways. **Altair**: a chart of
+  `width="container"` fills the output.
+
+The script that sizes a chart's frame is served by the app once, as a web
+dependency (`lib/maidr-shiny-frame-<version>/`), rather than sent with every
+reactive flush of the output.
 
 ## Quarto Documents
 
