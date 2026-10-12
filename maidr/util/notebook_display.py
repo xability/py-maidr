@@ -353,6 +353,9 @@ def _flush_after(wrapped: Any, instance: Any, args: Any, kwargs: Any) -> Any:
 #: Whether ipywidgets' hook has been wrapped; it must be wrapped once.
 _widgets_hooked: list[bool] = [False]
 
+#: The module of ipywidgets' hook.
+_WIDGETS_MODULE = "ipywidgets.widgets.interaction"
+
 
 def _hook_ipywidgets() -> None:
     """Have ``interact`` show the figures its function drew, as charts.
@@ -370,8 +373,10 @@ def _hook_ipywidgets() -> None:
     _widgets_hooked[0] = True
     import wrapt
 
-    @wrapt.when_imported("ipywidgets.widgets.interaction")
+    @wrapt.when_imported(_WIDGETS_MODULE)
     def _wrap(module: Any) -> None:
+        # A release without the hook is left alone, and the wrapper passes
+        # whatever it is called with through.
         if hasattr(module, "show_inline_matplotlib_plots"):
             wrapt.wrap_function_wrapper(
                 module, "show_inline_matplotlib_plots", _flush_after

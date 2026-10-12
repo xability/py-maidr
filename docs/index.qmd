@@ -1101,7 +1101,10 @@ as an image:
   `maidr.show()`, `maidr.render()` or as its value, is not shown again when
   it ends. Without maidr the image is shown a second time.
 
-The inline backend's own settings work as they do without maidr:
+The inline backend's own settings work as they do without maidr. As
+matplotlib_inline does when it loads, `import maidr` in a notebook turns on
+matplotlib's interactive mode, which is what lets a figure be shown when its
+cell ends:
 
 * `plt.ioff()`, or a figure made inside `with plt.ioff():`, is not shown at
   the end of the cell, and stays open for `plt.show()` to show.

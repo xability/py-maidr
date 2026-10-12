@@ -391,3 +391,34 @@ def test_interact_shows_the_figures_its_function_drew(kernel):
 
     assert len(_charts(captured)) == 1
     assert "[]" in captured.stdout
+
+
+@pytest.mark.parametrize("has_hook", [True, False])
+def test_the_ipywidgets_hook_is_wrapped_only_where_it_exists(monkeypatch, has_hook):
+    """A newer ipywidgets without it, or with other arguments, still imports."""
+    import sys
+    import types
+
+    name = "maidr_test_fake_interaction"
+    module = types.ModuleType(name)
+    calls = []
+    if has_hook:
+
+        def show_inline_matplotlib_plots(*args, **kwargs):
+            calls.append((args, kwargs))
+
+        module.show_inline_matplotlib_plots = show_inline_matplotlib_plots
+    monkeypatch.setitem(sys.modules, name, module)
+    monkeypatch.setattr(notebook_display, "_widgets_hooked", [False])
+    monkeypatch.setattr(notebook_display, "_WIDGETS_MODULE", name)
+    flushed = []
+    monkeypatch.setattr(notebook_display, "flush_figures", lambda: flushed.append(1))
+
+    notebook_display._hook_ipywidgets()
+
+    if has_hook:
+        module.show_inline_matplotlib_plots("any", future=True)
+        assert calls == [(("any",), {"future": True})]
+        assert flushed == [1]
+    else:
+        assert not hasattr(module, "show_inline_matplotlib_plots")
