@@ -1095,7 +1095,8 @@ shows when the same cell runs without maidr (matplotlib_inline's):
   placed beside or below the axes and long rotated tick labels are shown, and
   the margins matplotlib leaves around the axes are not. With
   `bbox_inches=None` the chart is the whole canvas, and with a `Bbox` of your
-  own that box.
+  own that box. `savefig.bbox: tight`, in `rcParams` or a `matplotlibrc`, cuts
+  it the same way.
 * **Sized by the figure's dpi** (`figure.dpi`, `plt.subplots(dpi=...)`) with
   `InlineBackend.figure_formats` `png` (the default), `retina` and `jpeg`, at
   that many pixels to the inch, and at 96 pixels to the inch with `svg` and
@@ -1218,7 +1219,8 @@ runs without maidr:
   `InlineBackend.print_figure_kwargs`, `bbox_inches="tight"` unless you set
   it otherwise), so an axis label below a small figure or a legend placed
   beside the axes is shown, and the margins matplotlib leaves around the
-  axes are not.
+  axes are not. `savefig.bbox: tight`, in `rcParams` or a `matplotlibrc`,
+  cuts it the same way.
 * **Sized by `fig-dpi`** with `fig-format: retina` (the default), `png` or
   `jpeg`, at that many pixels to the inch, and at 96 pixels to the inch with
   `svg`, as Quarto's figure is.

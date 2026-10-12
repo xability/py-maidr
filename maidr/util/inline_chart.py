@@ -234,9 +234,12 @@ def size_like_plain_figure(
     and one given a box of its own that box; its ``dpi`` and ``pad_inches``
     count as they do for the plain figure.
 
-    Left as matplotlib wrote it when the box cannot be measured, or the SVG
-    is not the whole canvas in points (``savefig.bbox`` cut it already): its
-    coordinates would not be the figure's then.
+    An SVG ``savefig.bbox: tight`` cut already is the figure's tight box, the
+    one the plain figure shows unless it is given a box of its own: it keeps
+    that box, and is sized as the plain figure is, at its pixels to the inch.
+    Left as matplotlib wrote it when the box cannot be measured, or when the
+    SVG was cut and the plain figure shows another box: its coordinates are
+    not the figure's then.
 
     A notebook shows a plain figure the same way, and a chart in its frame
     is sized here too, from what :func:`maidr.util.notebook_figure.notebook_figure_format`
@@ -257,11 +260,12 @@ def size_like_plain_figure(
     try:
         width_in, height_in = (float(v) for v in fig.get_size_inches())
         canvas = (0.0, 0.0, width_in * _POINTS_PER_INCH, height_in * _POINTS_PER_INCH)
-        if not _is_view_box(svg.get("viewBox"), canvas):
-            return
         figure_format, keywords = (
             _plain_figure_format() if shown_as is None else shown_as
         )
+        if not _is_view_box(svg.get("viewBox"), canvas):
+            _size_cut_svg(fig, svg, figure_format, keywords)
+            return
         box = _shown_box(fig, figure_format, keywords)
         if box is None:
             x0, y1, width, height = 0.0, height_in, width_in, height_in
@@ -295,6 +299,41 @@ def size_like_plain_figure(
     svg.set("height", f"{_number(height * per_inch)}px")
     if backdrop is not None:
         svg.insert(0, svg.makeelement(f"{_SVG}path", backdrop))
+
+
+def _size_cut_svg(
+    fig: Any, svg: Any, figure_format: str | None, keywords: dict[str, Any]
+) -> None:
+    """Size an SVG ``savefig.bbox: tight`` cut as the plain figure is shown.
+
+    The cut is the figure's tight box, which the plain figure shows too
+    unless the formatter's ``bbox_inches`` names a box of its own. Its
+    ``viewBox`` is that box in points; it is kept, and the SVG given the
+    width and height the plain figure is shown at. Left as it is otherwise.
+    """
+    import matplotlib as mpl
+
+    if mpl.rcParams["savefig.bbox"] != "tight":
+        return
+    bbox_inches = keywords.get("bbox_inches", "tight")
+    if bbox_inches is None:
+        bbox_inches = mpl.rcParams["savefig.bbox"]
+    if not (isinstance(bbox_inches, str) and bbox_inches == "tight"):
+        return
+    try:
+        numbers = [
+            float(v) for v in (svg.get("viewBox") or "").replace(",", " ").split()
+        ]
+    except ValueError:
+        return
+    if len(numbers) != 4 or not all(v == v and abs(v) != float("inf") for v in numbers):
+        return
+    width, height = numbers[2] / _POINTS_PER_INCH, numbers[3] / _POINTS_PER_INCH
+    if not (width > 0 and height > 0):
+        return
+    per_inch = _px_per_inch(fig, figure_format, keywords)
+    svg.set("width", f"{_number(width * per_inch)}px")
+    svg.set("height", f"{_number(height * per_inch)}px")
 
 
 def _number(value: float) -> str:

@@ -403,9 +403,47 @@ def test_only_the_root_changes(kernel):
     assert after[0].tag == f"{SVG}path"
 
 
-def test_an_svg_the_save_already_cut_is_left_as_it_is(kernel):
-    """``savefig.bbox: tight`` cuts maidr's own SVG, whose points are not the figure's."""
-    kernel("retina")
+@pytest.mark.parametrize("figure_format", ["retina", "png", "svg"])
+@pytest.mark.parametrize("dpi", [96, 150])
+def test_an_svg_the_save_already_cut_is_sized_as_the_plain_figure(
+    kernel, figure_format, dpi
+):
+    """``savefig.bbox: tight`` cut maidr's own SVG to the box the plain figure shows.
+
+    It was left at its size in points, 96 pixels to the inch, whatever the
+    figure's dpi: a third smaller than the plain figure at a dpi of 150.
+    """
+    kernel(figure_format)
+    fig, _ = _figure(dpi=dpi)
+    with plt.rc_context({"savefig.bbox": "tight"}):
+        svg = _svg(fig)
+        before = copy.deepcopy(svg)
+        size_like_plain_figure(fig, svg)
+        if figure_format == "retina":
+            _, shown = retina_figure(fig)
+            width, height = shown["width"], shown["height"]
+        elif figure_format == "png":
+            width, height = _png_size(print_figure(fig, "png", bbox_inches="tight"))
+        else:
+            plain = etree.fromstring(
+                print_figure(fig, "svg", bbox_inches="tight").encode()
+            )
+            # Points, which the page shows at 96 to the inch.
+            width = float(plain.get("width").removesuffix("pt")) * 96 / 72
+            height = float(plain.get("height").removesuffix("pt")) * 96 / 72
+
+    # The box the save cut, and nothing in it moved.
+    assert svg.get("viewBox") == before.get("viewBox")
+    assert [e.attrib for e in svg.iterdescendants()] == [
+        e.attrib for e in before.iterdescendants()
+    ]
+    assert _px(svg.get("width")) == pytest.approx(width, abs=1.5)
+    assert _px(svg.get("height")) == pytest.approx(height, abs=1.5)
+
+
+def test_an_svg_the_save_cut_is_left_as_it_is_for_a_box_of_its_own(kernel):
+    """The plain figure shows another box than the one the save cut."""
+    kernel("retina", bbox_inches=Bbox([[0.5, 0.5], [3.5, 2.5]]))
     fig, _ = _figure()
     with plt.rc_context({"savefig.bbox": "tight"}):
         svg = _svg(fig)

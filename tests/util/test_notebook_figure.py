@@ -332,6 +332,22 @@ def test_svg_is_shown_in_points(shell):
     assert _px(svg.get("width")) == pytest.approx(plain_width * 96 / 72, abs=0.5)
 
 
+@pytest.mark.parametrize("dpi", [100, 150])
+def test_an_svg_savefig_bbox_cut_is_sized_by_the_figures_dpi(shell, dpi):
+    """``savefig.bbox: tight`` in ``rcParams`` cuts maidr's SVG as it saves it.
+
+    It kept its size in points then, 96 pixels to the inch whatever the
+    figure's dpi: at 150, two thirds of the plain figure's image.
+    """
+    fig = _figure(dpi=dpi)
+    with plt.rc_context({"savefig.bbox": "tight"}):
+        width, height = _png_size(print_figure(fig, "png", bbox_inches="tight"))
+        svg = _chart_svg(_render(fig))
+
+    assert _px(svg.get("width")) == pytest.approx(width, abs=1.5)
+    assert _px(svg.get("height")) == pytest.approx(height, abs=1.5)
+
+
 def test_bbox_inches_none_shows_the_canvas(shell):
     register_inline_backend()
     _config(shell, "InlineBackend.print_figure_kwargs = {'bbox_inches': None}")
