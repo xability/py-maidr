@@ -646,6 +646,19 @@ _BOX_JS = """
             }
             return Math.max(Math.min(height, Math.floor(plot.clientWidth / shape)), 96);
         }
+        // A chart that takes its width from a box of a height of its own
+        // keeps the box's scrollbar's room, whether the box scrolls or not.
+        // Where scrollbars take room (Windows'), maidr's braille and review
+        // fields and a long announcement made the box scroll and stop as
+        // they came and went, and plotly.js drew the chart again at each
+        // width, throwing ("reading 'mo'") while a bar was highlighted.
+        function maidrKeepGutter(iframe, keep) {
+            var box = iframe.parentElement;
+            var gutter = keep ? 'stable' : '';
+            if (box && box.style.scrollbarGutter !== gutter) {
+                box.style.scrollbarGutter = gutter;
+            }
+        }
         // maidr's text, once it changed, in the box, which alone is
         // scrolled: as maidrShowField shows a field, without moving the page.
         function maidrShowText(doc, iframe) {
@@ -1415,6 +1428,7 @@ def _plotly_resizer(
         """
             var fit = maidrBox(iframe, doc);
             room = fit.dialog;
+            maidrKeepGutter(iframe, fit.room > 0 && !widens);
             if (options.fillHeight) {
                 maidrFillHeight(doc, fit.room > 0
                     ? fit.room - maidrTextLine(doc)

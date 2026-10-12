@@ -1290,9 +1290,12 @@ Where a chart differs from `render.plot`'s:
 * **Plotly**: a figure with no height of its own is as tall as an output
   with a height of its own less a line for maidr's text — in a card, it
   follows the card into full screen — and 450px, plotly.js's default, in
-  one with none; it is as wide as the output. A figure with `autosize=False`,
-  or a fixed width, keeps its width, and one wider than the output is
-  reached by scrolling the output sideways.
+  one with none; it is as wide as the output, less, in an output with a
+  height of its own, the room of its scrollbar where scrollbars take room
+  (Windows'), which is kept whether it scrolls or not, so that the chart
+  is not drawn again as maidr's fields come and go. A figure with
+  `autosize=False`, or a fixed width, keeps its width, and one wider than
+  the output is reached by scrolling the output sideways.
 * **Bokeh**: a `sizing_mode` that stretches or scales the width fills the
   output's width, and one that stretches or scales the height
   (`stretch_both`, `stretch_height`, `scale_height`) its height less a line

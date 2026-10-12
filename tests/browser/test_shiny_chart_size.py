@@ -674,9 +674,12 @@ def test_a_plotly_chart_fills_a_card_and_full_screen(browser, shiny_size_app_url
         _full_screen(page, False)
         back = _settle(page)
         assert _plot_height(page) >= back["box"]["height"] - 60, back
-        # plotly.js throws once ("reading 'mo'") when it is resized with a
-        # point highlighted; that is all.
-        assert all("'mo'" in error for error in page.errors), page.errors  # type: ignore[attr-defined]
+        # plotly.js throws ("reading 'mo'") when it draws the chart again
+        # with a bar highlighted: once, as it leaves full screen, the one
+        # redraw here that changes its size.
+        errors = page.errors  # type: ignore[attr-defined]
+        assert all("'mo'" in error for error in errors), errors
+        assert len(errors) <= 1, errors
     finally:
         page.close()
 
@@ -717,6 +720,41 @@ def test_a_plotly_charts_frame_follows_its_box(browser, shiny_size_app_url, widt
         page.set_viewport_size({"width": width, "height": 900})
         assert_text_shown("in a 900px window")
         assert "Apples" in frame.evaluate(_READING)["said"]
+    finally:
+        page.close()
+
+
+#: The width plotly.js drew the chart at.
+_PLOT_WIDTH = (
+    "() => document.querySelector('.js-plotly-plot').getBoundingClientRect().width"
+)
+
+
+@pytest.mark.parametrize(("case", "width"), [("plotly_h400", 390), ("plotly_card", 1280)])
+def test_a_plotly_chart_is_not_drawn_again_as_its_box_scrolls(
+    classic_scrollbar_browser, shiny_size_app_url, case, width
+):
+    """With scrollbars that take room, braille and review come and go.
+
+    Each made the box scroll, then stop, narrowing and widening the chart
+    by the scrollbar's 15px, and plotly.js drew it again at each width,
+    throwing ("reading 'mo'") while a bar was highlighted: four to eight
+    times here. The box keeps the scrollbar's room instead.
+    """
+    page = _open(classic_scrollbar_browser, f"{shiny_size_app_url}/{case}/", width)
+    try:
+        frame = _chart_frame(page)
+        frame.locator(CHART).first.focus()
+        page.wait_for_timeout(800)
+        widths = {frame.evaluate(_PLOT_WIDTH)}
+        for key in ["ArrowRight"] * 3 + ["b", "b", "r", "r"] + ["ArrowRight"] * 3:
+            page.keyboard.press(key)
+            page.wait_for_timeout(700)
+            widths.add(frame.evaluate(_PLOT_WIDTH))
+        assert len(widths) == 1, widths
+        assert page.errors == []  # type: ignore[attr-defined]
+        seen = _settle(page)
+        assert _inside(seen["text"], seen["boxShown"]), seen
     finally:
         page.close()
 
