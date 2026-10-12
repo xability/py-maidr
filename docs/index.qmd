@@ -1243,6 +1243,17 @@ A chart in the page still has what its iframe gave it:
 Each chart's ids are made its own, so two charts drawn with the same `gid`
 each highlight their own marks.
 
+From maidr.js 4.15.0, maidr.js does the keys, the focus ring and the colours
+itself for a chart that shares a page, finds each chart's marks inside that
+chart, and runs on a page with require.js. A chart is written without
+py-maidr's own copies of those when every `maidr.js` its page may load is
+4.15.0 or newer: under `use_cdn=False` the bundled one, and otherwise the
+version in the CDN URL and the bundled one the page falls back to. A chart
+whose render loads an older `maidr.js` — a pin such as
+`MAIDR_CDN_VERSION=4.14.0` or `maidr.set_cdn_version("4.14.0")` — carries
+the copies, and so does one pinned to `latest`, whose version py-maidr cannot
+know when it renders.
+
 A chart whose SVG holds something that cannot be kept to it on a page — a
 `<script>`, a `<foreignObject>`, or a stylesheet with an at-rule — is shown in
 an iframe instead, with a warning.
