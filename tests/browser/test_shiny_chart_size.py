@@ -41,11 +41,11 @@ _OWN = (557, 463)
 _FRUIT = ("Apples", "Bananas", "Cherries", "Dates", "Elderberries")
 
 #: Where everything about the output is measured, in page pixels.
-_GEOMETRY = r"""() => {
+_GEOMETRY = r"""(oid) => {
   const R = (r, dx = 0, dy = 0) => r && ({
     left: r.left + dx, top: r.top + dy, right: r.right + dx,
     bottom: r.bottom + dy, width: r.width, height: r.height});
-  const out = document.getElementById('m');
+  const out = document.getElementById(oid || 'm');
   const frame = out.querySelector('iframe');
   const box = out.querySelector('.maidr-shiny-box') || out;
   const doc = frame && frame.contentDocument;
@@ -60,52 +60,66 @@ _GEOMETRY = r"""() => {
     box: R(box.getBoundingClientRect()),
     boxClient: [box.clientWidth, box.clientHeight],
     boxScroll: [box.scrollWidth, box.scrollHeight],
+    boxShown: R({left: box.getBoundingClientRect().left + box.clientLeft,
+                 top: box.getBoundingClientRect().top + box.clientTop,
+                 right: box.getBoundingClientRect().left + box.clientLeft + box.clientWidth,
+                 bottom: box.getBoundingClientRect().top + box.clientTop + box.clientHeight,
+                 width: box.clientWidth, height: box.clientHeight}),
     frame: R(f),
+    frameInner: frame && [frame.contentWindow.innerWidth, frame.contentWindow.innerHeight],
     svg: svg && R(svg.getBoundingClientRect(), f.left, f.top),
     text: text && text.textContent.trim() ? R(text.getBoundingClientRect(), f.left, f.top) : null,
     src: frame && frame.getAttribute('src'),
+    scrollY: window.scrollY,
   };
 }"""
 
-#: What the reader is told and shown once ArrowRight has moved them.
+#: What the reader is told and shown once ArrowRight has moved them. The
+#: bars are the chart's ``g[maidr]`` groups, left to right; the highlight is
+#: drawn inside the one it lights.
 _READING = r"""() => {
   const alert = document.querySelector('#maidr-text-container [role=alert], [role=alert]');
   const lit = document.querySelector('[id^=maidr-highlight]');
-  const mark = lit && lit.previousElementSibling;
   const box = e => { const r = e.getBoundingClientRect();
                      return [r.left, r.top, r.right, r.bottom]; };
+  const bars = [...document.querySelectorAll('svg g[maidr]')]
+    .sort((a, b) => a.getBoundingClientRect().left - b.getBoundingClientRect().left);
+  const owner = lit && lit.closest('g[maidr]');
   const focused = document.activeElement;
   const ring = focused && getComputedStyle(focused);
   return {
     said: alert ? alert.textContent.trim() : '',
-    lit: lit && box(lit), mark: mark && box(mark),
+    lit: lit && box(lit), mark: owner && box(owner),
+    litBar: owner ? bars.indexOf(owner) : -1,
     focused: focused ? (focused.getAttribute('role') || focused.tagName) : null,
     ring: ring ? [ring.outlineStyle, parseFloat(ring.outlineWidth)] : null,
   };
 }"""
 
 
-def _open(browser, url: str, width: int, height: int = 900):
+def _open(browser, url: str, width: int, height: int = 900, oid: str = "m"):
     page = browser.new_page(viewport={"width": width, "height": height})
     errors: list[str] = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.goto(url)
-    page.wait_for_selector("#m iframe", timeout=30_000)
+    page.wait_for_selector(f"#{oid} iframe", timeout=30_000)
     # Attached rather than visible: maidr.js's focusable element for a
     # Plotly chart has no height of its own.
-    page.frame_locator("#m iframe").locator(CHART).first.wait_for(
+    page.frame_locator(f"#{oid} iframe").locator(CHART).first.wait_for(
         state="attached", timeout=30_000
     )
-    _settle(page)
+    _settle(page, oid=oid)
     page.errors = errors  # type: ignore[attr-defined]
     return page
 
 
-def _settle(page, quiet_ms: int = 1200, timeout_ms: int = 15_000) -> dict:
+def _settle(
+    page, quiet_ms: int = 1200, timeout_ms: int = 15_000, oid: str = "m"
+) -> dict:
     """Wait until the output's geometry stops changing, and return it."""
     last, still, waited = None, 0, 0
     while waited < timeout_ms:
-        seen = page.evaluate(_GEOMETRY)
+        seen = page.evaluate(_GEOMETRY, oid)
         key = repr({k: seen[k] for k in ("box", "frame", "svg")})
         still = still + 200 if key == last else 0
         if still >= quiet_ms:
@@ -113,19 +127,21 @@ def _settle(page, quiet_ms: int = 1200, timeout_ms: int = 15_000) -> dict:
         last = key
         page.wait_for_timeout(200)
         waited += 200
-    return page.evaluate(_GEOMETRY)
+    return page.evaluate(_GEOMETRY, oid)
 
 
-def _chart_frame(page):
+def _chart_frame(page, oid: str | None = None):
+    if oid is not None:
+        return page.query_selector(f"#{oid} iframe").content_frame()
     for frame in page.frames[1:]:
         if frame.locator(CHART).count():
             return frame
     raise AssertionError("no chart frame on the page")
 
 
-def _read(page, presses: int = 1) -> dict:
+def _read(page, presses: int = 1, oid: str | None = None) -> dict:
     """Focus the chart, press ArrowRight, and say what the reader got."""
-    frame = _chart_frame(page)
+    frame = _chart_frame(page, oid)
     frame.locator(CHART).first.focus()
     page.wait_for_timeout(400)
     for _ in range(presses):
@@ -135,16 +151,18 @@ def _read(page, presses: int = 1) -> dict:
     return frame.evaluate(_READING)
 
 
-def _assert_reads(page, where: str) -> None:
-    reading = _read(page)
+def _assert_reads(page, where: str, oid: str | None = None) -> None:
+    reading = _read(page, oid=oid)
     assert reading["focused"] in ("img", "application"), (where, reading)
     assert reading["ring"][0] != "none" and reading["ring"][1] >= 2, (where, reading)
     # The first press says the first bar; a later one, the bar it moves to.
-    assert any(f"Fruit is {fruit}" in reading["said"] for fruit in _FRUIT), (
-        where,
-        reading,
-    )
+    said = [
+        i for i, fruit in enumerate(_FRUIT) if f"Fruit is {fruit}" in reading["said"]
+    ]
+    assert said, (where, reading)
     assert reading["lit"] is not None, f"{where}: nothing is highlighted"
+    # The bar announced is the one lit, and the highlight covers it.
+    assert reading["litBar"] == said[0], (where, reading)
     assert reading["lit"] == pytest.approx(reading["mark"], abs=1), where
 
 
@@ -348,5 +366,259 @@ def test_a_bokeh_plot_wider_than_a_phone_is_reached_by_scrolling_its_box(
         page.wait_for_timeout(800)
         assert "Apples" in frame.evaluate(_READING)["said"]
         assert page.errors == []  # type: ignore[attr-defined]
+    finally:
+        page.close()
+
+
+# ---------------------------------------------------------------------------
+# maidr's dialogs, scrollbars that take room, long announcements
+# ---------------------------------------------------------------------------
+
+#: maidr's open dialog, in page pixels, with its Close button and how much of
+#: its text it shows.
+_DIALOG = r"""() => {
+  const frame = document.querySelector('#m iframe');
+  const doc = frame.contentDocument;
+  const paper = doc.querySelector('.MuiDialog-paper');
+  if (!paper) return null;
+  const f = frame.getBoundingClientRect();
+  const R = r => ({left: r.left + f.left, top: r.top + f.top,
+                   right: r.right + f.left, bottom: r.bottom + f.top});
+  const close = [...paper.querySelectorAll('button')]
+    .find(b => b.textContent.trim() === 'Close');
+  const text = paper.querySelector('.MuiDialogContent-root') || paper;
+  return {paper: R(paper.getBoundingClientRect()),
+          close: close && R(close.getBoundingClientRect()),
+          text: text.clientHeight};
+}"""
+
+
+@pytest.mark.parametrize("width", [1280, 390])
+def test_a_dialog_is_shown_whole_in_a_short_output(browser, shiny_size_app_url, width):
+    """Help in a 300px output: the box grows to the window while it is open.
+
+    It was kept to the box: 104px of its text showed in a 300px output, and
+    20px in a 200px one.
+    """
+    page = _open(browser, f"{shiny_size_app_url}/h300/", width, height=800)
+    try:
+        _read(page)
+        page.keyboard.press("Control+/")
+        page.wait_for_timeout(1500)
+        seen = _settle(page)
+        dialog = page.evaluate(_DIALOG)
+        assert dialog is not None, "no dialog opened"
+        shown = seen["boxShown"]
+        view = {"left": 0, "top": 0, "right": width, "bottom": 800}
+        for part in ("paper", "close"):
+            assert _inside(dialog[part], shown), (part, dialog, seen)
+            assert _inside(dialog[part], view), (part, dialog, seen)
+        assert dialog["text"] >= 400, dialog
+        assert seen["pageScroll"] == 0, seen
+
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(1200)
+        back = _settle(page)
+        assert page.evaluate(_DIALOG) is None
+        assert back["out"]["height"] == pytest.approx(300, abs=1), back
+        assert back["box"]["height"] == pytest.approx(300, abs=1), back
+        assert back["frame"]["height"] <= 300, back
+        assert page.errors == []  # type: ignore[attr-defined]
+    finally:
+        page.close()
+
+
+#: The fitted chart, and the element its focus ring is drawn on, against what
+#: of the frame shows: its window, and the box's room beside its scrollbar.
+_CUT = r"""() => {
+  const frame = document.querySelector('#m iframe');
+  const box = frame.parentElement;
+  const doc = frame.contentDocument;
+  const f = frame.getBoundingClientRect();
+  const chart = doc.querySelector('svg.maidr-frame-svg').getBoundingClientRect();
+  const ring = doc.querySelector('figure[id^="maidr-figure"] > div[tabindex]')
+    .getBoundingClientRect();
+  return {
+    chart: chart.right, ring: ring.right,
+    window: frame.contentWindow.innerWidth,
+    box: box.getBoundingClientRect().left + box.clientLeft + box.clientWidth - f.left,
+    scrollbar: box.offsetWidth - box.clientWidth,
+  };
+}"""
+
+
+@pytest.mark.parametrize(
+    ("case", "width", "key"),
+    [("h360", 390, "b"), ("h360", 390, "r"), ("card", 1280, "b")],
+)
+def test_a_scrollbar_never_cuts_a_fitted_chart(
+    classic_scrollbar_browser, shiny_size_app_url, case, width, key
+):
+    """With scrollbars that take room, as Windows' do, nothing is cut.
+
+    The braille or review field makes the box scroll; its scrollbar
+    narrowed the frame by 15px under a chart fitted to the wider box, which
+    kept its width: its right edge, and its focus ring's, were cut off.
+    """
+    page = _open(classic_scrollbar_browser, f"{shiny_size_app_url}/{case}/", width)
+    try:
+        frame = _chart_frame(page)
+
+        def assert_whole(when: str) -> dict:
+            _settle(page)
+            cut = page.evaluate(_CUT)
+            for edge in ("chart", "ring"):
+                assert cut[edge] <= min(cut["window"], cut["box"]) + 0.5, (
+                    when,
+                    edge,
+                    cut,
+                )
+            return cut
+
+        frame.locator(CHART).first.focus()
+        page.wait_for_timeout(600)
+        assert_whole("on focus")
+        page.keyboard.press("ArrowRight")
+        page.wait_for_timeout(600)
+        page.keyboard.press(key)
+        page.wait_for_timeout(1200)
+        cut = assert_whole(f"with {key} open")
+        assert cut["scrollbar"] > 0, ("the box does not scroll", cut)
+        page.keyboard.press(key)
+        page.wait_for_timeout(1200)
+        assert_whole(f"with {key} closed")
+    finally:
+        page.close()
+
+
+def test_a_long_announcement_is_scrolled_into_its_box(browser, shiny_size_app_url):
+    """Three lines of text below a chart fitted to a 300px output.
+
+    The box scrolls to them, as it does to the braille field; the page
+    does not move.
+    """
+    page = _open(browser, f"{shiny_size_app_url}/long_text/", 320)
+    try:
+        before = page.evaluate(_GEOMETRY)
+        _read(page, presses=2)
+        seen = _settle(page)
+        assert seen["text"] is not None
+        assert seen["text"]["height"] > 40, ("the text is one line", seen)
+        assert seen["boxScroll"][1] > seen["boxClient"][1], seen
+        assert _inside(seen["text"], seen["boxShown"]), seen
+        assert seen["scrollY"] == before["scrollY"], "the page moved"
+    finally:
+        page.close()
+
+
+# ---------------------------------------------------------------------------
+# Plotly and Bokeh in a box with a height of its own
+# ---------------------------------------------------------------------------
+
+
+def _plot_height(page) -> float:
+    return _chart_frame(page).evaluate(
+        "() => document.querySelector('.js-plotly-plot').getBoundingClientRect().height"
+    )
+
+
+def test_a_plotly_chart_fills_a_card_and_full_screen(browser, shiny_size_app_url):
+    """As tall as the card less a line for the text, as main had it.
+
+    It stayed 450px in a 778px card, and in full screen, where main had
+    filled them; the height is the card's, not the frame's, so nothing it
+    draws grows it, through a dozen key presses.
+    """
+    page = _open(browser, f"{shiny_size_app_url}/plotly_card/", 1280)
+    try:
+        seen = page.evaluate(_GEOMETRY)
+        assert _plot_height(page) >= seen["box"]["height"] - 60, seen
+        assert _plot_height(page) > 600, _plot_height(page)
+        _full_screen(page, True)
+        full = _settle(page)
+        assert _plot_height(page) >= full["box"]["height"] - 60, full
+        heights = []
+        frame = _chart_frame(page)
+        frame.locator(CHART).first.focus()
+        page.wait_for_timeout(400)
+        for _ in range(12):
+            page.keyboard.press("ArrowRight")
+            page.wait_for_timeout(350)
+            seen = page.evaluate(_GEOMETRY)
+            heights.append((seen["frame"]["height"], _plot_height(page)))
+        assert len(set(heights)) == 1, heights
+        seen = _settle(page)
+        assert _inside(seen["text"], seen["boxShown"]), seen
+        # Past the last bar, maidr says there is no more.
+        assert "No more data" in frame.evaluate(_READING)["said"]
+        _full_screen(page, False)
+        back = _settle(page)
+        assert _plot_height(page) >= back["box"]["height"] - 60, back
+        # plotly.js throws once ("reading 'mo'") when it is resized with a
+        # point highlighted; that is all.
+        assert all("'mo'" in error for error in page.errors), page.errors  # type: ignore[attr-defined]
+    finally:
+        page.close()
+
+
+def test_a_plotly_chart_fills_an_outputs_height(browser, shiny_size_app_url):
+    page = _open(browser, f"{shiny_size_app_url}/plotly_h400/", 1280)
+    try:
+        _read(page)
+        seen = _settle(page)
+        assert _plot_height(page) == pytest.approx(400 - 52, abs=4), seen
+        assert seen["boxScroll"][1] <= seen["boxClient"][1] + 1, seen
+        assert _inside(seen["text"], seen["boxShown"]), seen
+    finally:
+        page.close()
+
+
+def test_a_plotly_chart_without_autosize_keeps_its_width(browser, shiny_size_app_url):
+    """``autosize=False``: plotly.js draws it 700px wide whatever its div is.
+
+    It was taken for a chart that fills its container, so the frame never
+    widened to it, and at 390px its right half could not be reached.
+    """
+    page = _open(browser, f"{shiny_size_app_url}/plotly_fixed/", 390)
+    try:
+        seen = page.evaluate(_GEOMETRY)
+        assert seen["frame"]["width"] >= 700, seen
+        assert seen["boxScroll"][0] >= 700 > seen["boxClient"][0], seen
+        assert seen["pageScroll"] == 0, seen
+    finally:
+        page.close()
+
+
+#: How tall Bokeh drew the plot: its root's box, in its shadow DOM's host.
+_BOKEH = r"""() => {
+  const host = [...document.querySelectorAll('div')].find(e => e.shadowRoot);
+  return host ? host.getBoundingClientRect().height : 0;
+}"""
+
+
+@pytest.mark.parametrize("case", ["bokeh_stretched", "bokeh_stretched_card"])
+def test_a_stretched_bokeh_plot_is_given_a_height(browser, shiny_size_app_url, case):
+    """``sizing_mode="stretch_both"`` collapsed: a 51px frame, no plot.
+
+    Its frame took its height from the plot and the plot from the frame.
+    It is now as tall as a box with a height of its own allows, or 450px.
+    """
+    page = _open(browser, f"{shiny_size_app_url}/{case}/", 1280)
+    try:
+        page.wait_for_timeout(1500)
+        seen = _settle(page)
+        drawn = _chart_frame(page).evaluate(_BOKEH)
+        assert drawn >= 400, (drawn, seen)
+        assert seen["frame"]["height"] >= drawn, seen
+        frame = _chart_frame(page)
+        frame.locator(CHART).first.focus()
+        page.wait_for_timeout(400)
+        page.keyboard.press("ArrowRight")
+        page.wait_for_timeout(800)
+        seen = _settle(page)
+        assert "Apples" in frame.evaluate(_READING)["said"]
+        assert seen["text"] is not None and _inside(
+            seen["text"], seen["boxShown"]
+        ), seen
     finally:
         page.close()

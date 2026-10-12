@@ -353,6 +353,21 @@ def test_a_shiny_frame_fits_the_chart_to_a_box_with_a_height():
     # Fitted, the frame is as wide as the box; left to its own height, no
     # wider than the chart.
     assert "iframe.style.maxWidth = boxRoom > 0" in script
+    # Given a width alone, never wider than the frame: a scrollbar the box
+    # takes narrows it rather than cutting its edge off.
+    assert "chart.style.maxWidth = 'none'" not in script
+    assert "chart.style.height = (h * scale)" not in script
+    # A dialog gets the window's room, the box and output held to it until
+    # it goes; maidr's text is scrolled into the box.
+    for part in (
+        "function maidrBoxDialogRoom(iframe, own)",
+        "maidrHoldBox(iframe, room > 0 ? dialog : 0);",
+        "if (win !== win.top) room = Math.max(room, 480);",
+        "maidrShowText(iframeDocument, iframe);",
+        "maidrShowText(doc, iframe);",
+        "maidrFillHeight(doc, fit.room > 0",
+    ):
+        assert part in script, part
     # A notebook's frame has none of it.
     assert "function maidrBoxRoom" not in _attribute(_frame(in_notebook=True), "onload")
 
@@ -375,7 +390,7 @@ def test_a_shiny_frame_names_the_served_script():
         assert dependency.name == SHINY_FRAME_NAME
     # Each kind reads the frame it was handed, not one found by its id.
     script = shiny_frame_script()
-    assert "getElementById" not in script
+    assert "document.getElementById('iframe_" not in script
     assert "var widens = options.widens;" in script
     assert "window.maidrShinyFrame = function (frame, kind, options)" in script
     # A notebook's frame still carries its own.

@@ -108,6 +108,17 @@ _WAIT_MS = 30000
 #: element it is embedded in.
 _FILLS_WIDTH = frozenset({"stretch_width", "stretch_both", "scale_width", "scale_both"})
 
+#: The ``sizing_mode`` values under which it is as tall as that element.
+_FILLS_HEIGHT = frozenset(
+    {"stretch_height", "stretch_both", "scale_height", "scale_both"}
+)
+
+#: How tall such a plot is in a Shiny output with no height of its own, as a
+#: Plotly figure with none is (:data:`maidr.plotly.plotly_maidr.SHINY_DEFAULT_HEIGHT`):
+#: its frame took its height from the plot, and the plot from the frame, so
+#: it had none, and its text was cut off below a 51px frame.
+_SHINY_FILL_HEIGHT = 450
+
 
 class BokehMaidr:
     """
@@ -375,6 +386,16 @@ class BokehMaidr:
         mode = str(getattr(self._model, "sizing_mode", None) or "")
         policy = str(getattr(self._model, "width_policy", None) or "")
         return mode in _FILLS_WIDTH or policy == "max"
+
+    def _fills_height(self) -> bool:
+        """Whether the plot or layout takes the height of its container.
+
+        A ``sizing_mode`` that stretches or scales the height, or a
+        ``height_policy`` of ``"max"``.
+        """
+        mode = str(getattr(self._model, "sizing_mode", None) or "")
+        policy = str(getattr(self._model, "height_policy", None) or "")
+        return mode in _FILLS_HEIGHT or policy == "max"
 
     def _highlight_map(self, cursors: dict[tuple, str]) -> dict[str, dict]:
         """
@@ -702,6 +723,7 @@ class BokehMaidr:
             # is the case the Plotly wrapper's delayed resizing handles. A
             # Quarto cell's ``fig-alt`` names the frame.
             alt = quarto_fig_alt() if in_quarto_render(use_iframe) else None
+            in_shiny = in_shiny_frame(use_iframe)
             base_html = wrap_in_iframe_plotly(
                 base_html,
                 chart_title,
@@ -709,7 +731,10 @@ class BokehMaidr:
                 in_notebook=in_notebook_frame(use_iframe),
                 keep_padding=True,
                 fill_width=self._fills_width(),
-                in_shiny=in_shiny_frame(use_iframe),
+                in_shiny=in_shiny,
+                fill_height=(
+                    _SHINY_FILL_HEIGHT if in_shiny and self._fills_height() else 0
+                ),
             )
         return with_chart_title(base_html, chart_title)
 

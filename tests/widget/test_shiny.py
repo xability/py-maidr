@@ -420,6 +420,64 @@ def test_a_plotly_figure_has_a_height_of_its_own_in_shiny(fake_session):
     assert "height:700px" in chart_of(tall).replace(" ", "")
 
 
+def _frame_options(fake_session, value) -> dict:
+    """The options a chart's frame hands the served sizing script."""
+    import json
+
+    @render_maidr
+    def chart():
+        return value
+
+    onload = unescape(re.search(r'onload="([^"]*)"', _render(chart)["html"]).group(1))
+    return json.loads(
+        re.search(r"maidrShinyFrame\(f,'plotly',(\{.*?\})\)", onload).group(1)
+    )
+
+
+def test_a_plotly_figure_is_sized_by_its_box_only_when_plotly_would(fake_session):
+    """With no size of its own it fills the box; ``autosize=False`` is fixed.
+
+    plotly.js draws a figure whose layout turns ``autosize`` off at 700 by
+    450 pixels whatever its div is; taken for one that fills its container,
+    its frame never widened to it, and its right half was out of reach.
+    """
+    go = pytest.importorskip("plotly.graph_objects")
+    bar = go.Bar(x=["a", "b"], y=[1, 2])
+
+    assert _frame_options(fake_session, go.Figure(bar)) == {
+        "widens": False,
+        "fillHeight": 450,
+    }
+    fixed = go.Figure(bar, layout={"autosize": False})
+    assert _frame_options(fake_session, fixed) == {"widens": True}
+    tall = go.Figure(bar, layout={"height": 700})
+    assert _frame_options(fake_session, tall) == {"widens": False}
+
+
+@pytest.mark.parametrize(
+    ("mode", "fills"),
+    [
+        ("stretch_both", True),
+        ("stretch_height", True),
+        ("scale_both", True),
+        ("stretch_width", False),
+        ("fixed", False),
+    ],
+)
+def test_a_bokeh_plot_that_takes_its_containers_height_is_given_one(
+    fake_session, mode, fills
+):
+    """``stretch_both`` collapsed to a 51px frame with nothing drawn in it."""
+    bokeh_plotting = pytest.importorskip("bokeh.plotting")
+    plot = bokeh_plotting.figure(x_range=["a", "b"], sizing_mode=mode, title="Sales")
+    plot.vbar(x=["a", "b"], top=[1, 2], width=0.5)
+
+    options = _frame_options(fake_session, plot)
+    assert ("fillHeight" in options) is fills, options
+    if fills:
+        assert options["fillHeight"] == 450
+
+
 # ---------------------------------------------------------------------------
 # Rendered payload
 # ---------------------------------------------------------------------------

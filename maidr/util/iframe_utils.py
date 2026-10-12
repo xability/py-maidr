@@ -407,25 +407,41 @@ _WATCH_JS = """
 #: app's. A frame elsewhere -- Flask, a Pyodide page -- leaves it out.
 _NOTEBOOK_JS = _OUTPUT_WIDTH_JS + _KEEP_SCROLL_JS + _NOT_LAID_OUT_JS + _DIALOG_ROOM_JS
 
-#: How a Shiny app's matplotlib frame fits the box it is shown in: the box
+#: How a Shiny app's frame fits the box it is shown in: the box
 #: :class:`maidr.widget.shiny.render_maidr` puts around it, which is the
 #: output's whole box unless the renderer was given a size of its own.
 #:
 #: A box with a height of its own -- an output given one, or one that fills
-#: a fillable container (a card, ``page_fillable``) -- holds the chart as
-#: ``object-fit: contain`` holds an image: as large as the box allows,
-#: larger or smaller than the chart's own size, keeping its shape, centred,
-#: less a line kept below it for maidr's text. As
+#: a fillable container (a card, ``page_fillable``) -- holds a matplotlib
+#: chart as ``object-fit: contain`` holds an image: as large as the box
+#: allows, larger or smaller than the chart's own size, keeping its shape,
+#: centred, less a line kept below it for maidr's text. As
 #: ``maidr/assets/inline.js`` (``fitCard``) fits a chart to a Quarto
 #: dashboard's card, and told apart the same way: a box that keeps its
-#: height with the frame at none and at 4000px has one of its own. A box
-#: that takes its height from the frame leaves the chart as a notebook's
-#: frame has it: as wide as the box, up to its own width, shrinking with a
-#: narrower one. The box scrolls to whatever does not fit -- maidr's braille
-#: and review fields, a text longer than the line -- rather than cutting it
-#: off. ``maidrWatchBox`` fits the chart again whenever the box changes size:
-#: a window resized, a card taken full screen or back, a sidebar closed,
-#: with nothing sent to the server.
+#: height with the frame at none and at 4000px has one of its own. A Plotly
+#: figure or a Bokeh plot that takes its height from its container is as
+#: tall as the box less that line (``maidrFillHeight``). A box that takes
+#: its height from the frame leaves the chart as a notebook's frame has it:
+#: as wide as the box, up to its own width, shrinking with a narrower one.
+#:
+#: The box scrolls to whatever does not fit -- maidr's braille and review
+#: fields, a text longer than the line -- rather than cutting it off. A
+#: fitted chart is given a width alone, and is never wider than its frame
+#: (``frame.css``), so that a scrollbar the box takes (Windows' are 15px
+#: wide) narrows it, and the box's ResizeObserver fits it again, rather than
+#: cutting its right edge, and its focus ring, off. maidr's text is scrolled
+#: into the box as it changes (``maidrShowText``), the box alone, never the
+#: page.
+#:
+#: While a dialog of maidr's is open, the box is as tall as the part of the
+#: window a reader sees (``maidrBoxDialogRoom``), as a frame in an output of
+#: its own height is, not its own height: a help dialog in a 300px output
+#: showed 104px of its text, in a 120px one 20px. The output grows with it
+#: (``maidrHoldBox``), and both go back to their own height once the dialog
+#: has gone; the chart is not fitted to the room the dialog took.
+#: ``maidrWatchBox`` fits the chart again whenever the box changes size: a
+#: window resized, a card taken full screen or back, a sidebar closed, with
+#: nothing sent to the server.
 _BOX_JS = """
         function maidrBoxRoom(iframe) {
             var box = iframe.parentElement;
@@ -458,6 +474,56 @@ _BOX_JS = """
             if (!(line > 0)) line = 1.25 * size;
             return Math.ceil(line + 2 * size);
         }
+        // The box's room, measured unless a dialog of maidr's holds the box
+        // taller, and the room the dialog gets: what the reader sees of the
+        // window, or of the container that clips the output (a card's
+        // body), never less than the box's own.
+        function maidrBox(iframe, doc) {
+            var open = !!doc.querySelector('.MuiDialog-root');
+            if (!open || iframe.maidrBoxRoom === undefined) {
+                maidrHoldBox(iframe, 0);
+                iframe.maidrBoxRoom = maidrBoxRoom(iframe);
+            }
+            var room = iframe.maidrBoxRoom;
+            var dialog = open ? maidrBoxDialogRoom(iframe, room) : 0;
+            maidrHoldBox(iframe, room > 0 ? dialog : 0);
+            return {room: room, dialog: dialog};
+        }
+        function maidrBoxDialogRoom(iframe, own) {
+            var page = iframe.ownerDocument;
+            var win = page.defaultView;
+            var room = win.innerHeight || 0;
+            if (win !== win.top) room = Math.max(room, 480);
+            var box = iframe.parentElement;
+            for (var el = box && box.parentElement; el && el !== page.body;
+                    el = el.parentElement) {
+                var style = win.getComputedStyle(el);
+                if (style.overflowY !== 'visible' && style.display !== 'contents') {
+                    room = Math.min(room, el.clientHeight
+                        - (parseFloat(style.paddingTop) || 0)
+                        - (parseFloat(style.paddingBottom) || 0));
+                    break;
+                }
+            }
+            return Math.floor(Math.max(room, own));
+        }
+        // The box, and the output it fills, at least this tall; 0 gives
+        // them back the height they had.
+        function maidrHoldBox(iframe, room) {
+            var box = iframe.parentElement;
+            var held = [box, box && box.parentElement];
+            for (var i = 0; i < held.length; i++) {
+                var el = held[i];
+                if (!el) continue;
+                if (room > 0) {
+                    if (el.maidrHeld === undefined) el.maidrHeld = el.style.minHeight;
+                    if (el.style.minHeight !== room + 'px') el.style.minHeight = room + 'px';
+                } else if (el.maidrHeld !== undefined) {
+                    el.style.minHeight = el.maidrHeld;
+                    el.maidrHeld = undefined;
+                }
+            }
+        }
         function maidrFitChart(doc, chart, room, width) {
             var root = doc.documentElement;
             chart.style.width = '';
@@ -473,11 +539,51 @@ _BOX_JS = """
             var h = chart.height.baseVal.value;
             var space = room - maidrTextLine(doc);
             var scale = Math.min(width / w, Math.max(space, 96) / h);
+            // Its width alone: its height follows its shape, and it is never
+            // wider than the frame (frame.css).
             chart.style.width = (w * scale) + 'px';
-            chart.style.height = (h * scale) + 'px';
-            chart.style.maxWidth = 'none';
             if (space > h * scale) {
                 doc.body.style.paddingTop = ((space - h * scale) / 2) + 'px';
+            }
+        }
+        // A chart that takes its height from its container -- a Plotly
+        // figure with no height of its own, a Bokeh plot stretched or
+        // scaled to it -- given this height.
+        function maidrFillHeight(doc, height) {
+            var plot = doc.querySelector(
+                '.js-plotly-plot, [id^="maidr-bokeh-"][id$="-plot"]'
+            );
+            if (!plot) return;
+            var px = Math.max(Math.floor(height), 96) + 'px';
+            if (plot.style.height === px) return;
+            plot.style.height = px;
+            var plotly = doc.defaultView.Plotly;
+            if (plot.classList.contains('js-plotly-plot') && plotly && plotly.Plots
+                    && plot._fullLayout) {
+                try {
+                    var done = plotly.Plots.resize(plot);
+                    if (done && done.catch) done.catch(function() {});
+                } catch (_) {}
+            }
+        }
+        // maidr's text, once it changed, in the box, which alone is
+        // scrolled: as maidrShowField shows a field, without moving the page.
+        function maidrShowText(doc, iframe) {
+            var box = iframe.parentElement;
+            var text = doc.getElementById('maidr-text-container');
+            var said = text ? text.textContent : '';
+            if (!box || said === iframe.maidrSaid) return;
+            iframe.maidrSaid = said;
+            if (!said.trim() || box.scrollHeight <= box.clientHeight + 1) return;
+            var frame = iframe.getBoundingClientRect();
+            var rect = text.getBoundingClientRect();
+            var top = box.getBoundingClientRect().top + box.clientTop;
+            var over = frame.top + rect.bottom - (top + box.clientHeight);
+            var under = top - (frame.top + rect.top);
+            if (under > 0) {
+                box.scrollTop -= under;
+            } else if (over > 0) {
+                box.scrollTop += Math.min(over, -under);
             }
         }
 """
@@ -828,7 +934,9 @@ def _matplotlib_resizer(
                     let dialogOpen = iframeDocument.querySelector('.MuiDialog-root');
                     iframe.style.width = maidrOutputWidth(iframe, keepsPadding);
                     if (fitsBox) {{
-                        boxRoom = maidrBoxRoom(iframe);
+                        let fit = maidrBox(iframe, iframeDocument);
+                        boxRoom = fit.room;
+                        room = fit.dialog;
                         maidrFitChart(iframeDocument, chart, boxRoom, maidrBoxWidth(iframe));
                     }}
                     // A chart fitted to its box is as wide as the box.
@@ -907,9 +1015,6 @@ def _matplotlib_resizer(
                 }} else if (isReviewInputActive) {{
                     height += 50;
                 }}
-                // A dialog over a chart fitted to its box is kept to the
-                // box, which scrolls to nothing then.
-                if (boxRoom > 0 && room > 0) room = Math.floor(boxRoom);
                 height = Math.max(height, room);
                 iframe.style.height = (height) + 'px';
                 if (restoreScroll) restoreScroll();
@@ -918,6 +1023,7 @@ def _matplotlib_resizer(
                     maidrShowDialog(iframeDocument, iframe, room, resized);
                     maidrShowField(iframeDocument, resized);
                 }}
+                if (fitsBox) maidrShowText(iframeDocument, iframe);
             }}
         }}
         let iframe = {frame};
@@ -984,6 +1090,7 @@ def wrap_in_iframe_plotly(
     keep_padding: bool = False,
     fill_width: bool = False,
     in_shiny: bool = False,
+    fill_height: int = 0,
 ) -> Tag:
     """Wrap Plotly HTML in an auto-resizing iframe for notebooks.
 
@@ -1035,6 +1142,13 @@ def wrap_in_iframe_plotly(
         ``maidr/assets/frame.css``.
     in_shiny : bool, default=False
         Whether the frame goes into a Shiny app's output.
+    fill_height : int, default=0
+        In a Shiny app, how tall a chart that takes its height from its
+        container (a Plotly figure with no height of its own, a Bokeh
+        ``sizing_mode`` that stretches or scales its height) is in a box
+        with no height of its own; in a box with one, it is as tall as the
+        box less a line for maidr's text. 0 for a chart with a height of
+        its own.
 
     Returns
     -------
@@ -1045,7 +1159,10 @@ def wrap_in_iframe_plotly(
     fits_output = in_notebook or in_shiny
     if in_shiny:
         # A chart that takes its container's width never widens the frame.
-        onload = _shiny_onload("plotly", {"widens": not fill_width})
+        options: dict = {"widens": not fill_width}
+        if fill_height:
+            options["fillHeight"] = int(fill_height)
+        onload = _shiny_onload("plotly", options)
     else:
         helpers = _WATCH_JS + (_NOTEBOOK_JS if fits_output else "")
         onload = helpers + _plotly_resizer(
@@ -1110,6 +1227,26 @@ def _plotly_resizer(
     keeps = "true" if keep_padding or in_shiny else "false"
     widens = "options.widens" if in_shiny else "true"
     watch_box = "maidrWatchBox(iframe, scheduleResize);" if in_shiny else ""
+    # In a Shiny app: the room the box gives the chart (none when the box
+    # takes its height from the frame), the room a dialog gets, and a chart
+    # that takes its height from its container -- a Plotly figure with no
+    # height of its own, a Bokeh plot stretched or scaled to it -- as tall
+    # as the box less the line kept for maidr's text, or, in a box with no
+    # height of its own, ``options.fillHeight``; see :data:`_BOX_JS`.
+    box_step = (
+        """
+            var fit = maidrBox(iframe, doc);
+            room = fit.dialog;
+            if (options.fillHeight) {
+                maidrFillHeight(doc, fit.room > 0
+                    ? fit.room - maidrTextLine(doc)
+                    : options.fillHeight);
+            }
+"""
+        if in_shiny
+        else ""
+    )
+    show_text = "maidrShowText(doc, iframe);" if in_shiny else ""
 
     return f"""
         function resizeIframe() {{
@@ -1129,7 +1266,7 @@ def _plotly_resizer(
             var restoreScroll = fitsOutput ? maidrKeepScroll(iframe) : null;
             var before = iframe.style.height;
             var room = fitsOutput ? maidrDialogRoom(doc, iframe) : 0;
-
+            {box_step}
             // WIDTH, in a notebook: a chart of a fixed width wider than the
             // output area widens the frame, so the output area scrolls to it
             // as it does to the plain chart, where scrolling="no" cut it off.
@@ -1209,6 +1346,7 @@ def _plotly_resizer(
                 maidrShowDialog(doc, iframe, room, resized);
                 maidrShowField(doc, resized);
             }}
+            {show_text}
         }}
 
         var iframe = {frame};

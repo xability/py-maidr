@@ -3,8 +3,10 @@
 Each case is a Shiny app mounted under ``/<case>/``: the chart in a fluid
 page with the default figure or a wide one, in outputs of a fixed height,
 in a fillable card that can be taken full screen, with a size given to the
-renderer, and Plotly, Bokeh and Altair charts. ``tests/browser/test_shiny_chart_size.py``
-drives them.
+renderer, with an announcement three lines long, and Plotly figures (with no height of their
+own, in an output with one, and with ``autosize`` off), Bokeh plots (of a
+fixed width, and stretched both ways) and an Altair chart.
+``tests/browser/test_shiny_chart_size.py`` drives them.
 """
 
 import matplotlib
@@ -47,6 +49,29 @@ def _bokeh():
     return plot
 
 
+def _plotly_fixed():
+    """A figure plotly.js draws at its layout's 700 by 450, whatever its div."""
+    fig = _plotly()
+    fig.update_layout(autosize=False)
+    return fig
+
+
+def _bokeh_stretched():
+    from bokeh.plotting import figure
+
+    plot = figure(x_range=LABELS, sizing_mode="stretch_both", title="Fruit sold")
+    plot.vbar(x=LABELS, top=VALUES, width=0.8)
+    return plot
+
+
+def _long_labels():
+    """Bars whose announcement takes three lines on a phone."""
+    ax = _bars()
+    ax.set_xlabel("The kind of fruit the stall sold over the whole summer")
+    ax.set_ylabel("The number of wooden boxes of it sold")
+    return ax
+
+
 def _altair():
     import altair as alt
     import pandas as pd
@@ -77,6 +102,12 @@ CASES = {
     "plotly_card": (_card, output_maidr("m"), {}, _plotly),
     "bokeh": (_fluid, output_maidr("m"), {}, _bokeh),
     "altair": (_fluid, output_maidr("m"), {}, _altair),
+    "h360": (_fluid, output_maidr("m", height=360), {}, _bars),
+    "plotly_h400": (_fluid, output_maidr("m", height=400), {}, _plotly),
+    "plotly_fixed": (_fluid, output_maidr("m"), {}, _plotly_fixed),
+    "bokeh_stretched": (_fluid, output_maidr("m"), {}, _bokeh_stretched),
+    "bokeh_stretched_card": (_card, output_maidr("m"), {}, _bokeh_stretched),
+    "long_text": (_fluid, output_maidr("m", height=300), {}, _long_labels),
 }
 
 

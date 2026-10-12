@@ -56,23 +56,34 @@ def _chromium_path() -> str | None:
 
 
 @pytest.fixture(scope="session")
-def browser():
-    """A Playwright Chromium, or a skip if none can be driven."""
+def _playwright():
+    """The one Playwright the session's browsers share: it runs once a thread."""
     sync_playwright = pytest.importorskip(
         "playwright.sync_api", reason="playwright is not installed"
     ).sync_playwright
 
     with sync_playwright() as p:
-        launch: dict = {"args": ["--no-sandbox"]}
-        exe = _chromium_path()
-        if exe:
-            launch["executable_path"] = exe
-        try:
-            b = p.chromium.launch(**launch)
-        except Exception as error:  # pragma: no cover - environment dependent
-            pytest.skip(f"could not launch Chromium: {error}")
-        yield b
-        b.close()
+        yield p
+
+
+def _launch(p, **options):
+    """A Chromium, or a skip if none can be driven."""
+    launch: dict = {"args": ["--no-sandbox"], **options}
+    exe = _chromium_path()
+    if exe:
+        launch["executable_path"] = exe
+    try:
+        return p.chromium.launch(**launch)
+    except Exception as error:  # pragma: no cover - environment dependent
+        pytest.skip(f"could not launch Chromium: {error}")
+
+
+@pytest.fixture(scope="session")
+def browser(_playwright):
+    """A Playwright Chromium, or a skip if none can be driven."""
+    b = _launch(_playwright)
+    yield b
+    b.close()
 
 
 def _serve(app: str, *, runner: str = "shiny"):
@@ -189,6 +200,18 @@ def served_bundle_app_url():
 def shiny_size_app_url():
     """A Shiny app per way of sizing a chart, each mounted under ``/<case>/``."""
     yield from _serve("shiny_size_app.py")
+
+
+@pytest.fixture(scope="session")
+def classic_scrollbar_browser(_playwright):
+    """A Chromium that draws classic scrollbars, which take room, as Windows'.
+
+    Playwright starts Chromium with ``--hide-scrollbars``, so a scrollbar
+    there takes no width, and nothing it covers is ever cut.
+    """
+    b = _launch(_playwright, ignore_default_args=["--hide-scrollbars"])
+    yield b
+    b.close()
 
 
 @pytest.fixture(scope="session")

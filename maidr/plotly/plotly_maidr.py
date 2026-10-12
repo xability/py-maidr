@@ -1727,6 +1727,32 @@ class PlotlyMaidr:
             return None
         return own
 
+    def _fills_container(self, key: str) -> bool:
+        """Whether plotly.js sizes the figure's ``width`` or ``height`` by its div.
+
+        It does for a figure with no size of its own there, unless its layout
+        turns ``autosize`` off: plotly.js then draws it at its layout's
+        defaults, 700 by 450 pixels, whatever its div is, and it is a chart
+        of a fixed size.
+
+        Parameters
+        ----------
+        key : {"width", "height"}
+            The size asked about.
+
+        Returns
+        -------
+        bool
+            True when the figure takes that size from its container.
+        """
+        if self._own_layout_size(key) is not None:
+            return False
+        try:
+            autosize = self._fig.layout.autosize
+        except Exception:
+            autosize = None
+        return autosize is not False
+
     def _get_plotly_html(self, div_id: str, default_height: int | None = None) -> str:
         """Get Plotly's interactive HTML div.
 
@@ -1992,7 +2018,12 @@ class PlotlyMaidr:
                 alt,
                 in_notebook=in_frame,
                 in_shiny=in_shiny,
-                fill_width=in_shiny and self._own_layout_size("width") is None,
+                fill_width=in_shiny and self._fills_container("width"),
+                fill_height=(
+                    SHINY_DEFAULT_HEIGHT
+                    if in_shiny and self._fills_container("height")
+                    else 0
+                ),
             )
 
         return with_chart_title(base_html, chart_title)
@@ -2040,8 +2071,11 @@ class PlotlyMaidr:
 
 #: How tall a figure with no height of its own is drawn in a Shiny app: as
 #: tall as plotly.js draws one (its ``layout.height`` default), the size the
-#: figure's own layout was made for. A fixed height rather than the output's:
-#: one that followed the frame grew with maidr's text below it.
+#: figure's own layout was made for, in an output with no height of its own.
+#: A fixed height rather than the frame's: one that followed the frame grew
+#: with maidr's text below it. In an output with a height of its own -- one
+#: given a height, a card, full screen -- it is as tall as the output less a
+#: line for maidr's text, which nothing it draws changes.
 SHINY_DEFAULT_HEIGHT = 450
 
 #: plotly's renderers that hand a figure to the notebook frontend's own
