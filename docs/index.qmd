@@ -1247,7 +1247,7 @@ From maidr.js 4.15.0, maidr.js does the keys, the focus ring and the colours
 itself for a chart that shares a page, finds each chart's marks inside that
 chart, and runs on a page with require.js. A chart is written without
 py-maidr's own copies of the keys, the ring, the colours and the require.js
-handling when every `maidr.js` its render may load is 4.15.0 or newer: under
+handling of `maidr.js` itself when every `maidr.js` its render may load is 4.15.0 or newer: under
 `use_cdn=False` the bundled one, and otherwise the version in the CDN URL and
 the bundled one the page falls back to. Its selectors are kept to its own SVG
 whatever the version, so a page that mixes charts rendered under different
@@ -1255,10 +1255,12 @@ pins still highlights each chart's own marks. A chart
 whose render loads an older `maidr.js` — a pin such as
 `MAIDR_CDN_VERSION=4.14.0` or `maidr.set_cdn_version("4.14.0")` — carries
 the copies, and so does one pinned to `latest`, whose version py-maidr cannot
-know when it renders. A chart keeps the require.js handling as well when a
-directory of locale packs is configured (`maidr.set_locale_base_url()` or
-`MAIDR_LOCALE_BASE_URL`): packs from before 4.15.0 would not run under
-require.js, and the reader would stay in English.
+know when it renders. Every chart keeps the part of the require.js handling
+that runs locale packs, about 1 KB, whatever its version: the packs a reader's
+language comes from may be older than 4.15.0 — named by
+`maidr.set_locale_base_url()`, `MAIDR_LOCALE_BASE_URL` or the page's own
+`window.maidrLocaleBaseUrl` — and would not run under require.js, leaving the
+reader in English.
 
 A chart whose SVG holds something that cannot be kept to it on a page — a
 `<script>`, a `<foreignObject>`, or a stylesheet with an at-rule — is shown in

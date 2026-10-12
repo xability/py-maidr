@@ -34,8 +34,9 @@ that, so this module carries it over:
 * **The runtime.** Quarto puts require.js on these pages. The ``maidr.js``
   and locale packs of 4.15.0 and later run before they register with it
   (xability/maidr#1385); an older, UMD one hands itself to it and never runs
-  unless ``inline-amd.js`` keeps it from it; see :func:`loader_js` and
-  :func:`carries_amd_shim`.
+  unless ``inline-amd.js`` keeps it from it. Every chart carries that, for
+  the locale packs of any release a page may name, and its loader hands it
+  an older ``maidr.js``; see :func:`loader_js`.
 * **Its size.** A chart is given the box and size of the figure Quarto
   shows in its place without maidr (:func:`size_like_plain_figure`), and
   ``inline.js`` fills a dashboard card with it as Quarto fills one with
@@ -64,7 +65,6 @@ from htmltools import HTML, Tag, tags
 from maidr.util import cdn
 from maidr.util import dependencies as _deps
 from maidr.util.environment import Environment
-from maidr.util.locale_pack import locale_base_url
 
 _logger = logging.getLogger(__name__)
 
@@ -267,32 +267,6 @@ def carries_copies(use_cdn: bool | Literal["auto"]) -> bool:
         True when the chart must carry the copies.
     """
     return not all(_ships_copies(version) for version in _runtime_versions(use_cdn))
-
-
-def carries_amd_shim(compat: bool) -> bool:
-    """Whether a chart in the page carries ``maidr/assets/inline-amd.js``.
-
-    It keeps a UMD script -- a ``maidr.js`` older than 4.15.0, or a locale
-    pack of one -- from the ``define`` of the page's require.js, under which
-    it would never run. A chart carries it with the copies
-    (:func:`carries_copies`), whose ``maidr.js`` is such a script and whose
-    packs sit beside it. It carries it as well when a directory of locale
-    packs is configured (:func:`maidr.set_locale_base_url` or
-    ``MAIDR_LOCALE_BASE_URL``): those may be of any release, and an older
-    pack under require.js leaves the reader in English. A pack of 4.15.0 or
-    later handed to it runs as it would have anyway.
-
-    Parameters
-    ----------
-    compat : bool
-        Whether the chart carries the copies.
-
-    Returns
-    -------
-    bool
-        True when the chart must carry ``inline-amd.js``.
-    """
-    return compat or locale_base_url(bundled=False) is not None
 
 
 def _runtime_versions(use_cdn: bool | Literal["auto"]) -> list[str]:
@@ -918,11 +892,10 @@ class InlineScope:
 def _asset(name: str) -> str:
     """One of ``maidr/assets/``, its comments and indents dropped.
 
-    Every chart carries ``inline.{js,css}``, ``inline-compat.{js,css}`` when
-    it must (:func:`carries_copies`) and ``inline-amd.js`` when it must
-    (:func:`carries_amd_shim`), so that a chart whose cell hides
-    its output takes nothing from the charts after it; they run once per
-    page. Every notebook frame carries ``frame.css``; see
+    Every chart carries ``inline.{js,css}`` and ``inline-amd.js``, and
+    ``inline-compat.{js,css}`` when it must (:func:`carries_copies`), so
+    that a chart whose cell hides its output takes nothing from the charts
+    after it; they run once per page. Every notebook frame carries ``frame.css``; see
     :func:`maidr.util.iframe_utils.frame_style`.
     """
     text = resources.files("maidr").joinpath("assets", name).read_text(encoding="utf-8")
@@ -1002,10 +975,11 @@ def loader_js(
         The statement that points the bundled copy at its locale packs, run
         before it under ``"auto"``.
     compat : bool, default=True
-        Whether the chart carries the copies (:func:`carries_copies`), and
-        with them ``inline-amd.js``, whose ``withoutAmd`` keeps a UMD
-        ``maidr.js`` older than 4.15.0 from require.js's ``define``. The
-        loader hands it each script it adds then, and does not otherwise.
+        Whether the chart carries the copies (:func:`carries_copies`), for
+        an older ``maidr.js``. The loader hands each script it adds to
+        ``withoutAmd`` then, from ``inline-amd.js``, which keeps a UMD
+        ``maidr.js`` older than 4.15.0 from require.js's ``define``, and
+        does not otherwise.
 
     Returns
     -------
@@ -1113,10 +1087,11 @@ def chart_tag(
                 hidden=True,
             )
         )
-    if carries_amd_shim(scope.compat):
-        # Before the loader, which takes ``withoutAmd`` from it, and before
-        # maidr.js adds a locale pack.
-        children.append(tags.script(HTML(_asset("inline-amd.js"))))
+    # On every chart: a page may name locale packs of any release itself
+    # (``window.maidrLocaleBaseUrl``), which a render cannot see. Before the
+    # loader, which takes ``withoutAmd`` from it, and before maidr.js adds a
+    # locale pack.
+    children.append(tags.script(HTML(_asset("inline-amd.js"))))
     if scope.compat:
         # Before inline.js, as these ran before its own when it held them.
         children.append(tags.script(HTML(_asset("inline-compat.js"))))

@@ -11,8 +11,9 @@
  * stylesheets' hold on the focus ring, the body maidr.js painted for high
  * contrast, the require.js Quarto puts on it -- maidr.js 4.15.0 and later
  * keeps from it itself. A render that loads an older maidr.js carries
- * inline-amd.js, inline-compat.js and inline-compat.css as well, with copies
- * of those; one with a directory of locale packs configured, inline-amd.js. */
+ * inline-compat.js and inline-compat.css as well, with copies of those.
+ * Every chart carries inline-amd.js, which runs a UMD maidr.js or locale
+ * pack from before 4.15.0 under require.js. */
 (function () {
   'use strict';
   if (window.__maidrInline) return;

@@ -1284,13 +1284,25 @@ def test_online_the_bundled_copy_the_loader_falls_back_to_must_ship_them_too(
 
 
 def _carries(html: str) -> dict:
-    """Which of the copies a chart's output carries."""
+    """Which of the copies a chart's output carries.
+
+    ``"amd"`` is whether its loader hands maidr.js to inline-amd.js, which
+    every chart carries (:func:`_carries_amd_shim`).
+    """
     return {
         "script": "window.__maidrInlineCompat = true" in html,
-        "amd": "__maidrInlineWithoutAmd" in html,
+        "amd": "noAmd(script);" in html,
         "contrast": "maidr-inline-contrast" in html,
         "ring": 'div[tabindex="0"]:focus' in html,
     }
+
+
+def _carries_amd_shim(html: str) -> bool:
+    """inline-amd.js, once and before the loader that may take from it."""
+    amd_js = inline_chart._asset("inline-amd.js")
+    return html.count(amd_js) == 1 and html.index(amd_js) < html.index(
+        "__maidrInlineLoader"
+    )
 
 
 _ALL = {"script": True, "amd": True, "contrast": True, "ring": True}
@@ -1305,7 +1317,9 @@ def test_a_chart_on_4_15_carries_none_of_the_copies(quarto, pinned, use_cdn):
     html = _shown(_bar(), use_cdn=use_cdn)
 
     assert _carries(html) == _NONE
-    # What is not a copy stays.
+    # What is not a copy stays: inline-amd.js, for a page's older locale
+    # packs, among it.
+    assert _carries_amd_shim(html)
     assert "window.__maidrInline = true" in html
     assert "__maidrInlineLoader" in html
     assert inline_chart._asset("inline.js") in html
@@ -1323,10 +1337,10 @@ def test_a_chart_pinned_older_carries_every_copy_unchanged(
     html = _shown(_bar(), use_cdn=use_cdn)
 
     assert _carries(html) == _ALL
+    assert _carries_amd_shim(html)
     compat_js = inline_chart._asset("inline-compat.js")
     amd_js = inline_chart._asset("inline-amd.js")
     assert compat_js in html
-    assert amd_js in html
     assert "function withoutAmd(" in amd_js
     for name in (
         "function followContrast(",
@@ -1379,48 +1393,36 @@ def test_a_configured_directory_of_locale_packs_keeps_them_from_require_js(
 ):
     """Packs a site hosts may be older than 4.15.0, and UMD.
 
-    The chart carries inline-amd.js for them, and nothing else of the
-    copies; its loader leaves the 4.15.0 maidr.js to run as it does.
+    The chart carries inline-amd.js for them, and nothing of the copies; its
+    loader leaves the 4.15.0 maidr.js to run as it does.
     """
     quarto("html")
     pinned("4.15.0")
     locale_dir(how, _PACKS)
     html = _shown(_bar(), use_cdn=use_cdn)
 
-    assert _carries(html) == {**_NONE, "amd": True}
-    amd_js = inline_chart._asset("inline-amd.js")
-    assert html.index(amd_js) < html.index("__maidrInlineLoader")
-    assert "noAmd(script);" not in html
+    assert _carries(html) == _NONE
+    assert _carries_amd_shim(html)
 
 
 @pytest.mark.parametrize(
     ("how", "off"), [("env", ""), ("env", "off"), ("setter", False)]
 )
-def test_locale_packs_turned_off_carry_nothing_for_them(
+def test_locale_packs_turned_off_still_carry_the_require_js_shim(
     quarto, pinned, locale_dir, how, off
 ):
+    """A page may name its own packs (``window.maidrLocaleBaseUrl``) all the same.
+
+    The render cannot see that global, so nothing it is configured with
+    takes inline-amd.js away.
+    """
     quarto("html")
     pinned("4.15.0")
     locale_dir(how, off)
     html = _shown(_bar(), use_cdn="auto")
 
     assert _carries(html) == _NONE
-
-
-@pytest.mark.parametrize(
-    ("compat", "configured", "carries"),
-    [(True, None, True), (False, _PACKS, True), (False, None, False)],
-)
-def test_which_charts_carry_the_require_js_shim(
-    locale_dir, monkeypatch, compat, configured, carries
-):
-    from maidr.util import locale_pack
-
-    monkeypatch.delenv(locale_pack.LOCALE_BASE_URL_ENV_VAR, raising=False)
-    if configured is not None:
-        locale_dir("setter", configured)
-
-    assert inline_chart.carries_amd_shim(compat) is carries
+    assert _carries_amd_shim(html)
 
 
 @pytest.mark.parametrize("compat", [True, False])

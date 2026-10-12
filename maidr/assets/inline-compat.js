@@ -19,9 +19,10 @@
  * card's Escape -- and only while the focus is in a chart, unless maidr.js
  * does so itself.
  *
- * inline-compat.css holds the stylesheet's copies, and inline-amd.js the
- * one of what maidr.js 4.15.0 does on a page with require.js
- * (xability/maidr#1385). */
+ * inline-compat.css holds the stylesheet's copies. What maidr.js 4.15.0 does
+ * on a page with require.js (xability/maidr#1385) is in inline-amd.js, which
+ * every chart carries, since a page may name older locale packs whatever
+ * maidr.js it runs. */
 (function () {
   'use strict';
   if (window.__maidrInlineCompat) return;

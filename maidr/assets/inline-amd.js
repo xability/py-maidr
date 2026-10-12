@@ -7,11 +7,13 @@
  * 4.15.0 each runs first and registers with define() afterwards
  * (xability/maidr#1385).
  *
- * A chart carries this when its render loads an older maidr.js, whose packs
- * sit beside it (with inline-compat.js), and when a directory of locale packs
- * is configured (set_locale_base_url, MAIDR_LOCALE_BASE_URL), whose packs may
- * be of any release; see carries_amd_shim in maidr/util/inline_chart.py. A
- * pack from 4.15.0 or later handed to it runs as it would have anyway. */
+ * Every chart carries this. Its render may load an older maidr.js, whose
+ * packs sit beside it and which the loader hands to withoutAmd; and the
+ * locale packs a reader's language is read from may be of any release
+ * whatever maidr.js runs, named by set_locale_base_url,
+ * MAIDR_LOCALE_BASE_URL or the page's own window.maidrLocaleBaseUrl, which a
+ * render cannot see. A pack from 4.15.0 or later handed to it runs as it
+ * would have anyway. */
 (function () {
   'use strict';
   if (window.__maidrInlineWithoutAmd) return;
