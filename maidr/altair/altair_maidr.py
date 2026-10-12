@@ -68,6 +68,11 @@ _VEGA_CDN = "https://cdn.jsdelivr.net/npm/vega@5"
 _VEGA_LITE_CDN = "https://cdn.jsdelivr.net/npm/vega-lite@5"
 _VEGA_EMBED_CDN = "https://cdn.jsdelivr.net/npm/vega-embed@6"
 
+#: How tall a chart of ``height="container"`` is in a Shiny output with no
+#: height of its own, as a Plotly figure with none is
+#: (:data:`maidr.plotly.plotly_maidr.SHINY_DEFAULT_HEIGHT`).
+_SHINY_FILL_HEIGHT = 450
+
 
 def _spec_to_safe_json(spec: dict) -> str:
     """Serialize a Vega-Lite spec for safe embedding in an HTML ``<script>``.
@@ -314,7 +319,11 @@ class AltairMaidr:
 
         A chart whose width is its container's (``width="container"``) is
         as wide as a notebook's or a Shiny app's frame; see
-        :meth:`_fills_width`.
+        :meth:`_fills_width`. One whose height is its container's
+        (``height="container"``) is, in a Shiny app, as tall as a box with a
+        height of its own less a line for maidr's text, or
+        :data:`_SHINY_FILL_HEIGHT` in one with none; see
+        :meth:`_fills_height`.
         """
         return wrap_in_iframe_plotly(
             inner,
@@ -324,6 +333,9 @@ class AltairMaidr:
             keep_padding=True,
             fill_width=self._fills_width(),
             in_shiny=in_shiny,
+            fill_height=(
+                _SHINY_FILL_HEIGHT if in_shiny and self._fills_height() else 0
+            ),
         )
 
     def _fills_width(self) -> bool:
@@ -334,6 +346,16 @@ class AltairMaidr:
         as what it holds, and the chart grew without end in it.
         """
         return self._spec.get("width") == "container"
+
+    def _fills_height(self) -> bool:
+        """Whether the chart takes the height of its container.
+
+        A Vega-Lite ``height`` of ``"container"``. Vega then reads the
+        height of the element it is embedded in, which in a Shiny app's
+        frame had none of its own: the chart was drawn 0px tall in a 16px
+        frame, and grew without end once maidr's text came.
+        """
+        return self._spec.get("height") == "container"
 
     def _spec_title(self) -> str:
         """

@@ -600,7 +600,8 @@ _BOX_JS = """
         }
         // A chart that takes its height from its container -- a Plotly
         // figure with no height of its own, a Bokeh plot stretched or
-        // scaled to it -- given this height. plotly.js draws it again at
+        // scaled to it, a Vega-Lite chart of height "container" -- given
+        // this height. plotly.js draws it again at
         // that height later, after a debounce: the frame was measured
         // before it had, and kept the old plot's height until something
         // else measured it -- full screen left a Plotly chart's text below
@@ -609,7 +610,7 @@ _BOX_JS = """
         // resizes nothing.
         function maidrFillHeight(doc, height, redrawn, keepsShape) {
             var plot = doc.querySelector(
-                '.js-plotly-plot, [id^="maidr-bokeh-"][id$="-plot"]'
+                '.js-plotly-plot, [id^="maidr-bokeh-"][id$="-plot"], .vega-embed'
             );
             if (!plot) return;
             height = Math.max(Math.floor(height), 96);
@@ -617,6 +618,13 @@ _BOX_JS = """
             var px = height + 'px';
             if (plot.style.height === px) return;
             plot.style.height = px;
+            if (plot.classList.contains('vega-embed')) {
+                // Vega reads a container's height on the window's resize.
+                try {
+                    var win = doc.defaultView;
+                    win.dispatchEvent(new win.Event('resize'));
+                } catch (_) {}
+            }
             var plotly = doc.defaultView.Plotly;
             if (plot.classList.contains('js-plotly-plot') && plotly && plotly.Plots
                     && plot._fullLayout) {
@@ -1331,7 +1339,8 @@ def wrap_in_iframe_plotly(
     fill_height : int, default=0
         In a Shiny app, how tall a chart that takes its height from its
         container (a Plotly figure with no height of its own, a Bokeh
-        ``sizing_mode`` that stretches or scales its height) is in a box
+        ``sizing_mode`` that stretches or scales its height, a Vega-Lite
+        ``height`` of ``"container"``) is in a box
         with no height of its own; in a box with one, it is as tall as the
         box less a line for maidr's text. 0 for a chart with a height of
         its own.

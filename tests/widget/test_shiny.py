@@ -541,6 +541,27 @@ def test_a_bokeh_plot_that_takes_its_containers_height_is_given_one(
     assert options.get("keepsShape", False) is (mode == "scale_both"), options
 
 
+@pytest.mark.parametrize(
+    ("height", "fills"), [("container", True), (300, False), (None, False)]
+)
+def test_an_altair_chart_as_tall_as_its_container_is_given_a_height(
+    fake_session, height, fills
+):
+    """``height="container"`` was drawn 0px tall: its container had none."""
+    alt = pytest.importorskip("altair")
+    pd = pytest.importorskip("pandas")
+    chart = (
+        alt.Chart(pd.DataFrame({"x": ["a", "b"], "y": [1, 2]}))
+        .mark_bar()
+        .encode(x="x", y="y")
+    )
+    if height is not None:
+        chart = chart.properties(height=height)
+
+    options = _frame_options(fake_session, chart)
+    assert options.get("fillHeight") == (450 if fills else None), options
+
+
 # ---------------------------------------------------------------------------
 # Rendered payload
 # ---------------------------------------------------------------------------

@@ -268,7 +268,8 @@
         }
         // A chart that takes its height from its container -- a Plotly
         // figure with no height of its own, a Bokeh plot stretched or
-        // scaled to it -- given this height. plotly.js draws it again at
+        // scaled to it, a Vega-Lite chart of height "container" -- given
+        // this height. plotly.js draws it again at
         // that height later, after a debounce: the frame was measured
         // before it had, and kept the old plot's height until something
         // else measured it -- full screen left a Plotly chart's text below
@@ -277,7 +278,7 @@
         // resizes nothing.
         function maidrFillHeight(doc, height, redrawn, keepsShape) {
             var plot = doc.querySelector(
-                '.js-plotly-plot, [id^="maidr-bokeh-"][id$="-plot"]'
+                '.js-plotly-plot, [id^="maidr-bokeh-"][id$="-plot"], .vega-embed'
             );
             if (!plot) return;
             height = Math.max(Math.floor(height), 96);
@@ -285,6 +286,13 @@
             var px = height + 'px';
             if (plot.style.height === px) return;
             plot.style.height = px;
+            if (plot.classList.contains('vega-embed')) {
+                // Vega reads a container's height on the window's resize.
+                try {
+                    var win = doc.defaultView;
+                    win.dispatchEvent(new win.Event('resize'));
+                } catch (_) {}
+            }
             var plotly = doc.defaultView.Plotly;
             if (plot.classList.contains('js-plotly-plot') && plotly && plotly.Plots
                     && plot._fullLayout) {

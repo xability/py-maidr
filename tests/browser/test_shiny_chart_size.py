@@ -887,6 +887,49 @@ def test_a_bokeh_plot_scaled_both_ways_fits_its_box(
         page.close()
 
 
+#: How tall Vega drew the chart.
+_VEGA_HEIGHT = (
+    "() => document.querySelector('.vega-embed svg').getBoundingClientRect().height"
+)
+
+
+@pytest.mark.parametrize("case", ["altair_container", "altair_container_card"])
+def test_an_altair_chart_as_tall_as_its_container_is_given_a_height(
+    browser, shiny_size_app_url, case
+):
+    """``height="container"``: the box's height less the text line, or 450px.
+
+    Vega reads the height of the element it is embedded in, which had none:
+    the chart was drawn 0px tall in a 16px frame, and grew by thousands of
+    pixels once maidr's text came.
+    """
+    page = _open(browser, f"{shiny_size_app_url}/{case}/", 1280)
+    try:
+        frame = _chart_frame(page)
+        page.wait_for_timeout(1500)
+        seen = _settle(page)
+        drawn = frame.evaluate(_VEGA_HEIGHT)
+        if case.endswith("card"):
+            assert drawn >= seen["box"]["height"] - 60, (drawn, seen)
+        else:
+            assert drawn == pytest.approx(450, abs=2), (drawn, seen)
+        frame.locator(CHART).first.focus()
+        page.wait_for_timeout(400)
+        heights = []
+        for _ in range(4):
+            page.keyboard.press("ArrowRight")
+            page.wait_for_timeout(400)
+            heights.append(page.evaluate(_GEOMETRY)["frame"]["height"])
+        assert max(heights) - min(heights) <= 1, heights
+        seen = _settle(page)
+        assert frame.evaluate(_VEGA_HEIGHT) == pytest.approx(drawn, abs=1)
+        assert seen["text"] is not None and _inside(seen["text"], seen["boxShown"]), seen
+        assert "fruit is dates" in frame.evaluate(_READING)["said"].lower()
+        assert page.errors == []  # type: ignore[attr-defined]
+    finally:
+        page.close()
+
+
 # ---------------------------------------------------------------------------
 # The renderer's own size, under Express too; outputs written other ways
 # ---------------------------------------------------------------------------

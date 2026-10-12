@@ -1302,8 +1302,10 @@ Where a chart differs from `render.plot`'s:
   for maidr's text, or is 450px tall in an output with no height of its
   own. `scale_both` keeps the plot's shape within both: it is as large as
   the output's width and that height allow, and centred. A plot of a fixed
-  width wider than the output is reached by scrolling the output sideways. **Altair**: a chart of
-  `width="container"` fills the output.
+  width wider than the output is reached by scrolling the output sideways.
+* **Altair**: a chart of `width="container"` fills the output's width, and
+  one of `height="container"` its height less a line for maidr's text, or
+  is 450px tall in an output with no height of its own.
 
 The script that sizes a chart's frame is served by the app once, as a web
 dependency (`lib/maidr-shiny-frame-<version>/`), rather than sent with every

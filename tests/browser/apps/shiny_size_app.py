@@ -8,7 +8,8 @@ announcement three lines long, in a card of a page that is not fillable and
 in a sidebar layout, as an HTML string a ``render.ui`` returns, and
 Plotly figures (with no height of their
 own, in an output with one, and with ``autosize`` off), Bokeh plots (of a
-fixed width, stretched both ways, and scaled both ways) and an Altair chart.
+fixed width, stretched both ways, and scaled both ways) and Altair charts (of their own size, and their
+container's).
 ``tests/browser/test_shiny_chart_size.py`` drives them.
 """
 
@@ -93,6 +94,11 @@ def _altair():
     return alt.Chart(data, title="Fruit sold").mark_bar().encode(x="fruit", y="boxes")
 
 
+def _altair_container():
+    """A chart as wide and as tall as its container."""
+    return _altair().properties(width="container", height="container")
+
+
 def _fluid(output):
     return ui.page_fluid(ui.h4("Before the chart"), output, ui.p("After the chart"))
 
@@ -146,6 +152,8 @@ CASES = {
     "sidebar": (_sidebar, output_maidr("m"), {}, _bars),
     "bokeh_scaled": (_fluid, output_maidr("m"), {}, _bokeh_scaled),
     "bokeh_scaled_card": (_card, output_maidr("m"), {}, _bokeh_scaled),
+    "altair_container": (_fluid, output_maidr("m"), {}, _altair_container),
+    "altair_container_card": (_card, output_maidr("m"), {}, _altair_container),
 }
 
 
