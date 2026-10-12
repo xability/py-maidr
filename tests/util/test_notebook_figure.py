@@ -19,6 +19,8 @@ Whether a browser then shows the two alike is
 
 from __future__ import annotations
 
+import sys
+
 import io
 import json
 import re
@@ -156,6 +158,15 @@ def test_the_configuration_is_listed_with_the_shell(shell):
     # Once, however often it is asked for.
     register_inline_backend()
     assert shell.configurables.count(config) == 1
+
+
+def test_without_matplotlib_inline_the_defaults_are_read(shell, monkeypatch):
+    """Nothing to register: the chart takes the inline backend's defaults."""
+    monkeypatch.setitem(sys.modules, "matplotlib_inline.config", None)
+
+    assert register_inline_backend() is None
+    assert shell.configurables == []
+    assert notebook_figure_format() == ("png", {"bbox_inches": "tight"})
 
 
 def test_config_magic_went_nowhere_before_the_configuration_was_listed(shell):

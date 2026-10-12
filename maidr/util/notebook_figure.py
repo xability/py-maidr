@@ -22,8 +22,11 @@ set it -- and the configuration when none is.
 
 from __future__ import annotations
 
+import logging
 import sys
 from typing import Any
+
+_logger = logging.getLogger(__name__)
 
 #: The figure formats in the order a notebook frontend picks one when a figure
 #: comes in several: JupyterLab and Notebook 7 rank an SVG over a PNG or JPEG
@@ -118,6 +121,7 @@ def register_inline_backend() -> Any:
             configurables.append(config)
     except Exception:
         # A probe must never be why ``import maidr`` or a chart fails.
+        _logger.debug("maidr: could not register the InlineBackend", exc_info=True)
         return None
     return config
 
@@ -182,6 +186,7 @@ def notebook_figure_format() -> tuple[str, dict[str, Any]]:
     try:
         registered = _registered_formats(shell)
     except Exception:
+        _logger.debug("maidr: could not read the figure formatters", exc_info=True)
         registered = {}
     shown = _first_shown(registered)
     if shown is not None:
@@ -194,6 +199,7 @@ def notebook_figure_format() -> tuple[str, dict[str, Any]]:
         shown = _first_shown(config.figure_formats)
         keywords = dict(config.print_figure_kwargs)
     except Exception:
+        _logger.debug("maidr: could not read the InlineBackend", exc_info=True)
         return _DEFAULT[0], dict(_DEFAULT[1])
     if shown is None:
         # No format at all: the inline backend shows no image then, and the

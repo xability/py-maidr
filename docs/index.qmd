@@ -1087,7 +1087,9 @@ the keys a reader presses in it.
 ### Size and placement
 
 A matplotlib or seaborn chart has the size and shape of the image the notebook
-shows when the same cell runs without maidr (matplotlib_inline's):
+shows when the same cell runs without maidr (matplotlib_inline's). This was
+measured in JupyterLab and Notebook 7; VS Code and Colab run the same kernel
+code, but their own frontends were not measured:
 
 * **Cut to what is drawn**, through `InlineBackend.print_figure_kwargs`
   (`bbox_inches="tight"` unless you set it otherwise, padded by `pad_inches`
