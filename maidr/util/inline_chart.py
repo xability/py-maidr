@@ -248,9 +248,13 @@ def carries_copies(use_cdn: bool | Literal["auto"]) -> bool:
     page. The scoping of a selector to its chart's ``<svg>`` lives in each
     chart's own schema instead, so it is never left out (:class:`InlineScope`).
 
-    The copies leave the page's shortcuts to a ``maidr.js`` that guards
-    them itself (``maidrLive.features.hostGuards``), and are harmless beside
-    it otherwise.
+    The copies and a ``maidr.js`` that guards the page itself
+    (``maidrLive.features.hostGuards``) each mark what they wrap, and
+    whichever wraps one of the page's shortcuts first keeps it: the other
+    leaves it alone. The copies wrap them once the page is ready, unless
+    such a ``maidr.js`` is there by then; one that arrives later -- loaded
+    from the CDN, as under a pin to ``latest`` -- finds the copies' guards
+    in force, and they stay so.
 
     Parameters
     ----------
