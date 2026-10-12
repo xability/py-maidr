@@ -66,6 +66,10 @@ from maidr.util.notebook_figure import register_inline_backend  # noqa: E402
 _PARSE_TIMEOUT_MS = 60_000
 _PLOT = 'figure[id^="maidr-figure-"] > [tabindex]'
 _BOUND = f"() => document.querySelector('{_PLOT}') !== null"
+_ANNOUNCED = (
+    "() => { const t = document.querySelector('#maidr-text-container');"
+    " return !!t && t.textContent.trim().length > 0; }"
+)
 
 #: An output area, the rule JupyterLab keeps an image to it with, and the
 #: padding it keeps to the right of an HTML output and not of an image.
@@ -365,6 +369,8 @@ def test_in_a_narrow_output_maidrs_fields_and_dialogs_stay_in_the_frame(
         }.items():
             frame.focus(_PLOT)
             page.keyboard.press("ArrowRight")
+            # The chart has taken the key, and will take the next one.
+            frame.wait_for_function(_ANNOUNCED, timeout=10_000)
             page.keyboard.press(opens)
             frame.wait_for_selector(shown, state="visible", timeout=10_000)
             # The frame is measured again a frame after it changes.
