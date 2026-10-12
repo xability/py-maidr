@@ -798,6 +798,29 @@ def test_express_fills_a_card_with_an_unsized_chart(
         page.close()
 
 
+@pytest.mark.parametrize("case", ["as_str", "as_html_string"])
+def test_a_frame_made_into_a_string_is_sized(browser, shiny_size_app_url, case):
+    """``ui.HTML(str(maidr.render(fig)))``, alone on its page.
+
+    ``str()`` drops the dependency that serves the frame's sizing script,
+    and with no other chart on the page nothing loaded it: the frame stayed
+    150px tall and cut a 463px chart off.
+    """
+    page = _open(browser, f"{shiny_size_app_url}/{case}/", 1280)
+    try:
+        seen = page.evaluate(_GEOMETRY)
+        assert (seen["svg"]["width"], seen["svg"]["height"]) == pytest.approx(
+            _OWN, abs=2
+        ), seen
+        assert seen["frame"]["height"] >= seen["svg"]["height"], seen
+        _assert_reads(page, "a frame made into a string")
+        seen = _settle(page)
+        assert seen["text"] is not None and _inside(seen["text"], seen["frame"]), seen
+        assert page.errors == []  # type: ignore[attr-defined]
+    finally:
+        page.close()
+
+
 def test_a_hand_written_output_ui_shows_the_chart(browser, shiny_size_app_url):
     """``ui.output_ui`` rather than ``output_maidr``: the plain figure's size."""
     page = _open(browser, f"{shiny_size_app_url}/hand_written/", 1280)

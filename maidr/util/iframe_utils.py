@@ -15,8 +15,11 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
+from contextlib import contextmanager
+from contextvars import ContextVar
 from functools import lru_cache
 from pathlib import Path
+from typing import Any, Iterator
 
 from htmltools import HTMLDependency, Tag, tags
 
@@ -757,12 +760,91 @@ def shiny_frame_dependency() -> HTMLDependency:
     )
 
 
-def _shiny_onload(kind: str, options: dict | None = None) -> str:
+#: Set while :class:`maidr.widget.shiny.render_maidr` renders a chart: the
+#: output it sends carries the frame's dependency whatever the chart, so the
+#: frame needs no other way to its script.
+_DEPENDENCY_SENT: ContextVar[bool] = ContextVar(
+    "maidr_shiny_frame_dependency_sent", default=False
+)
+
+#: The name of the session route that serves :func:`shiny_frame_script` to a
+#: frame whose dependency did not reach the page; see
+#: :func:`_shiny_frame_fallback`.
+SHINY_FRAME_ROUTE = "maidr_shiny_frame"
+
+
+@contextmanager
+def shiny_frame_dependency_sent() -> Iterator[None]:
+    """Render frames that reach the page with their dependency, for certain.
+
+    :class:`maidr.widget.shiny.render_maidr` renders inside it: what it
+    sends is the frame as a tag, dependency and all, so the frame's
+    ``onload`` names no route to load the script from itself, and the
+    flush is as small as before.
+    """
+    token = _DEPENDENCY_SENT.set(True)
+    try:
+        yield
+    finally:
+        _DEPENDENCY_SENT.reset(token)
+
+
+def _serve_shiny_frame_script(request: Any) -> Any:
+    """Answer a frame's fetch of :func:`shiny_frame_script` on its route."""
+    from starlette.responses import Response
+
+    return Response(
+        (SHINY_FRAME_DIR / SHINY_FRAME_FILE).read_bytes(),
+        media_type="text/javascript; charset=utf-8",
+    )
+
+
+def _shiny_frame_fallback() -> str:
+    """Where a frame loads its script itself, should its dependency not arrive.
+
+    A frame that leaves :func:`maidr.render` as a tag brings
+    :func:`shiny_frame_dependency` with it, but turned into a string --
+    ``ui.HTML(str(maidr.render(fig)))``, ``.get_html_string()`` -- it
+    loses it, and on a page with no other chart nothing loaded the script:
+    the frame stayed 150px tall and cut the chart off. A dependency Shiny
+    never received is not served either, so the script is served from a
+    route of the session's own, which the frame loads when the script is
+    not there. Not for :class:`maidr.widget.shiny.render_maidr`'s frames
+    (:func:`shiny_frame_dependency_sent`), which always bring it.
+
+    Returns
+    -------
+    str
+        The route's URL, relative to the page; ``""`` outside a session,
+        or where it registers no route.
+    """
+    if _DEPENDENCY_SENT.get():
+        return ""
+    try:
+        from shiny.session import get_current_session
+
+        session = get_current_session()
+        if session is None:
+            return ""
+        # The app's own session, not a module's, so that every module's
+        # frames share one route.
+        root = getattr(session, "root_scope", None)
+        session = root() if callable(root) else session
+        url = session.dynamic_route(SHINY_FRAME_ROUTE, _serve_shiny_frame_script)
+    except Exception:
+        return ""
+    return url if isinstance(url, str) else ""
+
+
+def _shiny_onload(kind: str, options: dict | None = None, src: str = "") -> str:
     """A Shiny app's frame's ``onload``: its kind and options, for the served script.
 
     Shiny puts the output's HTML in the page once the served script has
     loaded, so it is there when the frame loads; it is waited for, briefly,
-    should anything put a frame in a page another way.
+    should anything put a frame in a page another way. A frame given
+    ``src`` loads the script from there when it is not there as it loads;
+    see :func:`_shiny_frame_fallback`. One that waited in vain says so in
+    the console, where it had given up in silence.
 
     Parameters
     ----------
@@ -771,6 +853,8 @@ def _shiny_onload(kind: str, options: dict | None = None) -> str:
         Plotly, Bokeh and Altair charts share.
     options : dict, optional
         What differs from one such chart to the next.
+    src : str, default ""
+        Where to load the script from when it is not there.
 
     Returns
     -------
@@ -778,10 +862,19 @@ def _shiny_onload(kind: str, options: dict | None = None) -> str:
         The ``onload`` attribute's script.
     """
     given = json.dumps(options or {}, separators=(",", ":"))
+    load = (
+        "if(!n&&!window.maidrShinyFrameSrc){window.maidrShinyFrameSrc=1;"
+        "var s=document.createElement('script');"
+        f"s.src={json.dumps(src)};document.head.appendChild(s)}}"
+        if src
+        else ""
+    )
     return (
         "var f=this;(function g(n){if(window.maidrShinyFrame)"
         f"maidrShinyFrame(f,'{kind}',{given});"
-        "else if(n<200)setTimeout(function(){g(n+1)},50)})(0)"
+        f"else if(n<200){{{load}setTimeout(function(){{g(n+1)}},50)}}"
+        "else console.warn('maidr: maidr-shiny-frame did not load; "
+        "this chart is not sized')})(0)"
     )
 
 
@@ -842,7 +935,7 @@ def wrap_in_iframe_matplotlib(
     unique_id = _generate_unique_id()
     fits_output = in_notebook or in_shiny
     if in_shiny:
-        onload = _shiny_onload("matplotlib")
+        onload = _shiny_onload("matplotlib", src=_shiny_frame_fallback())
     else:
         helpers = _NOTEBOOK_JS + _WATCH_JS if fits_output else ""
         onload = helpers + _matplotlib_resizer(
@@ -1192,7 +1285,7 @@ def wrap_in_iframe_plotly(
         options: dict = {"widens": not fill_width}
         if fill_height:
             options["fillHeight"] = int(fill_height)
-        onload = _shiny_onload("plotly", options)
+        onload = _shiny_onload("plotly", options, src=_shiny_frame_fallback())
     else:
         helpers = _WATCH_JS + (_NOTEBOOK_JS if fits_output else "")
         onload = helpers + _plotly_resizer(

@@ -29,10 +29,12 @@ from shiny import module  # noqa: E402
 from shiny.render import ui as render_ui  # noqa: E402
 from shiny.render.renderer import Renderer  # noqa: E402
 
+import maidr  # noqa: E402
 from maidr.core.figure_manager import FigureManager  # noqa: E402
 from maidr.util.dependencies import maidr_js_version, read_bundled_js  # noqa: E402
 from maidr.util.iframe_utils import (  # noqa: E402
     SHINY_FRAME_NAME,
+    SHINY_FRAME_ROUTE,
     shiny_frame_script,
 )
 from maidr.util.locale_pack import get_locale_base_url  # noqa: E402
@@ -406,7 +408,11 @@ def test_the_frame_script_is_served_once_rather_than_sent(fake_session):
     payload = _render(chart)
     onload = unescape(re.search(r'onload="([^"]*)"', payload["html"]).group(1))
 
-    assert len(onload) < 200, onload
+    assert len(onload) < 300, onload
+    # The flush brings the dependency, so the frame names no route to load
+    # the script from itself (``test_a_frame_made_into_a_string_...``).
+    assert "createElement" not in onload
+    assert SHINY_FRAME_ROUTE not in fake_session._dynamic_routes
     # The frame and the focus restore: a fraction of the 16 KB that marks a
     # chart's document riding the flush
     # (``test_the_payload_references_the_chart_rather_than_carrying_it``).
@@ -425,6 +431,35 @@ def test_the_frame_script_is_served_once_rather_than_sent(fake_session):
     assert str(served.version).endswith(
         "+" + hashlib.sha256(source.read_bytes()).hexdigest()[:12]
     )
+
+
+@pytest.mark.parametrize("plotly", [False, True])
+def test_a_frame_made_into_a_string_loads_its_script_itself(fake_session, plotly):
+    """``ui.HTML(str(maidr.render(fig)))`` in a ``render.ui``: no dependency.
+
+    ``str()`` drops the frame's ``maidr-shiny-frame`` dependency, which
+    Shiny then neither loads nor serves, and the frame, on a page with no
+    other chart, stayed 150px tall and cut the chart off. Its ``onload``
+    now loads the script from a route of the session's own when it is not
+    there.
+    """
+    if plotly:
+        go = pytest.importorskip("plotly.graph_objects")
+        figure = go.Figure(go.Bar(x=["a", "b"], y=[1, 2]))
+    else:
+        figure = _bar_axes()
+
+    html = str(maidr.render(figure))
+    onload = unescape(re.search(r'onload="([^"]*)"', html).group(1))
+
+    url = re.search(r"s\.src=\"([^\"]+)\"", onload).group(1)
+    assert url.startswith(f"session/fake-session/dynamic_route/{SHINY_FRAME_ROUTE}?")
+    # Loaded once per page, whatever the number of frames, only when the
+    # script is not there as the frame loads.
+    assert "if(!n&&!window.maidrShinyFrameSrc)" in onload
+    response = fake_session._dynamic_routes[SHINY_FRAME_ROUTE](None)
+    assert response.media_type.startswith("text/javascript")
+    assert response.body.decode("utf-8") == shiny_frame_script()
 
 
 def test_a_plotly_figure_has_a_height_of_its_own_in_shiny(fake_session):

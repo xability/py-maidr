@@ -406,7 +406,11 @@ def test_a_shiny_frame_names_the_served_script():
     ):
         onload = _attribute(tag, "onload")
         assert call in onload, onload
-        assert len(onload) < 200
+        assert len(onload) < 300
+        # It says so when the script never comes, rather than nothing.
+        assert "console.warn('maidr: maidr-shiny-frame did not load" in onload
+        # Outside a session there is no route to load it from itself.
+        assert "createElement" not in onload
         [dependency] = tag.get_dependencies()
         assert dependency.name == SHINY_FRAME_NAME
     # Each kind reads the frame it was handed, not one found by its id.
