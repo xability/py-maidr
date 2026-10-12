@@ -1241,12 +1241,13 @@ def test_plotly_and_bokeh_charts_name_the_served_bundle_too(fake_session, use_cd
         assert [d["name"] for d in _bundle_deps(payload)] == [SERVED_BUNDLE_NAME]
 
 
-def test_an_altair_chart_registers_nothing(fake_session):
+def test_an_altair_chart_registers_no_served_bundle(fake_session):
     """Altair loads from the CDN whatever ``use_cdn`` says (#521).
 
     So it never names the served bundle, and nothing asks the app to serve
-    one. Pinned so that a later change to that adapter decides this
-    deliberately rather than by accident.
+    one; its frame's own ``maidr-shiny-frame`` is another matter. Pinned so
+    that a later change to that adapter decides this deliberately rather
+    than by accident.
     """
     alt = pytest.importorskip("altair")
     import pandas as pd
