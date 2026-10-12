@@ -160,16 +160,23 @@ def test_options_are_accepted(fake_session):
 
 
 def test_auto_output_ui_delegates_to_output_maidr(fake_session):
-    """Express mode places a container carrying the configured size."""
+    """Express mode places ``output_maidr``'s container.
+
+    The renderer's size is its chart's box's, not the container's, as
+    ``render.plot``'s is its image's; see
+    ``test_express_gives_the_box_the_renderers_size``.
+    """
 
     @render_maidr(width="42px", height="7em")
     def sized():
         return _bar_axes()
 
-    rendered = str(sized.auto_output_ui())
-    assert 'id="sized"' in rendered
-    assert "width: 42px" in rendered
-    assert "height: 7em" in rendered
+    container = sized.auto_output_ui()
+    assert 'id="sized"' in str(container)
+    assert (_style(container)["width"], _style(container)["height"]) == (
+        "100%",
+        "auto",
+    )
 
 
 def test_output_args_reaches_the_container(fake_session):
@@ -190,9 +197,9 @@ def test_output_args_reaches_the_container(fake_session):
 
     rendered = str(sized._render_auto_output_ui())
     assert "width: 50%" in rendered
-    # Unmentioned arguments still come from the decorator: `@output_args`
-    # overrides, it does not reset.
-    assert "height: 7em" in rendered
+    # The decorator's size is the chart's box's, not the output's.
+    assert "height: auto" in rendered
+    assert "7em" not in rendered
 
 
 def test_an_unknown_output_arg_names_the_ui_function(fake_session):
@@ -264,9 +271,26 @@ def test_a_number_is_pixels_as_shiny_takes_it(given, css):
 
 def test_a_size_of_the_wrong_type_fails_where_it_is_written():
     with pytest.raises(TypeError, match="width"):
-        output_maidr("chart", width=None)  # type: ignore[arg-type]
+        output_maidr("chart", width=[500])  # type: ignore[arg-type]
     with pytest.raises(TypeError, match="height"):
         render_maidr(height=True)  # type: ignore[arg-type]
+    with pytest.raises(TypeError, match="width"):
+        render_maidr(width=object())  # type: ignore[arg-type]
+
+
+def test_a_size_of_none_is_no_size_as_shiny_has_it(fake_session):
+    """``as_css_unit(None)`` is no size; it was a ``TypeError`` here."""
+    style = _style(output_maidr("chart", width=None, height=None))
+
+    assert "width" not in style and "height" not in style
+    assert style["display"] == "flex"
+
+    @render_maidr(width=None, height=None)
+    def chart():
+        return _bar_axes()
+
+    box = _box(_render(chart)["html"])
+    assert "width:" not in box and "height:" not in box
 
 
 def test_the_output_fills_a_fillable_container_by_default():
@@ -310,8 +334,7 @@ def test_render_maidrs_size_is_the_charts_box(fake_session):
 
     It now sizes the box the chart is fitted to, as ``@render.plot``'s
     sizes the image: at most the output's width, and a height that does
-    not grow to fill the output. Each reads a custom property first, which
-    only the output Express places sets.
+    not grow to fill the output.
     """
 
     @render_maidr(width=500, height=300)
@@ -320,17 +343,19 @@ def test_render_maidrs_size_is_the_charts_box(fake_session):
 
     box = _box(_render(chart)["html"])
 
-    assert "width: var(--maidr-chart-width, 500px)" in box
+    assert "width: 500px" in box
     assert "max-width: 100%" in box
-    assert "height: var(--maidr-chart-height, 300px)" in box
-    assert "flex: var(--maidr-chart-flex, 0 0 auto)" in box
+    assert "height: 300px" in box
+    assert "flex: 0 0 auto" in box
 
 
-def test_express_sizes_the_output_and_the_box_fills_it(fake_session):
-    """The output Express places takes the size, once.
+def test_express_gives_the_box_the_renderers_size(fake_session):
+    """Under Express too the renderer's size is the box's, the output's none.
 
-    The box reads the custom properties this output sets before its own
-    size, so a width of 50% is half the page, not a quarter.
+    Given to the output, a height made a fill output 300px of a card's
+    778, grown to the rest, and the chart centred in it, where
+    ``@render.plot(height=300)`` draws a 300px image at the top. Given to
+    both, a width of 50% would be a quarter. The output takes ``fill``.
     """
 
     @render_maidr(width="50%", height=300, fill=False)
@@ -339,12 +364,12 @@ def test_express_sizes_the_output_and_the_box_fills_it(fake_session):
 
     container = chart.auto_output_ui()
     style = _style(container)
+    box = _box(_render(chart)["html"])
 
-    assert (style["width"], style["height"]) == ("50%", "300px")
+    assert (style["width"], style["height"]) == ("100%", "auto")
     assert "html-fill-item" not in container.attrs["class"]
-    assert style["--maidr-chart-width"] == "auto"
-    assert style["--maidr-chart-height"] == "auto"
-    assert style["--maidr-chart-flex"] == "1 1 auto"
+    assert "width: 50%" in box and "height: 300px" in box
+    assert "html-fill-item" in chart.auto_output_ui(fill=True).attrs["class"]
 
 
 def test_the_frame_fits_its_box_in_a_shiny_session(fake_session):

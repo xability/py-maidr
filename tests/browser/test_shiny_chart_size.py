@@ -622,3 +622,78 @@ def test_a_stretched_bokeh_plot_is_given_a_height(browser, shiny_size_app_url, c
         ), seen
     finally:
         page.close()
+
+
+# ---------------------------------------------------------------------------
+# The renderer's own size, under Express too; outputs written other ways
+# ---------------------------------------------------------------------------
+
+
+def test_a_renderers_height_is_a_box_at_the_top_of_a_card(browser, shiny_size_app_url):
+    """``@render_maidr(height=300)`` in a fillable card, as ``render.plot``."""
+    page = _open(browser, f"{shiny_size_app_url}/renderer_card/", 1280)
+    try:
+        seen = page.evaluate(_GEOMETRY)
+        assert seen["out"]["height"] > 500, ("the output fills the card", seen)
+        assert seen["box"]["height"] == pytest.approx(300, abs=1), seen
+        assert seen["box"]["top"] == pytest.approx(seen["out"]["top"], abs=1), seen
+        assert _inside(seen["svg"], seen["box"]), seen
+        _assert_reads(page, "a 300px box in a card")
+    finally:
+        page.close()
+
+
+def test_express_gives_a_renderers_height_to_its_box(
+    browser, shiny_size_express_app_url
+):
+    """Beside ``@render.plot(height=300)``: a 300px box at the top, likewise.
+
+    Express gave the height to the output it places, which then filled the
+    card, and the chart was centred in all of it.
+    """
+    page = _open(browser, shiny_size_express_app_url, 1280, oid="n")
+    try:
+        page.wait_for_selector("#p img", timeout=30_000)
+        sized = _settle(page, oid="n")
+        plot = page.evaluate(
+            "() => { const r = document.querySelector('#p img').getBoundingClientRect();"
+            " const o = document.getElementById('p').getBoundingClientRect();"
+            " return {height: r.height, offset: r.top - o.top}; }"
+        )
+        assert plot["height"] == pytest.approx(300, abs=1), plot
+        assert sized["box"]["height"] == pytest.approx(300, abs=1), sized
+        assert sized["box"]["top"] - sized["out"]["top"] == pytest.approx(
+            plot["offset"], abs=1
+        ), (sized, plot)
+        assert _inside(sized["svg"], sized["box"]), sized
+        _assert_reads(page, "Express, height 300", oid="n")
+    finally:
+        page.close()
+
+
+def test_express_fills_a_card_with_an_unsized_chart(
+    browser, shiny_size_express_app_url
+):
+    """The output Express places for ``@render_maidr`` fills its card."""
+    page = _open(browser, shiny_size_express_app_url, 1280, oid="m")
+    try:
+        seen = _settle(page, oid="m")
+        _assert_fills(seen, "Express card")
+        assert seen["box"]["height"] > 500, seen
+        _assert_reads(page, "Express card", oid="m")
+    finally:
+        page.close()
+
+
+def test_a_hand_written_output_ui_shows_the_chart(browser, shiny_size_app_url):
+    """``ui.output_ui`` rather than ``output_maidr``: the plain figure's size."""
+    page = _open(browser, f"{shiny_size_app_url}/hand_written/", 1280)
+    try:
+        seen = page.evaluate(_GEOMETRY)
+        assert (seen["svg"]["width"], seen["svg"]["height"]) == pytest.approx(
+            _OWN, abs=2
+        ), seen
+        assert seen["pageScroll"] == 0
+        _assert_reads(page, "a hand-written output")
+    finally:
+        page.close()

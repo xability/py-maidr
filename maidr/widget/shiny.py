@@ -50,45 +50,37 @@ from maidr.widget._focus import FOCUS_RESTORE_JS
 #: package supports.
 UseCdn = Optional[Union[bool, Literal["auto"]]]
 
-#: A size as Shiny's own output functions take one: a CSS length, or a number
-#: of pixels. Spelled with ``Union`` for the reason ``UseCdn`` is.
-CssSize = Union[str, float]
-
-#: Custom properties the chart's box reads its size from before the size the
-#: renderer was given; see :meth:`render_maidr._box`. Only the output Express
-#: places sets them (:meth:`render_maidr.auto_output_ui`): that output carries
-#: the renderer's size already, and the box fills it rather than taking the
-#: size a second time -- a width of 50% would have been a quarter.
-_BOX_WIDTH = "--maidr-chart-width"
-_BOX_HEIGHT = "--maidr-chart-height"
-_BOX_FLEX = "--maidr-chart-flex"
+#: A size as Shiny's own output functions take one: a CSS length, a number
+#: of pixels, or ``None`` for none. Spelled with ``Union`` for the reason
+#: ``UseCdn`` is.
+CssSize = Union[str, float, None]
 
 
-def _css_size(value: CssSize, name: str) -> str:
+def _css_size(value: CssSize, name: str) -> Optional[str]:
     """A size as CSS: a number is pixels, as Shiny's ``output_plot`` takes it.
 
     Parameters
     ----------
-    value : str or float
-        The size.
+    value : str, float or None
+        The size. ``None`` is no size, as Shiny's ``as_css_unit`` has it.
     name : str
         The argument it was given as, for the error.
 
     Returns
     -------
-    str
-        The CSS length.
+    str or None
+        The CSS length, or ``None``.
 
     Raises
     ------
     TypeError
-        When ``value`` is neither a string nor a number.
+        When ``value`` is neither a string, a number nor ``None``.
     """
-    if isinstance(value, str):
+    if value is None or isinstance(value, str):
         return value
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise TypeError(
-            f"{name} must be a CSS length or a number of pixels, "
+            f"{name} must be a CSS length, a number of pixels or None, "
             f"not {type(value).__name__}"
         )
     # ``500px`` rather than the ``500.000000px`` Shiny's ``as_css_unit``
@@ -112,11 +104,12 @@ def output_maidr(
         Output id, matching the name of the ``@render_maidr`` function.
         Module namespacing is applied by Shiny, so the same id works
         inside a :func:`shiny.module.ui`.
-    width : str or float, default "100%"
-        CSS width of the container; a number is pixels. Never wider than
-        the container it is placed in.
-    height : str or float, default "auto"
-        CSS height of the container; a number is pixels. With ``"auto"``
+    width : str, float or None, default "100%"
+        CSS width of the container; a number is pixels, ``None`` none.
+        Never wider than the container it is placed in.
+    height : str, float or None, default "auto"
+        CSS height of the container; a number is pixels, ``None`` none,
+        which is ``"auto"``. With ``"auto"``
         the output is as tall as the chart, which is as wide as the output
         up to its own width and shrinks with a narrower one, keeping its
         shape. With a height of its own, the chart is fitted inside it.
@@ -166,22 +159,19 @@ def output_maidr(
     >>> from maidr.widget.shiny import output_maidr
     >>> app_ui = ui.page_fluid(output_maidr("my_plot"))
     """
-    width = _css_size(width, "width")
-    height = _css_size(height, "height")
+    sizes = {"width": _css_size(width, "width"), "height": _css_size(height, "height")}
     # A column whose one item, the chart's box, fills it: as tall as the
     # chart when the output's height is its content's, and as tall as the
     # output when that has a height of its own. ``min-height: 0`` lets a
     # fill item shrink below the chart's height, which then scrolls in it.
     # Never wider than the page has room for, so that a phone does not
     # scroll the whole page sideways to a chart fitted to a wider output.
+    # A size of ``None`` is left out, as Shiny's outputs leave it.
+    style = ["display: flex", "flex-direction: column"]
+    style += [f"{name}: {size}" for name, size in sizes.items() if size is not None]
+    style += ["max-width: 100%", "min-height: 0", "min-width: 0"]
     return _shiny_ui.output_ui(
-        id,
-        fill=fill,
-        fillable=True,
-        style=(
-            f"display: flex; flex-direction: column; width: {width}; "
-            f"max-width: 100%; height: {height}; min-height: 0; min-width: 0;"
-        ),
+        id, fill=fill, fillable=True, style="; ".join(style) + ";"
     )
 
 
@@ -377,16 +367,17 @@ class render_maidr(Renderer[Any]):
     _fn : callable, optional
         The decorated function.  Supplied by Python when the decorator is
         used bare; ``None`` when it is called with options.
-    width : str or float, default "100%"
-        CSS width of the chart's box; a number is pixels. Under Shiny
-        Express it sizes the output Express places, as
-        :func:`output_maidr`'s ``width`` does; in an app that places
-        :func:`output_maidr` itself, it sizes the box the chart is fitted to
-        inside that output, as :func:`shiny.render.plot`'s sizes the image,
-        though never wider than the output.
-    height : str or float, default "auto"
-        CSS height of the chart's box, likewise; a number is pixels. With
-        ``"auto"`` the box fills the output.
+    width : str, float or None, default "100%"
+        CSS width of the box the chart is fitted to, at the top left of its
+        output, as :func:`shiny.render.plot`'s width is the image's; a
+        number is pixels. Never wider than the output. ``"100%"`` or
+        ``None`` leaves the box the output's width.
+    height : str, float or None, default "auto"
+        CSS height of that box, likewise: ``@render_maidr(height=300)``
+        gives a 300 pixel box at the top of the output, as
+        ``@render.plot(height=300)`` gives a 300 pixel image, in a fillable
+        card too. ``"auto"`` or ``None`` leaves the box the output's
+        height: the chart's own, or the output's when it has one.
     fill : bool, default True
         Under Shiny Express, whether the output Express places fills a
         fillable container; see :func:`output_maidr`. An app that places
@@ -423,7 +414,9 @@ class render_maidr(Renderer[Any]):
     (see :func:`output_maidr`), so ``@render_maidr(width=500, height=300)``
     gives a 500 by 300 pixel box, like ``@render.plot(width=500,
     height=300)``, with the chart fitted inside it rather than drawn again
-    at that size.
+    at that size. Under Shiny Express as in an app that places
+    :func:`output_maidr` itself: the output Express places takes only
+    ``fill`` from the renderer, and sizes from ``@output_args``.
 
     Examples
     --------
@@ -493,34 +486,28 @@ class render_maidr(Renderer[Any]):
         htmltools.Tag
             The output container.
         """
+        # The renderer's width and height are its box's, not the output's
+        # (:meth:`_box`), as ``render.plot``'s are its image's: given to the
+        # output too, a height made a fill output in a card 300px of the
+        # card's 778, and the chart was centred in the rest, or, with the
+        # box taking it as well, a width of 50% was a quarter. The output
+        # takes only what ``@output_args`` gives it, and ``fill``.
         # `setdefault` rather than Shiny's `set_kwargs_value` helper: that
         # one exists to skip `MISSING`/`None` so an unset argument does not
-        # override the UI function's own default, and none of these can
-        # be either.
-        kwargs.setdefault("width", self.width)
-        kwargs.setdefault("height", self.height)
+        # override the UI function's own default, and `fill` cannot be
+        # either.
         kwargs.setdefault("fill", self.fill)
-        container = output_maidr(self.output_id, **kwargs)
-        # The output carries the renderer's size here, so the chart's box
-        # fills it rather than taking the size again; see :meth:`_box`.
-        container.add_style(
-            f"{_BOX_WIDTH}: auto; {_BOX_HEIGHT}: auto; {_BOX_FLEX}: 1 1 auto;"
-        )
-        return container
+        return output_maidr(self.output_id, **kwargs)
 
     def _box(self, rendered: Any) -> Any:
         """Put the chart's frame in the box it is fitted to.
 
         The box fills the output -- it is a fill item of the column
         :func:`output_maidr` makes -- unless the renderer was given a size,
-        which it then takes, at most the output's width, as
-        :func:`shiny.render.plot` sizes its image. It scrolls to what does
-        not fit in it. The frame's script fits the chart to it; see
-        ``_BOX_JS`` in :mod:`maidr.util.iframe_utils`.
-
-        A size reads a custom property first, which only the output Express
-        places sets (:meth:`auto_output_ui`): that output already carries
-        the size, and a box taking it again would compound a percentage.
+        which it then takes, at the top left of the output and at most the
+        output's width, as :func:`shiny.render.plot` sizes its image. It
+        scrolls to what does not fit in it. The frame's script fits the
+        chart to it; see ``_BOX_JS`` in :mod:`maidr.util.iframe_utils`.
 
         Parameters
         ----------
@@ -542,13 +529,10 @@ class render_maidr(Renderer[Any]):
         style = ["overflow: auto"]
         width = _css_size(self.width, "width")
         height = _css_size(self.height, "height")
-        if width != "100%":
-            style += [f"width: var({_BOX_WIDTH}, {width})", "max-width: 100%"]
-        if height != "auto":
-            style += [
-                f"height: var({_BOX_HEIGHT}, {height})",
-                f"flex: var({_BOX_FLEX}, 0 0 auto)",
-            ]
+        if width not in (None, "100%"):
+            style += [f"width: {width}", "max-width: 100%"]
+        if height not in (None, "auto"):
+            style += [f"height: {height}", "flex: 0 0 auto"]
         # The fill item's class alone, not ``as_fill_item``: that attaches
         # htmltools' fill stylesheet to every render, which the output
         # already carries and a page without fillable containers does not

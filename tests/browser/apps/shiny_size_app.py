@@ -3,7 +3,8 @@
 Each case is a Shiny app mounted under ``/<case>/``: the chart in a fluid
 page with the default figure or a wide one, in outputs of a fixed height,
 in a fillable card that can be taken full screen, with a size given to the
-renderer, with an announcement three lines long, and Plotly figures (with no height of their
+renderer (in a card too), in a ``ui.output_ui`` written by hand, with an
+announcement three lines long, and Plotly figures (with no height of their
 own, in an output with one, and with ``autosize`` off), Bokeh plots (of a
 fixed width, and stretched both ways) and an Altair chart.
 ``tests/browser/test_shiny_chart_size.py`` drives them.
@@ -90,6 +91,11 @@ def _card(output):
     )
 
 
+def _hand_written(output):
+    """The output written by hand, as ``ui.output_ui``, not ``output_maidr``."""
+    return _fluid(ui.output_ui("m"))
+
+
 #: case -> (page, output, renderer arguments, figure)
 CASES = {
     "default": (_fluid, output_maidr("m"), {}, _bars),
@@ -107,7 +113,9 @@ CASES = {
     "plotly_fixed": (_fluid, output_maidr("m"), {}, _plotly_fixed),
     "bokeh_stretched": (_fluid, output_maidr("m"), {}, _bokeh_stretched),
     "bokeh_stretched_card": (_card, output_maidr("m"), {}, _bokeh_stretched),
+    "renderer_card": (_card, output_maidr("m"), {"height": 300}, _bars),
     "long_text": (_fluid, output_maidr("m", height=300), {}, _long_labels),
+    "hand_written": (_hand_written, None, {}, _bars),
 }
 
 
