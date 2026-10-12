@@ -436,14 +436,15 @@ _NOTEBOOK_JS = _OUTPUT_WIDTH_JS + _KEEP_SCROLL_JS + _NOT_LAID_OUT_JS + _DIALOG_R
 #: its height from the frame leaves the chart as a notebook's frame has it:
 #: as wide as the box, up to its own width, shrinking with a narrower one.
 #:
-#: The box scrolls to whatever does not fit -- maidr's braille and review
-#: fields, a text longer than the line -- rather than cutting it off. A
-#: fitted chart is given a width alone, and is never wider than its frame
-#: (``frame.css``), so that a scrollbar the box takes (Windows' are 15px
-#: wide) narrows it, and the box's ResizeObserver fits it again, rather than
-#: cutting its right edge, and its focus ring, off. maidr's text is scrolled
-#: into the box as it changes (``maidrShowText``), the box alone, never the
-#: page.
+#: The line kept for maidr's text is as many lines as its text takes, the
+#: most so far (``maidrTextRoom``). The box scrolls to whatever does not
+#: fit -- maidr's braille field, a text longer than half the box -- rather
+#: than cutting it off. A fitted chart is given a width alone, and is never
+#: wider than its frame (``frame.css``), so that a scrollbar the box takes
+#: (Windows' are 15px wide) narrows it, and the box's ResizeObserver fits it
+#: again, rather than cutting its right edge, and its focus ring, off.
+#: maidr's text is scrolled into the box as it changes (``maidrShowText``),
+#: the box alone, never the page.
 #:
 #: While a dialog of maidr's is open, the box is as tall as the part of the
 #: window a reader sees (``maidrBoxDialogRoom``), as a frame in an output of
@@ -551,7 +552,31 @@ _BOX_JS = """
                 }
             }
         }
-        function maidrFitChart(doc, chart, room, width) {
+        // The room kept below a fitted chart for maidr's text: a line, or
+        // the lines its text takes, the most it has taken in a box of this
+        // size (half the box at most; longer text is scrolled to). The
+        // three lines it says as the chart takes the focus, kept to one,
+        // scrolled the box 18-36px and the top of the chart, and of its
+        // focus ring, out of it; kept to the most so far, the chart is not
+        // resized with each announcement.
+        function maidrTextRoom(doc, iframe, room, width) {
+            var line = maidrTextLine(doc);
+            var size = room + 'x' + width;
+            if (iframe.maidrTextFor !== size) {
+                iframe.maidrTextFor = size;
+                iframe.maidrTextRoom = line;
+            }
+            var text = doc.getElementById('maidr-text-container');
+            if (text && text.textContent.trim()) {
+                var font = parseFloat(
+                    doc.defaultView.getComputedStyle(doc.body).fontSize) || 16;
+                var need = Math.ceil(text.getBoundingClientRect().height + 2 * font);
+                iframe.maidrTextRoom = Math.max(iframe.maidrTextRoom,
+                    Math.min(need, Math.floor(room / 2)));
+            }
+            return iframe.maidrTextRoom;
+        }
+        function maidrFitChart(doc, chart, room, width, iframe) {
             var root = doc.documentElement;
             chart.style.width = '';
             chart.style.height = '';
@@ -564,7 +589,7 @@ _BOX_JS = """
             root.setAttribute('data-maidr-fit-box', '');
             var w = chart.width.baseVal.value;
             var h = chart.height.baseVal.value;
-            var space = room - maidrTextLine(doc);
+            var space = room - maidrTextRoom(doc, iframe, room, width);
             var scale = Math.min(width / w, Math.max(space, 96) / h);
             // Its width alone: its height follows its shape, and it is never
             // wider than the frame (frame.css).
@@ -1082,7 +1107,9 @@ def _matplotlib_resizer(
                         let fit = maidrBox(iframe, iframeDocument);
                         boxRoom = fit.room;
                         room = fit.dialog;
-                        maidrFitChart(iframeDocument, chart, boxRoom, maidrBoxWidth(iframe));
+                        maidrFitChart(
+                            iframeDocument, chart, boxRoom, maidrBoxWidth(iframe), iframe
+                        );
                     }}
                     // A chart fitted to its box is as wide as the box.
                     iframe.style.maxWidth = boxRoom > 0

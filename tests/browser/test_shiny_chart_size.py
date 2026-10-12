@@ -556,7 +556,11 @@ def test_a_scrollbar_never_cuts_a_fitted_chart(
         page.keyboard.press(key)
         page.wait_for_timeout(1200)
         cut = assert_whole(f"with {key} open")
-        assert cut["scrollbar"] > 0, ("the box does not scroll", cut)
+        # The braille field is taller than the room kept for the text; the
+        # review field, in a box fitted to the opening announcement's three
+        # lines, now fits in it, and nothing scrolls to cut.
+        if key == "b":
+            assert cut["scrollbar"] > 0, ("the box does not scroll", cut)
         page.keyboard.press(key)
         page.wait_for_timeout(1200)
         assert_whole(f"with {key} closed")
@@ -564,11 +568,10 @@ def test_a_scrollbar_never_cuts_a_fitted_chart(
         page.close()
 
 
-def test_a_long_announcement_is_scrolled_into_its_box(browser, shiny_size_app_url):
+def test_a_long_announcement_is_shown_in_its_box(browser, shiny_size_app_url):
     """Three lines of text below a chart fitted to a 300px output.
 
-    The box scrolls to them, as it does to the braille field; the page
-    does not move.
+    They are shown whole, in the box, and the page does not move.
     """
     page = _open(browser, f"{shiny_size_app_url}/long_text/", 320)
     try:
@@ -577,9 +580,53 @@ def test_a_long_announcement_is_scrolled_into_its_box(browser, shiny_size_app_ur
         seen = _settle(page)
         assert seen["text"] is not None
         assert seen["text"]["height"] > 40, ("the text is one line", seen)
-        assert seen["boxScroll"][1] > seen["boxClient"][1], seen
         assert _inside(seen["text"], seen["boxShown"]), seen
         assert seen["scrollY"] == before["scrollY"], "the page moved"
+    finally:
+        page.close()
+
+
+@pytest.mark.parametrize(
+    ("case", "width", "scrollbars"),
+    [
+        ("h300", 390, "overlay"),
+        ("h300", 390, "classic"),
+        ("long_text", 320, "overlay"),
+        ("renderer", 1280, "classic"),
+    ],
+)
+def test_the_chart_and_its_text_are_both_shown_as_it_takes_the_focus(
+    browser, classic_scrollbar_browser, shiny_size_app_url, case, width, scrollbars
+):
+    """The chart is fitted above the lines its text takes, not one line.
+
+    What maidr says as the chart takes the focus is two or three lines
+    long. Below a chart fitted above one line, the box scrolled 18-36px to
+    show it, and the top of the chart, and of its focus ring, went out of
+    sight. Kept to the most its text has taken, the chart is not resized
+    with each announcement after that.
+    """
+    chosen = classic_scrollbar_browser if scrollbars == "classic" else browser
+    page = _open(chosen, f"{shiny_size_app_url}/{case}/", width)
+    try:
+        frame = _chart_frame(page)
+        frame.locator(CHART).first.focus()
+        page.wait_for_timeout(1200)
+        seen = _settle(page)
+        assert seen["text"] is not None and seen["text"]["height"] > 30, seen
+        # The ring is drawn on the svg, inside its edge.
+        assert _inside(seen["svg"], seen["boxShown"]), ("ring cut", seen)
+        assert _inside(seen["text"], seen["boxShown"]), ("text cut", seen)
+        assert seen["boxScroll"][1] <= seen["boxClient"][1] + 1, seen
+        focused = seen["svg"]
+        for _ in range(3):
+            page.keyboard.press("ArrowRight")
+            page.wait_for_timeout(400)
+        seen = _settle(page)
+        assert seen["svg"] == pytest.approx(focused, abs=1), (focused, seen)
+        assert _inside(seen["svg"], seen["boxShown"]), seen
+        assert _inside(seen["text"], seen["boxShown"]), seen
+        assert page.errors == []  # type: ignore[attr-defined]
     finally:
         page.close()
 

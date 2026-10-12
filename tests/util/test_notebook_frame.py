@@ -367,7 +367,7 @@ def test_a_shiny_frame_fits_the_chart_to_a_box_with_a_height():
         "iframe.style.height = '4000px';",
         "Math.abs(tall - short) >= 1",
         "var scale = Math.min(width / w, Math.max(space, 96) / h);",
-        "var space = room - maidrTextLine(doc);",
+        "var space = room - maidrTextRoom(doc, iframe, room, width);",
         "root.setAttribute('data-maidr-fit-box', '');",
     ):
         assert part in script, part

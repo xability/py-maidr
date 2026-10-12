@@ -1253,11 +1253,15 @@ The chart takes the size of its output, as a plot from `render.plot` does:
   from `@output_args(...)`. A size you leave unset, or `None`, follows the
   output.
 
-What the output does not have room for, it scrolls to rather than cutting
-off: maidr's braille and review fields, which open below the chart, and a
-text longer than its line, which is scrolled into the output as it changes
-(the output alone; the page stays where it is). A scrollbar the output takes
-narrows the chart with it rather than covering its edge.
+The room kept for maidr's text grows to the lines it takes — what maidr
+says as the chart takes the focus is two or three lines on a phone — so the
+chart and its focus ring stay in view with it; it keeps the most it has
+taken, so the chart is not resized with every announcement. What the output
+still does not have room for, it scrolls to rather than cutting off: maidr's
+braille field, which opens below the chart, and a text longer than half the
+output, which is scrolled into it as it changes (the output alone; the page
+stays where it is). A scrollbar the output takes narrows the chart with it
+rather than covering its edge.
 
 **While one of maidr's dialogs is open** — help, settings, the chat — the
 output is as tall as the part of the window you see, however short its own
