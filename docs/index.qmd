@@ -1256,8 +1256,8 @@ A chart whose render loads an older `maidr.js` — a pin such as
 `MAIDR_CDN_VERSION=4.14.0` or `maidr.set_cdn_version("4.14.0")` — carries
 the copies, and so does one pinned to `latest`, whose version py-maidr cannot
 know when it renders. Every chart keeps the part of the require.js handling
-that runs locale packs, about 1 KB, whatever its version: the packs a reader's
-language comes from may be older than 4.15.0 — named by
+that runs locale packs, about 1 KB, whatever version of `maidr.js` it loads:
+the packs a reader's language comes from may be older than 4.15.0 — named by
 `maidr.set_locale_base_url()`, `MAIDR_LOCALE_BASE_URL` or the page's own
 `window.maidrLocaleBaseUrl` — and would not run under require.js, leaving the
 reader in English.
