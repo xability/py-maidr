@@ -1,4 +1,5 @@
-"""Fixtures for the browser tests: a running Shiny app and a real browser.
+"""Fixtures for the browser tests: a running Shiny app and a real browser,
+and maidr's files on jsDelivr for a page pinned to a release of it.
 
 These are the only tests that check the thing the library actually
 promises -- that a chart can be reached and driven from the keyboard.
@@ -12,6 +13,7 @@ either sees no failures.
 
 from __future__ import annotations
 
+import mimetypes
 import os
 import shutil
 import socket
@@ -19,11 +21,21 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.request
 from pathlib import Path
 
 import pytest
 
 APPS = Path(__file__).parent / "apps"
+
+#: The last maidr.js without what a chart written into a Quarto page carries
+#: copies of (``maidr.util.inline_chart.COPIES_SHIPPED_IN``). A render pinned
+#: to it carries them, and the Quarto tests run on it as well as on the
+#: bundled maidr.js, which does not need them.
+OLDER_MAIDR_JS = "4.14.0"
+
+#: Where a render pinned to a release loads maidr.js and its locale packs.
+JSDELIVR = "https://cdn.jsdelivr.net/npm/maidr@"
 
 #: How long to wait for uvicorn to bind, and for the ~1.9 MB bundle to
 #: load and parse in the frame. Generous on purpose: a CI runner is
@@ -258,3 +270,59 @@ def page(browser, focus_app_url):
     pg.wait_for_timeout(_SETTLE_MS)
     yield pg
     pg.close()
+
+
+class JsDelivr:
+    """maidr's files on jsDelivr, fetched by Python and handed to a page.
+
+    A render pinned to a release loads it from jsDelivr. Python fetches each
+    file a page asks for, once a session, and the page is given it, so the
+    browser needs no network, or proxy, of its own.
+    """
+
+    def __init__(self) -> None:
+        self._files: dict[str, bytes] = {}
+
+    def fetch(self, url: str) -> bytes:
+        """The file at ``url``, fetched the first time it is asked for."""
+        if url not in self._files:
+            with urllib.request.urlopen(url, timeout=60) as response:
+                self._files[url] = response.read()
+        return self._files[url]
+
+    def serve(self, page) -> None:
+        """Answer the page's requests for maidr's files on jsDelivr."""
+
+        def fulfil(route) -> None:
+            url = route.request.url
+            try:
+                body = self.fetch(url)
+            except OSError:
+                route.abort()
+                return
+            content_type = mimetypes.guess_type(url.split("?")[0])[0]
+            if content_type is None:
+                content_type = "application/octet-stream"
+            elif content_type.startswith("text/"):
+                # As jsDelivr says: the bundle is UTF-8, which a page that
+                # names no charset would not read it as.
+                content_type += "; charset=utf-8"
+            route.fulfill(
+                status=200,
+                body=body,
+                content_type=content_type,
+                headers={"Access-Control-Allow-Origin": "*"},
+            )
+
+        page.route(f"{JSDELIVR}*/**", fulfil)
+
+
+@pytest.fixture(scope="session")
+def jsdelivr() -> JsDelivr:
+    """maidr's files on jsDelivr, or a skip when :data:`OLDER_MAIDR_JS` cannot be had."""
+    cdn = JsDelivr()
+    try:
+        cdn.fetch(f"{JSDELIVR}{OLDER_MAIDR_JS}/dist/maidr.js")
+    except OSError as error:
+        pytest.skip(f"maidr@{OLDER_MAIDR_JS} could not be fetched: {error}")
+    return cdn

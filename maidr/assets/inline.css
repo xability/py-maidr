@@ -1,7 +1,9 @@
 /* maidr inline: the charts py-maidr writes into a page Quarto renders (#895).
  * Every rule is scoped to the .maidr-inline wrapper around a chart, or to a
  * dashboard card holding one. The rules follow r-maidr's
- * inst/maidr-knitr/knitr-inline.css, which styles R charts in the same pages. */
+ * inst/maidr-knitr/knitr-inline.css, which styles R charts in the same pages.
+ * The chart's focus ring is maidr.js's own from 4.15.0; inline-compat.css
+ * draws it, and keeps high contrast to the chart, for an older maidr.js. */
 
 .maidr-inline {
   margin: 0 0 1em;
@@ -45,21 +47,6 @@
   margin-inline-start: auto;
 }
 
-/* A visible focus (WCAG 2.4.7) that survives a page that removes every
- * outline (*:focus { outline: none !important }): this selector is more
- * specific. The ring is drawn inside the chart, because a cell's output box
- * (overflow: auto), a dashboard card and a reveal.js slide (overflow:
- * hidden) clip one drawn outside it. A light band inside the ring, the
- * outline of the svg itself, keeps it visible on a dark plot background. */
-.maidr-inline figure[id^="maidr-figure"] > div[tabindex="0"]:focus {
-  outline: 3px solid #1a5fb4 !important;
-  outline-offset: -3px !important;
-}
-.maidr-inline figure[id^="maidr-figure"] > div[tabindex="0"]:focus .maidr-inline-svg {
-  outline: 2px solid #ffffff !important;
-  outline-offset: -5px !important;
-}
-
 /* maidr's braille and review fields are as wide as their text; in a phone's
  * column they keep to the chart's width. Those two only: the fields of its
  * settings, chat and command palette are MUI's, sized with content-box, and
@@ -68,41 +55,6 @@
 .maidr-inline input[id^="maidr-review-input"] {
   max-width: 100%;
   box-sizing: border-box;
-}
-
-/* The braille and review fields, and maidr's buttons, take the focus in
- * their modes, and need a ring as much as the chart does. */
-.maidr-inline textarea:focus,
-.maidr-inline input:focus,
-.maidr-inline select:focus,
-.maidr-inline button:focus-visible,
-.maidr-inline a:focus-visible,
-.maidr-inline [role="button"]:focus-visible {
-  outline: 3px solid #1a5fb4 !important;
-  outline-offset: 1px !important;
-}
-
-@media (forced-colors: active) {
-  .maidr-inline figure[id^="maidr-figure"] > div[tabindex="0"]:focus,
-  .maidr-inline textarea:focus,
-  .maidr-inline input:focus,
-  .maidr-inline select:focus,
-  .maidr-inline button:focus-visible,
-  .maidr-inline a:focus-visible,
-  .maidr-inline [role="button"]:focus-visible {
-    outline-color: Highlight !important;
-  }
-  .maidr-inline figure[id^="maidr-figure"] > div[tabindex="0"]:focus .maidr-inline-svg {
-    outline: none !important;
-  }
-}
-
-/* High contrast: maidr.js paints the body, which inline is the page's;
- * inline.js gives it the page's own colours back and the chart's wrapper
- * maidr's. */
-html.maidr-inline-contrast body {
-  background-color: var(--maidr-inline-page-bg) !important;
-  color: var(--maidr-inline-page-fg) !important;
 }
 
 /* maidr opens its dialogs inside the chart. inline.js sets, on each chart's
