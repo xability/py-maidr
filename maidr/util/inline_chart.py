@@ -15,17 +15,28 @@ that, so this module carries it over:
   figure, and a user's ``gid`` is whatever they called it, so two charts on
   one page share ids, and a selector naming one finds the other chart's
   marks. Each chart's ids get a suffix of their own, and everything that
-  names them follows (:class:`InlineScope`).
+  names them follows (:class:`InlineScope`). maidr.js 4.15.0 and later looks
+  for a chart's marks inside the chart (xability/maidr#1386), but its
+  ``url(#...)`` references, ``<use>`` glyphs and ARIA references are
+  resolved across the page all the same.
 * **CSS.** matplotlib's ``<style>`` restyles every element of the page once
   it is in it, and its ``<metadata>`` is text a reveal.js deck reads aloud
   and a website indexes for search. The style is scoped to the chart and the
   metadata dropped.
-* **Keys, focus, name and colours.** ``maidr/assets/inline.js`` and
-  ``inline.css`` keep the page's shortcuts away from a chart while the focus
-  is in it, draw its focus ring, name it, and keep high contrast to it.
-* **The runtime.** Quarto puts require.js on these pages, and the UMD
-  ``maidr.js`` hands itself to it and never runs unless kept from it; see
-  :func:`loader_js`.
+* **Its name.** ``maidr/assets/inline.js`` names and describes the chart
+  until and after maidr.js does, and ``inline.css`` styles it in the page.
+* **Keys, focus ring and colours.** maidr.js 4.15.0 and later keeps the
+  page's shortcuts away from a chart while the focus is in it, draws its
+  focus ring over the page's stylesheets, and keeps high contrast to it
+  (xability/maidr#1388, #1390). A render that loads an older one carries
+  copies of those, ``inline-compat.js`` and ``inline-compat.css``; see
+  :func:`carries_copies`.
+* **The runtime.** Quarto puts require.js on these pages. The ``maidr.js``
+  and locale packs of 4.15.0 and later run before they register with it
+  (xability/maidr#1385); an older, UMD one hands itself to it and never runs
+  unless ``inline-amd.js`` keeps it from it. Every chart carries that, for
+  the locale packs of any release a page may name, and its loader hands it
+  an older ``maidr.js``; see :func:`loader_js`.
 * **Its size.** A chart is given the box and size of the figure Quarto
   shows in its place without maidr (:func:`size_like_plain_figure`), and
   ``inline.js`` fills a dashboard card with it as Quarto fills one with
@@ -51,6 +62,8 @@ from typing import Any, Iterator, Literal
 
 from htmltools import HTML, Tag, tags
 
+from maidr.util import cdn
+from maidr.util import dependencies as _deps
 from maidr.util.environment import Environment
 
 _logger = logging.getLogger(__name__)
@@ -195,6 +208,86 @@ def inline_applies(use_iframe: bool) -> bool:
         True for a cell output of a Quarto render that builds a web page.
     """
     return in_quarto_render(use_iframe) and Environment.is_quarto_page()
+
+
+#: The first ``maidr.js`` that does itself what a chart in the page carried
+#: copies of: it runs on a page with require.js before it registers with it
+#: (xability/maidr#1385), resolves each chart's selectors inside the chart
+#: (#1386), paints the chart rather than the page for high contrast (#1388),
+#: and keeps a host page's shortcuts off a chart's keys and draws its focus
+#: ring (#1390).
+COPIES_SHIPPED_IN = "4.15.0"
+
+
+def carries_copies(use_cdn: bool | Literal["auto"]) -> bool:
+    """Whether a chart in the page carries copies of what ``maidr.js`` does.
+
+    Those copies are ``maidr/assets/inline-compat.js`` and
+    ``inline-compat.css``. They are left out when every ``maidr.js`` the
+    chart's loader may run is :data:`COPIES_SHIPPED_IN` or newer, decided at
+    render time from the versions the page will load:
+
+    * under ``use_cdn=False``, the bundled copy the chart carries -- or, when
+      the bundle is missing, the release :func:`maidr.util.cdn.bundled_cdn_url`
+      names, which the loader takes from the CDN instead;
+    * under ``True`` and ``"auto"``, the release the CDN URL names
+      (:func:`maidr.util.cdn.get_cdn_version`: a pin from ``set_cdn_version``
+      or ``MAIDR_CDN_VERSION``, ``bundled``, or the published release), and
+      the bundled copy as well, which the loader runs when the CDN fails --
+      the one the render stashes under ``"auto"``, or one another chart put
+      in the page under ``True``.
+
+    A version that cannot be compared -- a pin to ``latest``, whose URL
+    jsDelivr and a browser may answer with a release cached a week ago, or a
+    bundle whose ``VERSION`` will not read -- keeps them. So does a
+    prerelease of :data:`COPIES_SHIPPED_IN`.
+
+    The first chart's loader loads the page's ``maidr.js``, and that chart
+    carries the copies when the runtime needs them, so a page whose charts
+    were rendered under different pins has them then; they act on the whole
+    page. The scoping of a selector to its chart's ``<svg>`` lives in each
+    chart's own schema instead, so it is never left out (:class:`InlineScope`).
+
+    The copies and a ``maidr.js`` that guards the page itself
+    (``maidrLive.features.hostGuards``) each mark what they wrap, and
+    whichever wraps one of the page's shortcuts first keeps it: the other
+    leaves it alone. The copies wrap them once the page is ready, unless
+    such a ``maidr.js`` is there by then; one that arrives later -- loaded
+    from the CDN, as under a pin to ``latest`` -- finds the copies' guards
+    in force, and they stay so.
+
+    Parameters
+    ----------
+    use_cdn : bool or {"auto"}
+        Where the chart's ``maidr.js`` comes from; see ``Maidr.render``.
+
+    Returns
+    -------
+    bool
+        True when the chart must carry the copies.
+    """
+    return not all(_ships_copies(version) for version in _runtime_versions(use_cdn))
+
+
+def _runtime_versions(use_cdn: bool | Literal["auto"]) -> list[str]:
+    """The ``maidr.js`` versions a chart's loader may run (:func:`carries_copies`)."""
+    bundled = _deps.maidr_js_version()
+    if use_cdn is False:
+        try:
+            _deps.bundled_js_path()
+            _deps.bundled_math_css_path()
+        except OSError:
+            # ``Maidr._inline_chart`` loads this release from the CDN then.
+            return [cdn._offline_version()]
+        return [bundled]
+    return [cdn.get_cdn_version(), bundled]
+
+
+def _ships_copies(version: str) -> bool:
+    """Whether a ``maidr.js`` version does all that a chart carried copies of."""
+    key = _deps._version_key(version)
+    shipped = _deps._version_key(COPIES_SHIPPED_IN)
+    return key is not None and shipped is not None and key >= shipped
 
 
 #: The figure formats IPython shows as a raster, which the page shows a dot
@@ -566,15 +659,26 @@ class InlineScope:
     A selector that names nothing unique to the chart once that is done --
     ``g[id^='maidr-'] path``, the fallback of a violin or regression layer
     with no group of its own -- is scoped to the chart's own ``<svg>``, so it
-    cannot find another chart's marks.
+    cannot find another chart's marks. maidr.js 4.15.0 and later does as
+    much itself, resolving each chart's selectors inside the chart
+    (xability/maidr#1386), and the scoping is harmless there; it is kept
+    whatever ``compat`` says, because it lives in the chart's own schema,
+    which an older ``maidr.js`` reads when another chart's loader brings
+    that one to the page (:func:`carries_copies`).
 
     The SVG's ``<metadata>`` is dropped, and its ``<style>`` moves out of it,
     each rule scoped to the chart by a class of its own (:attr:`css`).
     """
 
-    def __init__(self, name: str, alt: str | None = None) -> None:
+    def __init__(
+        self, name: str, alt: str | None = None, *, compat: bool = True
+    ) -> None:
         #: What the chart is called until maidr.js names it.
         self.name = name
+        #: Whether the chart carries copies of what an older maidr.js lacks:
+        #: ``inline-compat.js`` and ``inline-compat.css``
+        #: (:func:`carries_copies`).
+        self.compat = compat
         #: The author's alt text, from the cell's ``fig-alt``: the chart's name
         #: until maidr.js names it, and the first of its description after.
         self.alt = alt
@@ -788,9 +892,10 @@ class InlineScope:
 def _asset(name: str) -> str:
     """One of ``maidr/assets/``, its comments and indents dropped.
 
-    Every chart carries ``inline.{js,css}``, so that a chart whose cell hides
-    its output takes nothing from the charts after it; they run once per
-    page. Every notebook frame carries ``frame.css``; see
+    Every chart carries ``inline.{js,css}`` and ``inline-amd.js``, and
+    ``inline-compat.{js,css}`` when it must (:func:`carries_copies`), so
+    that a chart whose cell hides its output takes nothing from the charts
+    after it; they run once per page. Every notebook frame carries ``frame.css``; see
     :func:`maidr.util.iframe_utils.frame_style`.
     """
     text = resources.files("maidr").joinpath("assets", name).read_text(encoding="utf-8")
@@ -827,8 +932,7 @@ _FROM_STASH = """
       document.head.appendChild(mark);
     }
     var script = document.createElement('script');
-    script.text = source;
-    noAmd(script);
+    script.text = source;%(no_amd)s
     document.head.appendChild(script);
   }
 """
@@ -838,15 +942,18 @@ _FROM_URL = """
   function fromUrl(url, onError) {
     var script = document.createElement('script');
     script.src = url;
-    script.onerror = onError;
-    noAmd(script);
+    script.onerror = onError;%(no_amd)s
     document.head.appendChild(script);
   }
 """
 
 
 def loader_js(
-    use_cdn: bool | Literal["auto"], cdn_url: str | None, locale_fallback: str
+    use_cdn: bool | Literal["auto"],
+    cdn_url: str | None,
+    locale_fallback: str,
+    *,
+    compat: bool = True,
 ) -> str:
     """The script, in every chart, that loads ``maidr.js`` for the page once.
 
@@ -867,6 +974,12 @@ def loader_js(
     locale_fallback : str
         The statement that points the bundled copy at its locale packs, run
         before it under ``"auto"``.
+    compat : bool, default=True
+        Whether the chart carries the copies (:func:`carries_copies`), for
+        an older ``maidr.js``. The loader hands each script it adds to
+        ``withoutAmd`` then, from ``inline-amd.js``, which keeps a UMD
+        ``maidr.js`` older than 4.15.0 from require.js's ``define``, and
+        does not otherwise.
 
     Returns
     -------
@@ -881,9 +994,14 @@ def loader_js(
         "window.__maidrInlineClaim(document.currentScript);",
         "  if (window.maidrLive || window.__maidrInlineLoader) return;",
         "  window.__maidrInlineLoader = true;",
-        "  var noAmd = window.__maidrInlineWithoutAmd || function () {};",
+    ]
+    if compat:
+        body.append("  var noAmd = window.__maidrInlineWithoutAmd || function () {};")
+    no_amd = "\n    noAmd(script);" if compat else ""
+    body += [
         _REPORT,
-        _FROM_STASH % {"locale": "" if use_cdn is False else locale_fallback},
+        _FROM_STASH
+        % {"locale": "" if use_cdn is False else locale_fallback, "no_amd": no_amd},
     ]
     url = json.dumps(cdn_url or "").replace("<", "\\u003c")
     if use_cdn is False:
@@ -892,7 +1010,7 @@ def loader_js(
         # Under ``True`` too: a page holds a copy only because one of its
         # charts asked for it, and that chart must not be left without it by
         # a chart before it that loads from the CDN alone.
-        body.append(_FROM_URL)
+        body.append(_FROM_URL % {"no_amd": no_amd})
         body.append(
             f"  fromUrl({url}, function () {{ fromStash('it did not load from ' + "
             f"{url} + ' and the page has no copy of the bundle'); }});"
@@ -936,9 +1054,14 @@ def chart_tag(
     """
     title = (chart_title or "").strip()
     alt = (scope.alt or "").strip()
+    css = _asset("inline.css")
+    if scope.compat:
+        # In the same element, which the page keeps the first chart's of: the
+        # first chart's loader is the one that loads maidr.js.
+        css += "\n" + _asset("inline-compat.css")
     children: list[Any] = [
         # Marked so that inline.js keeps one copy of it in the page's head.
-        tags.style(HTML(_asset("inline.css")), **{"data-maidr-inline-css": ""})
+        tags.style(HTML(css), **{"data-maidr-inline-css": ""})
     ]
     if scope.css:
         children.append(tags.style(HTML(scope.css)))
@@ -964,6 +1087,14 @@ def chart_tag(
                 hidden=True,
             )
         )
+    # On every chart: a page may name locale packs of any release itself
+    # (``window.maidrLocaleBaseUrl``), which a render cannot see. Before the
+    # loader, which takes ``withoutAmd`` from it, and before maidr.js adds a
+    # locale pack.
+    children.append(tags.script(HTML(_asset("inline-amd.js"))))
+    if scope.compat:
+        # Before inline.js, as these ran before its own when it held them.
+        children.append(tags.script(HTML(_asset("inline-compat.js"))))
     children.append(tags.script(HTML(_asset("inline.js"))))
     children.extend(child for child in before_runtime if child is not None)
     children.append(tags.script(HTML(loader)))

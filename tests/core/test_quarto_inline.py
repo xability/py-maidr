@@ -984,15 +984,18 @@ def test_offline_with_an_unreadable_bundle_loads_the_same_version_by_url(
     assert "/maidr@" in html
 
 
-def test_every_chart_carries_the_guards_and_a_loader(quarto):
+@pytest.mark.parametrize("pin", ["4.15.0", "4.14.0"])
+def test_every_chart_carries_its_scripts_and_a_loader(quarto, monkeypatch, pin):
     """So a chart whose cell hides its output takes nothing from the next."""
     quarto("html")
+    monkeypatch.setenv("MAIDR_CDN_VERSION", pin)
     outputs = [_shown(_bar()) for _ in range(2)]
 
     for html in outputs:
         assert "window.__maidrInline = true" in html
         assert "__maidrInlineLoader" in html
-        assert "maidr-inline-contrast" in html  # inline.css
+        assert ".maidr-inline-svg" in html  # inline.css
+        assert ("window.__maidrInlineCompat = true" in html) is (pin == "4.14.0")
 
 
 def test_the_chart_and_its_runtime_are_one_output(quarto, monkeypatch):
@@ -1076,12 +1079,17 @@ def test_a_url_cannot_close_the_loaders_script():
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")
+@pytest.mark.parametrize("compat", [True, False])
 @pytest.mark.parametrize("mode", [False, True, "auto"])
-def test_the_scripts_a_chart_carries_parse(tmp_path, mode):
+def test_the_scripts_a_chart_carries_parse(tmp_path, mode, compat):
     """The assets are shipped with their comments taken out; that must not break them."""
     scripts = {
         "inline.js": inline_chart._asset("inline.js"),
-        "loader.js": inline_chart.loader_js(mode, "https://x/maidr.js", "var a = 1;"),
+        "inline-compat.js": inline_chart._asset("inline-compat.js"),
+        "inline-amd.js": inline_chart._asset("inline-amd.js"),
+        "loader.js": inline_chart.loader_js(
+            mode, "https://x/maidr.js", "var a = 1;", compat=compat
+        ),
     }
     for name, source in scripts.items():
         path = tmp_path / name
@@ -1092,16 +1100,370 @@ def test_the_scripts_a_chart_carries_parse(tmp_path, mode):
         assert result.returncode == 0, result.stderr
 
 
-def test_the_stylesheet_survives_its_comments_being_taken_out():
-    css = inline_chart._asset("inline.css")
+@pytest.mark.parametrize("name", ["inline.css", "inline-compat.css"])
+def test_the_stylesheets_survive_their_comments_being_taken_out(name):
+    css = inline_chart._asset(name)
     assert "/*" not in css and "*/" not in css
     assert css.count("{") == css.count("}")
-    assert '.maidr-inline figure[id^="maidr-figure"] > div[tabindex="0"]:focus' in css
+    assert ".maidr-inline" in css
 
 
 def test_the_assets_ship_in_the_package():
     """``maidr/assets`` is outside ``maidr/static``, which save_html copies whole."""
     from importlib import resources
 
-    for name in ("inline.js", "inline.css"):
+    for name in (
+        "inline.js",
+        "inline.css",
+        "inline-compat.js",
+        "inline-compat.css",
+        "inline-amd.js",
+    ):
         assert resources.files("maidr").joinpath("assets", name).is_file()
+
+
+# --- What maidr.js does itself from 4.15.0 -----------------------------------
+
+#: The last release that lacks what an inline chart carries copies of.
+OLDER = "4.14.0"
+
+
+@pytest.fixture
+def bundled(monkeypatch):
+    """Set the version of the bundled ``maidr.js``; returns the setter."""
+    from maidr.util import dependencies
+
+    def set_to(version: str) -> None:
+        monkeypatch.setattr(dependencies, "maidr_js_version", lambda: version)
+
+    return set_to
+
+
+@pytest.fixture
+def pinned(monkeypatch):
+    """Pin the CDN version through ``MAIDR_CDN_VERSION``; returns the setter."""
+    from maidr.util import cdn
+
+    def pin_to(version: str | None) -> None:
+        if version is None:
+            monkeypatch.delenv(cdn.CDN_VERSION_ENV_VAR, raising=False)
+        else:
+            monkeypatch.setenv(cdn.CDN_VERSION_ENV_VAR, version)
+
+    return pin_to
+
+
+def test_the_release_that_ships_the_copies_is_the_one_bundled():
+    """The copies are dropped against the maidr.js this wheel carries."""
+    from maidr.util import dependencies
+
+    assert inline_chart.COPIES_SHIPPED_IN == "4.15.0"
+    assert not inline_chart._ships_copies(OLDER)
+    assert inline_chart._ships_copies(dependencies.maidr_js_version())
+
+
+@pytest.mark.parametrize(
+    ("version", "ships"),
+    [
+        ("4.15.0", True),
+        ("4.15.1", True),
+        ("4.16.0", True),
+        ("5.0.0", True),
+        ("4.14.0", False),
+        ("4.14.9", False),
+        ("3.75.1", False),
+        ("4.15.0-rc.1", False),
+        ("latest", False),
+        ("0.0.0", False),
+        ("", False),
+    ],
+)
+def test_which_versions_ship_the_copies(version, ships):
+    """A version that cannot be compared, ``latest`` among them, does not."""
+    assert inline_chart._ships_copies(version) is ships
+
+
+@pytest.mark.parametrize(("version", "copies"), [("4.15.0", False), (OLDER, True)])
+def test_offline_the_bundled_version_decides(bundled, pinned, version, copies):
+    """The chart carries the bundle, whatever the CDN is pinned to."""
+    bundled(version)
+    pinned("4.15.0" if copies else OLDER)
+
+    assert inline_chart.carries_copies(False) is copies
+
+
+@pytest.mark.parametrize(("pin", "copies"), [("4.15.0", False), (OLDER, True)])
+def test_offline_without_the_bundle_the_version_loaded_by_url_decides(
+    monkeypatch, bundled, pinned, pin, copies
+):
+    """``Maidr._inline_chart`` loads the pinned release from the CDN then."""
+    from maidr.util import dependencies
+
+    def missing():
+        raise FileNotFoundError("maidr.js")
+
+    bundled("4.15.0")
+    pinned(pin)
+    monkeypatch.setattr(dependencies, "bundled_js_path", missing)
+
+    assert inline_chart.carries_copies(False) is copies
+
+
+@pytest.mark.parametrize("use_cdn", [True, "auto"])
+@pytest.mark.parametrize(
+    ("pin", "copies"),
+    [
+        ("4.15.0", False),
+        ("v4.16.0", False),
+        ("bundled", False),
+        (OLDER, True),
+        ("3.80.0", True),
+        ("latest", True),
+    ],
+)
+def test_online_a_pin_decides(bundled, pinned, use_cdn, pin, copies):
+    """``MAIDR_CDN_VERSION``: a release, ``bundled`` or ``latest``.
+
+    ``latest`` keeps the copies: jsDelivr and a browser may answer it with a
+    release they cached a week ago.
+    """
+    bundled("4.15.0")
+    pinned(pin)
+
+    assert inline_chart.carries_copies(use_cdn) is copies
+
+
+@pytest.mark.parametrize("use_cdn", [True, "auto"])
+def test_set_cdn_version_decides_over_the_environment(bundled, pinned, use_cdn):
+    from maidr.util import cdn
+
+    bundled("4.15.0")
+    pinned("4.15.0")
+    cdn.set_cdn_version(OLDER)
+    try:
+        assert inline_chart.carries_copies(use_cdn) is True
+    finally:
+        cdn.set_cdn_version(None)
+    cdn.set_cdn_version("4.15.0")
+    try:
+        pinned(OLDER)
+        assert inline_chart.carries_copies(use_cdn) is False
+    finally:
+        cdn.set_cdn_version(None)
+
+
+@pytest.mark.parametrize("use_cdn", [True, "auto"])
+@pytest.mark.parametrize(("published", "copies"), [("4.16.0", False), (None, False)])
+def test_online_the_published_release_decides(
+    monkeypatch, bundled, pinned, use_cdn, published, copies
+):
+    """Unpinned, the release the lookup finds; when it fails, the bundled one."""
+    from maidr.util import cdn
+
+    bundled("4.15.0")
+    pinned(None)
+    cdn.reset_cdn_version_cache()
+    monkeypatch.setattr(cdn, "_fetch_latest_version", lambda *a, **k: published)
+    try:
+        assert cdn.get_cdn_version() == (published or "4.15.0")
+        assert inline_chart.carries_copies(use_cdn) is copies
+    finally:
+        cdn.reset_cdn_version_cache()
+
+
+@pytest.mark.parametrize("use_cdn", [True, "auto"])
+def test_online_the_bundled_copy_the_loader_falls_back_to_must_ship_them_too(
+    bundled, pinned, use_cdn
+):
+    """Under ``"auto"`` a CDN that fails runs the bundle the render stashed;
+    under ``True``, one another chart stashed in the page."""
+    bundled(OLDER)
+    pinned("4.15.0")
+
+    assert inline_chart.carries_copies(use_cdn) is True
+
+
+def _carries(html: str) -> dict:
+    """Which of the copies a chart's output carries.
+
+    ``"amd"`` is whether its loader hands maidr.js to inline-amd.js, which
+    every chart carries (:func:`_carries_amd_shim`).
+    """
+    return {
+        "script": "window.__maidrInlineCompat = true" in html,
+        "amd": "noAmd(script);" in html,
+        "contrast": "maidr-inline-contrast" in html,
+        "ring": 'div[tabindex="0"]:focus' in html,
+    }
+
+
+def _carries_amd_shim(html: str) -> bool:
+    """inline-amd.js, once and before the loader that may take from it."""
+    amd_js = inline_chart._asset("inline-amd.js")
+    return html.count(amd_js) == 1 and html.index(amd_js) < html.index(
+        "__maidrInlineLoader"
+    )
+
+
+_ALL = {"script": True, "amd": True, "contrast": True, "ring": True}
+_NONE = {"script": False, "amd": False, "contrast": False, "ring": False}
+
+
+@pytest.mark.parametrize("use_cdn", [False, True, "auto"])
+def test_a_chart_on_4_15_carries_none_of_the_copies(quarto, pinned, use_cdn):
+    """Offline the bundled 4.15.0 decides; online a pin to it, and the bundle."""
+    quarto("html")
+    pinned("4.15.0")
+    html = _shown(_bar(), use_cdn=use_cdn)
+
+    assert _carries(html) == _NONE
+    # What is not a copy stays: inline-amd.js, for a page's older locale
+    # packs, among it.
+    assert _carries_amd_shim(html)
+    assert "window.__maidrInline = true" in html
+    assert "__maidrInlineLoader" in html
+    assert inline_chart._asset("inline.js") in html
+    assert "html-fill-item" in html  # the dashboard fill, in inline.css
+
+
+@pytest.mark.parametrize("use_cdn", [True, "auto"])
+@pytest.mark.parametrize("pin", [OLDER, "latest"])
+def test_a_chart_pinned_older_carries_every_copy_unchanged(
+    quarto, pinned, use_cdn, pin
+):
+    """The copies, as the chart carried them before maidr.js had them."""
+    quarto("html")
+    pinned(pin)
+    html = _shown(_bar(), use_cdn=use_cdn)
+
+    assert _carries(html) == _ALL
+    assert _carries_amd_shim(html)
+    compat_js = inline_chart._asset("inline-compat.js")
+    amd_js = inline_chart._asset("inline-amd.js")
+    assert compat_js in html
+    assert "function withoutAmd(" in amd_js
+    for name in (
+        "function followContrast(",
+        "function shimReveal(",
+        "function shimQuartoSearch(",
+        "function shimCard(",
+        "function shimRevealSearch(",
+        "function handOff(",
+        "function nativeGuards(",
+    ):
+        assert name in compat_js, name
+    # Before inline.js, and inline-amd.js before the loader that hands its
+    # scripts to it.
+    assert html.index(compat_js) < html.index(inline_chart._asset("inline.js"))
+    assert html.index(amd_js) < html.index("noAmd(script);")
+    assert inline_chart._asset("inline-compat.css") in html
+
+
+def test_an_older_bundle_offline_carries_every_copy(quarto, bundled):
+    quarto("html")
+    bundled(OLDER)
+    html = _shown(_bar(), use_cdn=False)
+
+    assert _carries(html) == _ALL
+
+
+@pytest.fixture
+def locale_dir(monkeypatch):
+    """Configure a directory of locale packs, as a reader's setup would."""
+    from maidr.util import locale_pack
+
+    def configure(how: str, value) -> None:
+        if how == "env":
+            monkeypatch.setenv(locale_pack.LOCALE_BASE_URL_ENV_VAR, value)
+        else:
+            monkeypatch.setattr(locale_pack, "_locale_base_url", None)
+            locale_pack.set_locale_base_url(value)
+
+    yield configure
+    locale_pack.set_locale_base_url(None)
+
+
+_PACKS = "https://example.org/maidr/4.14.0/"
+
+
+@pytest.mark.parametrize("how", ["env", "setter"])
+@pytest.mark.parametrize("use_cdn", [False, True, "auto"])
+def test_a_configured_directory_of_locale_packs_keeps_them_from_require_js(
+    quarto, pinned, locale_dir, how, use_cdn
+):
+    """Packs a site hosts may be older than 4.15.0, and UMD.
+
+    The chart carries inline-amd.js for them, and nothing of the copies; its
+    loader leaves the 4.15.0 maidr.js to run as it does.
+    """
+    quarto("html")
+    pinned("4.15.0")
+    locale_dir(how, _PACKS)
+    html = _shown(_bar(), use_cdn=use_cdn)
+
+    assert _carries(html) == _NONE
+    assert _carries_amd_shim(html)
+
+
+@pytest.mark.parametrize(
+    ("how", "off"), [("env", ""), ("env", "off"), ("setter", False)]
+)
+def test_locale_packs_turned_off_still_carry_the_require_js_shim(
+    quarto, pinned, locale_dir, how, off
+):
+    """A page may name its own packs (``window.maidrLocaleBaseUrl``) all the same.
+
+    The render cannot see that global, so nothing it is configured with
+    takes inline-amd.js away.
+    """
+    quarto("html")
+    pinned("4.15.0")
+    locale_dir(how, off)
+    html = _shown(_bar(), use_cdn="auto")
+
+    assert _carries(html) == _NONE
+    assert _carries_amd_shim(html)
+
+
+@pytest.mark.parametrize("compat", [True, False])
+def test_a_chart_on_any_maidr_js_scopes_its_selectors(compat):
+    """Each chart's own schema: an older maidr.js may read it on a mixed page.
+
+    maidr.js 4.15.0 resolves each chart's selectors inside the chart, where
+    the scoping finds the same marks; on a page whose first chart was pinned
+    to an older maidr.js, that one reads this chart's schema too.
+    """
+    markup = (
+        f'<svg xmlns="{SVG}" id="{SVG_ID}"><g id="series"><path/></g>'
+        f'<g id="maidr-{SVG_ID}"><path/></g></svg>'
+    )
+    svg = etree.fromstring(markup.encode())
+    scope = InlineScope("Chart", compat=compat)
+    schema = scope.scope(
+        svg,
+        {"layers": [{"selectors": ["g[id^='maidr-'] path", "g[id='series'] path"]}]},
+    )
+
+    assert schema["layers"][0]["selectors"] == [
+        f"[id=\"{SVG_ID}\"] g[id^='maidr-'] path",
+        f"g[id='series-{scope.key}'] path",
+    ]
+
+
+@pytest.mark.parametrize(("pin", "compat"), [("4.15.0", False), (OLDER, True)])
+def test_a_render_carries_the_copies_only_for_an_older_maidr_js(
+    quarto, pinned, monkeypatch, pin, compat
+):
+    seen: list[InlineScope] = []
+    original = InlineScope.__init__
+
+    def record(self, *args, **kwargs):
+        original(self, *args, **kwargs)
+        seen.append(self)
+
+    monkeypatch.setattr(InlineScope, "__init__", record)
+    quarto("html")
+    pinned(pin)
+    _shown(_bar(), use_cdn=True)
+
+    assert [scope.compat for scope in seen] == [compat]
