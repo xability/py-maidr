@@ -820,6 +820,58 @@ def test_a_slider_moved_with_the_keyboard_stays_where_it_is(
         page.close()
 
 
+#: Where the slider's top is in the window from now on, frame by frame.
+_WATCH_SLIDER = r"""() => {
+  const slider = document.querySelector('#n').closest('.shiny-input-container');
+  window.maidrSeenSlider = [];
+  const note = () => {
+    window.maidrSeenSlider.push(Math.round(slider.getBoundingClientRect().top));
+    requestAnimationFrame(note);
+  };
+  note();
+}"""
+
+
+@pytest.mark.parametrize("kind", ["mpl", "plotly"])
+def test_charts_drawn_again_faster_than_they_are_measured_leave_the_slider_still(
+    browser, shiny_size_app_url, kind
+):
+    """Values come faster than each new chart is measured, on a slow device.
+
+    A chart drawn again before the frame drawn last had measured its own
+    held the output at that frame's 150px: the slider below it went
+    300px up, off screen, for 0.4s (matplotlib) to 3s (Plotly), the
+    processor slowed six times, as a phone's is.
+    """
+    page = _open(browser, f"{shiny_size_app_url}/slider_{kind}/", 640, 450)
+    cdp = page.context.new_cdp_session(page)
+    try:
+        before = _slider_near_the_top(page)
+        cdp.send("Emulation.setCPUThrottlingRate", {"rate": 6})
+        page.evaluate(_WATCH_SLIDER)
+        for value in (3, 4, 5, 6):
+            page.evaluate(
+                "(v) => Shiny.setInputValue('n', v, {priority: 'event'})", value
+            )
+            page.wait_for_timeout(250)
+        # The last chart is in the page with the text Shiny sends with it,
+        # and has let go of its output once measured.
+        page.wait_for_function(
+            "() => document.getElementById('said').textContent === 'Scale 6'"
+            " && !document.getElementById('m').maidrHolds",
+            timeout=30_000,
+        )
+        cdp.send("Emulation.setCPUThrottlingRate", {"rate": 1})
+        _settle(page)
+        seen = page.evaluate("() => window.maidrSeenSlider")
+        assert min(seen) >= 0, (before, sorted(set(seen)))
+        _assert_still(page, before, "drawn again four times")
+        assert page.errors == []  # type: ignore[attr-defined]
+    finally:
+        cdp.detach()
+        page.close()
+
+
 def test_an_output_not_in_the_page_leaves_the_others_to_update(
     browser, shiny_size_app_url
 ):

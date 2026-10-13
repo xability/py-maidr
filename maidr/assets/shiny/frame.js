@@ -279,9 +279,13 @@
             var el = old.length && maidrHolder(out);
             if (!el) return;
             var win = out.ownerDocument.defaultView;
+            // Measured before an earlier hold is let go: a chart drawn again
+            // before the frame drawn last had measured its own was held at
+            // that frame's 150px, and the page below it moved up.
+            var px = maidrHeight(el);
             maidrLetGo(el);
             var redraw = el.maidrRedraw = {old: Array.prototype.slice.call(old)};
-            maidrHold(el, 'redraw', maidrHeight(el));
+            maidrHold(el, 'redraw', px);
             redraw.timer = win.setTimeout(function() { maidrLetGo(el); }, 10000);
             if (win.MutationObserver) {
                 redraw.watch = new win.MutationObserver(function() {
