@@ -1309,7 +1309,10 @@ Where a chart differs from `render.plot`'s:
 
 The script that sizes a chart's frame is served by the app once, as a web
 dependency (`lib/maidr-shiny-frame-<version>/`), rather than sent with every
-reactive flush of the output.
+reactive flush of the output. A chart turned into a string —
+`ui.HTML(str(maidr.render(fig)))` — loses the dependency, and its frame
+loads the script from there itself, in any session of the app; one made in
+the page of a Shiny Express app, outside a render function, carries it.
 
 ## Quarto Documents
 

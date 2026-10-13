@@ -14,6 +14,7 @@ import threading
 import time
 import warnings
 from html import unescape
+from pathlib import Path
 from urllib.parse import unquote
 
 import matplotlib
@@ -35,7 +36,6 @@ from maidr.core.figure_manager import FigureManager  # noqa: E402
 from maidr.util.dependencies import maidr_js_version, read_bundled_js  # noqa: E402
 from maidr.util.iframe_utils import (  # noqa: E402
     SHINY_FRAME_NAME,
-    SHINY_FRAME_ROUTE,
     _shiny_frame_version,
     shiny_frame_script,
 )
@@ -414,7 +414,6 @@ def test_the_frame_script_is_served_once_rather_than_sent(fake_session):
     # The flush brings the dependency, so the frame names no route to load
     # the script from itself (``test_a_frame_made_into_a_string_...``).
     assert "createElement" not in onload
-    assert SHINY_FRAME_ROUTE not in fake_session._dynamic_routes
     # The frame and the focus restore: a fraction of the 16 KB that marks a
     # chart's document riding the flush
     # (``test_the_payload_references_the_chart_rather_than_carrying_it``).
@@ -443,9 +442,11 @@ def test_a_frame_made_into_a_string_loads_its_script_itself(fake_session, plotly
 
     ``str()`` drops the frame's ``maidr-shiny-frame`` dependency, which
     Shiny then neither loads nor serves, and the frame, on a page with no
-    other chart, stayed 150px tall and cut the chart off. Its ``onload``
-    now loads the script from a route of the session's own when it is not
-    there.
+    other chart, stayed 150px tall and cut the chart off. The dependency is
+    registered with the app, and the frame's ``onload`` loads the script
+    from the app's URL for it when it is not there: one URL whatever the
+    session, so that a string kept from one session is sized in another,
+    where a route of the session's own answered 404 once it had ended.
     """
     if plotly:
         go = pytest.importorskip("plotly.graph_objects")
@@ -457,13 +458,41 @@ def test_a_frame_made_into_a_string_loads_its_script_itself(fake_session, plotly
     onload = unescape(re.search(r'onload="([^"]*)"', html).group(1))
 
     url = re.search(r"s\.src=\"([^\"]+)\"", onload).group(1)
-    assert url.startswith(f"session/fake-session/dynamic_route/{SHINY_FRAME_ROUTE}?")
+    assert url == f"lib/{SHINY_FRAME_NAME}-{_shiny_frame_version()}/frame.js"
+    assert "session" not in url
+    assert not fake_session._dynamic_routes
     # Loaded once per page, whatever the number of frames, only when the
     # script is not there as the frame loads.
     assert "if(!n&&!window.maidrShinyFrameSrc)" in onload
-    response = fake_session._dynamic_routes[SHINY_FRAME_ROUTE](None)
-    assert response.media_type.startswith("text/javascript")
-    assert response.body.decode("utf-8") == shiny_frame_script()
+    [served] = [
+        dep for dep in fake_session.app.registered if dep.name == SHINY_FRAME_NAME
+    ]
+    paths = served.source_path_map(lib_prefix=fake_session.app.lib_prefix)
+    assert url == paths["href"] + "/frame.js"
+    source = Path(paths["source"]) / "frame.js"
+    assert source.read_text(encoding="utf-8") == shiny_frame_script()
+
+
+def test_a_frame_made_in_express_s_page_carries_its_script():
+    """A string made as Shiny Express builds the page, outside a render.
+
+    Express runs the app's file with a stand-in session to build its page,
+    which has no app to register the dependency with and serves nothing:
+    the frame had no URL to load its script from, and stayed 150px tall.
+    It carries the script instead, in its ``onload``, without comments.
+    """
+    from shiny.express._stub_session import ExpressStubSession
+    from shiny.session import session_context
+
+    with session_context(ExpressStubSession()):  # type: ignore[arg-type]
+        html = str(maidr.render(_bar_axes()))
+    onload = unescape(re.search(r'onload="([^"]*)"', html).group(1))
+
+    assert "createElement" not in onload
+    assert "window.maidrShinyFrame = function (frame, kind, options)" in onload
+    assert onload.endswith("\nmaidrShinyFrame(this,'matplotlib',{})")
+    assert "\n//" not in onload
+    assert len(onload) < len(shiny_frame_script()) * 0.6, len(onload)
 
 
 def test_a_plotly_figure_has_a_height_of_its_own_in_shiny(fake_session):

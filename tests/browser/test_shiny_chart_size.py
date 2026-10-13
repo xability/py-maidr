@@ -27,6 +27,8 @@ that shows, announces what ArrowRight moves to, and highlights that mark.
 
 from __future__ import annotations
 
+import time
+
 import pytest
 
 pytestmark = pytest.mark.browser
@@ -1122,6 +1124,56 @@ def test_a_frame_made_into_a_string_is_sized(browser, shiny_size_app_url, case):
         ), seen
         assert seen["frame"]["height"] >= seen["svg"]["height"], seen
         _assert_reads(page, "a frame made into a string")
+        seen = _settle(page)
+        assert seen["text"] is not None and _inside(seen["text"], seen["frame"]), seen
+        assert page.errors == []  # type: ignore[attr-defined]
+    finally:
+        page.close()
+
+
+def test_a_frame_kept_as_a_string_is_sized_in_a_later_session(
+    browser, shiny_size_app_url
+):
+    """A string made by one session, shown once that session has ended.
+
+    The frame loaded its script from a route of the session that made it,
+    which answered 404 once that session had ended: a string an app kept
+    and showed again stayed 150px tall and cut the chart off.
+    """
+    first = _open(browser, f"{shiny_size_app_url}/kept_str/", 1280)
+    first.close()
+    # The first session ends as its websocket closes.
+    time.sleep(1.5)
+    page = _open(browser, f"{shiny_size_app_url}/kept_str/", 1280)
+    try:
+        seen = page.evaluate(_GEOMETRY)
+        assert (seen["svg"]["width"], seen["svg"]["height"]) == pytest.approx(
+            _OWN, abs=2
+        ), seen
+        assert seen["frame"]["height"] >= seen["svg"]["height"], seen
+        _assert_reads(page, "a frame kept as a string")
+        assert page.errors == []  # type: ignore[attr-defined]
+    finally:
+        page.close()
+
+
+def test_a_frame_made_into_a_string_in_an_express_page_is_sized(
+    browser, shiny_string_express_app_url
+):
+    """``ui.HTML(str(maidr.render(ax)))`` in a Shiny Express app's page.
+
+    Express builds the page with a stand-in session, which serves nothing:
+    the frame had no URL to load its script from, and stayed 150px tall,
+    the chart cut by 291px.
+    """
+    page = _open(browser, shiny_string_express_app_url, 1280)
+    try:
+        seen = page.evaluate(_GEOMETRY)
+        assert (seen["svg"]["width"], seen["svg"]["height"]) == pytest.approx(
+            _OWN, abs=2
+        ), seen
+        assert seen["frame"]["height"] >= seen["svg"]["height"], seen
+        _assert_reads(page, "a frame made into a string in an Express page")
         seen = _settle(page)
         assert seen["text"] is not None and _inside(seen["text"], seen["frame"]), seen
         assert page.errors == []  # type: ignore[attr-defined]

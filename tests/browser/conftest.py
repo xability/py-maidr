@@ -215,6 +215,12 @@ def shiny_size_express_app_url():
 
 
 @pytest.fixture(scope="session")
+def shiny_string_express_app_url():
+    """A Shiny Express app with a chart made into a string in its page."""
+    yield from _serve("shiny_string_express_app.py")
+
+
+@pytest.fixture(scope="session")
 def classic_scrollbar_browser(_playwright):
     """A Chromium that draws classic scrollbars, which take room, as Windows'.
 

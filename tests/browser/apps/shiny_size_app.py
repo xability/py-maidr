@@ -6,7 +6,7 @@ in a fillable card that can be taken full screen, with a size given to the
 renderer (in a card too), in a ``ui.output_ui`` written by hand, with an
 announcement three lines long, in a card of a page that is not fillable and
 in a sidebar layout, in a card halfway down a long page, as an HTML string
-a ``render.ui`` returns, and
+a ``render.ui`` returns (one kept from the first session too), and
 Plotly figures (with no height of their
 own, in an output with one, and with ``autosize`` off), Bokeh plots (of a
 fixed width, stretched both ways, and scaled both ways) and Altair charts (of their own size, and their
@@ -194,8 +194,29 @@ def _as_string(how):
     return App(_fluid(ui.output_ui("m")), server)
 
 
+#: A frame made into a string once, by the first session, and shown by each.
+_KEPT: dict = {}
+
+
+def _kept_string():
+    """``render.ui`` returning a string kept from the session that made it."""
+
+    def server(input, output_, session):
+        @render.ui
+        def m():
+            if "html" not in _KEPT:
+                _KEPT["html"] = str(maidr.render(_bars()))
+            return ui.HTML(_KEPT["html"])
+
+    return App(_fluid(ui.output_ui("m")), server)
+
+
 #: Apps whose output is not ``render_maidr``'s.
-OTHER_APPS = {"as_str": _as_string("str"), "as_html_string": _as_string("html")}
+OTHER_APPS = {
+    "as_str": _as_string("str"),
+    "as_html_string": _as_string("html"),
+    "kept_str": _kept_string(),
+}
 
 app = Starlette(
     routes=[Mount(f"/{name}", app=_app(*case)) for name, case in CASES.items()]
