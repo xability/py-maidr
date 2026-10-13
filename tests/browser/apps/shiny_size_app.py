@@ -7,7 +7,8 @@ renderer (in a card too), in a ``ui.output_ui`` written by hand, with an
 announcement three lines long, in a card of a page that is not fillable and
 in a sidebar layout, in a card halfway down a long page (one drawn again as an input
 changes too), as an HTML string a ``render.ui`` returns (one kept from the
-first session too), and
+first session too, which ``/kept_str.html`` hands out as a download
+would), and
 Plotly figures (with no height of their
 own, in an output with one, and with ``autosize`` off), Bokeh plots (of a
 fixed width, stretched both ways, and scaled both ways) and Altair charts (of their own size, and their
@@ -22,7 +23,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 from shiny import App, reactive, render, ui  # noqa: E402
 from starlette.applications import Starlette  # noqa: E402
-from starlette.routing import Mount  # noqa: E402
+from starlette.responses import PlainTextResponse  # noqa: E402
+from starlette.routing import Mount, Route  # noqa: E402
 
 import maidr  # noqa: E402
 from maidr.widget.shiny import output_maidr, render_maidr  # noqa: E402
@@ -212,6 +214,11 @@ def _kept_string():
     return App(_fluid(ui.output_ui("m")), server)
 
 
+def _kept_string_file(request):
+    """The kept string, as a download handler would write it to a file."""
+    return PlainTextResponse(_KEPT.get("html", ""))
+
+
 def _drawn_again():
     """The tall page's chart, drawn again whenever the input ``again`` changes."""
 
@@ -240,6 +247,7 @@ OTHER_APPS = {
 }
 
 app = Starlette(
-    routes=[Mount(f"/{name}", app=_app(*case)) for name, case in CASES.items()]
+    routes=[Route("/kept_str.html", _kept_string_file)]
+    + [Mount(f"/{name}", app=_app(*case)) for name, case in CASES.items()]
     + [Mount(f"/{name}", app=other) for name, other in OTHER_APPS.items()]
 )

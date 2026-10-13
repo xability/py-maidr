@@ -946,8 +946,11 @@ def _shiny_frame_fallback() -> str | None:
     the frame stayed 150px tall and cut the chart off. The dependency is
     registered with the app instead, as Shiny registers one an output
     sends, and the frame loads it from the app's own URL for it when the
-    script is not there: a URL every session of the app serves, so that a
-    string kept from one session and shown in another loads it too. Not
+    script is not there: a URL every session the server process runs
+    serves, so that a string kept from one session and shown in another
+    loads it too. Where it is not served -- a file, another process, a
+    restarted server -- the frame is sized to what it holds
+    (:func:`_shiny_onload`). Not
     for :class:`maidr.widget.shiny.render_maidr`'s frames
     (:func:`shiny_frame_dependency_sent`), which always bring it.
 
@@ -1007,7 +1010,7 @@ def _shiny_onload(
     ``src`` loads the script from there when it is not there as it loads,
     and one given ``None`` carries it; see :func:`_shiny_frame_fallback`.
     One that waited in vain says so in the console, where it had given up
-    in silence.
+    in silence; one given ``src`` is then as tall as what it holds.
 
     Parameters
     ----------
@@ -1030,19 +1033,38 @@ def _shiny_onload(
         # The script defines maidrShinyFrame once per page, whichever
         # frame runs it first.
         return _shiny_frame_inline() + f"\nmaidrShinyFrame(this,'{kind}',{given})"
-    load = (
-        "if(!n&&!window.maidrShinyFrameSrc){window.maidrShinyFrameSrc=1;"
-        "var s=document.createElement('script');"
-        f"s.src={json.dumps(src)};document.head.appendChild(s)}}"
-        if src
-        else ""
-    )
+    if not src:
+        return (
+            "var f=this;(function g(n){if(window.maidrShinyFrame)"
+            f"maidrShinyFrame(f,'{kind}',{given});"
+            "else if(n<200)setTimeout(function(){g(n+1)},50);"
+            "else console.warn('maidr: maidr-shiny-frame did not load; "
+            "this chart is not sized')})(0)"
+        )
+    # Where the script does not load -- a string written to a file and
+    # opened from disk, kept past a restart of the server, or shown by
+    # another of its processes, none of which serves the URL -- the frame
+    # is as tall as what it holds, measured again as its body changes size
+    # and as the reader moves through the chart (a Plotly chart's body
+    # keeps the frame's height, and its text runs past it), rather than
+    # 150px: the chart is not fitted to the page, but all of it is shown.
     return (
-        "var f=this;(function g(n){if(window.maidrShinyFrame)"
+        "var f=this,w=window;(function g(n){if(w.maidrShinyFrame)"
         f"maidrShinyFrame(f,'{kind}',{given});"
-        f"else if(n<200){{{load}setTimeout(function(){{g(n+1)}},50)}}"
-        "else console.warn('maidr: maidr-shiny-frame did not load; "
-        "this chart is not sized')})(0)"
+        "else if(n<200&&w.maidrShinyFrameSrc!==2){"
+        "if(!n&&!w.maidrShinyFrameSrc){w.maidrShinyFrameSrc=1;"
+        "var s=document.createElement('script');"
+        "s.onerror=function(){w.maidrShinyFrameSrc=2};"
+        f"s.src={json.dumps(src)};document.head.appendChild(s)}}"
+        "setTimeout(function(){g(n+1)},50)}"
+        "else{var d=f.contentDocument,h=function(){"
+        "f.style.height=d.body.scrollHeight+'px'},"
+        "l=function(){setTimeout(h,100)};h();"
+        "['focusin','focusout','keyup'].forEach(function(e){"
+        "d.addEventListener(e,l,true)});"
+        "try{new f.contentWindow.ResizeObserver(l).observe(d.body)}catch(e){}"
+        "console.warn('maidr: maidr-shiny-frame did not load; "
+        "this chart is sized to its content')}})(0)"
     )
 
 

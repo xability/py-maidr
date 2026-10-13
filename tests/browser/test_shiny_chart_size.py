@@ -1312,6 +1312,84 @@ def test_a_frame_made_into_a_string_in_an_express_page_is_sized(
         page.close()
 
 
+def _assert_shows_all_of_it(page, where: str) -> None:
+    """The chart and its text shown whole: the frame as tall as they are."""
+    seen = page.evaluate(_GEOMETRY)
+    assert seen["frame"]["height"] >= seen["svg"]["height"], (where, seen)
+    assert _inside(seen["svg"], seen["frame"]), (where, seen)
+    _assert_reads(page, where)
+    seen = _settle(page)
+    assert seen["text"] is not None and _inside(seen["text"], seen["frame"]), (
+        where,
+        seen,
+    )
+
+
+@pytest.mark.parametrize("case", ["as_str", "kept_str"])
+def test_a_string_frame_whose_script_is_not_served_shows_the_chart(
+    browser, shiny_size_app_url, case
+):
+    """The script's URL answers 404: a server restarted, or another process.
+
+    A string kept past a restart, or shown by a process that never
+    registered the script, named a URL nothing served, and the frame stayed
+    150px tall, 291px of the chart cut off.
+    """
+    page = browser.new_page(viewport={"width": 1280, "height": 900})
+    page.route(
+        "**/maidr-shiny-frame-*/frame.js",
+        lambda route: route.fulfill(status=404, body="Not Found"),
+    )
+    errors: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    try:
+        page.goto(f"{shiny_size_app_url}/{case}/")
+        page.wait_for_selector("#m iframe", timeout=30_000)
+        page.frame_locator("#m iframe").locator(CHART).first.wait_for(
+            state="attached", timeout=30_000
+        )
+        _settle(page)
+        _assert_shows_all_of_it(page, f"{case}, its script not served")
+        assert errors == []
+    finally:
+        page.close()
+
+
+def test_a_string_frame_written_to_a_file_shows_the_chart(
+    browser, shiny_size_app_url, tmp_path
+):
+    """A download handler writes the string to a file, opened from disk.
+
+    Its script's URL is relative to the app, which a file has none of: the
+    frame stayed 150px tall, 313px of the chart cut off.
+    """
+    first = _open(browser, f"{shiny_size_app_url}/kept_str/", 1280)
+    try:
+        html = first.request.get(f"{shiny_size_app_url}/kept_str.html").text()
+    finally:
+        first.close()
+    assert "maidr-shiny-frame" in html
+    saved = tmp_path / "chart.html"
+    saved.write_text(
+        "<!doctype html><html><head><meta charset='utf-8'></head>"
+        f"<body><div id='m'>{html}</div></body></html>",
+        encoding="utf-8",
+    )
+    page = browser.new_page(viewport={"width": 1280, "height": 900})
+    errors: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    try:
+        page.goto(saved.as_uri())
+        page.frame_locator("#m iframe").locator(CHART).first.wait_for(
+            state="attached", timeout=30_000
+        )
+        _settle(page)
+        _assert_shows_all_of_it(page, "a string written to a file")
+        assert errors == []
+    finally:
+        page.close()
+
+
 def test_a_hand_written_output_ui_shows_the_chart(browser, shiny_size_app_url):
     """``ui.output_ui`` rather than ``output_maidr``: the plain figure's size."""
     page = _open(browser, f"{shiny_size_app_url}/hand_written/", 1280)

@@ -463,7 +463,11 @@ def test_a_frame_made_into_a_string_loads_its_script_itself(fake_session, plotly
     assert not fake_session._dynamic_routes
     # Loaded once per page, whatever the number of frames, only when the
     # script is not there as the frame loads.
-    assert "if(!n&&!window.maidrShinyFrameSrc)" in onload
+    assert "if(!n&&!w.maidrShinyFrameSrc)" in onload
+    # Where the URL is not served -- a file, a restarted server -- the frame
+    # is as tall as what it holds rather than 150px.
+    assert "s.onerror=function(){w.maidrShinyFrameSrc=2}" in onload
+    assert "f.style.height=d.body.scrollHeight+'px'" in onload
     [served] = [
         dep for dep in fake_session.app.registered if dep.name == SHINY_FRAME_NAME
     ]
