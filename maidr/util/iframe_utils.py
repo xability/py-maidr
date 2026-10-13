@@ -1118,6 +1118,13 @@ def _shiny_onload(
     # and as the reader moves through the chart (a Plotly chart's body
     # keeps the frame's height, and its text runs past it), rather than
     # 150px: the chart is not fitted to the page, but all of it is shown.
+    # A chart that takes its height from its container is given
+    # ``fillHeight`` first, as the served script gives it in an output with
+    # no height of its own, and told so by a resize: an Altair chart of
+    # height "container" followed the frame, which followed it, and grew
+    # without end; a stretched Bokeh plot had no height at all. Nor can
+    # anything else that follows the frame grow it without end: it grows
+    # six times at most between two moves of the reader's.
     return (
         "var f=this,w=window;(function g(n){if(w.maidrShinyFrame)"
         f"maidrShinyFrame(f,'{kind}',{given});"
@@ -1127,12 +1134,19 @@ def _shiny_onload(
         "s.onerror=function(){w.maidrShinyFrameSrc=2};"
         f"s.src={json.dumps(src)};document.head.appendChild(s)}}"
         "setTimeout(function(){g(n+1)},50)}"
-        "else{var d=f.contentDocument,h=function(){"
-        "f.style.height=d.body.scrollHeight+'px'},"
-        "l=function(){setTimeout(h,100)};h();"
+        f"else{{var c=f.contentWindow,d=c.document,o={given},k=0,h=function(){{"
+        "var p=o.fillHeight&&d.querySelector('.js-plotly-plot,"
+        "[id^=\"maidr-bokeh-\"][id$=\"-plot\"],.vega-embed');"
+        "if(p&&p.style.height!==o.fillHeight+'px'){"
+        "p.style.height=o.fillHeight+'px';"
+        "try{c.dispatchEvent(new c.Event('resize'))}catch(e){}}"
+        "var y=d.body.scrollHeight;"
+        "if(y>(parseFloat(f.style.height)||0)&&++k>6)return;"
+        "f.style.height=y+'px'},"
+        "l=function(){setTimeout(h,100)},r=function(){k=0;l()};h();"
         "['focusin','focusout','keyup'].forEach(function(e){"
-        "d.addEventListener(e,l,true)});"
-        "try{new f.contentWindow.ResizeObserver(l).observe(d.body)}catch(e){}"
+        "d.addEventListener(e,r,true)});"
+        "try{new c.ResizeObserver(l).observe(d.body)}catch(e){}"
         "console.warn('maidr: maidr-shiny-frame did not load; "
         "this chart is sized to its content')}})(0)"
     )

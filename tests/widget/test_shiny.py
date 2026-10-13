@@ -507,7 +507,18 @@ def test_a_frame_made_into_a_string_loads_its_script_itself(fake_session, plotly
     # Where the URL is not served -- a file, a restarted server -- the frame
     # is as tall as what it holds rather than 150px.
     assert "s.onerror=function(){w.maidrShinyFrameSrc=2}" in onload
-    assert "f.style.height=d.body.scrollHeight+'px'" in onload
+    assert "var y=d.body.scrollHeight;" in onload
+    assert "f.style.height=y+'px'" in onload
+    # A chart that takes its height from its container is given the one
+    # the served script gives it, and told so; and the frame stops growing
+    # after six measures in a row without a move of the reader's, rather
+    # than following content that follows it without end.
+    assert "p.style.height=o.fillHeight+'px'" in onload
+    assert "c.dispatchEvent(new c.Event('resize'))" in onload
+    assert "&&++k>6)return;" in onload
+    assert "r=function(){k=0;l()}" in onload
+    if plotly:
+        assert '"fillHeight":450' in onload
     [served] = [
         dep for dep in fake_session.app.registered if dep.name == SHINY_FRAME_NAME
     ]

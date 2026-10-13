@@ -1529,6 +1529,75 @@ def test_a_string_frame_whose_script_is_not_served_shows_the_chart(
         page.close()
 
 
+def _without_its_script(browser, url: str):
+    page = browser.new_page(viewport={"width": 1280, "height": 900})
+    page.route(
+        "**/maidr-shiny-frame-*/frame.js",
+        lambda route: route.fulfill(status=404, body="Not Found"),
+    )
+    page.goto(url)
+    page.wait_for_selector("#m iframe", timeout=30_000)
+    return page
+
+
+#: The height of the frame, and of the chart it holds.
+_FALLBACK = r"""() => {
+  const frame = document.querySelector('#m iframe');
+  const doc = frame.contentDocument;
+  const plot = doc.querySelector(
+    '.vega-embed, [id^="maidr-bokeh-"][id$="-plot"]');
+  return {frame: frame.getBoundingClientRect().height,
+          plot: plot && plot.getBoundingClientRect().height,
+          bottom: plot && plot.getBoundingClientRect().bottom};
+}"""
+
+
+@pytest.mark.parametrize("case", ["str_altair_container", "str_bokeh_stretched"])
+def test_a_string_frame_whose_script_is_not_served_gives_a_container_height(
+    browser, shiny_size_app_url, case
+):
+    """An Altair chart of height "container", a Bokeh plot stretched both ways.
+
+    Each is given 450px, as in a served frame. The Altair chart followed
+    the frame sized to it, which followed the chart, and grew 34px a second
+    for as long as the page was open; the Bokeh plot was 51px tall.
+    """
+    page = _without_its_script(browser, f"{shiny_size_app_url}/{case}/")
+    try:
+        page.frame_locator("#m iframe").locator(CHART).first.wait_for(
+            state="attached", timeout=30_000
+        )
+        page.wait_for_timeout(2000)
+        first = page.evaluate(_FALLBACK)
+        page.wait_for_timeout(3000)
+        later = page.evaluate(_FALLBACK)
+        assert first["plot"] == pytest.approx(450, abs=5), first
+        assert later == first, (first, later)
+        assert first["bottom"] <= first["frame"] + 1, first
+    finally:
+        page.close()
+
+
+def test_a_string_frame_that_follows_its_height_stops_growing(
+    browser, shiny_size_app_url
+):
+    """A body as tall as the frame's window, and 4px more, without its script.
+
+    Measured at the frame's height, it is always taller than the frame, and
+    the frame grew every time it was measured, for good.
+    """
+    page = _without_its_script(browser, f"{shiny_size_app_url}/str_follows_frame/")
+    try:
+        page.wait_for_timeout(3000)
+        first = page.evaluate(_FALLBACK)["frame"]
+        page.wait_for_timeout(3000)
+        later = page.evaluate(_FALLBACK)["frame"]
+        assert later == first, (first, later)
+        assert first < 450, first
+    finally:
+        page.close()
+
+
 def test_a_string_frame_written_to_a_file_shows_the_chart(
     browser, shiny_size_app_url, tmp_path
 ):
