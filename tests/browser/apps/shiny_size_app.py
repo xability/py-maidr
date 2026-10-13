@@ -370,6 +370,7 @@ OTHER_APPS = {
     "slider_nowhere": _under_a_slider(_scaled_bars, unplaced=True),
     "str_altair_container": _string_of(lambda: maidr.render(_altair_container())),
     "str_bokeh_stretched": _string_of(lambda: maidr.render(_bokeh_stretched())),
+    "str_bokeh_scaled": _string_of(lambda: maidr.render(_bokeh_scaled())),
     "str_follows_frame": _string_of(_follows_the_frame),
 }
 

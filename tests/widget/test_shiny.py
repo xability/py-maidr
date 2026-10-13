@@ -517,11 +517,13 @@ def test_a_frame_made_into_a_string_loads_its_script_itself(fake_session, plotly
     assert "var y=d.body.scrollHeight;" in onload
     assert "f.style.height=y+'px'" in onload
     # A chart that takes its height from its container is given the one
-    # the served script gives it, and told so; and the frame stops growing
-    # after six measures in a row at one width without a move of the
-    # reader's, rather than following content that follows it without end.
+    # the served script gives it, and told so, one that keeps its shape no
+    # wider than that height allows; and the frame stops growing after six
+    # measures in a row at one width without a move of the reader's, rather
+    # than following content that follows it without end.
     assert "p.style.height=o.fillHeight+'px'" in onload
     assert "c.dispatchEvent(new c.Event('resize'))" in onload
+    assert "p.style.maxWidth=Math.floor(o.fillHeight*b.width/b.height)+'px'" in onload
     assert "&&++k>6)return;" in onload
     assert "if(c.innerWidth!==q){q=c.innerWidth;k=0}" in onload
     assert "r=function(){k=0;l()}" in onload

@@ -1188,11 +1188,14 @@ def _shiny_onload(
     # ``fillHeight`` first, as the served script gives it in an output with
     # no height of its own, and told so by a resize: an Altair chart of
     # height "container" followed the frame, which followed it, and grew
-    # without end; a stretched Bokeh plot had no height at all. Nor can
-    # anything else that follows the frame grow it without end: it grows
-    # six times at most at one width between two moves of the reader's --
-    # counted at any width, a chart growing as the window was dragged
-    # wider was cut after six.
+    # without end; a stretched Bokeh plot had no height at all. One that
+    # keeps its shape, a Bokeh plot scaled both ways, is kept as wide as
+    # that height allows once drawn, as ``maidrKeepShape`` keeps it: at
+    # the window's width, it was as tall as it was wide, 1256px, over its
+    # text. Nor can anything else that follows the frame grow it without
+    # end: it grows six times at most at one width between two moves of
+    # the reader's -- counted at any width, a chart growing as the window
+    # was dragged wider was cut after six.
     return (
         "var f=this,w=window;(function g(n){if(w.maidrShinyFrame)"
         f"maidrShinyFrame(f,'{kind}',{given});"
@@ -1209,6 +1212,11 @@ def _shiny_onload(
         "[id^=\"maidr-bokeh-\"][id$=\"-plot\"],.vega-embed');"
         "if(p&&p.style.height!==o.fillHeight+'px'){"
         "p.style.height=o.fillHeight+'px';z()}"
+        "var b=p&&o.keepsShape&&!p.style.maxWidth&&p.firstElementChild;"
+        "b=b&&b.getBoundingClientRect();"
+        "if(b&&b.width&&b.height){"
+        "p.style.maxWidth=Math.floor(o.fillHeight*b.width/b.height)+'px';"
+        "p.style.margin='0 auto';z()}"
         "if(c.innerWidth!==q){q=c.innerWidth;k=0}"
         "var y=d.body.scrollHeight;"
         "if(y>(parseFloat(f.style.height)||0)&&++k>6)return;"

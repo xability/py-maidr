@@ -1767,21 +1767,27 @@ _FALLBACK = r"""() => {
   const doc = frame.contentDocument;
   const plot = doc.querySelector(
     '.vega-embed, [id^="maidr-bokeh-"][id$="-plot"]');
+  const drawn = plot && plot.firstElementChild;
   return {frame: frame.getBoundingClientRect().height,
           plot: plot && plot.getBoundingClientRect().height,
+          drawn: drawn && drawn.getBoundingClientRect().height,
           bottom: plot && plot.getBoundingClientRect().bottom};
 }"""
 
 
-@pytest.mark.parametrize("case", ["str_altair_container", "str_bokeh_stretched"])
+@pytest.mark.parametrize(
+    "case", ["str_altair_container", "str_bokeh_stretched", "str_bokeh_scaled"]
+)
 def test_a_string_frame_whose_script_is_not_served_gives_a_container_height(
     browser, shiny_size_app_url, case
 ):
-    """An Altair chart of height "container", a Bokeh plot stretched both ways.
+    """An Altair chart of height "container", Bokeh plots stretched or scaled.
 
     Each is given 450px, as in a served frame. The Altair chart followed
     the frame sized to it, which followed the chart, and grew 34px a second
-    for as long as the page was open; the Bokeh plot was 51px tall.
+    for as long as the page was open; the stretched Bokeh plot was 51px
+    tall; the scaled one, as tall as it was wide at the window's width,
+    1256px, was drawn over its own text.
     """
     page = _without_its_script(browser, f"{shiny_size_app_url}/{case}/")
     try:
@@ -1793,6 +1799,7 @@ def test_a_string_frame_whose_script_is_not_served_gives_a_container_height(
         page.wait_for_timeout(3000)
         later = page.evaluate(_FALLBACK)
         assert first["plot"] == pytest.approx(450, abs=5), first
+        assert first["drawn"] <= first["plot"] + 1, first
         assert later == first, (first, later)
         assert first["bottom"] <= first["frame"] + 1, first
     finally:
