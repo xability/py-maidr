@@ -1047,6 +1047,36 @@ def test_an_altair_chart_as_tall_as_its_container_is_given_a_height(
         page.close()
 
 
+def test_an_altair_chart_as_tall_as_its_card_follows_a_shorter_window(
+    browser, shiny_size_app_url
+):
+    """The card shorter, the chart drawn shorter, and the frame with it.
+
+    Vega draws the chart again some time after its container's height
+    changes. The frame was measured before it had, and nothing measured it
+    again: it kept its old height, 400px of blank below the text that the
+    card scrolled over, until the next key.
+    """
+    page = _open(browser, f"{shiny_size_app_url}/altair_container_card/", 1280)
+    try:
+        page.wait_for_timeout(1500)
+        tall = _settle(page)
+        page.set_viewport_size({"width": 1280, "height": 500})
+        page.wait_for_timeout(1500)
+        seen = _settle(page)
+        drawn = _chart_frame(page).evaluate(_VEGA_HEIGHT)
+        assert seen["box"]["height"] < tall["box"]["height"] - 300, (tall, seen)
+        assert drawn >= seen["box"]["height"] - 60, (drawn, seen)
+        assert seen["frame"]["height"] <= seen["boxClient"][1] + 1, seen
+        assert seen["boxScroll"][1] <= seen["boxClient"][1] + 1, seen
+        # And no further: measured again, it is not resized.
+        page.wait_for_timeout(2000)
+        assert page.evaluate(_GEOMETRY)["frame"] == seen["frame"]
+        assert page.errors == []  # type: ignore[attr-defined]
+    finally:
+        page.close()
+
+
 # ---------------------------------------------------------------------------
 # The renderer's own size, under Express too; outputs written other ways
 # ---------------------------------------------------------------------------

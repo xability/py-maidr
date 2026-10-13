@@ -297,8 +297,8 @@
         // that height later, after a debounce: the frame was measured
         // before it had, and kept the old plot's height until something
         // else measured it -- full screen left a Plotly chart's text below
-        // its frame, out of sight. ``redrawn`` measures it once plotly.js
-        // has drawn it; the height is then the one set, so that measuring
+        // its frame, out of sight. ``redrawn`` measures it once plotly.js, or
+        // Vega, has drawn it; the height is then the one set, so that measuring
         // resizes nothing.
         function maidrFillHeight(doc, height, redrawn, keepsShape) {
             var plot = doc.querySelector(
@@ -311,9 +311,20 @@
             if (plot.style.height === px) return;
             plot.style.height = px;
             if (plot.classList.contains('vega-embed')) {
-                // Vega reads a container's height on the window's resize.
+                // Vega reads a container's height on the window's resize,
+                // and draws the chart again later. Measured once it has:
+                // a chart drawn shorter left the frame at its old height,
+                // which nothing else measured, blank below the text.
                 try {
                     var win = doc.defaultView;
+                    plot.maidrRedrawn = redrawn;
+                    var marks = plot.querySelector('.marks');
+                    if (marks && !plot.maidrMarks && win.ResizeObserver) {
+                        plot.maidrMarks = new win.ResizeObserver(function() {
+                            if (plot.maidrRedrawn) plot.maidrRedrawn();
+                        });
+                        plot.maidrMarks.observe(marks);
+                    }
                     win.dispatchEvent(new win.Event('resize'));
                 } catch (_) {}
             }
