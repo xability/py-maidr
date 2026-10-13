@@ -1164,8 +1164,10 @@ frame is as tall as the part of the notebook you see (the area JupyterLab and
 Notebook 7 scroll the notebook in, or the window of an exported page), and
 as wide as the dialog where the chart is narrower, and it is scrolled to the
 middle of that part, so that the dialog is shown whole. A chart taller than
-that keeps its height, and the dialog keeps to the part you see. The frame
-goes back to the chart's size when the dialog closes. The notebook stays
+that keeps its height, and the dialog is shown in the part of it you see,
+which is scrolled into view only as far as the dialog needs: the chart's top
+stays where it was. The frame goes back to the chart's size when the dialog
+closes. The notebook stays
 where the dialog left it, with the chart in view; if the chart is not wholly
 in view then — the window changed size while the dialog was open, as when
 you zoom or turn a phone — it is scrolled into view, by as little as that
@@ -1274,7 +1276,10 @@ rather than covering its edge.
 **While one of maidr's dialogs is open** — help, settings, the chat — the
 output is as tall as the part of the window you see, however short its own
 height, and is scrolled into view, so that the dialog is shown whole and its
-Close button can be reached. That holds in a card or a sidebar layout whose
+Close button can be reached. Over a chart taller than the window, the
+dialog is shown in the part of the chart you see, and the page moves only
+as far as the dialog needs, so that the chart's top, and the mark you were
+on, stay where they were. That holds in a card or a sidebar layout whose
 height follows its content, as every card's does on a phone: it grows with
 the output. In one of a height of its own — a card in `ui.page_fillable()`
 on a wide screen, a card given a `height` — the dialog keeps to what the
@@ -1284,13 +1289,17 @@ stays where the dialog left it, with the chart in view; if the chart is not
 wholly in view then — the window changed size while the dialog was open, as
 when you zoom or turn a phone — it is scrolled into view, by as little as
 that takes. Where the page was before the dialog opened is not put back. If
-the chart is drawn again, or its output emptied, while the dialog is open,
-the output gives up the dialog's room and the page is left where it is.
+the chart is drawn again while the dialog is open, the output gives up the
+dialog's room and keeps its own height until the new chart is in; if it is
+emptied, it gives the room up at once. Either way the page is left where it
+is, as far as its new length allows.
 
 **When a chart is drawn again** — an input it reads changed, or new data
 came in — its output keeps the height it had until the new chart is in, and
 nothing scrolls the page: a reader moving a slider below a chart whose top
-is above the window keeps the page where it was, and the slider on screen.
+is above the window keeps the page where it was, and the slider on screen,
+however quickly the values come. A new chart taller or shorter than the old
+one moves what is below it by the difference.
 
 Where a chart differs from `render.plot`'s:
 
@@ -1337,8 +1346,9 @@ a file by a download handler and opened later, or kept past a restart of the
 server — the frame is as tall as the chart and its text, not fitted to the
 page, and the browser's console says so; a chart that takes its height from
 its container (see above) is 450px tall, as in an output with no height of
-its own. To give a reader a chart as a
-file, write it with `maidr.save_html()`.
+its own, and a Bokeh plot scaled both ways is as wide as that allows at its
+shape. To give a reader a chart as a file, write it with
+`maidr.save_html()`.
 
 ## Quarto Documents
 
