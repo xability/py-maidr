@@ -191,11 +191,14 @@ def test_a_frame_keeps_the_notebook_where_it_is_scrolled():
         wrap_in_iframe_plotly(tags.div("chart"), "Sales", in_notebook=True),
     ):
         script = _attribute(frame, "onload")
-        # Kept before the frame is measured, and put back once it is.
-        kept = script.index("fitsOutput ? maidrKeepScroll(iframe) : null;")
+        # Kept before the frame is measured, and put back once it is: every
+        # box round it, where a Shiny app's frame keeps its own box's alone.
+        kept = script.index("maidrKeepScroll(iframe")
+        assert "maidrKeepScroll(iframe, true)" not in script
         measured = script.index("iframe.style.height = fitsOutput ? '0px' : 'auto';")
         restored = script.index("if (restoreScroll) restoreScroll();")
         assert kept < measured < restored
+    assert "let fitsBox = false;" in _attribute(_frame(in_notebook=True), "onload")
 
 
 def test_a_notebook_frame_makes_room_for_maidrs_dialogs():

@@ -13,11 +13,12 @@
             return pad > 0 ? 'calc(100% + ' + pad + 'px)' : '100%';
         }
 
-        function maidrKeepScroll(iframe) {
+        function maidrKeepScroll(iframe, boxOnly) {
             var page = iframe.ownerDocument;
             var frame = iframe.getBoundingClientRect();
             var kept = [];
-            for (var el = iframe.parentElement; el; el = el.parentElement) {
+            for (var el = iframe.parentElement; el;
+                    el = boxOnly ? null : el.parentElement) {
                 if (el.scrollTop || el.scrollLeft) {
                     var whole = el === page.documentElement || el === page.body;
                     var shown = whole ? 0 : el.getBoundingClientRect().top + el.clientTop;
@@ -213,6 +214,100 @@
             }
             return Math.floor(Math.max(room, own));
         }
+        // Holds on an element's height, each for a reason: the most of
+        // them is its min-height, and its own comes back once none is left.
+        function maidrHold(el, why, px) {
+            if (!el) return;
+            var holds = el.maidrHolds;
+            if (!holds) {
+                if (!(px > 0)) return;
+                holds = el.maidrHolds = {own: el.style.minHeight, by: {}};
+            }
+            if (px > 0) holds.by[why] = px; else delete holds.by[why];
+            var most = 0;
+            for (var k in holds.by) most = Math.max(most, holds.by[k]);
+            var want = most > 0 ? most + 'px' : holds.own;
+            if (el.style.minHeight !== want) el.style.minHeight = want;
+            if (!(most > 0)) el.maidrHolds = null;
+        }
+        // The element whose height the page sees round a frame's box: the
+        // output, or, where that is a pass-through container (Shiny makes
+        // an output that has children one, display: contents), the
+        // nearest container round it that has a box.
+        function maidrHolder(el) {
+            var page = el && el.ownerDocument;
+            while (el && el !== page.body
+                    && page.defaultView.getComputedStyle(el).display === 'contents') {
+                el = el.parentElement;
+            }
+            return el;
+        }
+        function maidrHeight(el) {
+            var style = el.ownerDocument.defaultView.getComputedStyle(el);
+            var height = el.getBoundingClientRect().height;
+            if (style.boxSizing !== 'border-box') {
+                height -= (parseFloat(style.paddingTop) || 0)
+                    + (parseFloat(style.paddingBottom) || 0)
+                    + (parseFloat(style.borderTopWidth) || 0)
+                    + (parseFloat(style.borderBottomWidth) || 0);
+            }
+            return height;
+        }
+        // The output at the height it has while the frame is measured, at
+        // no height and at 4000px for a moment: the page then stays as it
+        // is. It had been clamped to what fitted, the containers round the
+        // output with it, and scrolled back after. Not while another hold
+        // is on it: the box is measured at its own height as a dialog's
+        // room is given back. Returns what lets go.
+        function maidrHoldStill(iframe) {
+            var box = iframe.parentElement;
+            var el = box && maidrHolder(box.parentElement);
+            if (!el || el.maidrHolds) return null;
+            maidrHold(el, 'measure', maidrHeight(el));
+            return function() { maidrHold(el, 'measure', 0); };
+        }
+        // An output whose chart is about to be drawn again is held at the
+        // height it has (Shiny's shiny:value comes before it is), until a
+        // new frame in it has measured its chart (maidrRedrawn), until
+        // there is no frame of maidr's in it, or for 10s at most. Not one
+        // whose chart has a dialog open: its height is the dialog's room.
+        function maidrHoldRedraw(out) {
+            var old = out.querySelectorAll('iframe[data-maidr-chart]');
+            for (var i = 0; i < old.length; i++) {
+                if (old[i].maidrDialogOpen) return;
+            }
+            var el = old.length && maidrHolder(out);
+            if (!el) return;
+            var win = out.ownerDocument.defaultView;
+            maidrLetGo(el);
+            var redraw = el.maidrRedraw = {old: Array.prototype.slice.call(old)};
+            maidrHold(el, 'redraw', maidrHeight(el));
+            redraw.timer = win.setTimeout(function() { maidrLetGo(el); }, 10000);
+            if (win.MutationObserver) {
+                redraw.watch = new win.MutationObserver(function() {
+                    if (!out.querySelector('iframe[data-maidr-chart]')) maidrLetGo(el);
+                });
+                redraw.watch.observe(out, {childList: true, subtree: true});
+            }
+        }
+        function maidrLetGo(el) {
+            var redraw = el.maidrRedraw;
+            if (!redraw) return;
+            el.maidrRedraw = null;
+            el.ownerDocument.defaultView.clearTimeout(redraw.timer);
+            if (redraw.watch) redraw.watch.disconnect();
+            maidrHold(el, 'redraw', 0);
+        }
+        // A frame that has measured its chart lets go of the output held
+        // for it, the frame it replaced having gone.
+        function maidrRedrawn(iframe) {
+            for (var el = iframe.parentElement; el; el = el.parentElement) {
+                if (el.maidrRedraw && el.maidrRedraw.old.indexOf(iframe) < 0) {
+                    maidrLetGo(el);
+                    return;
+                }
+            }
+        }
         // The box, and the output it fills, at least this tall; 0 gives
         // them back the height they had. Let go of at once should the frame
         // be taken out of the page while they are held -- its chart drawn
@@ -234,15 +329,7 @@
             }
             if (!holding) return;
             for (var i = 0; i < holding.held.length; i++) {
-                var el = holding.held[i];
-                if (!el) continue;
-                if (room > 0) {
-                    if (el.maidrHeld === undefined) el.maidrHeld = el.style.minHeight;
-                    if (el.style.minHeight !== room + 'px') el.style.minHeight = room + 'px';
-                } else if (el.maidrHeld !== undefined) {
-                    el.style.minHeight = el.maidrHeld;
-                    el.maidrHeld = undefined;
-                }
+                maidrHold(holding.held[i], 'dialog', room);
             }
             if (!(room > 0)) {
                 if (holding.gone) holding.gone.disconnect();
@@ -422,7 +509,9 @@
                 let iframeDocument = iframe.contentWindow.document;
                 let body = iframeDocument.body;
                 let de = iframeDocument.documentElement;
-                let restoreScroll = fitsOutput ? maidrKeepScroll(iframe) : null;
+                let letGo = fitsBox ? maidrHoldStill(iframe) : null;
+                let restoreScroll = fitsOutput
+                    ? maidrKeepScroll(iframe, fitsBox) : null;
                 let before = iframe.style.height;
                 let room = fitsOutput ? maidrDialogRoom(iframeDocument, iframe) : 0;
 
@@ -538,6 +627,8 @@
                 height = Math.max(height, room);
                 iframe.style.height = (height) + 'px';
                 if (restoreScroll) restoreScroll();
+                if (letGo) letGo();
+                if (fitsBox && own > 0) maidrRedrawn(iframe);
                 if (fitsOutput) {
                     let resized = iframe.style.height !== before;
                     maidrShowDialog(iframeDocument, iframe, room, resized);
@@ -638,7 +729,8 @@
             var body = doc.body;
             if (!body) return;
             var de = doc.documentElement;
-            var restoreScroll = fitsOutput ? maidrKeepScroll(iframe) : null;
+            var letGo = maidrHoldStill(iframe);
+            var restoreScroll = maidrKeepScroll(iframe, true);
             var before = iframe.style.height;
             var room = fitsOutput ? maidrDialogRoom(doc, iframe) : 0;
 
@@ -727,6 +819,10 @@
 
             iframe.style.height = height + 'px';
             if (restoreScroll) restoreScroll();
+            if (letGo) letGo();
+            if (doc.querySelector('[role=img], [role=application]')) {
+                maidrRedrawn(iframe);
+            }
             if (fitsOutput) {
                 var resized = iframe.style.height !== before;
                 maidrShowDialog(doc, iframe, room, resized);
@@ -793,4 +889,11 @@
     window.maidrShinyFrame = function (frame, kind, options) {
         (kind === 'plotly' ? plotlyFrame : matplotlibFrame)(frame, options || {});
     };
+    if (window.jQuery) {
+        window.jQuery(document).on('shiny:value', function (event) {
+            if (event.target && event.target.querySelectorAll) {
+                maidrHoldRedraw(event.target);
+            }
+        });
+    }
 })();

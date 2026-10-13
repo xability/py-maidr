@@ -623,6 +623,54 @@ def test_closing_a_dialog_after_the_window_changed_size_shows_the_chart(
         page.close()
 
 
+def _replaced(page, change, oid: str = "m") -> None:
+    """Do ``change``, and wait for the output's new frame to show its chart."""
+    page.evaluate(
+        "(oid) => document.querySelector(`#${oid} iframe`).dataset.old = ''", oid
+    )
+    change()
+    page.wait_for_selector(f"#{oid} iframe:not([data-old])", timeout=15_000)
+    page.frame_locator(f"#{oid} iframe").locator(CHART).first.wait_for(
+        state="attached", timeout=30_000
+    )
+
+
+@pytest.mark.parametrize("width", [1280, 390])
+def test_a_chart_drawn_again_under_a_dialog_does_not_move_the_page(
+    browser, shiny_size_app_url, width
+):
+    """The output is drawn again while help is open, as live data would.
+
+    The page stays where the dialog had it, and the output goes back to its
+    own height: it had been put back, later, to where it was as the dialog
+    opened, by the next frame in the output, from places kept for it that
+    never expired.
+    """
+    page = _open(browser, f"{shiny_size_app_url}/tall_drawn_again/", width, 800)
+    try:
+        _open_help_halfway_down(page)
+        opened = _settle(page)
+        _replaced(
+            page,
+            lambda: page.evaluate(
+                "() => Shiny.setInputValue('again', 1, {priority: 'event'})"
+            ),
+        )
+        page.wait_for_timeout(1200)
+        back = _settle(page)
+        assert back["scrollY"] == pytest.approx(opened["scrollY"], abs=1), (
+            opened,
+            back,
+        )
+        assert back["box"]["height"] == pytest.approx(300, abs=1), back
+        assert back["out"]["height"] == pytest.approx(300, abs=1), back
+        frame = back["frame"]
+        assert frame["top"] >= -1 and frame["bottom"] <= 801, back
+        assert page.errors == []  # type: ignore[attr-defined]
+    finally:
+        page.close()
+
+
 @pytest.mark.parametrize("width", [1280, 390])
 def test_a_chart_emptied_under_a_dialog_lets_its_output_go(
     browser, shiny_size_app_url, width
@@ -657,6 +705,116 @@ def test_a_chart_emptied_under_a_dialog_lets_its_output_go(
         page.wait_for_timeout(1200)
         back = _settle(page)
         assert back["scrollY"] == 0, back
+        assert page.errors == []  # type: ignore[attr-defined]
+    finally:
+        page.close()
+
+
+#: The page's scroll position, and where the slider below the chart and the
+#: chart's frame are in the window.
+_UNDER = r"""() => {
+  const frame = document.querySelector('#m iframe');
+  const slider = document.querySelector('#n').closest('.shiny-input-container');
+  const f = frame.getBoundingClientRect();
+  const s = slider.getBoundingClientRect();
+  return {scrollY: window.scrollY, frameTop: f.top, sliderTop: s.top,
+          sliderBottom: s.bottom, window: innerHeight,
+          value: document.querySelector('#n').value};
+}"""
+
+#: Every scroll position the page takes from now on, frame by frame.
+_WATCH_SCROLL = r"""() => {
+  window.maidrSeenScroll = new Set();
+  const note = () => {
+    window.maidrSeenScroll.add(Math.round(window.scrollY));
+    requestAnimationFrame(note);
+  };
+  note();
+}"""
+
+_SIZES = [(640, 450), (390, 844), (1280, 900)]
+_SIZE_IDS = ["zoom-200", "phone", "wide"]
+
+
+def _slider_near_the_top(page) -> dict:
+    """The slider 120px below the window's top, the chart above it."""
+    page.evaluate(
+        "() => { const s = document.querySelector('#n')"
+        ".closest('.shiny-input-container').getBoundingClientRect();"
+        " window.scrollBy({top: s.top - 120, behavior: 'instant'}); }"
+    )
+    page.wait_for_timeout(600)
+    before = page.evaluate(_UNDER)
+    assert before["frameTop"] < 0, ("the chart's top is in the window", before)
+    page.evaluate(_WATCH_SCROLL)
+    return before
+
+
+def _assert_still(page, before: dict, where: str) -> None:
+    seen = page.evaluate(_UNDER)
+    assert seen["scrollY"] == pytest.approx(before["scrollY"], abs=1), (
+        where,
+        before,
+        seen,
+    )
+    assert seen["sliderTop"] >= 0 and seen["sliderBottom"] <= seen["window"], (
+        where,
+        seen,
+    )
+    moved = page.evaluate("() => [...window.maidrSeenScroll]")
+    assert all(abs(y - before["scrollY"]) <= 1 for y in moved), (where, moved)
+
+
+@pytest.mark.parametrize("size", _SIZES, ids=_SIZE_IDS)
+@pytest.mark.parametrize("kind", ["mpl", "plotly", "bokeh"])
+def test_a_chart_drawn_again_above_the_window_leaves_the_page_still(
+    browser, shiny_size_app_url, kind, size
+):
+    """The reader moves a slider below a chart whose top is above the window.
+
+    The page moved with every redraw, 300-450px at 640x450 (the browser at
+    200%), taking the slider and the chart off screen, and crept further
+    with each one: the output collapsed as Shiny put the new frame in, the
+    frame was measured at no height and at 4000px, and the page was
+    scrolled back by what the frame had grown.
+    """
+    page = _open(browser, f"{shiny_size_app_url}/slider_{kind}/", *size)
+    try:
+        before = _slider_near_the_top(page)
+        for value in (3, 4, 5):
+            _replaced(
+                page,
+                lambda value=value: page.evaluate(
+                    "(v) => $('#n').data('ionRangeSlider').update({from: v})", value
+                ),
+            )
+            _settle(page)
+            _assert_still(page, before, f"drawn again at {value}")
+        assert page.errors == []  # type: ignore[attr-defined]
+    finally:
+        page.close()
+
+
+@pytest.mark.parametrize("kind", ["mpl", "plotly", "bokeh"])
+def test_a_slider_moved_with_the_keyboard_stays_where_it_is(
+    browser, shiny_size_app_url, kind
+):
+    """The same with the keyboard, the browser at 200%: ArrowRight, twice.
+
+    The focused slider was taken off screen on the first key, and stayed
+    there.
+    """
+    page = _open(browser, f"{shiny_size_app_url}/slider_{kind}/", 640, 450)
+    try:
+        before = _slider_near_the_top(page)
+        page.focus(".irs-line")
+        for value in ("3", "4"):
+            _replaced(page, lambda: page.keyboard.press("ArrowRight"))
+            _settle(page)
+            assert page.evaluate(_UNDER)["value"] == value
+            _assert_still(page, before, f"moved to {value}")
+        focused = page.evaluate("() => document.activeElement.className")
+        assert "irs-line" in focused, focused
         assert page.errors == []  # type: ignore[attr-defined]
     finally:
         page.close()

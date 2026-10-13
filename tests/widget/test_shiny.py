@@ -393,6 +393,28 @@ def test_the_frame_fits_its_box_in_a_shiny_session(fake_session):
     assert document.startswith("<style>")
 
 
+def test_a_chart_drawn_again_does_not_scroll_the_page():
+    """The served script holds the output still; it never scrolls the page.
+
+    Shiny put the new frame in at 150px, the frame was measured at no
+    height and at 4000px, and the page was scrolled back by what the frame
+    had grown: a reader below a chart whose top was above the window lost
+    the chart and the control they were moving, with every redraw.
+    """
+    script = shiny_frame_script()
+
+    # Held as Shiny is about to draw the output again, and while each frame
+    # is measured; let go once a new frame has measured its chart.
+    assert "window.jQuery(document).on('shiny:value'" in script
+    assert "maidrHoldRedraw(event.target);" in script
+    assert script.count("maidrHoldStill(iframe)") == 3  # defined, and 2 calls
+    assert script.count("maidrRedrawn(iframe);") == 2
+    # Only the frame's own box is scrolled back after a measure.
+    assert "maidrKeepScroll(iframe, fitsBox)" in script
+    assert "maidrKeepScroll(iframe, true)" in script
+    assert "maidrKeepScroll(iframe)" not in script
+
+
 def test_a_closed_dialog_keeps_nothing_for_later():
     """A dialog's close brings the chart into view if it has the focus.
 

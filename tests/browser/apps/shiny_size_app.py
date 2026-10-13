@@ -7,11 +7,12 @@ renderer (in a card too), in a ``ui.output_ui`` written by hand, with an
 announcement three lines long, in a card of a page that is not fillable
 and in a sidebar layout, in a card halfway down a long page (one drawn
 again as an input changes too, and one emptied while the input ``shown``
-is 0), as an HTML string a ``render.ui`` returns (one kept from the first
-session too, which ``/kept_str.html`` hands out as a download would),
-Plotly figures (with no height of their own, in an output with one, and
-with ``autosize`` off), Bokeh plots (of a fixed width, stretched both ways,
-and scaled both ways) and Altair charts (of their own size, and their
+is 0), above a slider that draws it again (matplotlib, Plotly and Bokeh),
+as an HTML string a ``render.ui`` returns (one kept from the first session
+too, which ``/kept_str.html`` hands out as a download would), Plotly
+figures (with no height of their own, in an output with one, and with
+``autosize`` off), Bokeh plots (of a fixed width, stretched both ways, and
+scaled both ways) and Altair charts (of their own size, and their
 container's).
 ``tests/browser/test_shiny_chart_size.py`` drives them.
 """
@@ -250,6 +251,51 @@ def _emptied():
     return App(_tall_page(output_maidr("m", height=300)), server)
 
 
+def _scaled_bars(n):
+    fig, ax = plt.subplots()
+    ax.bar(LABELS, [v * n for v in VALUES], color="#4878a8")
+    ax.set_title("Fruit sold")
+    ax.set_xlabel("Fruit")
+    ax.set_ylabel("Boxes sold")
+    return ax
+
+
+def _scaled_plotly(n):
+    import plotly.graph_objects as go
+
+    fig = go.Figure(go.Bar(x=LABELS, y=[v * n for v in VALUES]))
+    fig.update_layout(title="Fruit sold", xaxis_title="Fruit", yaxis_title="Boxes")
+    return fig
+
+
+def _scaled_bokeh(n):
+    from bokeh.plotting import figure
+
+    plot = figure(x_range=LABELS, width=600, height=400, title="Fruit sold")
+    plot.vbar(x=LABELS, top=[v * n for v in VALUES], width=0.8)
+    return plot
+
+
+def _under_a_slider(figure):
+    """A chart halfway down a long page, drawn again as the slider below it moves."""
+    words = "A paragraph of text that makes the page longer than the window."
+    filler = [ui.p(words) for _ in range(12)]
+    page = ui.page_fluid(
+        ui.h4("Before the chart"),
+        *filler,
+        ui.card(ui.card_header("Chart card"), output_maidr("m")),
+        ui.input_slider("n", "Scale", 1, 10, 2, width="300px"),
+        *filler,
+    )
+
+    def server(input, output_, session):
+        @render_maidr
+        def m():
+            return figure(input.n())
+
+    return App(page, server)
+
+
 #: Apps whose output is not ``render_maidr``'s, or is drawn again.
 OTHER_APPS = {
     "as_str": _as_string("str"),
@@ -257,6 +303,9 @@ OTHER_APPS = {
     "kept_str": _kept_string(),
     "tall_drawn_again": _drawn_again(),
     "tall_emptied": _emptied(),
+    "slider_mpl": _under_a_slider(_scaled_bars),
+    "slider_plotly": _under_a_slider(_scaled_plotly),
+    "slider_bokeh": _under_a_slider(_scaled_bokeh),
 }
 
 app = Starlette(
