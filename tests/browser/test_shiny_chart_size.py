@@ -501,6 +501,48 @@ def test_a_dialog_is_shown_whole_in_a_card_that_follows_its_content(
         page.close()
 
 
+@pytest.mark.parametrize("width", [1280, 390])
+@pytest.mark.parametrize("key", ["Control+/", "Control+,"])
+def test_closing_a_dialog_leaves_the_page_where_the_reader_had_it(
+    browser, shiny_size_app_url, width, key
+):
+    """Halfway down a long page: the page scrolls back once the dialog goes.
+
+    The frame is scrolled to the middle of the window while a dialog is
+    open, which held the box at the window's height. Closing it left the
+    page scrolled by half of that, 250px, the chart at the window's top
+    rather than where the reader had it.
+    """
+    page = _open(browser, f"{shiny_size_app_url}/tall_page/", width, height=800)
+    try:
+        page.evaluate(
+            "() => document.querySelector('#m iframe')"
+            ".scrollIntoView({block: 'center', behavior: 'instant'})"
+        )
+        page.wait_for_timeout(400)
+        _read(page)
+        before = _settle(page)
+        assert before["scrollY"] > 100, before
+        page.keyboard.press(key)
+        page.wait_for_timeout(1500)
+        _settle(page)
+        assert page.evaluate(_DIALOG) is not None, "no dialog opened"
+
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(1200)
+        back = _settle(page)
+        assert page.evaluate(_DIALOG) is None
+        assert back["scrollY"] == pytest.approx(before["scrollY"], abs=1), (
+            before,
+            back,
+        )
+        assert back["frame"]["top"] == pytest.approx(before["frame"]["top"], abs=1)
+        assert back["box"]["height"] == pytest.approx(300, abs=1), back
+        assert page.errors == []  # type: ignore[attr-defined]
+    finally:
+        page.close()
+
+
 #: The fitted chart, and the element its focus ring is drawn on, against what
 #: of the frame shows: its window, and the box's room beside its scrollbar.
 _CUT = r"""() => {

@@ -88,6 +88,30 @@
                 root.style.removeProperty('--maidr-dialog-room');
                 root.removeAttribute('data-maidr-dialog-room');
             }
+            if (opened && !was) {
+                // Where the reader had the page and the boxes round the
+                // frame, before the dialog moved them: put back once it
+                // has gone. Every one, those at 0 too, which centring the
+                // frame scrolled; a long page was otherwise left where the
+                // dialog had been, the chart at the window's top.
+                var places = [];
+                for (var el = iframe.parentElement; el; el = el.parentElement) {
+                    places.push([el, el.scrollTop, el.scrollLeft]);
+                }
+                iframe.maidrDialogPlaces = places;
+            } else if (!opened && was && iframe.maidrDialogPlaces) {
+                var kept = iframe.maidrDialogPlaces;
+                iframe.maidrDialogPlaces = null;
+                for (var i = 0; i < kept.length; i++) {
+                    var place = kept[i];
+                    if (place[0].scrollTop !== place[1]
+                            || place[0].scrollLeft !== place[2]) {
+                        place[0].scrollTo(
+                            {top: place[1], left: place[2], behavior: 'instant'}
+                        );
+                    }
+                }
+            }
             if (opened && (!was || resized)) {
                 // The dialog is centred in the frame: centring the frame in
                 // the reader's view shows it whole. At once, whatever the

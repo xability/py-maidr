@@ -5,7 +5,8 @@ page with the default figure or a wide one, in outputs of a fixed height,
 in a fillable card that can be taken full screen, with a size given to the
 renderer (in a card too), in a ``ui.output_ui`` written by hand, with an
 announcement three lines long, in a card of a page that is not fillable and
-in a sidebar layout, as an HTML string a ``render.ui`` returns, and
+in a sidebar layout, in a card halfway down a long page, as an HTML string
+a ``render.ui`` returns, and
 Plotly figures (with no height of their
 own, in an output with one, and with ``autosize`` off), Bokeh plots (of a
 fixed width, stretched both ways, and scaled both ways) and Altair charts (of their own size, and their
@@ -123,6 +124,18 @@ def _sidebar(output):
     )
 
 
+def _tall_page(output):
+    """A card in the middle of a page much longer than the window."""
+    words = "A paragraph of text that makes the page longer than the window."
+    filler = [ui.p(words) for _ in range(12)]
+    return ui.page_fluid(
+        ui.h4("Before the chart"),
+        *filler,
+        ui.card(ui.card_header("Chart card"), output),
+        *filler,
+    )
+
+
 def _hand_written(output):
     """The output written by hand, as ``ui.output_ui``, not ``output_maidr``."""
     return _fluid(ui.output_ui("m"))
@@ -154,6 +167,7 @@ CASES = {
     "bokeh_scaled_card": (_card, output_maidr("m"), {}, _bokeh_scaled),
     "altair_container": (_fluid, output_maidr("m"), {}, _altair_container),
     "altair_container_card": (_card, output_maidr("m"), {}, _altair_container),
+    "tall_page": (_tall_page, output_maidr("m", height=300), {}, _bars),
 }
 
 
