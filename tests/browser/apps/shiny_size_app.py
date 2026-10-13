@@ -4,14 +4,14 @@ Each case is a Shiny app mounted under ``/<case>/``: the chart in a fluid
 page with the default figure or a wide one, in outputs of a fixed height,
 in a fillable card that can be taken full screen, with a size given to the
 renderer (in a card too), in a ``ui.output_ui`` written by hand, with an
-announcement three lines long, in a card of a page that is not fillable and
-in a sidebar layout, in a card halfway down a long page (one drawn again as an input
-changes too), as an HTML string a ``render.ui`` returns (one kept from the
-first session too, which ``/kept_str.html`` hands out as a download
-would), and
-Plotly figures (with no height of their
-own, in an output with one, and with ``autosize`` off), Bokeh plots (of a
-fixed width, stretched both ways, and scaled both ways) and Altair charts (of their own size, and their
+announcement three lines long, in a card of a page that is not fillable
+and in a sidebar layout, in a card halfway down a long page (one drawn
+again as an input changes too, and one emptied while the input ``shown``
+is 0), as an HTML string a ``render.ui`` returns (one kept from the first
+session too, which ``/kept_str.html`` hands out as a download would),
+Plotly figures (with no height of their own, in an output with one, and
+with ``autosize`` off), Bokeh plots (of a fixed width, stretched both ways,
+and scaled both ways) and Altair charts (of their own size, and their
 container's).
 ``tests/browser/test_shiny_chart_size.py`` drives them.
 """
@@ -21,7 +21,7 @@ import matplotlib
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt  # noqa: E402
-from shiny import App, reactive, render, ui  # noqa: E402
+from shiny import App, reactive, render, req, ui  # noqa: E402
 from starlette.applications import Starlette  # noqa: E402
 from starlette.responses import PlainTextResponse  # noqa: E402
 from starlette.routing import Mount, Route  # noqa: E402
@@ -238,12 +238,25 @@ def _drawn_again():
     return App(_tall_page(output_maidr("m", height=300)), server)
 
 
+def _emptied():
+    """The tall page's chart, gone while the input ``shown`` is 0."""
+
+    def server(input, output_, session):
+        @render_maidr
+        def m():
+            req(input.shown() if "shown" in input else True)
+            return _bars()
+
+    return App(_tall_page(output_maidr("m", height=300)), server)
+
+
 #: Apps whose output is not ``render_maidr``'s, or is drawn again.
 OTHER_APPS = {
     "as_str": _as_string("str"),
     "as_html_string": _as_string("html"),
     "kept_str": _kept_string(),
     "tall_drawn_again": _drawn_again(),
+    "tall_emptied": _emptied(),
 }
 
 app = Starlette(

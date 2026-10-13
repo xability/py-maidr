@@ -503,17 +503,36 @@ def test_a_dialog_is_shown_whole_in_a_card_that_follows_its_content(
         page.close()
 
 
+#: The window's part of the chart's frame, and whether the focus is in it.
+_IN_VIEW = r"""() => {
+  const frame = document.querySelector('#m iframe');
+  const f = frame.getBoundingClientRect();
+  const doc = frame.contentDocument;
+  const a = doc.activeElement;
+  return {top: f.top, bottom: f.bottom, height: f.height, window: innerHeight,
+          scrollY: window.scrollY,
+          focused: document.activeElement === frame && a && a.getAttribute('role')};
+}"""
+
+
+def _assert_in_view(page, where: str) -> dict:
+    """The chart's frame wholly in the window, and the focus in the chart."""
+    seen = page.evaluate(_IN_VIEW)
+    assert seen["top"] >= -1 and seen["bottom"] <= seen["window"] + 1, (where, seen)
+    assert seen["focused"] in ("img", "application"), (where, seen)
+    return seen
+
+
 @pytest.mark.parametrize("width", [1280, 390])
 @pytest.mark.parametrize("key", ["Control+/", "Control+,"])
-def test_closing_a_dialog_leaves_the_page_where_the_reader_had_it(
+def test_closing_a_dialog_halfway_down_a_long_page_leaves_the_chart_in_view(
     browser, shiny_size_app_url, width, key
 ):
-    """Halfway down a long page: the page scrolls back once the dialog goes.
+    """The frame is centred in the window while a dialog is open; it stays.
 
-    The frame is scrolled to the middle of the window while a dialog is
-    open, which held the box at the window's height. Closing it left the
-    page scrolled by half of that, 250px, the chart at the window's top
-    rather than where the reader had it.
+    The output is held at the window's height while the dialog is open,
+    and goes back to its own as it closes: the chart, which has the focus
+    back, is in view, its box its own height again.
     """
     page = _open(browser, f"{shiny_size_app_url}/tall_page/", width, height=800)
     try:
@@ -534,11 +553,7 @@ def test_closing_a_dialog_leaves_the_page_where_the_reader_had_it(
         page.wait_for_timeout(1200)
         back = _settle(page)
         assert page.evaluate(_DIALOG) is None
-        assert back["scrollY"] == pytest.approx(before["scrollY"], abs=1), (
-            before,
-            back,
-        )
-        assert back["frame"]["top"] == pytest.approx(before["frame"]["top"], abs=1)
+        _assert_in_view(page, "after the dialog closed")
         assert back["box"]["height"] == pytest.approx(300, abs=1), back
         assert page.errors == []  # type: ignore[attr-defined]
     finally:
@@ -609,38 +624,39 @@ def test_closing_a_dialog_after_the_window_changed_size_shows_the_chart(
 
 
 @pytest.mark.parametrize("width", [1280, 390])
-def test_a_chart_drawn_again_under_a_dialog_leaves_the_page_where_it_was(
+def test_a_chart_emptied_under_a_dialog_lets_its_output_go(
     browser, shiny_size_app_url, width
 ):
-    """The output is drawn again while help is open, as live data would.
+    """The output is emptied while help is open, and the chart comes back later.
 
-    The frame that kept where the reader had the page went with the chart
-    it replaced, and the new one put nothing back: the page was left 297px
-    further down at 1280px, and 524px at 390px, the box above the window's
-    top.
+    The output was held at the dialog's height, 800px of blank page, until
+    a chart came back; and the chart that came back, after the reader had
+    gone on to read elsewhere, put the page back to where it was as help
+    opened, 1123px away.
     """
-    page = _open(browser, f"{shiny_size_app_url}/tall_drawn_again/", width, 800)
+    page = _open(browser, f"{shiny_size_app_url}/tall_emptied/", width, 800)
     try:
-        before = _open_help_halfway_down(page)
-        old = page.query_selector("#m iframe")
-        page.evaluate("() => Shiny.setInputValue('again', 1, {priority: 'event'})")
+        _open_help_halfway_down(page)
+        page.evaluate("() => Shiny.setInputValue('shown', 0)")
         page.wait_for_function(
-            "(old) => { const f = document.querySelector('#m iframe');"
-            " return f && f !== old; }",
-            arg=old,
-            timeout=15_000,
+            "() => !document.querySelector('#m iframe')", timeout=15_000
         )
+        page.wait_for_timeout(1000)
+        out = page.evaluate(
+            "() => document.getElementById('m').getBoundingClientRect().height"
+        )
+        assert out == pytest.approx(300, abs=1), out
+
+        page.evaluate("() => window.scrollTo({top: 0, behavior: 'instant'})")
+        page.wait_for_timeout(400)
+        page.evaluate("() => Shiny.setInputValue('shown', 1)")
+        page.wait_for_selector("#m iframe", timeout=15_000)
         page.frame_locator("#m iframe").locator(CHART).first.wait_for(
             state="attached", timeout=30_000
         )
         page.wait_for_timeout(1200)
         back = _settle(page)
-        assert back["scrollY"] == pytest.approx(before["scrollY"], abs=1), (
-            before,
-            back,
-        )
-        assert back["frame"]["top"] == pytest.approx(before["frame"]["top"], abs=1)
-        assert back["box"]["height"] == pytest.approx(300, abs=1), back
+        assert back["scrollY"] == 0, back
         assert page.errors == []  # type: ignore[attr-defined]
     finally:
         page.close()

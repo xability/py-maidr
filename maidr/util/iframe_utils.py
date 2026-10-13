@@ -330,10 +330,10 @@ _NOT_LAID_OUT_JS = """
 #: the room, it is scrolled to the middle of the reader's view, and with it
 #: the dialog, centred in it: growing the frame had moved the dialog down,
 #: below the part of the notebook the reader sees. Once it has gone, the
-#: notebook, or the page, and the boxes round the frame are scrolled back to
-#: where the reader had them (``maidrPutBack``), by the next frame in the
-#: output should the chart have been drawn again; or, if the window changed
-#: size while it was open, the frame is scrolled into view instead.
+#: frame gives the room back, and is scrolled into view, by as little as
+#: that takes, if the focus is in it and it is not wholly in view: the
+#: window may have changed size while the dialog was open. Nothing is kept
+#: for later: where the page was as the dialog opened is not put back.
 #: ``maidrWatch`` tells when one comes or goes.
 _DIALOG_ROOM_JS = """
         function maidrDialogRoom(doc, iframe) {
@@ -355,38 +355,6 @@ _DIALOG_ROOM_JS = """
             }
             return Math.floor(height);
         }
-        // Put the page and the boxes round the frame back where the reader
-        // had them as the dialog opened -- unless the window changed size
-        // while it was open (a phone turned, the browser zoomed, a window
-        // snapped): the page was laid out again, and those offsets put the
-        // chart that has the focus wholly off screen. Then, and whenever
-        // the chart is off screen after all, it is scrolled into view.
-        function maidrPutBack(iframe, kept) {
-            kept.frame.maidrDialogPlaces = null;
-            for (var h = 0; h < kept.holders.length; h++) {
-                if (kept.holders[h].maidrDialogPlaces === kept) {
-                    kept.holders[h].maidrDialogPlaces = null;
-                }
-            }
-            var win = iframe.ownerDocument.defaultView;
-            var same = kept.size === win.innerWidth + 'x' + win.innerHeight;
-            for (var i = 0; same && i < kept.places.length; i++) {
-                var place = kept.places[i];
-                if (place[0].isConnected && (place[0].scrollTop !== place[1]
-                        || place[0].scrollLeft !== place[2])) {
-                    place[0].scrollTo(
-                        {top: place[1], left: place[2], behavior: 'instant'}
-                    );
-                }
-            }
-            var shown = iframe.getBoundingClientRect();
-            if (!same || shown.bottom <= 0 || shown.top >= win.innerHeight
-                    || shown.right <= 0 || shown.left >= win.innerWidth) {
-                iframe.scrollIntoView(
-                    {block: 'nearest', inline: 'nearest', behavior: 'instant'}
-                );
-            }
-        }
         function maidrShowDialog(doc, iframe, room, resized) {
             var opened = room > 0;
             var was = iframe.maidrDialogOpen;
@@ -401,39 +369,6 @@ _DIALOG_ROOM_JS = """
                 root.style.removeProperty('--maidr-dialog-room');
                 root.removeAttribute('data-maidr-dialog-room');
             }
-            if (opened && !was) {
-                // Where the reader had the page and the boxes round the
-                // frame, before the dialog moved them: put back once it
-                // has gone. Every one, those at 0 too, which centring the
-                // frame scrolled; a long page was otherwise left where the
-                // dialog had been, the chart at the window's top. Kept on
-                // the output as well, two levels up: a chart drawn again
-                // while the dialog is open replaces the frame, and the
-                // next one puts them back.
-                var win = iframe.ownerDocument.defaultView;
-                var kept = {
-                    frame: iframe, places: [], holders: [],
-                    size: win.innerWidth + 'x' + win.innerHeight
-                };
-                for (var el = iframe.parentElement; el; el = el.parentElement) {
-                    kept.places.push([el, el.scrollTop, el.scrollLeft]);
-                    if (kept.holders.length < 2) {
-                        kept.holders.push(el);
-                        el.maidrDialogPlaces = kept;
-                    }
-                }
-                iframe.maidrDialogPlaces = kept;
-            } else if (!opened && was && iframe.maidrDialogPlaces) {
-                maidrPutBack(iframe, iframe.maidrDialogPlaces);
-            } else if (!opened && !was) {
-                for (var up = iframe.parentElement, n = 0; up && n < 2;
-                        up = up.parentElement, n++) {
-                    var left = up.maidrDialogPlaces;
-                    if (left && left.frame !== iframe && !left.frame.isConnected) {
-                        maidrPutBack(iframe, left);
-                    }
-                }
-            }
             if (opened && (!was || resized)) {
                 // The dialog is centred in the frame: centring the frame in
                 // the reader's view shows it whole. At once, whatever the
@@ -442,6 +377,16 @@ _DIALOG_ROOM_JS = """
                 // (a Shiny app's settings dialog lost its Close button).
                 iframe.scrollIntoView(
                     {block: 'center', inline: 'nearest', behavior: 'instant'}
+                );
+            } else if (was && !opened
+                    && iframe.ownerDocument.activeElement === iframe) {
+                // Gone, and its room with it: the chart, which has the
+                // focus back, is brought into view if it is not, by as
+                // little as that takes -- the window may have changed size
+                // while the dialog was open (a phone turned, the browser
+                // zoomed), and the page was laid out again.
+                iframe.scrollIntoView(
+                    {block: 'nearest', inline: 'nearest', behavior: 'instant'}
                 );
             }
         }
@@ -605,12 +550,27 @@ _BOX_JS = """
             return Math.floor(Math.max(room, own));
         }
         // The box, and the output it fills, at least this tall; 0 gives
-        // them back the height they had.
+        // them back the height they had. Let go of at once should the frame
+        // be taken out of the page while they are held -- its chart drawn
+        // again, or its output emptied, with the dialog open: the output
+        // was otherwise left at the dialog's height, blank below what came
+        // next, for good.
         function maidrHoldBox(iframe, room) {
-            var box = iframe.parentElement;
-            var held = [box, box && box.parentElement];
-            for (var i = 0; i < held.length; i++) {
-                var el = held[i];
+            var holding = iframe.maidrHolding;
+            if (room > 0 && !holding) {
+                var box = iframe.parentElement;
+                var page = iframe.ownerDocument;
+                holding = iframe.maidrHolding = {held: [box, box && box.parentElement]};
+                if (page.defaultView.MutationObserver) {
+                    holding.gone = new page.defaultView.MutationObserver(function() {
+                        if (!iframe.isConnected) maidrHoldBox(iframe, 0);
+                    });
+                    holding.gone.observe(page.body, {childList: true, subtree: true});
+                }
+            }
+            if (!holding) return;
+            for (var i = 0; i < holding.held.length; i++) {
+                var el = holding.held[i];
                 if (!el) continue;
                 if (room > 0) {
                     if (el.maidrHeld === undefined) el.maidrHeld = el.style.minHeight;
@@ -619,6 +579,10 @@ _BOX_JS = """
                     el.style.minHeight = el.maidrHeld;
                     el.maidrHeld = undefined;
                 }
+            }
+            if (!(room > 0)) {
+                if (holding.gone) holding.gone.disconnect();
+                iframe.maidrHolding = null;
             }
         }
         // The room kept below a fitted chart for maidr's text: a line, or

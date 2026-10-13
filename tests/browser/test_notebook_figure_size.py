@@ -21,9 +21,8 @@ the sizes the chart is given to IPython's; this holds what a browser shows:
   when it is;
 * maidr's dialogs are shown whole in the part of the notebook a reader
   sees, over a chart smaller than a dialog, in a narrow output area, and
-  over a chart taller than the window; once one closes, the notebook is
-  where the reader had it, or, if the window changed size meanwhile, the
-  chart is in view.
+  over a chart taller than the window; once one closes, the chart is in
+  view, the window changed size meanwhile or not.
 
 The other half is the libraries maidr shows in the same frame: a Plotly
 figure without a height is as tall as the notebook's renderer draws it and
@@ -698,15 +697,16 @@ _FRAME_TOP = (
 
 
 @pytest.mark.parametrize("resized", [None, (640, 450)], ids=["same", "zoomed"])
-def test_closing_a_dialog_leaves_the_notebook_where_the_reader_had_it(
+def test_closing_a_dialog_leaves_the_chart_in_the_notebooks_view(
     browser, dialog_page, resized
 ):
-    """The notebook is scrolled to centre help; it goes back once help goes.
+    """The notebook is scrolled to centre help; once help goes, the chart shows.
 
-    Left where help had been, the reader's place was lost. Put back after
+    The frame gives the room back, and is scrolled into view as little as
+    that takes. Put back to where the notebook was as help opened, after
     the window changed size while help was open (the browser zoomed to
     200%), the offsets measured in the old layout put the chart wholly off
-    screen; the chart is shown instead.
+    screen.
     """
     page = _open(browser, dialog_page, frames=len(_DIALOG_CASES))
     try:
@@ -729,16 +729,18 @@ def test_closing_a_dialog_leaves_the_notebook_where_the_reader_had_it(
             page.wait_for_timeout(1_000)
         _close_dialog(page, frame)
         page.wait_for_timeout(400)
-        after, rect = page.evaluate(_FRAME_TOP, "tiny")
+        _, rect = page.evaluate(_FRAME_TOP, "tiny")
         height = page.evaluate("() => window.innerHeight")
+        focused = page.evaluate(
+            "() => document.activeElement"
+            " === document.querySelector('#chart-tiny iframe')"
+        )
     finally:
         page.close()
 
     assert opened != pytest.approx(before, abs=50), "help moved nothing"
-    if resized:
-        assert rect["top"] >= -1 and rect["bottom"] <= height + 1, (rect, height)
-    else:
-        assert after == pytest.approx(before, abs=1), (before, opened, after)
+    assert rect["top"] >= -1 and rect["bottom"] <= height + 1, (rect, height)
+    assert focused
 
 
 # --- Plotly, Bokeh and Altair in the same frame -------------------------------

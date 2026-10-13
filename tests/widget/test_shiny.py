@@ -393,6 +393,24 @@ def test_the_frame_fits_its_box_in_a_shiny_session(fake_session):
     assert document.startswith("<style>")
 
 
+def test_a_closed_dialog_keeps_nothing_for_later():
+    """A dialog's close brings the chart into view if it has the focus.
+
+    Where the page was as the dialog opened was kept on the frame and on
+    the two elements round it, never expired, and put back by any later
+    frame there: a chart that came back long after its output was emptied
+    under a dialog scrolled the page back over 1000px.
+    """
+    script = shiny_frame_script()
+
+    for gone in ("maidrPutBack", "maidrDialogPlaces", "innerWidth + 'x'"):
+        assert gone not in script, gone
+    assert "iframe.ownerDocument.activeElement === iframe" in script
+    assert "{block: 'nearest', inline: 'nearest', behavior: 'instant'}" in script
+    # The output is let go of as soon as the frame leaves the page.
+    assert "if (!iframe.isConnected) maidrHoldBox(iframe, 0);" in script
+
+
 def test_the_frame_script_is_served_once_rather_than_sent(fake_session):
     """The script that sizes the frame rides no flush; the app serves it.
 
