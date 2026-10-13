@@ -923,10 +923,15 @@ def shiny_frame_script() -> str:
         (kind === 'plotly' ? plotlyFrame : matplotlibFrame)(frame, options || {{}});
     }};
     if (window.jQuery) {{
+        // Shiny runs this in its message loop, where an error stops the
+        // outputs after this one from updating; and an output Shiny has no
+        // binding for sends its value to the document itself.
         window.jQuery(document).on('shiny:value', function (event) {{
-            if (event.target && event.target.querySelectorAll) {{
-                maidrHoldRedraw(event.target);
-            }}
+            try {{
+                if (event.target && event.target.nodeType === 1) {{
+                    maidrHoldRedraw(event.target);
+                }}
+            }} catch (e) {{}}
         }});
     }}
 }})();

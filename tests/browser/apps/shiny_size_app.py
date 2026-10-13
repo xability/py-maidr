@@ -7,7 +7,8 @@ renderer (in a card too), in a ``ui.output_ui`` written by hand, with an
 announcement three lines long, in a card of a page that is not fillable
 and in a sidebar layout, in a card halfway down a long page (one drawn
 again as an input changes too, and one emptied while the input ``shown``
-is 0), above a slider that draws it again (matplotlib, Plotly and Bokeh),
+is 0), above a slider that draws it again (matplotlib, Plotly and Bokeh;
+beside an output that is not in the page too),
 as an HTML string a ``render.ui`` returns (one kept from the first session
 too, which ``/kept_str.html`` hands out as a download would), Plotly
 figures (with no height of their own, in an output with one, and with
@@ -277,8 +278,12 @@ def _scaled_bokeh(n):
     return plot
 
 
-def _under_a_slider(figure):
-    """A chart halfway down a long page, drawn again as the slider below it moves."""
+def _under_a_slider(figure, unplaced=False):
+    """A chart halfway down a long page, drawn again as the slider below it moves.
+
+    With ``unplaced``, a text output that is not in the page is computed
+    first anyway, and one that is says the slider's value.
+    """
     words = "A paragraph of text that makes the page longer than the window."
     filler = [ui.p(words) for _ in range(12)]
     page = ui.page_fluid(
@@ -286,6 +291,7 @@ def _under_a_slider(figure):
         *filler,
         ui.card(ui.card_header("Chart card"), output_maidr("m")),
         ui.input_slider("n", "Scale", 1, 10, 2, width="300px"),
+        ui.output_text("said"),
         *filler,
     )
 
@@ -293,6 +299,18 @@ def _under_a_slider(figure):
         @render_maidr
         def m():
             return figure(input.n())
+
+        @render.text
+        def said():
+            return f"Scale {input.n()}"
+
+        if unplaced:
+            # Shiny has no binding for it, and sends its value to the
+            # document itself.
+            @output_(suspend_when_hidden=False, priority=100)
+            @render.text
+            def nowhere():
+                return f"Nowhere {input.n()}"
 
     return App(page, server)
 
@@ -330,6 +348,7 @@ OTHER_APPS = {
     "slider_mpl": _under_a_slider(_scaled_bars),
     "slider_plotly": _under_a_slider(_scaled_plotly),
     "slider_bokeh": _under_a_slider(_scaled_bokeh),
+    "slider_nowhere": _under_a_slider(_scaled_bars, unplaced=True),
     "str_altair_container": _string_of(lambda: maidr.render(_altair_container())),
     "str_bokeh_stretched": _string_of(lambda: maidr.render(_bokeh_stretched())),
     "str_follows_frame": _string_of(_follows_the_frame),

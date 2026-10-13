@@ -407,6 +407,10 @@ def test_a_chart_drawn_again_does_not_scroll_the_page():
     # is measured; let go once a new frame has measured its chart.
     assert "window.jQuery(document).on('shiny:value'" in script
     assert "maidrHoldRedraw(event.target);" in script
+    # An element's alone, and never an error in Shiny's message loop: a
+    # value for an output not in the page is sent to the document.
+    assert "if (event.target && event.target.nodeType === 1) {" in script
+    assert "} catch (e) {}" in script
     assert script.count("maidrHoldStill(iframe)") == 3  # defined, and 2 calls
     assert script.count("maidrRedrawn(iframe);") == 2
     # Only the frame's own box is scrolled back after a measure.

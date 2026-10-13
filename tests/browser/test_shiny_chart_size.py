@@ -820,6 +820,40 @@ def test_a_slider_moved_with_the_keyboard_stays_where_it_is(
         page.close()
 
 
+def test_an_output_not_in_the_page_leaves_the_others_to_update(
+    browser, shiny_size_app_url
+):
+    """An output Shiny computes but has no place for comes first in each update.
+
+    Shiny sends its value to the document itself, and the frame's script,
+    holding the output drawn again, threw on it inside Shiny's message
+    loop: Shiny reported an error on the client, and neither the chart nor
+    the text after it was updated.
+    """
+    page = _open(browser, f"{shiny_size_app_url}/slider_nowhere/", 1280, 900)
+    errors: list[str] = []
+    page.on(
+        "console", lambda m: errors.append(m.text) if m.type == "error" else None
+    )
+    try:
+        for value in (3, 4):
+            _replaced(
+                page,
+                lambda value=value: page.evaluate(
+                    "(v) => $('#n').data('ionRangeSlider').update({from: v})", value
+                ),
+            )
+            page.wait_for_function(
+                "(v) => document.getElementById('said').textContent === 'Scale ' + v",
+                arg=value,
+                timeout=15_000,
+            )
+        assert errors == [], errors
+        assert page.errors == []  # type: ignore[attr-defined]
+    finally:
+        page.close()
+
+
 #: The fitted chart, and the element its focus ring is drawn on, against what
 #: of the frame shows: its window, and the box's room beside its scrollbar.
 _CUT = r"""() => {
