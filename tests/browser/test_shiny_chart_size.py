@@ -560,6 +560,68 @@ def test_closing_a_dialog_halfway_down_a_long_page_leaves_the_chart_in_view(
         page.close()
 
 
+#: The page's scroll position, the frame's top, and the highlighted mark's
+#: top in the window and the share of it on screen.
+_LIT = r"""() => {
+  const frame = document.querySelector('#m iframe');
+  const f = frame.getBoundingClientRect();
+  const lit = frame.contentDocument.querySelector('[id^=maidr-highlight]');
+  const r = lit && lit.getBoundingClientRect();
+  const top = r && r.top + f.top, bottom = r && r.bottom + f.top;
+  const shown = r && r.height
+    ? Math.max(0, Math.min(bottom, innerHeight) - Math.max(top, 0)) / r.height : null;
+  return {scrollY: window.scrollY, frameTop: f.top, litTop: top, litShown: shown,
+          focused: document.activeElement === frame};
+}"""
+
+
+@pytest.mark.parametrize(
+    ("case", "size"),
+    [("tall_plotly_h400", (844, 390)), ("tall_plotly", (1280, 900))],
+    ids=["phone-turned", "tall-figure"],
+)
+def test_closing_a_dialog_over_a_plotly_chart_taller_than_the_window_leaves_it_be(
+    browser, shiny_size_app_url, case, size
+):
+    """Help opens and closes over a Plotly chart the window cannot show whole.
+
+    The frame was centred in the window as help opened, its top, and the
+    element a Plotly chart takes the focus on, above the window; the
+    browser scrolled that element to the window's middle as the focus came
+    back to it, 200-570px, and the mark the reader had highlighted went
+    off screen. Help is now shown in the part of the frame the reader sees.
+    """
+    page = _open(browser, f"{shiny_size_app_url}/{case}/", *size)
+    try:
+        page.evaluate(
+            "() => window.scrollBy({top: document.querySelector('#m iframe')"
+            ".getBoundingClientRect().top - 10, behavior: 'instant'})"
+        )
+        page.wait_for_timeout(400)
+        _read(page, presses=2)
+        before = page.evaluate(_LIT)
+        assert before["litShown"] is not None and before["litShown"] > 0, before
+        page.keyboard.press("Control+/")
+        page.wait_for_timeout(1500)
+        dialog = page.evaluate(_DIALOG)
+        assert dialog is not None, "no dialog opened"
+        close = dialog["close"]
+        assert close["top"] >= 0 and close["bottom"] <= size[1], dialog
+
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(1500)
+        _settle(page)
+        back = page.evaluate(_LIT)
+        assert page.evaluate(_DIALOG) is None
+        assert back["focused"], back
+        assert abs(back["scrollY"] - before["scrollY"]) <= 20, (before, back)
+        assert abs(back["litTop"] - before["litTop"]) <= 20, (before, back)
+        assert back["litShown"] >= before["litShown"] - 0.05, (before, back)
+        assert page.errors == []  # type: ignore[attr-defined]
+    finally:
+        page.close()
+
+
 def _open_help_halfway_down(page) -> dict:
     """The tall page's chart in the middle of the window, help open over it."""
     page.evaluate(

@@ -206,18 +206,27 @@ def test_a_notebook_frame_makes_room_for_maidrs_dialogs():
 
     assert "maidrDialogRoom(iframeDocument, iframe)" in script
     assert "maidrWatch(iframe.contentWindow.document, scheduleResize)" in script
-    # At once, not as a page with a smooth scroll-behavior would scroll it.
+    # At once, not as a page with a smooth scroll-behavior would scroll it:
+    # a frame no taller than the reader's view centred, the band over a
+    # taller one brought into view by as little as that takes.
     assert (
         "iframe.scrollIntoView(\n"
         "                    {block: 'center', inline: 'nearest', behavior: 'instant'}"
     ) in script
+    assert (
+        "container.scrollIntoView(\n"
+        "                    {block: 'nearest', inline: 'nearest', behavior: 'instant'}"
+    ) in script
+    assert "root.style.setProperty('--maidr-dialog-top'" in script
 
 
 def test_a_dialog_over_a_tall_chart_keeps_to_the_readers_view(css):
     band = "html[data-maidr-dialog-room]"
+    # Where the reader sees the frame, not its middle: centred, the band
+    # took a tall chart's top above the window.
     assert css[f"{band} .MuiDialog-container"] == {
         "height": "var(--maidr-dialog-room) !important",
-        "margin-top": "calc((100vh - var(--maidr-dialog-room)) / 2) !important",
+        "margin-top": "var(--maidr-dialog-top) !important",
     }
     assert css[f"{band} .MuiDialog-paper"] == {
         "max-height": "calc(var(--maidr-dialog-room) - 64px) !important"

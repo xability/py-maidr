@@ -6,10 +6,11 @@ in a fillable card that can be taken full screen, with a size given to the
 renderer (in a card too), in a ``ui.output_ui`` written by hand, with an
 announcement three lines long, in a card of a page that is not fillable
 and in a sidebar layout, in a card halfway down a long page (one drawn
-again as an input changes too, and one emptied while the input ``shown``
-is 0), above a slider that draws it again (matplotlib, Plotly and Bokeh;
-beside an output that is not in the page too),
-as an HTML string a ``render.ui`` returns (one kept from the first session
+again as an input changes too, one emptied while the input ``shown`` is 0,
+and Plotly charts taller than a short window: in an output 400px tall,
+and of a figure 1100px tall), above a slider that draws it again
+(matplotlib, Plotly and Bokeh; beside an output that is not in the page
+too), as an HTML string a ``render.ui`` returns (one kept from the first session
 too, which ``/kept_str.html`` hands out as a download would), a Plotly
 chart at the end of a long page, drawn again as an input changes, Plotly
 figures (with no height of their own, in an output with one, and with
@@ -46,11 +47,13 @@ def _bars(figsize=None):
     return ax
 
 
-def _plotly():
+def _plotly(height=None):
     import plotly.graph_objects as go
 
     fig = go.Figure(go.Bar(x=LABELS, y=VALUES))
     fig.update_layout(title="Fruit sold", xaxis_title="Fruit", yaxis_title="Boxes")
+    if height:
+        fig.update_layout(height=height)
     return fig
 
 
@@ -175,6 +178,8 @@ CASES = {
     "altair_container": (_fluid, output_maidr("m"), {}, _altair_container),
     "altair_container_card": (_card, output_maidr("m"), {}, _altair_container),
     "tall_page": (_tall_page, output_maidr("m", height=300), {}, _bars),
+    "tall_plotly": (_tall_page, output_maidr("m"), {}, lambda: _plotly(1100)),
+    "tall_plotly_h400": (_tall_page, output_maidr("m", height=400), {}, _plotly),
 }
 
 
