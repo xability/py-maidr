@@ -1253,10 +1253,14 @@ The chart takes the size of its output, as a plot from `render.plot` does:
   from `@output_args(...)`. A size you leave unset, or `None`, follows the
   output.
 
-The room kept for maidr's text grows to the lines it takes — what maidr
-says as the chart takes the focus is two or three lines on a phone — so the
-chart and its focus ring stay in view with it; it keeps the most it has
-taken, so the chart is not resized with every announcement. What the output
+Below a matplotlib, seaborn or plotnine chart, the room kept for maidr's
+text grows to the lines it takes — what maidr says as the chart takes the
+focus is two or three lines on a phone — so the chart and its focus ring
+stay in view with it; it keeps the most it has taken, so the chart is not
+resized with every announcement. A Plotly, Bokeh or Altair chart that fills
+the output's height keeps one line: drawing it again as the text grows
+throws in plotly.js, so on a phone the output scrolls a little to show the
+rest of that first announcement. What the output
 still does not have room for, it scrolls to rather than cutting off: maidr's
 braille field, which opens below the chart, and a text longer than half the
 output, which is scrolled into it as it changes (the output alone; the page
