@@ -433,8 +433,11 @@ def test_a_closed_dialog_keeps_nothing_for_later():
         assert gone not in script, gone
     assert "iframe.ownerDocument.activeElement === iframe" in script
     assert "{block: 'nearest', inline: 'nearest', behavior: 'instant'}" in script
-    # The output is let go of as soon as the frame leaves the page.
+    # The output is let go of as soon as the frame leaves the page; one
+    # drawn again under the dialog is held at its height from before it.
     assert "if (!iframe.isConnected) maidrHoldBox(iframe, 0);" in script
+    assert "if (!iframe.maidrDialogOpen) iframe.maidrOwn = {el: el, px: px};" in script
+    assert "px = own && own.el === el ? own.px : 0;" in script
 
 
 def test_the_frame_script_is_served_once_rather_than_sent(fake_session):

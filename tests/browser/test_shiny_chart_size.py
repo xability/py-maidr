@@ -672,6 +672,45 @@ def test_a_chart_drawn_again_under_a_dialog_does_not_move_the_page(
 
 
 @pytest.mark.parametrize("width", [1280, 390])
+def test_a_chart_at_the_end_of_the_page_drawn_again_under_a_dialog_stays_in_view(
+    browser, shiny_size_app_url, width
+):
+    """A Plotly chart, the page's last, is drawn again while help is open.
+
+    The output fell to the new frame's 150px as soon as the old frame
+    left, the page shortened under the window and was scrolled up 700px,
+    and the new chart, grown back to 450px, was drawn below the window,
+    42% of it on screen.
+    """
+    page = _open(browser, f"{shiny_size_app_url}/last_drawn_again/", width, 800)
+    try:
+        page.evaluate(
+            "() => window.scrollTo({top: document.scrollingElement.scrollHeight,"
+            " behavior: 'instant'})"
+        )
+        page.wait_for_timeout(400)
+        _read(page)
+        page.keyboard.press("Control+/")
+        page.wait_for_timeout(1500)
+        _settle(page)
+        assert page.evaluate(_DIALOG) is not None, "no dialog opened"
+        _replaced(
+            page,
+            lambda: page.evaluate(
+                "() => Shiny.setInputValue('again', 1, {priority: 'event'})"
+            ),
+        )
+        page.wait_for_timeout(1500)
+        back = _settle(page)
+        frame = back["frame"]
+        assert frame["height"] > 400, back
+        assert frame["top"] >= -1 and frame["bottom"] <= 801, back
+        assert page.errors == []  # type: ignore[attr-defined]
+    finally:
+        page.close()
+
+
+@pytest.mark.parametrize("width", [1280, 390])
 def test_a_chart_emptied_under_a_dialog_lets_its_output_go(
     browser, shiny_size_app_url, width
 ):

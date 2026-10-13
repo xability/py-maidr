@@ -259,23 +259,28 @@
         // output with it, and scrolled back after. Not while another hold
         // is on it: the box is measured at its own height as a dialog's
         // room is given back. Returns what lets go.
+        // The output's height while no dialog of maidr's is open is noted
+        // on the frame (maidrOwn), for a chart drawn again under one.
         function maidrHoldStill(iframe) {
             var box = iframe.parentElement;
             var el = box && maidrHolder(box.parentElement);
-            if (!el || el.maidrHolds) return null;
-            maidrHold(el, 'measure', maidrHeight(el));
+            if (!el) return null;
+            var px = maidrHeight(el);
+            if (!iframe.maidrDialogOpen) iframe.maidrOwn = {el: el, px: px};
+            if (el.maidrHolds) return null;
+            maidrHold(el, 'measure', px);
             return function() { maidrHold(el, 'measure', 0); };
         }
         // An output whose chart is about to be drawn again is held at the
         // height it has (Shiny's shiny:value comes before it is), until a
         // new frame in it has measured its chart (maidrRedrawn), until
-        // there is no frame of maidr's in it, or for 10s at most. Not one
-        // whose chart has a dialog open: its height is the dialog's room.
+        // there is no frame of maidr's in it, or for 10s at most. One whose
+        // chart has a dialog open is held at its height from before the
+        // dialog, not the dialog's room: let go of at once, it fell to the
+        // new frame's 150px, and a chart at the page's end, its page
+        // shortened under it, was drawn below the window.
         function maidrHoldRedraw(out) {
             var old = out.querySelectorAll('iframe[data-maidr-chart]');
-            for (var i = 0; i < old.length; i++) {
-                if (old[i].maidrDialogOpen) return;
-            }
             var el = old.length && maidrHolder(out);
             if (!el) return;
             var win = out.ownerDocument.defaultView;
@@ -283,6 +288,13 @@
             // before the frame drawn last had measured its own was held at
             // that frame's 150px, and the page below it moved up.
             var px = maidrHeight(el);
+            for (var i = 0; i < old.length; i++) {
+                if (old[i].maidrDialogOpen) {
+                    var own = old[i].maidrOwn;
+                    px = own && own.el === el ? own.px : 0;
+                }
+            }
+            if (!(px > 0)) return;
             maidrLetGo(el);
             var redraw = el.maidrRedraw = {old: Array.prototype.slice.call(old)};
             maidrHold(el, 'redraw', px);

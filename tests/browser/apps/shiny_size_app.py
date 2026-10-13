@@ -10,7 +10,8 @@ again as an input changes too, and one emptied while the input ``shown``
 is 0), above a slider that draws it again (matplotlib, Plotly and Bokeh;
 beside an output that is not in the page too),
 as an HTML string a ``render.ui`` returns (one kept from the first session
-too, which ``/kept_str.html`` hands out as a download would), Plotly
+too, which ``/kept_str.html`` hands out as a download would), a Plotly
+chart at the end of a long page, drawn again as an input changes, Plotly
 figures (with no height of their own, in an output with one, and with
 ``autosize`` off), Bokeh plots (of a fixed width, stretched both ways, and
 scaled both ways), Altair charts (of their own size, and their
@@ -222,7 +223,7 @@ def _kept_string_file(request):
     return PlainTextResponse(_KEPT.get("html", ""))
 
 
-def _drawn_again():
+def _drawn_again(page=None, figure=_bars):
     """The tall page's chart, drawn again whenever the input ``again`` changes."""
 
     def server(input, output_, session):
@@ -236,9 +237,19 @@ def _drawn_again():
         @render_maidr
         def m():
             again()
-            return _bars()
+            return figure()
 
-    return App(_tall_page(output_maidr("m", height=300)), server)
+    return App(page or _tall_page(output_maidr("m", height=300)), server)
+
+
+def _last_on_the_page(output):
+    """A card at the end of a page much longer than the window."""
+    words = "A paragraph of text that makes the page longer than the window."
+    return ui.page_fluid(
+        ui.h4("Before the chart"),
+        *[ui.p(words) for _ in range(24)],
+        ui.card(ui.card_header("Chart card"), output),
+    )
 
 
 def _emptied():
@@ -344,6 +355,9 @@ OTHER_APPS = {
     "as_html_string": _as_string("html"),
     "kept_str": _kept_string(),
     "tall_drawn_again": _drawn_again(),
+    "last_drawn_again": _drawn_again(
+        _last_on_the_page(output_maidr("m")), _plotly
+    ),
     "tall_emptied": _emptied(),
     "slider_mpl": _under_a_slider(_scaled_bars),
     "slider_plotly": _under_a_slider(_scaled_plotly),
