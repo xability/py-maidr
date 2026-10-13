@@ -331,7 +331,9 @@ _NOT_LAID_OUT_JS = """
 #: the dialog, centred in it: growing the frame had moved the dialog down,
 #: below the part of the notebook the reader sees. Once it has gone, the
 #: notebook, or the page, and the boxes round the frame are scrolled back to
-#: where the reader had them. ``maidrWatch`` tells when one comes or goes.
+#: where the reader had them (``maidrPutBack``); or, if the window changed
+#: size while it was open, the frame is scrolled into view instead.
+#: ``maidrWatch`` tells when one comes or goes.
 _DIALOG_ROOM_JS = """
         function maidrDialogRoom(doc, iframe) {
             if (!doc.querySelector('.MuiDialog-root')) return 0;
@@ -352,6 +354,33 @@ _DIALOG_ROOM_JS = """
             }
             return Math.floor(height);
         }
+        // Put the page and the boxes round the frame back where the reader
+        // had them as the dialog opened -- unless the window changed size
+        // while it was open (a phone turned, the browser zoomed, a window
+        // snapped): the page was laid out again, and those offsets put the
+        // chart that has the focus wholly off screen. Then, and whenever
+        // the chart is off screen after all, it is scrolled into view.
+        function maidrPutBack(iframe, kept) {
+            iframe.maidrDialogPlaces = null;
+            var win = iframe.ownerDocument.defaultView;
+            var same = kept.size === win.innerWidth + 'x' + win.innerHeight;
+            for (var i = 0; same && i < kept.places.length; i++) {
+                var place = kept.places[i];
+                if (place[0].scrollTop !== place[1]
+                        || place[0].scrollLeft !== place[2]) {
+                    place[0].scrollTo(
+                        {top: place[1], left: place[2], behavior: 'instant'}
+                    );
+                }
+            }
+            var shown = iframe.getBoundingClientRect();
+            if (!same || shown.bottom <= 0 || shown.top >= win.innerHeight
+                    || shown.right <= 0 || shown.left >= win.innerWidth) {
+                iframe.scrollIntoView(
+                    {block: 'nearest', inline: 'nearest', behavior: 'instant'}
+                );
+            }
+        }
         function maidrShowDialog(doc, iframe, room, resized) {
             var opened = room > 0;
             var was = iframe.maidrDialogOpen;
@@ -371,24 +400,18 @@ _DIALOG_ROOM_JS = """
                 // frame, before the dialog moved them: put back once it
                 // has gone. Every one, those at 0 too, which centring the
                 // frame scrolled; a long page was otherwise left where the
-                // dialog had been, the chart at the window's top.
-                var places = [];
+                // dialog had been, the chart at the window's top. The
+                // window's size too, which the page is laid out for.
+                var win = iframe.ownerDocument.defaultView;
+                var kept = {
+                    places: [], size: win.innerWidth + 'x' + win.innerHeight
+                };
                 for (var el = iframe.parentElement; el; el = el.parentElement) {
-                    places.push([el, el.scrollTop, el.scrollLeft]);
+                    kept.places.push([el, el.scrollTop, el.scrollLeft]);
                 }
-                iframe.maidrDialogPlaces = places;
+                iframe.maidrDialogPlaces = kept;
             } else if (!opened && was && iframe.maidrDialogPlaces) {
-                var kept = iframe.maidrDialogPlaces;
-                iframe.maidrDialogPlaces = null;
-                for (var i = 0; i < kept.length; i++) {
-                    var place = kept[i];
-                    if (place[0].scrollTop !== place[1]
-                            || place[0].scrollLeft !== place[2]) {
-                        place[0].scrollTo(
-                            {top: place[1], left: place[2], behavior: 'instant'}
-                        );
-                    }
-                }
+                maidrPutBack(iframe, iframe.maidrDialogPlaces);
             }
             if (opened && (!was || resized)) {
                 // The dialog is centred in the frame: centring the frame in

@@ -545,6 +545,69 @@ def test_closing_a_dialog_leaves_the_page_where_the_reader_had_it(
         page.close()
 
 
+def _open_help_halfway_down(page) -> dict:
+    """The tall page's chart in the middle of the window, help open over it."""
+    page.evaluate(
+        "() => document.querySelector('#m iframe')"
+        ".scrollIntoView({block: 'center', behavior: 'instant'})"
+    )
+    page.wait_for_timeout(400)
+    _read(page)
+    before = _settle(page)
+    assert before["scrollY"] > 100, before
+    page.keyboard.press("Control+/")
+    page.wait_for_timeout(1500)
+    _settle(page)
+    assert page.evaluate(_DIALOG) is not None, "no dialog opened"
+    return before
+
+
+@pytest.mark.parametrize(
+    ("start", "end"),
+    [
+        ((390, 800), (800, 390)),
+        ((1280, 900), (640, 450)),
+        ((1280, 900), (853, 600)),
+        ((1280, 900), (1280, 500)),
+        ((1280, 800), (390, 800)),
+    ],
+    ids=["phone-turned", "zoom-200", "zoom-150", "shorter", "narrower"],
+)
+def test_closing_a_dialog_after_the_window_changed_size_shows_the_chart(
+    browser, shiny_size_app_url, start, end
+):
+    """The window changes size while help is open, then the reader closes it.
+
+    The page was put back to the offsets it had as help opened, measured in
+    a layout the new size had replaced, and the chart, which still had the
+    focus, was left partly or wholly off screen: its frame's top at 324px
+    of a 450px window zoomed to 200%, at 561px of an 800px one narrowed to
+    390px, and at -902px on a longer page. An arrow key did not bring it
+    back.
+    """
+    page = _open(browser, f"{shiny_size_app_url}/tall_page/", *start)
+    try:
+        _open_help_halfway_down(page)
+        page.set_viewport_size({"width": end[0], "height": end[1]})
+        page.wait_for_timeout(1500)
+        _settle(page)
+
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(1200)
+        back = _settle(page)
+        assert page.evaluate(_DIALOG) is None
+        frame = back["frame"]
+        assert frame["top"] >= -1 and frame["bottom"] <= end[1] + 1, (end, back)
+        assert back["box"]["height"] == pytest.approx(300, abs=1), back
+        focused = _chart_frame(page, "m").evaluate(
+            "() => document.activeElement && document.activeElement.getAttribute('role')"
+        )
+        assert focused in ("img", "application"), focused
+        assert page.errors == []  # type: ignore[attr-defined]
+    finally:
+        page.close()
+
+
 #: The fitted chart, and the element its focus ring is drawn on, against what
 #: of the frame shows: its window, and the box's room beside its scrollbar.
 _CUT = r"""() => {

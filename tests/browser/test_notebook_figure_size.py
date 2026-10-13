@@ -21,7 +21,9 @@ the sizes the chart is given to IPython's; this holds what a browser shows:
   when it is;
 * maidr's dialogs are shown whole in the part of the notebook a reader
   sees, over a chart smaller than a dialog, in a narrow output area, and
-  over a chart taller than the window.
+  over a chart taller than the window; once one closes, the notebook is
+  where the reader had it, or, if the window changed size meanwhile, the
+  chart is in view.
 
 The other half is the libraries maidr shows in the same frame: a Plotly
 figure without a height is as tall as the notebook's renderer draws it and
@@ -687,6 +689,56 @@ def test_the_settings_tabs_leave_the_frame_as_it_is(browser, dialog_page):
         page.close()
 
     assert max(heights) - min(heights) <= 1, heights
+
+
+_FRAME_TOP = (
+    "(name) => [window.scrollY, document.querySelector(`#chart-${name} iframe`)"
+    ".getBoundingClientRect().toJSON()]"
+)
+
+
+@pytest.mark.parametrize("resized", [None, (640, 450)], ids=["same", "zoomed"])
+def test_closing_a_dialog_leaves_the_notebook_where_the_reader_had_it(
+    browser, dialog_page, resized
+):
+    """The notebook is scrolled to centre help; it goes back once help goes.
+
+    Left where help had been, the reader's place was lost. Put back after
+    the window changed size while help was open (the browser zoomed to
+    200%), the offsets measured in the old layout put the chart wholly off
+    screen; the chart is shown instead.
+    """
+    page = _open(browser, dialog_page, frames=len(_DIALOG_CASES))
+    try:
+        frame = _chart_frame(page, "tiny")
+        frame.focus(_PLOT)
+        page.keyboard.press("ArrowRight")
+        frame.wait_for_function(_ANNOUNCED, timeout=10_000)
+        page.evaluate(
+            "() => document.querySelector('#chart-tiny iframe')"
+            ".scrollIntoView({block: 'end', behavior: 'instant'})"
+        )
+        page.wait_for_timeout(500)
+        before, _ = page.evaluate(_FRAME_TOP, "tiny")
+        page.keyboard.press(_OPEN["help"])
+        frame.wait_for_selector(".MuiDialog-paper", state="visible", timeout=10_000)
+        page.wait_for_timeout(700)
+        opened, _ = page.evaluate(_FRAME_TOP, "tiny")
+        if resized:
+            page.set_viewport_size({"width": resized[0], "height": resized[1]})
+            page.wait_for_timeout(1_000)
+        _close_dialog(page, frame)
+        page.wait_for_timeout(400)
+        after, rect = page.evaluate(_FRAME_TOP, "tiny")
+        height = page.evaluate("() => window.innerHeight")
+    finally:
+        page.close()
+
+    assert opened != pytest.approx(before, abs=50), "help moved nothing"
+    if resized:
+        assert rect["top"] >= -1 and rect["bottom"] <= height + 1, (rect, height)
+    else:
+        assert after == pytest.approx(before, abs=1), (before, opened, after)
 
 
 # --- Plotly, Bokeh and Altair in the same frame -------------------------------
