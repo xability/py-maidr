@@ -887,6 +887,79 @@ def test_a_bokeh_plot_scaled_both_ways_fits_its_box(
         page.close()
 
 
+#: The Bokeh plot's edges, in page pixels.
+_BOKEH_PLOT = r"""() => {
+  const frame = document.querySelector('#m iframe');
+  const f = frame.getBoundingClientRect();
+  const plot = frame.contentDocument.querySelector(
+    '[id^="maidr-bokeh-"][id$="-plot"]').getBoundingClientRect();
+  return {left: plot.left + f.left, top: plot.top + f.top,
+          right: plot.right + f.left, bottom: plot.bottom + f.top};
+}"""
+
+#: The focus ring's colour (``maidr/assets/frame.css``).
+_RING = (0x1A, 0x5F, 0xB4)
+
+
+@pytest.mark.parametrize(
+    ("case", "width"),
+    [
+        ("bokeh", 1280),
+        ("bokeh_stretched_card", 1280),
+        ("bokeh_stretched_card", 390),
+        ("bokeh_scaled", 1280),
+        ("bokeh_scaled", 390),
+    ],
+)
+def test_a_bokeh_plots_focus_ring_is_drawn_over_it(
+    browser, shiny_size_app_url, case, width
+):
+    """The ring shows on every edge of the plot, as the reader sees it.
+
+    The ring was drawn on the focused element round the plot, and Bokeh's
+    canvas, in a positioned element, covered it: a 1px sliver showed on the
+    top and left edges and none on the others, none at all in a card, and
+    a plot scaled both ways had it only beside the plot, in the margins.
+    """
+    from io import BytesIO
+
+    from PIL import Image
+
+    page = _open(browser, f"{shiny_size_app_url}/{case}/", width)
+    try:
+        page.evaluate(
+            "() => document.querySelector('#m iframe')"
+            ".scrollIntoView({block: 'center', behavior: 'instant'})"
+        )
+        frame = _chart_frame(page)
+        frame.locator(CHART).first.focus()
+        page.wait_for_timeout(800)
+        plot = page.evaluate(_BOKEH_PLOT)
+        shot = Image.open(BytesIO(page.screenshot())).convert("RGB")
+        # The middle of the ring's 3px on each edge, at five points along it.
+        x0, y0 = round(plot["left"]) + 1, round(plot["top"]) + 1
+        x1, y1 = round(plot["right"]) - 2, round(plot["bottom"]) - 2
+        along = [i / 6 for i in range(1, 6)]
+        points = {
+            "top": [(x0 + (x1 - x0) * t, y0) for t in along],
+            "bottom": [(x0 + (x1 - x0) * t, y1) for t in along],
+            "left": [(x0, y0 + (y1 - y0) * t) for t in along],
+            "right": [(x1, y0 + (y1 - y0) * t) for t in along],
+        }
+        for edge, spots in points.items():
+            for x, y in spots:
+                pixel = shot.getpixel((int(x), int(y)))
+                assert max(abs(a - b) for a, b in zip(pixel, _RING)) <= 40, (
+                    edge,
+                    (x, y),
+                    pixel,
+                    plot,
+                )
+        assert page.errors == []  # type: ignore[attr-defined]
+    finally:
+        page.close()
+
+
 #: How tall Vega drew the chart.
 _VEGA_HEIGHT = (
     "() => document.querySelector('.vega-embed svg').getBoundingClientRect().height"

@@ -68,6 +68,30 @@ figure[id^="maidr-figure"] > div[tabindex="0"]:focus svg.maidr-frame-svg {
   z-index: 1000;
 }
 
+/* A Bokeh chart's ring likewise. Bokeh draws its canvas in a positioned
+ * element, which covered the ring on the focused element round it: a 1px
+ * sliver showed on two of its edges, none of it when the plot filled a card.
+ * Drawn over the plot instead, round the plot itself, which is narrower than
+ * the focused element when it keeps its shape (sizing_mode="scale_both");
+ * the focused element's own ring, which showed beside it, is then taken off.
+ * A browser without :has() keeps both. */
+[id^="maidr-bokeh-"][id$="-plot"] {
+  position: relative;
+}
+figure[id^="maidr-figure"] > div[tabindex="0"]:focus
+  [id^="maidr-bokeh-"][id$="-plot"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 3px solid #1a5fb4;
+  pointer-events: none;
+  z-index: 1000;
+}
+figure[id^="maidr-figure"]
+  > div[tabindex="0"]:focus:has([id^="maidr-bokeh-"][id$="-plot"]) {
+  outline: none !important;
+}
+
 /* maidr's braille and review fields are as wide as their text; in a narrow
  * output area they keep to the frame. Those two only: the fields of its
  * settings, chat and command palette are MUI's, sized with content-box, and
@@ -104,7 +128,9 @@ a:focus-visible,
   figure[id^="maidr-figure"] > div[tabindex="0"]:focus svg.maidr-frame-svg {
     outline: none !important;
   }
-  .js-plotly-plot .svg-container:focus-within::after {
+  .js-plotly-plot .svg-container:focus-within::after,
+  figure[id^="maidr-figure"] > div[tabindex="0"]:focus
+    [id^="maidr-bokeh-"][id$="-plot"]::after {
     border-color: Highlight;
   }
 }
