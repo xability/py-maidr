@@ -1247,12 +1247,12 @@ From maidr.js 4.15.0, maidr.js does the keys, the focus ring and the colours
 itself for a chart that shares a page, finds each chart's marks inside that
 chart, and runs on a page with require.js. A chart is written without
 py-maidr's own copies of the keys, the ring, the colours and the require.js
-handling of `maidr.js` itself when every `maidr.js` its render may load is 4.15.0 or newer: under
-`use_cdn=False` the bundled one, and otherwise the version in the CDN URL and
-the bundled one the page falls back to. Its selectors are kept to its own SVG
-whatever the version, so a page that mixes charts rendered under different
-pins still highlights each chart's own marks. A chart
-whose render loads an older `maidr.js` — a pin such as
+handling of `maidr.js` itself when every `maidr.js` its render may load is
+4.15.0 or newer: under `use_cdn=False` the bundled one, and otherwise the
+version in the CDN URL and the bundled one the page falls back to. Its
+selectors are kept to its own SVG whatever the version, so a page that mixes
+charts rendered under different pins still highlights each chart's own marks.
+A chart whose render loads an older `maidr.js` — a pin such as
 `MAIDR_CDN_VERSION=4.14.0` or `maidr.set_cdn_version("4.14.0")` — carries
 the copies, and so does one pinned to `latest`, whose version py-maidr cannot
 know when it renders. Every chart keeps the part of the require.js handling
