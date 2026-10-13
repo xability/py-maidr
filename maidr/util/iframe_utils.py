@@ -1190,7 +1190,9 @@ def _shiny_onload(
     # height "container" followed the frame, which followed it, and grew
     # without end; a stretched Bokeh plot had no height at all. Nor can
     # anything else that follows the frame grow it without end: it grows
-    # six times at most between two moves of the reader's.
+    # six times at most at one width between two moves of the reader's --
+    # counted at any width, a chart growing as the window was dragged
+    # wider was cut after six.
     return (
         "var f=this,w=window;(function g(n){if(w.maidrShinyFrame)"
         f"maidrShinyFrame(f,'{kind}',{given});"
@@ -1200,12 +1202,14 @@ def _shiny_onload(
         "s.onerror=function(){w.maidrShinyFrameSrc=2};"
         f"s.src={json.dumps(src)};document.head.appendChild(s)}}"
         "setTimeout(function(){g(n+1)},50)}"
-        f"else{{var c=f.contentWindow,d=c.document,o={given},k=0,h=function(){{"
+        f"else{{var c=f.contentWindow,d=c.document,o={given},k=0,q=0,"
+        "z=function(){try{c.dispatchEvent(new c.Event('resize'))}catch(e){}},"
+        "h=function(){"
         "var p=o.fillHeight&&d.querySelector('.js-plotly-plot,"
         "[id^=\"maidr-bokeh-\"][id$=\"-plot\"],.vega-embed');"
         "if(p&&p.style.height!==o.fillHeight+'px'){"
-        "p.style.height=o.fillHeight+'px';"
-        "try{c.dispatchEvent(new c.Event('resize'))}catch(e){}}"
+        "p.style.height=o.fillHeight+'px';z()}"
+        "if(c.innerWidth!==q){q=c.innerWidth;k=0}"
         "var y=d.body.scrollHeight;"
         "if(y>(parseFloat(f.style.height)||0)&&++k>6)return;"
         "f.style.height=y+'px'},"

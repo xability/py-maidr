@@ -1716,6 +1716,40 @@ def test_a_string_frame_whose_script_is_not_served_shows_the_chart(
         page.close()
 
 
+def test_a_string_frame_whose_script_is_not_served_follows_a_wider_window(
+    browser, shiny_size_app_url
+):
+    """The reader drags the window wider, without touching the chart.
+
+    The frame stopped growing after six measures without a key or focus
+    move of the reader's, to stop content that follows the frame's height
+    from growing it without end; a window dragged from 330px to 700px
+    wide grew the chart more often than that, and its bottom 88px, the
+    x-axis and its labels, were cut off.
+    """
+    page = browser.new_page(viewport={"width": 330, "height": 900})
+    page.route(
+        "**/maidr-shiny-frame-*/frame.js",
+        lambda route: route.fulfill(status=404, body="Not Found"),
+    )
+    try:
+        page.goto(f"{shiny_size_app_url}/as_str/")
+        page.wait_for_selector("#m iframe", timeout=30_000)
+        page.frame_locator("#m iframe").locator(CHART).first.wait_for(
+            state="attached", timeout=30_000
+        )
+        page.wait_for_timeout(3000)
+        for width in range(350, 701, 25):
+            page.set_viewport_size({"width": width, "height": 900})
+            page.wait_for_timeout(60)
+        page.wait_for_timeout(2000)
+        seen = page.evaluate(_GEOMETRY)
+        assert seen["svg"]["width"] > 500, seen
+        assert _inside(seen["svg"], seen["frame"]), seen
+    finally:
+        page.close()
+
+
 def _without_its_script(browser, url: str):
     page = browser.new_page(viewport={"width": 1280, "height": 900})
     page.route(
