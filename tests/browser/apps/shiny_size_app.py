@@ -5,8 +5,9 @@ page with the default figure or a wide one, in outputs of a fixed height,
 in a fillable card that can be taken full screen, with a size given to the
 renderer (in a card too), in a ``ui.output_ui`` written by hand, with an
 announcement three lines long, in a card of a page that is not fillable and
-in a sidebar layout, in a card halfway down a long page, as an HTML string
-a ``render.ui`` returns (one kept from the first session too), and
+in a sidebar layout, in a card halfway down a long page (one drawn again as an input
+changes too), as an HTML string a ``render.ui`` returns (one kept from the
+first session too), and
 Plotly figures (with no height of their
 own, in an output with one, and with ``autosize`` off), Bokeh plots (of a
 fixed width, stretched both ways, and scaled both ways) and Altair charts (of their own size, and their
@@ -19,7 +20,7 @@ import matplotlib
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt  # noqa: E402
-from shiny import App, render, ui  # noqa: E402
+from shiny import App, reactive, render, ui  # noqa: E402
 from starlette.applications import Starlette  # noqa: E402
 from starlette.routing import Mount  # noqa: E402
 
@@ -211,11 +212,31 @@ def _kept_string():
     return App(_fluid(ui.output_ui("m")), server)
 
 
-#: Apps whose output is not ``render_maidr``'s.
+def _drawn_again():
+    """The tall page's chart, drawn again whenever the input ``again`` changes."""
+
+    def server(input, output_, session):
+        again = reactive.value(0)
+
+        @reactive.effect
+        @reactive.event(input.again)
+        def _():
+            again.set(again() + 1)
+
+        @render_maidr
+        def m():
+            again()
+            return _bars()
+
+    return App(_tall_page(output_maidr("m", height=300)), server)
+
+
+#: Apps whose output is not ``render_maidr``'s, or is drawn again.
 OTHER_APPS = {
     "as_str": _as_string("str"),
     "as_html_string": _as_string("html"),
     "kept_str": _kept_string(),
+    "tall_drawn_again": _drawn_again(),
 }
 
 app = Starlette(

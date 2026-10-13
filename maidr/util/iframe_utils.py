@@ -331,7 +331,8 @@ _NOT_LAID_OUT_JS = """
 #: the dialog, centred in it: growing the frame had moved the dialog down,
 #: below the part of the notebook the reader sees. Once it has gone, the
 #: notebook, or the page, and the boxes round the frame are scrolled back to
-#: where the reader had them (``maidrPutBack``); or, if the window changed
+#: where the reader had them (``maidrPutBack``), by the next frame in the
+#: output should the chart have been drawn again; or, if the window changed
 #: size while it was open, the frame is scrolled into view instead.
 #: ``maidrWatch`` tells when one comes or goes.
 _DIALOG_ROOM_JS = """
@@ -361,13 +362,18 @@ _DIALOG_ROOM_JS = """
         // chart that has the focus wholly off screen. Then, and whenever
         // the chart is off screen after all, it is scrolled into view.
         function maidrPutBack(iframe, kept) {
-            iframe.maidrDialogPlaces = null;
+            kept.frame.maidrDialogPlaces = null;
+            for (var h = 0; h < kept.holders.length; h++) {
+                if (kept.holders[h].maidrDialogPlaces === kept) {
+                    kept.holders[h].maidrDialogPlaces = null;
+                }
+            }
             var win = iframe.ownerDocument.defaultView;
             var same = kept.size === win.innerWidth + 'x' + win.innerHeight;
             for (var i = 0; same && i < kept.places.length; i++) {
                 var place = kept.places[i];
-                if (place[0].scrollTop !== place[1]
-                        || place[0].scrollLeft !== place[2]) {
+                if (place[0].isConnected && (place[0].scrollTop !== place[1]
+                        || place[0].scrollLeft !== place[2])) {
                     place[0].scrollTo(
                         {top: place[1], left: place[2], behavior: 'instant'}
                     );
@@ -400,18 +406,33 @@ _DIALOG_ROOM_JS = """
                 // frame, before the dialog moved them: put back once it
                 // has gone. Every one, those at 0 too, which centring the
                 // frame scrolled; a long page was otherwise left where the
-                // dialog had been, the chart at the window's top. The
-                // window's size too, which the page is laid out for.
+                // dialog had been, the chart at the window's top. Kept on
+                // the output as well, two levels up: a chart drawn again
+                // while the dialog is open replaces the frame, and the
+                // next one puts them back.
                 var win = iframe.ownerDocument.defaultView;
                 var kept = {
-                    places: [], size: win.innerWidth + 'x' + win.innerHeight
+                    frame: iframe, places: [], holders: [],
+                    size: win.innerWidth + 'x' + win.innerHeight
                 };
                 for (var el = iframe.parentElement; el; el = el.parentElement) {
                     kept.places.push([el, el.scrollTop, el.scrollLeft]);
+                    if (kept.holders.length < 2) {
+                        kept.holders.push(el);
+                        el.maidrDialogPlaces = kept;
+                    }
                 }
                 iframe.maidrDialogPlaces = kept;
             } else if (!opened && was && iframe.maidrDialogPlaces) {
                 maidrPutBack(iframe, iframe.maidrDialogPlaces);
+            } else if (!opened && !was) {
+                for (var up = iframe.parentElement, n = 0; up && n < 2;
+                        up = up.parentElement, n++) {
+                    var left = up.maidrDialogPlaces;
+                    if (left && left.frame !== iframe && !left.frame.isConnected) {
+                        maidrPutBack(iframe, left);
+                    }
+                }
             }
             if (opened && (!was || resized)) {
                 // The dialog is centred in the frame: centring the frame in

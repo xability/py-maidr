@@ -608,6 +608,44 @@ def test_closing_a_dialog_after_the_window_changed_size_shows_the_chart(
         page.close()
 
 
+@pytest.mark.parametrize("width", [1280, 390])
+def test_a_chart_drawn_again_under_a_dialog_leaves_the_page_where_it_was(
+    browser, shiny_size_app_url, width
+):
+    """The output is drawn again while help is open, as live data would.
+
+    The frame that kept where the reader had the page went with the chart
+    it replaced, and the new one put nothing back: the page was left 297px
+    further down at 1280px, and 524px at 390px, the box above the window's
+    top.
+    """
+    page = _open(browser, f"{shiny_size_app_url}/tall_drawn_again/", width, 800)
+    try:
+        before = _open_help_halfway_down(page)
+        old = page.query_selector("#m iframe")
+        page.evaluate("() => Shiny.setInputValue('again', 1, {priority: 'event'})")
+        page.wait_for_function(
+            "(old) => { const f = document.querySelector('#m iframe');"
+            " return f && f !== old; }",
+            arg=old,
+            timeout=15_000,
+        )
+        page.frame_locator("#m iframe").locator(CHART).first.wait_for(
+            state="attached", timeout=30_000
+        )
+        page.wait_for_timeout(1200)
+        back = _settle(page)
+        assert back["scrollY"] == pytest.approx(before["scrollY"], abs=1), (
+            before,
+            back,
+        )
+        assert back["frame"]["top"] == pytest.approx(before["frame"]["top"], abs=1)
+        assert back["box"]["height"] == pytest.approx(300, abs=1), back
+        assert page.errors == []  # type: ignore[attr-defined]
+    finally:
+        page.close()
+
+
 #: The fitted chart, and the element its focus ring is drawn on, against what
 #: of the frame shows: its window, and the box's room beside its scrollbar.
 _CUT = r"""() => {
