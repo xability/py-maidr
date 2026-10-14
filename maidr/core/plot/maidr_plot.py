@@ -447,6 +447,8 @@ class MaidrPlot(ABC, FormatExtractorMixin):
         fields. ``format``/``min``/``max``/``tickStep``/``fill``/``level``
         never appear as siblings of ``x``/``y``/``z``.
         """
+        # This caches the first render; later axis changes (for example,
+        # invert_yaxis() after a public export) do not invalidate the schema.
         if not self._schema:
             self._schema = self.render()
         return self._schema

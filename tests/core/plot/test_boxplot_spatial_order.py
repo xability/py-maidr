@@ -18,7 +18,8 @@ DATA = [[1, 2, 3, 4, 5], [10, 20, 30, 40, 50]]
 LABELS = ["Africa", "Europe"]
 
 
-def _draw(library: str, horizontal: bool):
+def _draw(library: str, horizontal: bool) -> tuple[plt.Figure, plt.Axes]:
+    """Draw the same two categories through either plotting library."""
     fig, ax = plt.subplots()
     if library == "seaborn":
         categories = [label for label in LABELS for _ in range(5)]
@@ -43,6 +44,7 @@ def _draw(library: str, horizontal: bool):
 def test_box_rows_follow_axis_direction(
     library: str, invert: bool, horizontal: bool
 ) -> None:
+    """Pair rows and artists on first render and after a layer re-render."""
     fig, ax = _draw(library, horizontal)
     if invert:
         ax.invert_yaxis()
@@ -50,7 +52,9 @@ def test_box_rows_follow_axis_direction(
 
     # Re-render after changing the direction, too: seaborn inverts its category
     # axis after the patched bxp call, so registration-time direction is stale.
-    for _ in range(2):
+    for render_index in range(2):
+        if render_index:
+            ax.invert_yaxis()
         layer = plot.render()
         rows, selectors = layer["data"], layer["selectors"]
         expected = [0, 1]
@@ -75,4 +79,3 @@ def test_box_rows_follow_axis_direction(
             ]
             # Matplotlib display coordinates increase upward.
             assert centers[0] > centers[1]
-        ax.invert_yaxis()

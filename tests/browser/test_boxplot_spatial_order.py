@@ -93,7 +93,8 @@ def _highlight(page) -> dict:
 
 def _assert_pairing(spoken: str, highlight: dict, category: str, drawn: dict) -> None:
     """Keep the announced category and median paired with the drawn artist."""
-    assert f"Continent is {category}, 50% Value is {_MEDIANS[category]}" in spoken, spoken
+    expected = f"Continent is {category}, 50% Value is {_MEDIANS[category]}"
+    assert expected in spoken, spoken
     assert highlight["d"] == drawn[category]["d"], spoken
     assert highlight["x"] == pytest.approx(drawn[category]["x"], abs=0.5)
     assert highlight["y"] == pytest.approx(drawn[category]["y"], abs=0.5)
