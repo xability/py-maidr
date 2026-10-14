@@ -1,6 +1,302 @@
 # CHANGELOG
 
 
+## v1.27.0 (2026-10-14)
+
+### Bug Fixes
+
+- Return (n, bins, patches) from ax.hist, as matplotlib does
+  ([#837](https://github.com/xability/py-maidr/pull/837),
+  [`8ead363`](https://github.com/xability/py-maidr/commit/8ead36369a75a0f6d14f0d078030a8368574f150))
+
+- Stop warning about invalid escape sequences on import
+  ([#839](https://github.com/xability/py-maidr/pull/839),
+  [`1fe438b`](https://github.com/xability/py-maidr/commit/1fe438b740c2cb81f8415d1e5306d93065abe3b6))
+
+- **candlestick**: Omit unrecorded volume and label daily dates without midnight
+  ([#844](https://github.com/xability/py-maidr/pull/844),
+  [`c529d6a`](https://github.com/xability/py-maidr/commit/c529d6a4bd85ec4d8340cfa6fa54985166fec913))
+
+- **highlight**: Tag groups through the svg writer matplotlib 3.11 uses
+  ([#842](https://github.com/xability/py-maidr/pull/842),
+  [`f6d7600`](https://github.com/xability/py-maidr/commit/f6d7600092e97ba031f7ad3aee58ad059af44590))
+
+- **iframe**: Make the notebook frame wide enough for the chart's right edge
+  ([#894](https://github.com/xability/py-maidr/pull/894),
+  [`4dafe79`](https://github.com/xability/py-maidr/commit/4dafe79fa925e9ae4d31bf21524870642b1d1bfd))
+
+- **notebook**: Give a chart in a notebook the size and shape of the plain figure
+  ([#905](https://github.com/xability/py-maidr/pull/905),
+  [`38df1be`](https://github.com/xability/py-maidr/commit/38df1bede44ef5439067e431a7f46752cfab0864))
+
+- **notebook**: Prefetch maidr.js in the notebook page instead of running it there
+  ([#898](https://github.com/xability/py-maidr/pull/898),
+  [`ddb5f13`](https://github.com/xability/py-maidr/commit/ddb5f13cd730600be9589ee90f3f9c71e0659ae2))
+
+- **notebook**: Show the figures a cell leaves open, and a figure as a cell's value, as charts
+  ([#906](https://github.com/xability/py-maidr/pull/906),
+  [`20cf55e`](https://github.com/xability/py-maidr/commit/20cf55e0956e154f3188eb63ad92c7cb354ff497))
+
+- **quarto**: Give an inline chart the size and shape of the plain figure
+  ([#904](https://github.com/xability/py-maidr/pull/904),
+  [`ca7862d`](https://github.com/xability/py-maidr/commit/ca7862d580088f16ebfd37e5e7e5504ba7dbb209))
+
+- **quarto**: Keep maidr.js's instructions in an inline chart's description
+  ([#900](https://github.com/xability/py-maidr/pull/900),
+  [`54a3262`](https://github.com/xability/py-maidr/commit/54a32623202d82d3e087fbd532f452afd6a8cda8))
+
+- **quarto**: Limit inline charts' key guards to decks and leave maidr's dialog fields their own
+  size ([#899](https://github.com/xability/py-maidr/pull/899),
+  [`5c4e6a3`](https://github.com/xability/py-maidr/commit/5c4e6a36044a06199b2dc4e6ebd4afdd2fe9bb00))
+
+- **quarto**: Same-code cells keep their own fig-alt; caption read once
+  ([#903](https://github.com/xability/py-maidr/pull/903),
+  [`528310f`](https://github.com/xability/py-maidr/commit/528310fd576cf4cdfdb4ce83c178808a6849e4c2))
+
+- **quarto**: Stash the bundle once per document and resolve the CDN version in a Quarto render
+  ([#889](https://github.com/xability/py-maidr/pull/889),
+  [`0680f3e`](https://github.com/xability/py-maidr/commit/0680f3ea573227e3f76409cac4bb700c80fc5dd1))
+
+- **shiny**: Render a chart inside a module ([#907](https://github.com/xability/py-maidr/pull/907),
+  [`0be9e5a`](https://github.com/xability/py-maidr/commit/0be9e5a3d3896abb7355fa9bb2e613b389110829))
+
+- **show**: Embed the chart in the page when running in Pyodide
+  ([#827](https://github.com/xability/py-maidr/pull/827),
+  [`7f2966b`](https://github.com/xability/py-maidr/commit/7f2966b8a190bd3e8b9306967dff776fec6c98f4))
+
+- **show**: Warn instead of raising in a Pyodide web worker
+  ([#838](https://github.com/xability/py-maidr/pull/838),
+  [`13ffb11`](https://github.com/xability/py-maidr/commit/13ffb114f7bf01c404820dd3432e5ab6373c6b8e))
+
+- **streamlit**: Keep an unchanged chart's frame, and a reader in it, across reruns
+  ([#823](https://github.com/xability/py-maidr/pull/823),
+  [`3d2f2bb`](https://github.com/xability/py-maidr/commit/3d2f2bb0f5a63e06cf07ffe66ee8e5eec74cf9ab))
+
+- **streamlit**: Keep an unchanged Plotly chart's frame across reruns too
+  ([#826](https://github.com/xability/py-maidr/pull/826),
+  [`d395ca5`](https://github.com/xability/py-maidr/commit/d395ca5cb428ee1d10a5903add40614afaeea9d5))
+
+- **widget**: Tell Python 3.9 readers to install mlflow and gradio themselves
+  ([#878](https://github.com/xability/py-maidr/pull/878),
+  [`c167bb1`](https://github.com/xability/py-maidr/commit/c167bb1142fab74a1cc188401017a83150571a31))
+
+- **wordcloud**: Warn when a cloud's words cannot be measured for the highlight
+  ([#877](https://github.com/xability/py-maidr/pull/877),
+  [`7f7ce03`](https://github.com/xability/py-maidr/commit/7f7ce037c52deae3e2143a3e672b4237a5126e14))
+
+### Build System
+
+- Lock matplotlib 3.11.2 so ci tests what pip installs
+  ([#843](https://github.com/xability/py-maidr/pull/843),
+  [`5dbee03`](https://github.com/xability/py-maidr/commit/5dbee0353550aacc5cb8a928d820ac3cb5da394c))
+
+### Documentation
+
+- **quarto**: Say reveal.js 6.0.2 has the slide fix and Quarto 1.10 does not
+  ([#892](https://github.com/xability/py-maidr/pull/892),
+  [`f2a217e`](https://github.com/xability/py-maidr/commit/f2a217e590f487b398270a736ebaaf6871b817ad))
+
+### Features
+
+- Fetch locale packs from jsDelivr for the bundled maidr.js
+  ([#820](https://github.com/xability/py-maidr/pull/820),
+  [`1c58c42`](https://github.com/xability/py-maidr/commit/1c58c42936d9ce989c09585e5d83da6522037c11))
+
+- Let show, render and save_html set the chart's hover mode
+  ([#897](https://github.com/xability/py-maidr/pull/897),
+  [`31f61db`](https://github.com/xability/py-maidr/commit/31f61db38a316349cbfc09675365b4625b4ec080))
+
+- Read a line titled Recall against Precision as a precision-recall curve, in matplotlib and plotly
+  ([#885](https://github.com/xability/py-maidr/pull/885),
+  [`ac1f7bc`](https://github.com/xability/py-maidr/commit/ac1f7bcb428fa8964e1347f0e9fb8f42dd69f608))
+
+- Read declared Plotly fans and PR curves, Bokeh PR curves and seaborn.objects median bands
+  ([#890](https://github.com/xability/py-maidr/pull/890),
+  [`1416d44`](https://github.com/xability/py-maidr/commit/1416d44c3095bb144237c7e02c21a5ed945a5a01))
+
+- Read Weights & Biases and MLflow training curves, and add a Gradio integration
+  ([#873](https://github.com/xability/py-maidr/pull/873),
+  [`0c4b048`](https://github.com/xability/py-maidr/commit/0c4b04880c1631b1aae6930960bc9b0fe19f329e))
+
+- **bokeh**: Read a graph from_networkx made from a directed graph as a directed graph
+  ([#884](https://github.com/xability/py-maidr/pull/884),
+  [`34e4b4c`](https://github.com/xability/py-maidr/commit/34e4b4c27f0d4939ecb1f39ec38c2bd41e7291ca))
+
+- **candlestick**: Announce dates in the format the chart was drawn with
+  ([#821](https://github.com/xability/py-maidr/pull/821),
+  [`04b250e`](https://github.com/xability/py-maidr/commit/04b250ebc5b4c337a233cb55878e1de84cbe1393))
+
+- **excel**: Read every chart type excel draws
+  ([#859](https://github.com/xability/py-maidr/pull/859),
+  [`411ea71`](https://github.com/xability/py-maidr/commit/411ea7192556ca72a367d691cce0ce24d2e23794))
+
+- **excel**: Read the charts of an Excel workbook
+  ([#845](https://github.com/xability/py-maidr/pull/845),
+  [`73dda60`](https://github.com/xability/py-maidr/commit/73dda60bc6990a03632d3e0c8fae43e5a948937d))
+
+- **keras**: Draw a binary classifier's precision-recall curve
+  ([#875](https://github.com/xability/py-maidr/pull/875),
+  [`476f173`](https://github.com/xability/py-maidr/commit/476f173007434a9f3b96277b37ad0102ee889293))
+
+- **keras**: Draw a classifier's confusion matrix as a heatmap
+  ([#863](https://github.com/xability/py-maidr/pull/863),
+  [`6745bd2`](https://github.com/xability/py-maidr/commit/6745bd29672da3bceed7a08e2c2b39626ca8bfe0))
+
+- **keras**: Draw a Keras History and keep a page up to date while training
+  ([#861](https://github.com/xability/py-maidr/pull/861),
+  [`e176e97`](https://github.com/xability/py-maidr/commit/e176e97175f7b7f452334927738c9c8ac0fca88a))
+
+- **keras**: Draw a model's graph as a directed graph
+  ([#871](https://github.com/xability/py-maidr/pull/871),
+  [`f3c1036`](https://github.com/xability/py-maidr/commit/f3c10364d3aa7a21f849334cf7bd83404cdd3f88))
+
+- **networkx**: Read a drawn directed graph as a directed graph
+  ([#883](https://github.com/xability/py-maidr/pull/883),
+  [`e8b656c`](https://github.com/xability/py-maidr/commit/e8b656c9f4e00a51e2d09ae789c0cb85c0821442))
+
+- **office**: Read the charts of powerpoint presentations and word documents
+  ([#869](https://github.com/xability/py-maidr/pull/869),
+  [`9fbdf5f`](https://github.com/xability/py-maidr/commit/9fbdf5fc1bdaabebbfab588a5c76708de3cb9484))
+
+- **plotnine**: Make plotnine charts accessible (experimental)
+  ([#825](https://github.com/xability/py-maidr/pull/825),
+  [`5731fdd`](https://github.com/xability/py-maidr/commit/5731fdd29a4f68fbec36c10ae1d17f6b373913c8))
+
+- **plotnine**: Read precision-recall paths and median_hilow bands as their own traces
+  ([#887](https://github.com/xability/py-maidr/pull/887),
+  [`486a0c1`](https://github.com/xability/py-maidr/commit/486a0c11679ccf8a7f2664c446080eec5dc6ef15))
+
+- **quarto**: Name a chart's iframe by its cell's fig-alt
+  ([#902](https://github.com/xability/py-maidr/pull/902),
+  [`95d81a4`](https://github.com/xability/py-maidr/commit/95d81a4b569fd7b316f88fc119bc880f0aea72f8))
+
+- **quarto**: Name and describe an inline chart by its cell's fig-alt
+  ([#901](https://github.com/xability/py-maidr/pull/901),
+  [`7982bc7`](https://github.com/xability/py-maidr/commit/7982bc7a13500a2dc6a1c5ab5a93a99c49a7f7bc))
+
+- **quarto**: Write charts into the page a Quarto render builds, not an iframe
+  ([#896](https://github.com/xability/py-maidr/pull/896),
+  [`e019612`](https://github.com/xability/py-maidr/commit/e019612f23199a141c3941c84a3fae8b880358e3))
+
+- **seaborn**: Read a median lineplot with a percentile interval as a percentile band
+  ([#886](https://github.com/xability/py-maidr/pull/886),
+  [`d5daf40`](https://github.com/xability/py-maidr/commit/d5daf400b86ec9e6cd7e6d927411fcaf81bc7a51))
+
+- **sklearn**: Read a PrecisionRecallDisplay as a precision-recall curve
+  ([#882](https://github.com/xability/py-maidr/pull/882),
+  [`8a37778`](https://github.com/xability/py-maidr/commit/8a37778feee5c34a6ef37675466f4cae1b59b1e7))
+
+- **tensorboard**: Add a maidr tab to TensorBoard
+  ([#867](https://github.com/xability/py-maidr/pull/867),
+  [`1dc51f1`](https://github.com/xability/py-maidr/commit/1dc51f147f13a21c93a464a917316f5590c30e0f))
+
+- **tensorboard**: Read a hyperparameter sweep as parallel coordinates and a scatter matrix
+  ([#865](https://github.com/xability/py-maidr/pull/865),
+  [`eede084`](https://github.com/xability/py-maidr/commit/eede084cb27a3f35e21fd5294c5f861d1d083456))
+
+- **tensorboard**: Read a profile's step-time graph and top operations
+  ([#870](https://github.com/xability/py-maidr/pull/870),
+  [`aeccdd2`](https://github.com/xability/py-maidr/commit/aeccdd2f4773af4d24b6b3615039e524c73d64c3))
+
+- **tensorboard**: Read distributions as nine lines over their bands
+  ([#864](https://github.com/xability/py-maidr/pull/864),
+  [`d5dba41`](https://github.com/xability/py-maidr/commit/d5dba417d274fe0fe75527141f5ecff5287298e1))
+
+- **tensorboard**: Read histograms as ridgelines
+  ([#862](https://github.com/xability/py-maidr/pull/862),
+  [`5f55c14`](https://github.com/xability/py-maidr/commit/5f55c14b8a631282924da52665d4c2dff4d8894f))
+
+- **tensorboard**: Read PR curves and distributions as pr_curve and percentile_band
+  ([#876](https://github.com/xability/py-maidr/pull/876),
+  [`a179ac8`](https://github.com/xability/py-maidr/commit/a179ac8bccbe76f23fad9af12259773c3eb22818))
+
+- **tensorboard**: Read PR curves, each line named with its average precision
+  ([#868](https://github.com/xability/py-maidr/pull/868),
+  [`96d0203`](https://github.com/xability/py-maidr/commit/96d02037dd7e84629380331eb3102aeb1daa0054))
+
+- **tensorboard**: Read the Embedding Projector as a 2D scatter of its classes
+  ([#866](https://github.com/xability/py-maidr/pull/866),
+  [`23a4dc6`](https://github.com/xability/py-maidr/commit/23a4dc6c84edf49857b387b6eb7a768b3952afae))
+
+- **tensorboard**: Read the scalars of a TensorBoard log directory
+  ([#858](https://github.com/xability/py-maidr/pull/858),
+  [`e59b24f`](https://github.com/xability/py-maidr/commit/e59b24ffba38953f7a01930284a868b9f27c1e27))
+
+- **widget**: Let a chart's frame reach a Monarch over WebHID
+  ([#881](https://github.com/xability/py-maidr/pull/881),
+  [`a90a240`](https://github.com/xability/py-maidr/commit/a90a2404d0d12f2e3b00f1a0a8220bc0f33f0482))
+
+- **wordcloud**: Outline the word being read as the arrow keys move
+  ([#874](https://github.com/xability/py-maidr/pull/874),
+  [`3c105ab`](https://github.com/xability/py-maidr/commit/3c105ab0de6d64444ed2dde1f4f65da6da91ff3d))
+
+### Performance Improvements
+
+- Cut per-element overhead from the SVG writer hook, schema encoding and event plots
+  ([#833](https://github.com/xability/py-maidr/pull/833),
+  [`1f2f321`](https://github.com/xability/py-maidr/commit/1f2f321e29c50bf2cc169178a66f450e42d62f2b))
+
+- Read errorbar centers of plain numbers a column at a time
+  ([#841](https://github.com/xability/py-maidr/pull/841),
+  [`09811c6`](https://github.com/xability/py-maidr/commit/09811c63c6cc083cfe28ef3280b0681d8c768308))
+
+- Read lines, steps and areas on numeric axes as arrays instead of point by point
+  ([#829](https://github.com/xability/py-maidr/pull/829),
+  [`dc36833`](https://github.com/xability/py-maidr/commit/dc36833d4324ecbd3f9c4e0ffcb99d707d648615))
+
+- Read scatter, strip and rug points in bulk and convert each colour once
+  ([#830](https://github.com/xability/py-maidr/pull/830),
+  [`3d55aaa`](https://github.com/xability/py-maidr/commit/3d55aaaa7860f3ba910cdbe532355a04a06ac214))
+
+- Read violin, boxen, step-histogram, event-plot and contour data without redundant passes
+  ([#828](https://github.com/xability/py-maidr/pull/828),
+  [`a5498a2`](https://github.com/xability/py-maidr/commit/a5498a2709f54d1eac11bced05e313afc812c228))
+
+- **bokeh**: Read lines and point clouds of plain numbers a column at a time
+  ([#832](https://github.com/xability/py-maidr/pull/832),
+  [`37f408e`](https://github.com/xability/py-maidr/commit/37f408e2db77691b0c8440537d9c3b9338cfe59f))
+
+- **bokeh**: Read varea and harea bands of plain numbers a column at a time
+  ([#840](https://github.com/xability/py-maidr/pull/840),
+  [`c2ab184`](https://github.com/xability/py-maidr/commit/c2ab1848cf3ce33b0602bfc326fc5af87425c2b4))
+
+- **plotly**: Read scatter, line, heatmap and contour data without per-value calls
+  ([#831](https://github.com/xability/py-maidr/pull/831),
+  [`672b0ca`](https://github.com/xability/py-maidr/commit/672b0ca85cc21cd63c9e032c44150e8fb7a8265f))
+
+- **shiny**: Serve the offline bundle once per app instead of inside every chart document
+  ([#824](https://github.com/xability/py-maidr/pull/824),
+  [`723711d`](https://github.com/xability/py-maidr/commit/723711d118bf5055baca3b56e8ccb71851f6aed9))
+
+### Refactoring
+
+- **excel**: Split the excel reader into a module per chart family
+  ([#860](https://github.com/xability/py-maidr/pull/860),
+  [`77e5687`](https://github.com/xability/py-maidr/commit/77e56874a43f83b8237ceb2c7598e0661b6f799e))
+
+- **quarto**: Leave to maidr.js 4.15.0 what an inline chart carried copies of
+  ([#909](https://github.com/xability/py-maidr/pull/909),
+  [`3ac3a5d`](https://github.com/xability/py-maidr/commit/3ac3a5db2809f84ff86f935d3a186658ad85be4b))
+
+### Testing
+
+- Pin the help labels maidr.js 4.15.0 spells out, and wait for its shift+tab
+  ([#908](https://github.com/xability/py-maidr/pull/908),
+  [`296c6fd`](https://github.com/xability/py-maidr/commit/296c6fde86de17b37f9c3bd90fd560d8498f929d))
+
+- **browser**: Drive PR curves, distributions and a model graph from the keyboard
+  ([#880](https://github.com/xability/py-maidr/pull/880),
+  [`f951e4a`](https://github.com/xability/py-maidr/commit/f951e4a41f46d799825adae27e450586193c6c6d))
+
+- **browser**: Pin that every announcement arrives in a fresh alert, which Firefox needs to speak it
+  ([#822](https://github.com/xability/py-maidr/pull/822),
+  [`6be8652`](https://github.com/xability/py-maidr/commit/6be8652f27681047997219f3e11b251bfd3ee7f5))
+
+- **widget**: Wait for the gradio chart to answer a key instead of half a second
+  ([#879](https://github.com/xability/py-maidr/pull/879),
+  [`1e826fe`](https://github.com/xability/py-maidr/commit/1e826fe69bff468ae1ba730ce1a6482289b42509))
+
+
 ## v1.26.0 (2026-09-28)
 
 ### Bug Fixes
