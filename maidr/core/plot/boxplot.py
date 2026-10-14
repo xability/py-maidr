@@ -410,7 +410,20 @@ class BoxPlot(
                     ],
                 }
             )
-        return selector if self._orientation == "vert" else list(reversed(selector))
+        return self._order_box_rows(selector)
+
+    def _order_box_rows(self, rows: list[dict]) -> list[dict]:
+        """Apply the same category ordering to box data and selectors.
+
+        maidr.js reverses horizontal boxes into bottom-to-top navigation, so
+        it needs top-to-bottom input. On a normal y axis that means reversing
+        the drawing order; seaborn's inverted category axis already draws in
+        that order. Read the axis at render time, after seaborn or the caller
+        has had a chance to invert it. Vertical boxes keep their existing order.
+        """
+        if self._orientation != "vert" and not self.ax.yaxis_inverted():
+            return list(reversed(rows))
+        return rows
 
     def render(self) -> dict:
         """
@@ -639,4 +652,4 @@ class BoxPlot(
                 }
             )
 
-        return bxp_maidr if self._orientation == "vert" else list(reversed(bxp_maidr))
+        return self._order_box_rows(bxp_maidr)
