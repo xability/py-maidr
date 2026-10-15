@@ -588,6 +588,41 @@ _BOX_JS = """
                 });
             });
         }
+        // A frame whose height flips between two, its window the same
+        // width -- the page's scrollbar coming as the frame grows, and going
+        // as it shrinks, the chart following the width the scrollbar leaves
+        // -- keeps the taller of the two until the reader does something in
+        // the chart or the window changes width: at the classic scrollbars'
+        // threshold, it was resized without end.
+        function maidrSteady(iframe, doc, height) {
+            var width = iframe.ownerDocument.defaultView.innerWidth;
+            if (!doc.maidrSteadyReset) {
+                doc.maidrSteadyReset = true;
+                ['keydown', 'pointerdown', 'focusin'].forEach(function(type) {
+                    doc.addEventListener(type, function() {
+                        iframe.maidrSteady = null;
+                    }, true);
+                });
+            }
+            var steady = iframe.maidrSteady;
+            if (!steady || steady.width !== width) {
+                steady = iframe.maidrSteady = {width: width, seen: [], hold: 0};
+            }
+            var seen = steady.seen;
+            if (steady.hold) {
+                if (height === seen[0] || height === seen[1]) return steady.hold;
+                steady.hold = 0;
+                seen.length = 0;
+            }
+            if (seen[seen.length - 1] !== height) seen.push(height);
+            if (seen.length > 3) seen.shift();
+            if (seen.length === 3 && seen[0] === seen[2]) {
+                seen.shift();
+                steady.hold = Math.max(seen[0], seen[1]);
+                return steady.hold;
+            }
+            return height;
+        }
         // Holds on an element's height, each for a reason: the most of
         // them is its min-height, and its own comes back once none is left.
         function maidrHold(el, why, px) {
@@ -1402,6 +1437,7 @@ def _matplotlib_resizer(
                     height += 50;
                 }}
                 height = Math.max(height, room);
+                @S if (fitsOutput) height = maidrSteady(iframe, iframeDocument, height);
                 iframe.style.height = (height) + 'px';
                 if (restoreScroll) restoreScroll();
                 @S if (letGo) letGo();
@@ -1739,6 +1775,7 @@ def _plotly_resizer(
                 height += 50;
             }}
             height = Math.max(height, room);
+            @S if (fitsOutput) height = maidrSteady(iframe, doc, height);
 
             iframe.style.height = height + 'px';
             if (restoreScroll) restoreScroll();

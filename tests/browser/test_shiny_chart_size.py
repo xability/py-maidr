@@ -1738,6 +1738,68 @@ def test_a_string_frame_needs_nothing_served(browser, shiny_size_app_url, case):
         page.close()
 
 
+#: How many times the frame's height has changed, frame by frame, from now.
+_COUNT_RESIZES = r"""() => {
+  const frame = document.querySelector('#m iframe');
+  window.maidrResizes = 0;
+  let last = frame.style.height;
+  const note = () => {
+    if (frame.style.height !== last) { last = frame.style.height; window.maidrResizes++; }
+    requestAnimationFrame(note);
+  };
+  note();
+}"""
+
+
+@pytest.mark.parametrize("case", ["default", "as_str"])
+def test_a_frame_at_rest_is_still_at_the_scrollbars_threshold(
+    classic_scrollbar_browser, shiny_size_app_url, case
+):
+    """Classic scrollbars, a page whose height is about the window's.
+
+    The page's scrollbar comes as the frame grows, and narrows it; the chart
+    shrinks with it, and the frame with the chart, and the scrollbar goes.
+    A string frame's guess at its own size, without its script, did that 36
+    times in 4s, at rest, for good, at a spacer of 470px above a phone's
+    chart, and not at 460px or 480px; render_maidr's frame, 240 times. The
+    frame keeps the taller of the two heights now.
+    """
+    if case == "as_str":
+        page = _without_the_served_script(
+            classic_scrollbar_browser, f"{shiny_size_app_url}/{case}/", width=390
+        )
+    else:
+        page = _open(classic_scrollbar_browser, f"{shiny_size_app_url}/{case}/", 390)
+    try:
+        page.set_viewport_size({"width": 390, "height": 844})
+        _settle(page)
+        # A spacer above the chart, as tall as makes the page as tall as the
+        # window, give or take: the page's scrollbar comes and goes there.
+        even = page.evaluate(
+            "() => { const s = document.createElement('div'); s.id = 'spacer';"
+            " document.body.insertBefore(s, document.body.firstChild);"
+            " const bottom = Math.max(...[...document.body.children].map(e =>"
+            " e.getBoundingClientRect().bottom + window.scrollY"
+            " + parseFloat(getComputedStyle(e).marginBottom)));"
+            " return innerHeight - bottom; }"
+        )
+        for spacer in range(int(even) - 20, int(even) + 21, 2):
+            page.evaluate(
+                "(px) => document.getElementById('spacer').style.height = px + 'px'",
+                spacer,
+            )
+            page.wait_for_timeout(1500)
+            page.evaluate(_COUNT_RESIZES)
+            page.wait_for_timeout(1500)
+            resizes = page.evaluate("() => window.maidrResizes")
+            assert resizes == 0, (spacer, even, resizes)
+            seen = page.evaluate(_GEOMETRY)
+            assert _inside(seen["svg"], seen["frame"]), (spacer, seen)
+        assert page.errors == []  # type: ignore[attr-defined]
+    finally:
+        page.close()
+
+
 #: The height of the chart that takes its container's, and of its frame.
 _CONTAINER = r"""() => {
   const frame = document.querySelector('#m iframe');
