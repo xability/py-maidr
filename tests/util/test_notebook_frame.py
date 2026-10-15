@@ -160,9 +160,9 @@ def test_a_notebook_frame_fits_the_output_area():
     assert f"svg.{FRAME_SVG_CLASS}" in script
     # As wide as the output area, its end padding included, up to the
     # chart's own width; never fitted to a box, which only Shiny's has.
-    assert "let keepsPadding = false;" in script
-    assert "let fitsBox = false;" in script
-    assert "iframe.style.width = maidrOutputWidth(iframe, keepsPadding);" in script
+    assert "iframe.style.width = maidrOutputWidth(iframe, false);" in script
+    assert "maidrBoxRoom" not in script
+    assert "maidrSuspendBox" not in script
     assert "'calc(100% + ' + pad + 'px)'" in script
     assert "iframe.style.marginRight = pad > 0 ? (-pad) + 'px' : '';" in script
     assert "iframe.style.maxWidth" in script
@@ -194,12 +194,11 @@ def test_a_frame_keeps_the_notebook_where_it_is_scrolled():
         script = _attribute(frame, "onload")
         # Kept before the frame is measured, and put back once it is: every
         # box round it, where a Shiny app's frame keeps its own box's alone.
-        kept = script.index("maidrKeepScroll(iframe")
-        assert "maidrKeepScroll(iframe, true)" not in script
+        kept = script.index("fitsOutput ? maidrKeepScroll(iframe) : null;")
+        assert "maidrKeepBoxScroll" not in script
         measured = script.index("iframe.style.height = fitsOutput ? '0px' : 'auto';")
         restored = script.index("if (restoreScroll) restoreScroll();")
         assert kept < measured < restored
-    assert "let fitsBox = false;" in _attribute(_frame(in_notebook=True), "onload")
 
 
 def test_a_notebook_frame_makes_room_for_maidrs_dialogs():
@@ -363,10 +362,10 @@ def test_a_shiny_apps_frame_fits_its_output(monkeypatch):
     # Outside render_maidr's output, the frame carries the script that
     # sizes it (test_a_shiny_frame_outside_render_maidr_carries_its_script).
     assert "maidrShinyFrame(this,'matplotlib',{})" in html
-    assert "let fitsOutput = true;" in script
+    # It fits the output unless a dialog of maidr's is open.
+    assert "let fitsOutput = !maidrSuspendBox(iframe);" in script
     # No padding to take back, as a notebook's output area has.
-    assert "let keepsPadding = true;" in script
-    assert "let fitsBox = true;" in script
+    assert "iframe.style.width = maidrOutputWidth(iframe, true);" in script
     assert "maidrWatchBox(iframe, scheduleResize);" in script
     assert "display: block" in html
 
@@ -389,17 +388,17 @@ def test_a_shiny_frame_fits_the_chart_to_a_box_with_a_height():
     assert "iframe.style.maxWidth = boxRoom > 0" in script
     # Given a width alone, never wider than the frame: a scrollbar the box
     # takes narrows it rather than cutting its edge off.
-    assert "chart.style.maxWidth = 'none'" not in script
-    assert "chart.style.height = (h * scale)" not in script
-    # A dialog gets the window's room, the box and output held to it until
-    # it goes; maidr's text is scrolled into the box.
+    fit = script[script.index("function maidrFitChart(") :]
+    fit = fit[: fit.index("\n        }\n")]
+    assert "chart.style.maxWidth = '';" in fit
+    assert "maxWidth = 'none'" not in fit
+    assert "chart.style.height = (h * scale)" not in fit
+    # maidr's text is scrolled into the box; a chart that takes its height
+    # from its container is given the box's, less a line for the text.
     for part in (
-        "function maidrBoxDialogRoom(iframe, own)",
-        "maidrHoldBox(iframe, room > 0 ? dialog : 0);",
-        "if (win !== win.top) room = Math.max(room, 480);",
         "maidrShowText(iframeDocument, iframe);",
         "maidrShowText(doc, iframe);",
-        "maidrFillHeight(doc, fit.room > 0",
+        "maidrFillHeight(doc, boxRoom > 0",
     ):
         assert part in script, part
     # A notebook's frame has none of it.

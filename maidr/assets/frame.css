@@ -37,6 +37,22 @@ html[data-maidr-fit-box] figure[id^="maidr-figure-"] > div[tabindex] {
   margin-right: auto;
 }
 
+/* In a Shiny app, while a dialog of maidr's is open, the frame's script
+ * (iframe_utils.py's _BOX_JS) marks the root and sizes the frame by what it
+ * holds, a matplotlib chart at its own size, as before charts were fitted
+ * to their outputs; the document has a browser's own margins above and
+ * below then too, as it had, so that a dialog has all the room it had.
+ * Not at the sides: a chart that takes its frame's width would be drawn
+ * again, narrower, under the dialog. */
+html[data-maidr-suspended] body {
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+html[data-maidr-suspended] figure[id^="maidr-figure-"] {
+  margin-top: 1em;
+  margin-bottom: 1em;
+}
+
 /* A visible focus (WCAG 2.4.7), drawn inside the chart: the frame's edge is
  * the chart's, and would cut a ring drawn outside it (#893). A light band
  * inside the ring, the outline of the svg itself, keeps it visible on a dark

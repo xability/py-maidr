@@ -143,8 +143,10 @@ def output_maidr(
     ``height="container"`` are as tall as an output with a height of its
     own less the line for maidr's text, and 450px in one with none; any
     other keeps its own height. While one of
-    maidr's dialogs is open the output is as tall as the part of the
-    window a reader sees, and goes back to its own height once it closes.
+    maidr's dialogs is open, none of this applies: the output is laid out as
+    it was before charts were fitted to their outputs, a matplotlib chart at
+    its own size, a Plotly, Bokeh or Altair chart at the height it had, and
+    the chart is fitted again once the dialog closes.
 
     The container keeps a box of its own once a chart is in it. Shiny's
     stylesheet makes a UI output a pass-through container as soon as it

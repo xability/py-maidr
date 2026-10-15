@@ -12,33 +12,6 @@
             iframe.style.marginRight = pad > 0 ? (-pad) + 'px' : '';
             return pad > 0 ? 'calc(100% + ' + pad + 'px)' : '100%';
         }
-
-        function maidrKeepScroll(iframe, boxOnly) {
-            var page = iframe.ownerDocument;
-            var frame = iframe.getBoundingClientRect();
-            var kept = [];
-            for (var el = iframe.parentElement; el;
-                    el = boxOnly ? null : el.parentElement) {
-                if (el.scrollTop || el.scrollLeft) {
-                    var whole = el === page.documentElement || el === page.body;
-                    var shown = whole ? 0 : el.getBoundingClientRect().top + el.clientTop;
-                    kept.push([el, el.scrollTop, el.scrollLeft, frame.bottom <= shown]);
-                }
-            }
-            return function() {
-                var grew = iframe.getBoundingClientRect().height - frame.height;
-                for (var i = 0; i < kept.length; i++) {
-                    var el = kept[i][0];
-                    var top = kept[i][1] + (kept[i][3] ? grew : 0);
-                    if (el.scrollTop === top && el.scrollLeft === kept[i][2]) continue;
-                    // At once: a page whose scroll-behavior is smooth
-                    // (Bootstrap's, so every Shiny app's) scrolled back
-                    // over a third of a second, and was stopped short by
-                    // the next measure.
-                    el.scrollTo({top: top, left: kept[i][2], behavior: 'instant'});
-                }
-            };
-        }
         function maidrShowField(doc, resized) {
             // maidr's braille or review field, opened below the chart, took
             // the focus before the frame grew to hold it: the browser then
@@ -54,104 +27,6 @@
 
         function maidrNotLaidOut(iframe) {
             return !!(iframe && iframe.contentWindow && !iframe.contentWindow.innerWidth);
-        }
-
-        function maidrDialogRoom(doc, iframe) {
-            if (!doc.querySelector('.MuiDialog-root')) return 0;
-            var win = iframe.ownerDocument.defaultView;
-            var height = win.innerHeight || 0;
-            var scroller = null;
-            for (var el = iframe.parentElement; el; el = el.parentElement) {
-                var y = win.getComputedStyle(el).overflowY;
-                if ((y === 'auto' || y === 'scroll' || y === 'overlay')
-                        && el.scrollHeight > el.clientHeight + 1) {
-                    scroller = el;
-                }
-            }
-            if (scroller) {
-                height = Math.min(height, scroller.clientHeight);
-            } else if (win !== win.top) {
-                height = Math.max(height, 480);
-            }
-            return Math.floor(height);
-        }
-        // What the reader sees of the page round a frame: the top of it, in
-        // the window -- the window's, or lower, that of a box round the
-        // frame that clips it -- and the most of it they can see at once,
-        // the window's height or less, a box's. The window of a frame that
-        // is itself a frame grows with it, and is no limit.
-        function maidrShown(iframe) {
-            var page = iframe.ownerDocument;
-            var win = page.defaultView;
-            var shown = {top: 0, height: win === win.top ? win.innerHeight || 0 : Infinity};
-            for (var el = iframe.parentElement; el && el !== page.body;
-                    el = el.parentElement) {
-                var style = win.getComputedStyle(el);
-                if (style.overflowY === 'visible' && style.overflowX === 'visible') {
-                    continue;
-                }
-                shown.top = Math.max(shown.top, el.getBoundingClientRect().top + el.clientTop);
-                shown.height = Math.min(shown.height, el.clientHeight);
-            }
-            return shown;
-        }
-        function maidrShowDialog(doc, iframe, room, resized) {
-            var opened = room > 0;
-            var was = iframe.maidrDialogOpen;
-            iframe.maidrDialogOpen = opened;
-            // Over a chart taller than the reader's view, the dialog is kept
-            // to a band of that height (frame.css), in the part of the frame
-            // the reader sees: centred in the frame, the band took the
-            // frame's top above the window, and with it the element a
-            // Plotly chart takes the focus on, which the browser scrolled
-            // to the window's middle as the focus came back to it, 200-570px
-            // away, the highlighted mark out of sight.
-            var root = doc.documentElement;
-            var shown = opened ? maidrShown(iframe) : null;
-            var height = opened ? Math.floor(Math.min(room, shown.height)) : 0;
-            var band = opened && height > 0 && iframe.clientHeight > height;
-            var place = opened && (!was || resized || band
-                && root.style.getPropertyValue('--maidr-dialog-room') !== height + 'px');
-            if (band) {
-                if (place || !root.hasAttribute('data-maidr-dialog-room')) {
-                    var top = shown.top - iframe.getBoundingClientRect().top;
-                    top = Math.max(0, Math.min(top, iframe.clientHeight - height));
-                    root.style.setProperty('--maidr-dialog-top', Math.round(top) + 'px');
-                }
-                root.style.setProperty('--maidr-dialog-room', height + 'px');
-                root.setAttribute('data-maidr-dialog-room', '');
-            } else if (root.hasAttribute('data-maidr-dialog-room')) {
-                root.style.removeProperty('--maidr-dialog-room');
-                root.style.removeProperty('--maidr-dialog-top');
-                root.removeAttribute('data-maidr-dialog-room');
-            }
-            var container = band && doc.querySelector('.MuiDialog-container');
-            if (place && container) {
-                // The band brought into the reader's view, by as little as
-                // that takes. At once, whatever the page's scroll-behavior:
-                // Bootstrap's is smooth, and the frame measured again while
-                // it scrolled stopped it short (a Shiny app's settings
-                // dialog lost its Close button).
-                container.scrollIntoView(
-                    {block: 'nearest', inline: 'nearest', behavior: 'instant'}
-                );
-            } else if (place && !band) {
-                // The dialog is centred in a frame no taller than the
-                // reader's view: centring the frame in it shows it whole.
-                iframe.scrollIntoView(
-                    {block: 'center', inline: 'nearest', behavior: 'instant'}
-                );
-            } else if (was && !opened
-                    && iframe.ownerDocument.activeElement === iframe) {
-                // Gone, and its room with it: the chart, which has the
-                // focus back, is brought into view if it is not, by as
-                // little as that takes -- the window may have changed size
-                // while the dialog was open (a phone turned, the browser
-                // zoomed), and the page was laid out again.
-                iframe.scrollIntoView(
-                    {block: 'nearest', inline: 'nearest', behavior: 'instant'}
-                );
-            }
         }
 
         function maidrWatch(doc, onChange) {
@@ -213,49 +88,97 @@
             if (!(line > 0)) line = 1.25 * size;
             return Math.ceil(line + 2 * size);
         }
-        // The box's room, measured unless a dialog of maidr's holds the box
-        // taller, and the room the dialog gets: what the reader sees of the
-        // window, or of a container of a height of its own that clips the
-        // output (a fillable card's body), never less than the box's own.
-        function maidrBox(iframe, doc) {
-            var open = !!doc.querySelector('.MuiDialog-root');
-            if (!open || iframe.maidrBoxRoom === undefined) {
-                maidrHoldBox(iframe, 0);
-                iframe.maidrBoxRoom = maidrBoxRoom(iframe);
-            }
-            var room = iframe.maidrBoxRoom;
-            var dialog = open ? maidrBoxDialogRoom(iframe, room) : 0;
-            maidrHoldBox(iframe, room > 0 ? dialog : 0);
-            return {room: room, dialog: dialog};
-        }
-        // The box is held at the window's room first. A container that
-        // clips the output but grows with its content -- a card's body in a
-        // page that is not fillable, every card on a phone -- grows with it
-        // and is no limit: capping the room at its height capped it at the
-        // chart's own, and a help dialog in a 300px output showed 104px of
-        // its text. One whose height is its own -- a fillable card's body,
-        // a sidebar layout's main area, a card given a height -- is then
-        // overflowed, and the room is what it shows.
-        function maidrBoxDialogRoom(iframe, own) {
-            var page = iframe.ownerDocument;
-            var win = page.defaultView;
-            var room = win.innerHeight || 0;
-            if (win !== win.top) room = Math.max(room, 480);
-            room = Math.max(room, own);
-            maidrHoldBox(iframe, Math.floor(room));
+        // Whether a dialog of maidr's is open in the frame. While one is,
+        // the box render_maidr puts round the frame, and the output round
+        // that, are pass-through containers (display: contents), as Shiny
+        // makes an output that has children, the chart is not fitted, and
+        // the document has a browser's own margins above and below
+        // (frame.css): the frame is then sized as a chart's frame elsewhere
+        // is, and as it was before charts were fitted. They are given
+        // back once the dialog has gone, or once the frame has left the
+        // page -- its chart drawn again, or its output emptied, with the
+        // dialog open.
+        function maidrSuspendBox(iframe) {
+            var doc = iframe && iframe.contentWindow && iframe.contentWindow.document;
+            var open = !!(doc && doc.querySelector('.MuiDialog-root'));
+            if (!iframe || open === !!iframe.maidrSuspended) return open;
             var box = iframe.parentElement;
-            for (var el = box && box.parentElement; el && el !== page.body;
-                    el = el.parentElement) {
-                var style = win.getComputedStyle(el);
-                if (style.overflowY === 'visible' || style.display === 'contents'
-                        || el.scrollHeight <= el.clientHeight + 1) {
-                    continue;
+            maidrNoAnchor(iframe);
+            if (open) {
+                var width = iframe.getBoundingClientRect().width;
+                var held = [];
+                if (box && box.classList.contains('maidr-shiny-box')) {
+                    held = [box, box.parentElement];
                 }
-                room = Math.min(room, el.clientHeight
-                    - (parseFloat(style.paddingTop) || 0)
-                    - (parseFloat(style.paddingBottom) || 0));
+                var suspended = iframe.maidrSuspended = {held: []};
+                for (var i = 0; i < held.length; i++) {
+                    if (!held[i]) continue;
+                    suspended.held.push([held[i], held[i].style.display]);
+                    held[i].style.display = 'contents';
+                }
+                var chart = doc.querySelector('svg.maidr-frame-svg');
+                if (chart) {
+                    chart.style.width = '';
+                    chart.style.height = '';
+                    chart.style.maxWidth = 'none';
+                }
+                doc.documentElement.setAttribute('data-maidr-suspended', '');
+                if (doc.body) doc.body.style.paddingTop = '';
+                doc.documentElement.removeAttribute('data-maidr-fit-box');
+                // The width it has, which a chart that takes its frame's
+                // width keeps: given the container's, wider by the box's
+                // scrollbar gutter, a Plotly chart was drawn again under the
+                // dialog, and threw ('mo'). A matplotlib chart's frame is
+                // as wide as the chart (resizeIframe).
+                iframe.style.width = width + 'px';
+                iframe.style.maxWidth = '';
+                iframe.maidrHostWidth = undefined;
+                var win = iframe.ownerDocument.defaultView;
+                if (win.MutationObserver) {
+                    suspended.gone = new win.MutationObserver(function() {
+                        if (!iframe.isConnected) maidrSuspendBox(iframe);
+                    });
+                    suspended.gone.observe(
+                        iframe.ownerDocument.body, {childList: true, subtree: true}
+                    );
+                }
+            } else {
+                var was = iframe.maidrSuspended;
+                iframe.maidrSuspended = null;
+                if (was.gone) was.gone.disconnect();
+                for (var j = 0; j < was.held.length; j++) {
+                    was.held[j][0].style.display = was.held[j][1];
+                }
+                if (doc) {
+                    doc.documentElement.removeAttribute('data-maidr-suspended');
+                    if (doc.body) doc.body.style.minHeight = '';
+                    var svg = doc.querySelector('svg.maidr-frame-svg');
+                    if (svg) svg.style.maxWidth = '';
+                }
             }
-            return Math.floor(Math.max(room, own));
+            return open;
+        }
+        // The page left where it is as the box is suspended or given back,
+        // as nothing moved it where the box was never suspended: the
+        // browser's scroll anchoring, its anchor lost with the box, held
+        // what is below the frame in place instead, and scrolled a frame
+        // whose top was in the window up by all it grew, the dialog's top
+        // above the window. Off, for the containers round the frame, until
+        // the frame has been laid out.
+        function maidrNoAnchor(iframe) {
+            var win = iframe.ownerDocument.defaultView;
+            var off = [];
+            for (var el = iframe.parentElement; el; el = el.parentElement) {
+                off.push([el, el.style.overflowAnchor]);
+                el.style.overflowAnchor = 'none';
+            }
+            win.requestAnimationFrame(function() {
+                win.requestAnimationFrame(function() {
+                    for (var i = 0; i < off.length; i++) {
+                        off[i][0].style.overflowAnchor = off[i][1];
+                    }
+                });
+            });
         }
         // Holds on an element's height, each for a reason: the most of
         // them is its min-height, and its own comes back once none is left.
@@ -299,31 +222,36 @@
         // The output at the height it has while the frame is measured, at
         // no height and at 4000px for a moment: the page then stays as it
         // is. It had been clamped to what fitted, the containers round the
-        // output with it, and scrolled back after. Not while another hold
-        // is on it: the box is measured at its own height as a dialog's
-        // room is given back. Returns what lets go.
-        // The output's height while no dialog of maidr's is open is noted
-        // on the frame (maidrOwn), for a chart drawn again under one.
+        // output with it, and scrolled back after. Returns what lets go.
         function maidrHoldStill(iframe) {
             var box = iframe.parentElement;
             var el = box && maidrHolder(box.parentElement);
-            if (!el) return null;
-            var px = maidrHeight(el);
-            if (!iframe.maidrDialogOpen) iframe.maidrOwn = {el: el, px: px};
-            if (el.maidrHolds) return null;
-            maidrHold(el, 'measure', px);
+            if (!el || el.maidrHolds) return null;
+            maidrHold(el, 'measure', maidrHeight(el));
             return function() { maidrHold(el, 'measure', 0); };
+        }
+        // The box's scroll position, kept while the frame is measured: the
+        // box alone, the output round it being held still.
+        function maidrKeepBoxScroll(iframe) {
+            var box = iframe.parentElement;
+            if (!box || !(box.scrollTop || box.scrollLeft)) return null;
+            var top = box.scrollTop;
+            var left = box.scrollLeft;
+            return function() {
+                if (box.scrollTop === top && box.scrollLeft === left) return;
+                box.scrollTo({top: top, left: left, behavior: 'instant'});
+            };
         }
         // An output whose chart is about to be drawn again is held at the
         // height it has (Shiny's shiny:value comes before it is), until a
         // new frame in it has measured its chart (maidrRedrawn), until
-        // there is no frame of maidr's in it, or for 10s at most. One whose
-        // chart has a dialog open is held at its height from before the
-        // dialog, not the dialog's room: let go of at once, it fell to the
-        // new frame's 150px, and a chart at the page's end, its page
-        // shortened under it, was drawn below the window.
+        // there is no frame of maidr's in it, or for 10s at most. Not one
+        // whose chart has a dialog open: its box is suspended.
         function maidrHoldRedraw(out) {
             var old = out.querySelectorAll('iframe[data-maidr-chart]');
+            for (var i = 0; i < old.length; i++) {
+                if (old[i].maidrSuspended) return;
+            }
             var el = old.length && maidrHolder(out);
             if (!el) return;
             var win = out.ownerDocument.defaultView;
@@ -331,12 +259,6 @@
             // before the frame drawn last had measured its own was held at
             // that frame's 150px, and the page below it moved up.
             var px = maidrHeight(el);
-            for (var i = 0; i < old.length; i++) {
-                if (old[i].maidrDialogOpen) {
-                    var own = old[i].maidrOwn;
-                    px = own && own.el === el ? own.px : 0;
-                }
-            }
             if (!(px > 0)) return;
             maidrLetGo(el);
             var redraw = el.maidrRedraw = {old: Array.prototype.slice.call(old)};
@@ -365,34 +287,6 @@
                     maidrLetGo(el);
                     return;
                 }
-            }
-        }
-        // The box, and the output it fills, at least this tall; 0 gives
-        // them back the height they had. Let go of at once should the frame
-        // be taken out of the page while they are held -- its chart drawn
-        // again, or its output emptied, with the dialog open: the output
-        // was otherwise left at the dialog's height, blank below what came
-        // next, for good.
-        function maidrHoldBox(iframe, room) {
-            var holding = iframe.maidrHolding;
-            if (room > 0 && !holding) {
-                var box = iframe.parentElement;
-                var page = iframe.ownerDocument;
-                holding = iframe.maidrHolding = {held: [box, box && box.parentElement]};
-                if (page.defaultView.MutationObserver) {
-                    holding.gone = new page.defaultView.MutationObserver(function() {
-                        if (!iframe.isConnected) maidrHoldBox(iframe, 0);
-                    });
-                    holding.gone.observe(page.body, {childList: true, subtree: true});
-                }
-            }
-            if (!holding) return;
-            for (var i = 0; i < holding.held.length; i++) {
-                maidrHold(holding.held[i], 'dialog', room);
-            }
-            if (!(room > 0)) {
-                if (holding.gone) holding.gone.disconnect();
-                iframe.maidrHolding = null;
             }
         }
         // The room kept below a fitted chart for maidr's text: a line, or
@@ -555,10 +449,8 @@
     function matplotlibFrame(frame, options) {
 
         function resizeIframe() {
-            let fitsOutput = true;
-            let keepsPadding = true;
-            let fitsBox = true;
             let iframe = frame;
+            let fitsOutput = !maidrSuspendBox(iframe);
             if (fitsOutput && maidrNotLaidOut(iframe)) return;
             if (
                 iframe && iframe.contentWindow &&
@@ -568,11 +460,10 @@
                 let iframeDocument = iframe.contentWindow.document;
                 let body = iframeDocument.body;
                 let de = iframeDocument.documentElement;
-                let letGo = fitsBox ? maidrHoldStill(iframe) : null;
-                let restoreScroll = fitsOutput
-                    ? maidrKeepScroll(iframe, fitsBox) : null;
+                let letGo = fitsOutput ? maidrHoldStill(iframe) : null;
+                let restoreScroll = fitsOutput ? maidrKeepBoxScroll(iframe) : null;
                 let before = iframe.style.height;
-                let room = fitsOutput ? maidrDialogRoom(iframeDocument, iframe) : 0;
+                let room = 0;
 
                 let bodyStyle = iframe.contentWindow.getComputedStyle(body);
                 let side = (parseFloat(bodyStyle.marginLeft) || 0)
@@ -589,32 +480,20 @@
                 let own = chart && chart.width && chart.width.baseVal
                     ? chart.width.baseVal.value
                     : 0;
-                // In a Shiny app, the height of the box the frame is shown
-                // in, when it has one of its own: the chart is fitted to it.
-                let boxRoom = 0;
                 if (own > 0) {
-                    // While a dialog of maidr's is open, the frame
-                    // may be as wide as MUI makes a dialog (600px, and 32px
-                    // either side), so that a small chart's frame does not
-                    // squeeze it.
-                    let dialogOpen = iframeDocument.querySelector('.MuiDialog-root');
-                    iframe.style.width = maidrOutputWidth(iframe, keepsPadding);
-                    if (fitsBox) {
-                        let fit = maidrBox(iframe, iframeDocument);
-                        boxRoom = fit.room;
-                        room = fit.dialog;
-                        maidrFitChart(
-                            iframeDocument, chart, boxRoom, maidrBoxWidth(iframe), iframe
-                        );
-                    }
-                    // A chart fitted to its box is as wide as the box.
-                    iframe.style.maxWidth = boxRoom > 0
-                        ? ''
-                        : Math.max(own + side, dialogOpen ? 664 : 0) + 'px';
+                    // In a Shiny app, the chart is fitted to its box when
+                    // the box has a height of its own, and is then as wide
+                    // as the box.
+                    iframe.style.width = maidrOutputWidth(iframe, true);
+                    let boxRoom = maidrBoxRoom(iframe);
+                    maidrFitChart(
+                        iframeDocument, chart, boxRoom, maidrBoxWidth(iframe), iframe
+                    );
+                    iframe.style.maxWidth = boxRoom > 0 ? '' : (own + side) + 'px';
                 } else if (fitsOutput) {
                     // Until maidr.js has put the chart back: narrowed to
                     // nothing, the frame had no width to measure it at.
-                    iframe.style.width = maidrOutputWidth(iframe, keepsPadding);
+                    iframe.style.width = maidrOutputWidth(iframe, true);
                     iframe.style.maxWidth = '';
                 } else {
                     // The width comes first, so the height below is measured
@@ -687,13 +566,12 @@
                 iframe.style.height = (height) + 'px';
                 if (restoreScroll) restoreScroll();
                 if (letGo) letGo();
-                if (fitsBox && own > 0) maidrRedrawn(iframe);
+                if (fitsOutput && own > 0) maidrRedrawn(iframe);
                 if (fitsOutput) {
                     let resized = iframe.style.height !== before;
-                    maidrShowDialog(iframeDocument, iframe, room, resized);
                     maidrShowField(iframeDocument, resized);
                 }
-                if (fitsBox) maidrShowText(iframeDocument, iframe);
+                if (fitsOutput) maidrShowText(iframeDocument, iframe);
             }
         }
         let iframe = frame;
@@ -775,34 +653,43 @@
     function plotlyFrame(frame, options) {
 
         function resizeIframe() {
-            var fitsOutput = true;
-            var keepsPadding = true;
-            var widens = options.widens;
             var iframe = frame;
             if (!iframe || !iframe.contentWindow || !iframe.contentWindow.document) {
                 return;
             }
+            var fitsOutput = !maidrSuspendBox(iframe);
+            var keepsPadding = true;
+            var widens = options.widens;
 
             if (fitsOutput && maidrNotLaidOut(iframe)) return;
             var doc = iframe.contentWindow.document;
             var body = doc.body;
             if (!body) return;
             var de = doc.documentElement;
-            var letGo = maidrHoldStill(iframe);
-            var restoreScroll = maidrKeepScroll(iframe, true);
+            var letGo = fitsOutput ? maidrHoldStill(iframe) : null;
+            var restoreScroll = fitsOutput ? maidrKeepBoxScroll(iframe) : null;
             var before = iframe.style.height;
-            var room = fitsOutput ? maidrDialogRoom(doc, iframe) : 0;
-
-            var fit = maidrBox(iframe, doc);
-            room = fit.dialog;
-            maidrKeepGutter(iframe, fit.room > 0 && !widens);
-            if (options.fillHeight) {
-                maidrFillHeight(doc, fit.room > 0
-                    ? fit.room - maidrTextLine(doc)
+            var room = 0;
+            // In a Shiny app: the room the box gives the chart (none when
+            // the box takes its height from the frame), and a chart that
+            // takes its height from its container as tall as that room
+            // less the line kept for maidr's text, or, with none,
+            // options.fillHeight; see _BOX_JS. While a dialog is open, it
+            // is left as it is -- drawn again under a dialog, a Plotly
+            // chart threw ('mo') and lost its highlight -- and the frame
+            // is at least as tall as in an output with no height of its
+            // own.
+            var boxRoom = fitsOutput ? maidrBoxRoom(iframe) : 0;
+            maidrKeepGutter(iframe, boxRoom > 0 && !widens);
+            if (options.fillHeight && fitsOutput) {
+                maidrFillHeight(doc, boxRoom > 0
+                    ? boxRoom - maidrTextLine(doc)
                     : options.fillHeight, function() {
                         requestAnimationFrame(resizeIframe);
                     }, options.keepsShape);
             }
+            body.style.minHeight = options.fillHeight && !fitsOutput
+                ? (options.fillHeight + maidrTextLine(doc)) + 'px' : '';
 
             // WIDTH, in a notebook: a chart of a fixed width wider than the
             // output area widens the frame, so the output area scrolls to it
@@ -884,10 +771,9 @@
             }
             if (fitsOutput) {
                 var resized = iframe.style.height !== before;
-                maidrShowDialog(doc, iframe, room, resized);
                 maidrShowField(doc, resized);
             }
-            maidrShowText(doc, iframe);
+            if (fitsOutput) maidrShowText(doc, iframe);
         }
 
         var iframe = frame;
