@@ -152,18 +152,17 @@ a:focus-visible,
 }
 
 /* While a dialog of maidr's is open over a chart taller than the part of the
- * notebook or page a reader sees, the frame's script sets --maidr-dialog-room
- * to that part's height and --maidr-dialog-top to where the part the reader
- * sees starts in the frame, marks the root with data-maidr-dialog-room, and
- * scrolls the band into view if it is not: the dialog, which MUI centres in
- * the frame and keeps 32px from its edges, is kept to that band, so that the
- * reader sees all of it where they were reading. The chat's own height is a
- * share of the frame's, and is kept to the band too.
+ * notebook a reader sees, the frame's script sets --maidr-dialog-room to that
+ * part's height, marks the root with data-maidr-dialog-room, and scrolls the
+ * frame's middle into it: the dialog, which MUI centres in the frame and
+ * keeps 32px from its edges, is kept to a band of that height in the frame's
+ * middle, so that the reader sees all of it. The chat's own height is a share
+ * of the frame's, and is kept to the band too.
  * maidr.js draws a dialog inside the chart's container, which, for a Plotly
  * chart, is inside plotly's, whose stylesheet zeroes every div's margins. */
 html[data-maidr-dialog-room] .MuiDialog-container {
   height: var(--maidr-dialog-room) !important;
-  margin-top: var(--maidr-dialog-top) !important;
+  margin-top: calc((100vh - var(--maidr-dialog-room)) / 2) !important;
 }
 html[data-maidr-dialog-room] .MuiDialog-paper {
   max-height: calc(var(--maidr-dialog-room) - 64px) !important;

@@ -283,19 +283,13 @@ _SHOW_FIELD_JS = """        function maidrShowField(doc, resized) {
 #: ``maidrKeepScroll`` returns what puts them back. A frame wholly above what
 #: a box shows moves what it shows by as much as the frame grew, as the
 #: browser's scroll anchoring would have, so the reader's place stays put.
-#: A Shiny app's frame keeps its box's alone (``boxOnly``): the output round
-#: it is held at its height while it is measured (``maidrHoldStill``), so
-#: the page and the containers round the output do not move, and nothing
-#: scrolls them; the browser's scroll anchoring keeps the reader's place as
-#: the output then takes the frame's new height.
 _KEEP_SCROLL_JS = (
     """
-        function maidrKeepScroll(iframe, boxOnly) {
+        function maidrKeepScroll(iframe) {
             var page = iframe.ownerDocument;
             var frame = iframe.getBoundingClientRect();
             var kept = [];
-            for (var el = iframe.parentElement; el;
-                    el = boxOnly ? null : el.parentElement) {
+            for (var el = iframe.parentElement; el; el = el.parentElement) {
                 if (el.scrollTop || el.scrollLeft) {
                     var whole = el === page.documentElement || el === page.body;
                     var shown = whole ? 0 : el.getBoundingClientRect().top + el.clientTop;
@@ -307,12 +301,8 @@ _KEEP_SCROLL_JS = (
                 for (var i = 0; i < kept.length; i++) {
                     var el = kept[i][0];
                     var top = kept[i][1] + (kept[i][3] ? grew : 0);
-                    if (el.scrollTop === top && el.scrollLeft === kept[i][2]) continue;
-                    // At once: a page whose scroll-behavior is smooth
-                    // (Bootstrap's, so every Shiny app's) scrolled back
-                    // over a third of a second, and was stopped short by
-                    // the next measure.
-                    el.scrollTo({top: top, left: kept[i][2], behavior: 'instant'});
+                    if (el.scrollTop !== top) el.scrollTop = top;
+                    if (el.scrollLeft !== kept[i][2]) el.scrollLeft = kept[i][2];
                 }
             };
         }
@@ -342,14 +332,8 @@ _NOT_LAID_OUT_JS = """
 #: tall as that output; there the room is 480px at least. Once the frame has
 #: the room, it is scrolled to the middle of the reader's view, and with it
 #: the dialog, centred in it: growing the frame had moved the dialog down,
-#: below the part of the notebook the reader sees. Over a frame taller than
-#: the reader's view, the dialog is put in the part of the frame they see,
-#: which is scrolled into view by as little as that takes, rather than in
-#: the frame's middle. Once it has gone, the frame gives the room back, and is scrolled into view, by as little as
-#: that takes, if the focus is in it and it is not wholly in view: the
-#: window may have changed size while the dialog was open. Nothing is kept
-#: for later: where the page was as the dialog opened is not put back.
-#: ``maidrWatch`` tells when one comes or goes.
+#: below the part of the notebook the reader sees. ``maidrWatch`` tells when
+#: one comes or goes.
 _DIALOG_ROOM_JS = """
         function maidrDialogRoom(doc, iframe) {
             if (!doc.querySelector('.MuiDialog-root')) return 0;
@@ -370,82 +354,24 @@ _DIALOG_ROOM_JS = """
             }
             return Math.floor(height);
         }
-        // What the reader sees of the page round a frame: the top of it, in
-        // the window -- the window's, or lower, that of a box round the
-        // frame that clips it -- and the most of it they can see at once,
-        // the window's height or less, a box's. The window of a frame that
-        // is itself a frame grows with it, and is no limit.
-        function maidrShown(iframe) {
-            var page = iframe.ownerDocument;
-            var win = page.defaultView;
-            var shown = {top: 0, height: win === win.top ? win.innerHeight || 0 : Infinity};
-            for (var el = iframe.parentElement; el && el !== page.body;
-                    el = el.parentElement) {
-                var style = win.getComputedStyle(el);
-                if (style.overflowY === 'visible' && style.overflowX === 'visible') {
-                    continue;
-                }
-                shown.top = Math.max(shown.top, el.getBoundingClientRect().top + el.clientTop);
-                shown.height = Math.min(shown.height, el.clientHeight);
-            }
-            return shown;
-        }
         function maidrShowDialog(doc, iframe, room, resized) {
             var opened = room > 0;
             var was = iframe.maidrDialogOpen;
             iframe.maidrDialogOpen = opened;
             // Over a chart taller than the reader's view, the dialog is kept
-            // to a band of that height (frame.css), in the part of the frame
-            // the reader sees: centred in the frame, the band took the
-            // frame's top above the window, and with it the element a
-            // Plotly chart takes the focus on, which the browser scrolled
-            // to the window's middle as the focus came back to it, 200-570px
-            // away, the highlighted mark out of sight.
+            // to a band of that height in the middle of the frame (frame.css).
             var root = doc.documentElement;
-            var shown = opened ? maidrShown(iframe) : null;
-            var height = opened ? Math.floor(Math.min(room, shown.height)) : 0;
-            var band = opened && height > 0 && iframe.clientHeight > height;
-            var place = opened && (!was || resized || band
-                && root.style.getPropertyValue('--maidr-dialog-room') !== height + 'px');
-            if (band) {
-                if (place || !root.hasAttribute('data-maidr-dialog-room')) {
-                    var top = shown.top - iframe.getBoundingClientRect().top;
-                    top = Math.max(0, Math.min(top, iframe.clientHeight - height));
-                    root.style.setProperty('--maidr-dialog-top', Math.round(top) + 'px');
-                }
-                root.style.setProperty('--maidr-dialog-room', height + 'px');
+            if (opened && iframe.clientHeight > room) {
+                root.style.setProperty('--maidr-dialog-room', room + 'px');
                 root.setAttribute('data-maidr-dialog-room', '');
             } else if (root.hasAttribute('data-maidr-dialog-room')) {
                 root.style.removeProperty('--maidr-dialog-room');
-                root.style.removeProperty('--maidr-dialog-top');
                 root.removeAttribute('data-maidr-dialog-room');
             }
-            var container = band && doc.querySelector('.MuiDialog-container');
-            if (place && container) {
-                // The band brought into the reader's view, by as little as
-                // that takes. At once, whatever the page's scroll-behavior:
-                // Bootstrap's is smooth, and the frame measured again while
-                // it scrolled stopped it short (a Shiny app's settings
-                // dialog lost its Close button).
-                container.scrollIntoView(
-                    {block: 'nearest', inline: 'nearest', behavior: 'instant'}
-                );
-            } else if (place && !band) {
-                // The dialog is centred in a frame no taller than the
-                // reader's view: centring the frame in it shows it whole.
-                iframe.scrollIntoView(
-                    {block: 'center', inline: 'nearest', behavior: 'instant'}
-                );
-            } else if (was && !opened
-                    && iframe.ownerDocument.activeElement === iframe) {
-                // Gone, and its room with it: the chart, which has the
-                // focus back, is brought into view if it is not, by as
-                // little as that takes -- the window may have changed size
-                // while the dialog was open (a phone turned, the browser
-                // zoomed), and the page was laid out again.
-                iframe.scrollIntoView(
-                    {block: 'nearest', inline: 'nearest', behavior: 'instant'}
-                );
+            if (opened && (!was || resized)) {
+                // The dialog is centred in the frame: centring the frame in
+                // the reader's view shows it whole.
+                iframe.scrollIntoView({block: 'center', inline: 'nearest'});
             }
         }
 """
@@ -1272,8 +1198,11 @@ def wrap_in_iframe_matplotlib(
         children, onload = _shiny_frame("matplotlib")
     else:
         helpers = _NOTEBOOK_JS + _WATCH_JS if fits_output else ""
-        onload = helpers + _matplotlib_resizer(
-            f"document.getElementById('{unique_id}')", fits_output=fits_output
+        onload = (
+            f"\n        {helpers}"
+            + _matplotlib_resizer(
+                f"document.getElementById('{unique_id}')", fits_output=fits_output
+            )
         )
 
     srcdoc = str(base_html.get_html_string())
@@ -1633,7 +1562,7 @@ def wrap_in_iframe_plotly(
         children, onload = _shiny_frame("plotly", options)
     else:
         helpers = _WATCH_JS + (_NOTEBOOK_JS if fits_output else "")
-        onload = helpers + _plotly_resizer(
+        onload = f"\n        {helpers}" + _plotly_resizer(
             f"document.getElementById('{unique_id}')",
             fits_output=fits_output,
             keep_padding=keep_padding,

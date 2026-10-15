@@ -206,27 +206,43 @@ def test_a_notebook_frame_makes_room_for_maidrs_dialogs():
 
     assert "maidrDialogRoom(iframeDocument, iframe)" in script
     assert "maidrWatch(iframe.contentWindow.document, scheduleResize)" in script
-    # At once, not as a page with a smooth scroll-behavior would scroll it:
-    # a frame no taller than the reader's view centred, the band over a
-    # taller one brought into view by as little as that takes.
-    assert (
-        "iframe.scrollIntoView(\n"
-        "                    {block: 'center', inline: 'nearest', behavior: 'instant'}"
-    ) in script
-    assert (
-        "container.scrollIntoView(\n"
-        "                    {block: 'nearest', inline: 'nearest', behavior: 'instant'}"
-    ) in script
-    assert "root.style.setProperty('--maidr-dialog-top'" in script
+    assert "iframe.scrollIntoView({block: 'center', inline: 'nearest'})" in script
+
+
+def test_a_notebook_frames_dialog_code_is_as_it_was():
+    """A notebook's and a Quarto page's frames keep their dialog code as it was.
+
+    Placing a dialog over a tall chart in the part of the frame the reader
+    sees, and scrolling that part into view, scrolled nothing -- the
+    dialog's container is fixed in MUI's modal layer -- and left the dialog
+    cut, its Close button below the window, where centring the frame had
+    shown it whole. Nothing of a Shiny app's frame is in theirs.
+    """
+    for frame in (
+        _frame(in_notebook=True),
+        wrap_in_iframe_plotly(tags.div("chart"), "Sales", in_notebook=True),
+    ):
+        script = _attribute(frame, "onload")
+        for gone in (
+            "maidrShown",
+            "--maidr-dialog-top",
+            "container.scrollIntoView",
+            "behavior: 'instant'",
+            "@S",
+            "@N",
+            "maidrHoldStill",
+            "maidrSuspendBox",
+        ):
+            assert gone not in script, gone
+        assert "if (opened && iframe.clientHeight > room) {" in script
+        assert "if (opened && (!was || resized)) {" in script
 
 
 def test_a_dialog_over_a_tall_chart_keeps_to_the_readers_view(css):
     band = "html[data-maidr-dialog-room]"
-    # Where the reader sees the frame, not its middle: centred, the band
-    # took a tall chart's top above the window.
     assert css[f"{band} .MuiDialog-container"] == {
         "height": "var(--maidr-dialog-room) !important",
-        "margin-top": "var(--maidr-dialog-top) !important",
+        "margin-top": "calc((100vh - var(--maidr-dialog-room)) / 2) !important",
     }
     assert css[f"{band} .MuiDialog-paper"] == {
         "max-height": "calc(var(--maidr-dialog-room) - 64px) !important"
