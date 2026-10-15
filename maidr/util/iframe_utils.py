@@ -1030,11 +1030,11 @@ def _shiny_frame_version() -> str:
 def shiny_frame_dependency() -> HTMLDependency:
     """The dependency that serves :func:`shiny_frame_script` to a Shiny page.
 
-    A child of every chart frame made in a Shiny app, so that any output
-    showing one -- :class:`maidr.widget.shiny.render_maidr`'s, or a
-    ``render.ui`` returning :func:`maidr.render` -- loads it. Shiny loads a
-    dependency's scripts before it puts the output's HTML in the page, and
-    then once per page however many charts name it.
+    A child of every chart frame :class:`maidr.widget.shiny.render_maidr`
+    sends, so that its output loads it. Shiny loads a dependency's scripts
+    before it puts the output's HTML in the page, and then once per page
+    however many charts name it. A frame made in a Shiny app any other way
+    carries the script instead; see :func:`_shiny_onload`.
 
     Returns
     -------
@@ -1050,11 +1050,13 @@ def shiny_frame_dependency() -> HTMLDependency:
 
 
 #: Set while :class:`maidr.widget.shiny.render_maidr` renders a chart: the
-#: output it sends carries the frame's dependency whatever the chart, so the
-#: frame needs no other way to its script.
+#: output it sends carries the frame's dependency, so the frame names its
+#: kind and options alone. Any other frame made in a Shiny app carries its
+#: script; see :func:`_shiny_onload`.
 _DEPENDENCY_SENT: ContextVar[bool] = ContextVar(
     "maidr_shiny_frame_dependency_sent", default=False
 )
+
 
 @contextmanager
 def shiny_frame_dependency_sent() -> Iterator[None]:
@@ -1062,8 +1064,8 @@ def shiny_frame_dependency_sent() -> Iterator[None]:
 
     :class:`maidr.widget.shiny.render_maidr` renders inside it: what it
     sends is the frame as a tag, dependency and all, so the frame's
-    ``onload`` names no URL to load the script from itself, and the
-    flush is as small as before.
+    ``onload`` only names its kind and options, and the flush is as small
+    as before.
     """
     token = _DEPENDENCY_SENT.set(True)
     try:
@@ -1072,81 +1074,29 @@ def shiny_frame_dependency_sent() -> Iterator[None]:
         _DEPENDENCY_SENT.reset(token)
 
 
-def _shiny_frame_fallback() -> str | None:
-    """Where a frame loads its script itself, should its dependency not arrive.
-
-    A frame that leaves :func:`maidr.render` as a tag brings
-    :func:`shiny_frame_dependency` with it, but turned into a string --
-    ``ui.HTML(str(maidr.render(fig)))``, ``.get_html_string()`` -- it
-    loses it, and on a page with no other chart nothing loaded the script:
-    the frame stayed 150px tall and cut the chart off. The dependency is
-    registered with the app instead, as Shiny registers one an output
-    sends, and the frame loads it from the app's own URL for it when the
-    script is not there: a URL every session the server process runs
-    serves, so that a string kept from one session and shown in another
-    loads it too. Where it is not served -- a file, another process, a
-    restarted server -- the frame is sized to what it holds
-    (:func:`_shiny_onload`). Not
-    for :class:`maidr.widget.shiny.render_maidr`'s frames
-    (:func:`shiny_frame_dependency_sent`), which always bring it.
-
-    Returns
-    -------
-    str or None
-        The script's URL, relative to the page; ``""`` where the frame
-        needs none, outside a session or in ``render_maidr``; ``None``
-        where nothing can serve it -- Shiny Express's first pass over an
-        app's page, which a stand-in session runs, with no app to register
-        it with -- and the frame carries the script itself.
-    """
-    if _DEPENDENCY_SENT.get():
-        return ""
-    try:
-        from shiny.session import get_current_session
-
-        session = get_current_session()
-    except Exception:
-        return ""
-    if session is None:
-        return ""
-    try:
-        # What a render.ui output does with the dependencies it sends.
-        rendered = session._process_ui(shiny_frame_dependency())
-        for dep in rendered["deps"]:
-            if dep.get("name") == SHINY_FRAME_NAME:
-                for script in dep.get("script") or []:
-                    src = script.get("src")
-                    if isinstance(src, str) and src:
-                        return src
-    except Exception:
-        pass
-    return None
-
-
 @lru_cache(maxsize=1)
 def _shiny_frame_inline() -> str:
     """:func:`shiny_frame_script` as a frame carries it in its ``onload``.
 
-    Its comments and indentation left out: 19 KB rather than 37. Only a
-    frame made where nothing can serve the script carries it; see
-    :func:`_shiny_frame_fallback`.
+    Its comments and indentation left out: 19 KB rather than 37.
     """
     lines = (line.strip() for line in shiny_frame_script().splitlines())
     return "\n".join(line for line in lines if line and not line.startswith("//"))
 
 
-def _shiny_onload(
-    kind: str, options: dict | None = None, src: str | None = ""
-) -> str:
-    """A Shiny app's frame's ``onload``: its kind and options, for the served script.
+def _shiny_onload(kind: str, options: dict | None = None, carried: bool = False) -> str:
+    """A Shiny app's frame's ``onload``: its kind and options, and maybe its script.
 
-    Shiny puts the output's HTML in the page once the served script has
-    loaded, so it is there when the frame loads; it is waited for, briefly,
-    should anything put a frame in a page another way. A frame given
-    ``src`` loads the script from there when it is not there as it loads,
-    and one given ``None`` carries it; see :func:`_shiny_frame_fallback`.
-    One that waited in vain says so in the console, where it had given up
-    in silence; one given ``src`` is then as tall as what it holds.
+    A frame :class:`maidr.widget.shiny.render_maidr` sends comes with
+    :func:`shiny_frame_dependency`, which Shiny loads before it puts the
+    output's HTML in the page; its ``onload`` names its kind and options for
+    the served script, and waits for it, briefly, should anything put the
+    frame in a page another way, saying so in the console if it waited in
+    vain. Any other frame -- :func:`maidr.render` returned from
+    ``render.ui``, turned into a string, kept for another session, written
+    to a file -- carries the script itself (``carried``), as a frame's
+    ``onload`` always had: such a frame can lose a dependency on its way to
+    the page, and needs nothing served.
 
     Parameters
     ----------
@@ -1155,9 +1105,8 @@ def _shiny_onload(
         Plotly, Bokeh and Altair charts share.
     options : dict, optional
         What differs from one such chart to the next.
-    src : str or None, default ""
-        Where to load the script from when it is not there; ``None`` to
-        carry it (:func:`_shiny_frame_inline`).
+    carried : bool, default False
+        Whether the frame carries the script (:func:`_shiny_frame_inline`).
 
     Returns
     -------
@@ -1165,68 +1114,16 @@ def _shiny_onload(
         The ``onload`` attribute's script.
     """
     given = json.dumps(options or {}, separators=(",", ":"))
-    if src is None:
+    if carried:
         # The script defines maidrShinyFrame once per page, whichever
-        # frame runs it first.
+        # frame, or the served script, runs it first.
         return _shiny_frame_inline() + f"\nmaidrShinyFrame(this,'{kind}',{given})"
-    if not src:
-        return (
-            "var f=this;(function g(n){if(window.maidrShinyFrame)"
-            f"maidrShinyFrame(f,'{kind}',{given});"
-            "else if(n<200)setTimeout(function(){g(n+1)},50);"
-            "else console.warn('maidr: maidr-shiny-frame did not load; "
-            "this chart is not sized')})(0)"
-        )
-    # Where the script does not load -- a string written to a file and
-    # opened from disk, kept past a restart of the server, or shown by
-    # another of its processes, none of which serves the URL -- the frame
-    # is as tall as what it holds, measured again as its body changes size
-    # and as the reader moves through the chart (a Plotly chart's body
-    # keeps the frame's height, and its text runs past it), rather than
-    # 150px: the chart is not fitted to the page, but all of it is shown.
-    # A chart that takes its height from its container is given
-    # ``fillHeight`` first, as the served script gives it in an output with
-    # no height of its own, and told so by a resize: an Altair chart of
-    # height "container" followed the frame, which followed it, and grew
-    # without end; a stretched Bokeh plot had no height at all. One that
-    # keeps its shape, a Bokeh plot scaled both ways, is kept as wide as
-    # that height allows once drawn, as ``maidrKeepShape`` keeps it: at
-    # the window's width, it was as tall as it was wide, 1256px, over its
-    # text. Nor can anything else that follows the frame grow it without
-    # end: it grows six times at most at one width between two moves of
-    # the reader's -- counted at any width, a chart growing as the window
-    # was dragged wider was cut after six.
     return (
-        "var f=this,w=window;(function g(n){if(w.maidrShinyFrame)"
+        "var f=this;(function g(n){if(window.maidrShinyFrame)"
         f"maidrShinyFrame(f,'{kind}',{given});"
-        "else if(n<200&&w.maidrShinyFrameSrc!==2){"
-        "if(!n&&!w.maidrShinyFrameSrc){w.maidrShinyFrameSrc=1;"
-        "var s=document.createElement('script');"
-        "s.onerror=function(){w.maidrShinyFrameSrc=2};"
-        f"s.src={json.dumps(src)};document.head.appendChild(s)}}"
-        "setTimeout(function(){g(n+1)},50)}"
-        f"else{{var c=f.contentWindow,d=c.document,o={given},k=0,q=0,"
-        "z=function(){try{c.dispatchEvent(new c.Event('resize'))}catch(e){}},"
-        "h=function(){"
-        "var p=o.fillHeight&&d.querySelector('.js-plotly-plot,"
-        "[id^=\"maidr-bokeh-\"][id$=\"-plot\"],.vega-embed');"
-        "if(p&&p.style.height!==o.fillHeight+'px'){"
-        "p.style.height=o.fillHeight+'px';z()}"
-        "var b=p&&o.keepsShape&&!p.style.maxWidth&&p.firstElementChild;"
-        "b=b&&b.getBoundingClientRect();"
-        "if(b&&b.width&&b.height){"
-        "p.style.maxWidth=Math.floor(o.fillHeight*b.width/b.height)+'px';"
-        "p.style.margin='0 auto';z()}"
-        "if(c.innerWidth!==q){q=c.innerWidth;k=0}"
-        "var y=d.body.scrollHeight;"
-        "if(y>(parseFloat(f.style.height)||0)&&++k>6)return;"
-        "f.style.height=y+'px'},"
-        "l=function(){setTimeout(h,100)},r=function(){k=0;l()};h();"
-        "['focusin','focusout','keyup'].forEach(function(e){"
-        "d.addEventListener(e,r,true)});"
-        "try{new c.ResizeObserver(l).observe(d.body)}catch(e){}"
-        "console.warn('maidr: maidr-shiny-frame did not load; "
-        "this chart is sized to its content')}})(0)"
+        "else if(n<200)setTimeout(function(){g(n+1)},50);"
+        "else console.warn('maidr: maidr-shiny-frame did not load; "
+        "this chart is not sized')})(0)"
     )
 
 
@@ -1235,6 +1132,17 @@ def _frame_css(in_shiny: bool) -> str:
     descent is left below it, which made the box taller than the frame."""
     style = "background-color: #fff; position: relative; border: none"
     return style + "; display: block" if in_shiny else style
+
+
+def _shiny_frame(kind: str, options: dict | None = None) -> tuple[list, str]:
+    """A Shiny app's frame's dependency, if it has one, and its ``onload``.
+
+    See :func:`_shiny_onload`: a frame :class:`maidr.widget.shiny.render_maidr`
+    sends comes with the served script, and any other carries it.
+    """
+    served = _DEPENDENCY_SENT.get()
+    children = [shiny_frame_dependency()] if served else []
+    return children, _shiny_onload(kind, options, carried=not served)
 
 
 def wrap_in_iframe_matplotlib(
@@ -1286,8 +1194,9 @@ def wrap_in_iframe_matplotlib(
     """
     unique_id = _generate_unique_id()
     fits_output = in_notebook or in_shiny
+    children: list = []
     if in_shiny:
-        onload = _shiny_onload("matplotlib", src=_shiny_frame_fallback())
+        children, onload = _shiny_frame("matplotlib")
     else:
         helpers = _NOTEBOOK_JS + _WATCH_JS if fits_output else ""
         onload = helpers + _matplotlib_resizer(
@@ -1298,7 +1207,7 @@ def wrap_in_iframe_matplotlib(
     if fits_output:
         srcdoc = frame_style() + srcdoc
     return tags.iframe(
-        *([shiny_frame_dependency()] if in_shiny else []),
+        *children,
         id=unique_id,
         title=iframe_title(chart_title, alt),
         # Marks this frame as maidr's own. A host page may put other
@@ -1643,6 +1552,7 @@ def wrap_in_iframe_plotly(
     """
     unique_id = _generate_unique_id()
     fits_output = in_notebook or in_shiny
+    children: list = []
     if in_shiny:
         # A chart that takes its container's width never widens the frame.
         options: dict = {"widens": not fill_width}
@@ -1650,7 +1560,7 @@ def wrap_in_iframe_plotly(
             options["fillHeight"] = int(fill_height)
             if keep_shape:
                 options["keepsShape"] = True
-        onload = _shiny_onload("plotly", options, src=_shiny_frame_fallback())
+        children, onload = _shiny_frame("plotly", options)
     else:
         helpers = _WATCH_JS + (_NOTEBOOK_JS if fits_output else "")
         onload = helpers + _plotly_resizer(
@@ -1666,7 +1576,7 @@ def wrap_in_iframe_plotly(
         width_first = "" if keep_padding or in_shiny else _OUTPUT_WIDTH_FIRST
         srcdoc = frame_style() + width_first + srcdoc
     return tags.iframe(
-        *([shiny_frame_dependency()] if in_shiny else []),
+        *children,
         id=unique_id,
         title=iframe_title(chart_title, alt),
         # Marks this frame as maidr's own. A host page may put other

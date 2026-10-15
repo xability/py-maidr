@@ -17,7 +17,7 @@ figures (with no height of their own, in an output with one, and with
 ``autosize`` off), Bokeh plots (of a fixed width, stretched both ways, and
 scaled both ways), Altair charts (of their own size, and their
 container's), and string frames of the charts that take their height from
-their container and of a body that follows the frame's height.
+their container.
 ``tests/browser/test_shiny_chart_size.py`` drives them.
 """
 
@@ -332,8 +332,7 @@ def _under_a_slider(figure, unplaced=False):
 
 
 #: A string frame, as ``render.ui`` returns one, of each chart that takes its
-#: height from its container, and of something that follows the frame's
-#: height and grows it, as nothing of maidr's should.
+#: height from its container.
 def _string_of(make):
     def server(input, output_, session):
         @render.ui
@@ -341,17 +340,6 @@ def _string_of(make):
             return ui.HTML(str(make()))
 
     return App(_fluid(ui.output_ui("m")), server)
-
-
-def _follows_the_frame():
-    from htmltools import tags
-
-    from maidr.util.iframe_utils import wrap_in_iframe_plotly
-
-    # As tall as the frame's window, and a little more: measured at the
-    # frame's height, it is always taller than the frame.
-    body = tags.div(style="height: calc(100vh + 4px); background: #eee")
-    return wrap_in_iframe_plotly(body, "Follows", in_shiny=True, fill_height=450)
 
 
 #: Apps whose output is not ``render_maidr``'s, or is drawn again.
@@ -371,7 +359,6 @@ OTHER_APPS = {
     "str_altair_container": _string_of(lambda: maidr.render(_altair_container())),
     "str_bokeh_stretched": _string_of(lambda: maidr.render(_bokeh_stretched())),
     "str_bokeh_scaled": _string_of(lambda: maidr.render(_bokeh_scaled())),
-    "str_follows_frame": _string_of(_follows_the_frame),
 }
 
 app = Starlette(

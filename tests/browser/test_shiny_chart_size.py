@@ -1686,83 +1686,52 @@ def _assert_shows_all_of_it(page, where: str) -> None:
     )
 
 
-@pytest.mark.parametrize("case", ["as_str", "kept_str"])
-def test_a_string_frame_whose_script_is_not_served_shows_the_chart(
-    browser, shiny_size_app_url, case
-):
-    """The script's URL answers 404: a server restarted, or another process.
+def _without_the_served_script(browser, url: str, width: int = 1280, **launch):
+    """A page whose ``maidr-shiny-frame`` script answers 404, noting each ask."""
+    page = browser.new_page(viewport={"width": width, "height": 900}, **launch)
+    page.asked = []  # type: ignore[attr-defined]
 
-    A string kept past a restart, or shown by a process that never
-    registered the script, named a URL nothing served, and the frame stayed
-    150px tall, 291px of the chart cut off.
-    """
-    page = browser.new_page(viewport={"width": 1280, "height": 900})
-    page.route(
-        "**/maidr-shiny-frame-*/frame.js",
-        lambda route: route.fulfill(status=404, body="Not Found"),
-    )
+    def refuse(route):
+        page.asked.append(route.request.url)  # type: ignore[attr-defined]
+        route.fulfill(status=404, body="Not Found")
+
+    page.route("**/maidr-shiny-frame-*/frame.js", refuse)
     errors: list[str] = []
     page.on("pageerror", lambda error: errors.append(str(error)))
-    try:
-        page.goto(f"{shiny_size_app_url}/{case}/")
-        page.wait_for_selector("#m iframe", timeout=30_000)
-        page.frame_locator("#m iframe").locator(CHART).first.wait_for(
-            state="attached", timeout=30_000
-        )
-        _settle(page)
-        _assert_shows_all_of_it(page, f"{case}, its script not served")
-        assert errors == []
-    finally:
-        page.close()
-
-
-def test_a_string_frame_whose_script_is_not_served_follows_a_wider_window(
-    browser, shiny_size_app_url
-):
-    """The reader drags the window wider, without touching the chart.
-
-    The frame stopped growing after six measures without a key or focus
-    move of the reader's, to stop content that follows the frame's height
-    from growing it without end; a window dragged from 330px to 700px
-    wide grew the chart more often than that, and its bottom 88px, the
-    x-axis and its labels, were cut off.
-    """
-    page = browser.new_page(viewport={"width": 330, "height": 900})
-    page.route(
-        "**/maidr-shiny-frame-*/frame.js",
-        lambda route: route.fulfill(status=404, body="Not Found"),
-    )
-    try:
-        page.goto(f"{shiny_size_app_url}/as_str/")
-        page.wait_for_selector("#m iframe", timeout=30_000)
-        page.frame_locator("#m iframe").locator(CHART).first.wait_for(
-            state="attached", timeout=30_000
-        )
-        page.wait_for_timeout(3000)
-        for width in range(350, 701, 25):
-            page.set_viewport_size({"width": width, "height": 900})
-            page.wait_for_timeout(60)
-        page.wait_for_timeout(2000)
-        seen = page.evaluate(_GEOMETRY)
-        assert seen["svg"]["width"] > 500, seen
-        assert _inside(seen["svg"], seen["frame"]), seen
-    finally:
-        page.close()
-
-
-def _without_its_script(browser, url: str):
-    page = browser.new_page(viewport={"width": 1280, "height": 900})
-    page.route(
-        "**/maidr-shiny-frame-*/frame.js",
-        lambda route: route.fulfill(status=404, body="Not Found"),
-    )
+    page.errors = errors  # type: ignore[attr-defined]
     page.goto(url)
     page.wait_for_selector("#m iframe", timeout=30_000)
+    page.frame_locator("#m iframe").locator(CHART).first.wait_for(
+        state="attached", timeout=30_000
+    )
     return page
 
 
-#: The height of the frame, and of the chart it holds.
-_FALLBACK = r"""() => {
+@pytest.mark.parametrize("case", ["as_str", "kept_str"])
+def test_a_string_frame_needs_nothing_served(browser, shiny_size_app_url, case):
+    """A string frame carries its script: nothing it asks the app for.
+
+    It named the served script's URL, and where that was not served -- a
+    restarted server, another process -- it guessed at its own size, which
+    resized it without end at the classic scrollbars' threshold. It asks
+    for nothing now, and is sized as ``render_maidr``'s frame is.
+    """
+    page = _without_the_served_script(browser, f"{shiny_size_app_url}/{case}/")
+    try:
+        _settle(page)
+        seen = page.evaluate(_GEOMETRY)
+        assert (seen["svg"]["width"], seen["svg"]["height"]) == pytest.approx(
+            _OWN, abs=2
+        ), seen
+        _assert_shows_all_of_it(page, f"{case}, nothing served")
+        assert page.asked == []  # type: ignore[attr-defined]
+        assert page.errors == []  # type: ignore[attr-defined]
+    finally:
+        page.close()
+
+
+#: The height of the chart that takes its container's, and of its frame.
+_CONTAINER = r"""() => {
   const frame = document.querySelector('#m iframe');
   const doc = frame.contentDocument;
   const plot = doc.querySelector(
@@ -1771,59 +1740,46 @@ _FALLBACK = r"""() => {
   return {frame: frame.getBoundingClientRect().height,
           plot: plot && plot.getBoundingClientRect().height,
           drawn: drawn && drawn.getBoundingClientRect().height,
+          width: plot && plot.getBoundingClientRect().width,
           bottom: plot && plot.getBoundingClientRect().bottom};
 }"""
 
 
 @pytest.mark.parametrize(
-    "case", ["str_altair_container", "str_bokeh_stretched", "str_bokeh_scaled"]
+    "case", ["altair_container", "bokeh_stretched", "bokeh_scaled"]
 )
-def test_a_string_frame_whose_script_is_not_served_gives_a_container_height(
+def test_a_string_frame_gives_a_container_height_as_render_maidr_does(
     browser, shiny_size_app_url, case
 ):
     """An Altair chart of height "container", Bokeh plots stretched or scaled.
 
-    Each is given 450px, as in a served frame. The Altair chart followed
-    the frame sized to it, which followed the chart, and grew 34px a second
-    for as long as the page was open; the stretched Bokeh plot was 51px
-    tall; the scaled one, as tall as it was wide at the window's width,
-    1256px, was drawn over its own text.
+    The same script sizes both frames, so a string frame's chart is as tall,
+    and as wide, as ``render_maidr``'s, and stays so: without its script,
+    the Altair chart followed the frame, which followed it, and grew 34px a
+    second; the stretched Bokeh plot was 51px tall.
     """
-    page = _without_its_script(browser, f"{shiny_size_app_url}/{case}/")
-    try:
-        page.frame_locator("#m iframe").locator(CHART).first.wait_for(
-            state="attached", timeout=30_000
-        )
-        page.wait_for_timeout(2000)
-        first = page.evaluate(_FALLBACK)
-        page.wait_for_timeout(3000)
-        later = page.evaluate(_FALLBACK)
-        assert first["plot"] == pytest.approx(450, abs=5), first
-        assert first["drawn"] <= first["plot"] + 1, first
-        assert later == first, (first, later)
-        assert first["bottom"] <= first["frame"] + 1, first
-    finally:
-        page.close()
-
-
-def test_a_string_frame_that_follows_its_height_stops_growing(
-    browser, shiny_size_app_url
-):
-    """A body as tall as the frame's window, and 4px more, without its script.
-
-    Measured at the frame's height, it is always taller than the frame, and
-    the frame grew every time it was measured, for good.
-    """
-    page = _without_its_script(browser, f"{shiny_size_app_url}/str_follows_frame/")
-    try:
-        page.wait_for_timeout(3000)
-        first = page.evaluate(_FALLBACK)["frame"]
-        page.wait_for_timeout(3000)
-        later = page.evaluate(_FALLBACK)["frame"]
-        assert later == first, (first, later)
-        assert first < 450, first
-    finally:
-        page.close()
+    sizes = []
+    for url in (f"{case}/", f"str_{case}/"):
+        if url.startswith("str_"):
+            page = _without_the_served_script(browser, f"{shiny_size_app_url}/{url}")
+        else:
+            page = _open(browser, f"{shiny_size_app_url}/{url}", 1280)
+        try:
+            page.wait_for_timeout(2500)
+            first = page.evaluate(_CONTAINER)
+            page.wait_for_timeout(3000)
+            later = page.evaluate(_CONTAINER)
+            assert first["plot"] == pytest.approx(450, abs=5), (url, first)
+            assert first["drawn"] <= first["plot"] + 1, (url, first)
+            assert later == first, (url, first, later)
+            assert first["bottom"] <= first["frame"] + 1, (url, first)
+            sizes.append((first["plot"], first["width"], first["frame"]))
+        finally:
+            page.close()
+    # The chart alike; the frames within a line's descent, the string
+    # frame's document being its srcdoc, render_maidr's one it is served.
+    assert sizes[0][:2] == pytest.approx(sizes[1][:2], abs=1), sizes
+    assert sizes[0][2] == pytest.approx(sizes[1][2], abs=5), sizes
 
 
 def test_a_string_frame_written_to_a_file_shows_the_chart(
@@ -1839,7 +1795,7 @@ def test_a_string_frame_written_to_a_file_shows_the_chart(
         html = first.request.get(f"{shiny_size_app_url}/kept_str.html").text()
     finally:
         first.close()
-    assert "maidr-shiny-frame" in html
+    assert "maidrShinyFrame(this," in html
     saved = tmp_path / "chart.html"
     saved.write_text(
         "<!doctype html><html><head><meta charset='utf-8'></head>"

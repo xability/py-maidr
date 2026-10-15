@@ -38,6 +38,7 @@ from maidr.util.iframe_utils import (  # noqa: E402
     SHINY_FRAME_FILE,
     SHINY_FRAME_NAME,
     frame_style,
+    shiny_frame_dependency_sent,
     shiny_frame_script,
     wrap_in_iframe_matplotlib,
     wrap_in_iframe_plotly,
@@ -359,9 +360,9 @@ def test_a_shiny_apps_frame_fits_its_output(monkeypatch):
 
     assert 'srcdoc="&lt;style&gt;' in raw
     assert re.search(rf'<svg[^>]*class="{FRAME_SVG_CLASS}"', html)
-    # The frame names the served script, which does the sizing.
-    assert "maidrShinyFrame(f,'matplotlib',{})" in html
-    assert "function resizeIframe" not in html
+    # Outside render_maidr's output, the frame carries the script that
+    # sizes it (test_a_shiny_frame_outside_render_maidr_carries_its_script).
+    assert "maidrShinyFrame(this,'matplotlib',{})" in html
     assert "let fitsOutput = true;" in script
     # No padding to take back, as a notebook's output area has.
     assert "let keepsPadding = true;" in script
@@ -406,11 +407,12 @@ def test_a_shiny_frame_fits_the_chart_to_a_box_with_a_height():
 
 
 def test_a_shiny_frame_names_the_served_script():
-    """The script rides no flush: the frame's onload names its kind alone."""
-    matplotlib = _frame(in_shiny=True)
-    plotly = wrap_in_iframe_plotly(
-        tags.div("chart"), "Sales", in_shiny=True, fill_width=True
-    )
+    """render_maidr's frame rides no script: its onload names its kind alone."""
+    with shiny_frame_dependency_sent():
+        matplotlib = _frame(in_shiny=True)
+        plotly = wrap_in_iframe_plotly(
+            tags.div("chart"), "Sales", in_shiny=True, fill_width=True
+        )
 
     for tag, call in (
         (matplotlib, "maidrShinyFrame(f,'matplotlib',{})"),
@@ -421,7 +423,6 @@ def test_a_shiny_frame_names_the_served_script():
         assert len(onload) < 300
         # It says so when the script never comes, rather than nothing.
         assert "console.warn('maidr: maidr-shiny-frame did not load" in onload
-        # Outside a session there is no URL to load it from itself.
         assert "createElement" not in onload
         [dependency] = tag.get_dependencies()
         assert dependency.name == SHINY_FRAME_NAME
@@ -433,6 +434,33 @@ def test_a_shiny_frame_names_the_served_script():
     # A notebook's frame still carries its own.
     assert "function resizeIframe" in _attribute(_frame(in_notebook=True), "onload")
     assert not _frame(in_notebook=True).get_dependencies()
+
+
+def test_a_shiny_frame_outside_render_maidr_carries_its_script():
+    """A frame made in a Shiny app any other way carries the served script.
+
+    ``maidr.render()`` returned from ``render.ui``, turned into a string,
+    kept for a later session or written to a file: the dependency could be
+    lost on the way, and the frame stayed 150px tall. It needs nothing
+    served, as every frame before the script was served.
+    """
+    for tag, call in (
+        (_frame(in_shiny=True), "maidrShinyFrame(this,'matplotlib',{})"),
+        (
+            wrap_in_iframe_plotly(
+                tags.div("chart"), "Sales", in_shiny=True, fill_height=450
+            ),
+            "maidrShinyFrame(this,'plotly',{\"widens\":true,\"fillHeight\":450})",
+        ),
+    ):
+        onload = _attribute(tag, "onload")
+        assert onload.endswith("\n" + call), onload[-200:]
+        assert "window.maidrShinyFrame = function (frame, kind, options)" in onload
+        # Without comments, and without anything to load or guess at.
+        assert "\n//" not in onload
+        for gone in ("createElement", "s.src=", "maidrShinyFrameSrc", "++k>6"):
+            assert gone not in onload, gone
+        assert not tag.get_dependencies()
 
 
 def test_the_served_frame_script_is_the_one_written_out():

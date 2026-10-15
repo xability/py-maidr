@@ -14,7 +14,6 @@ import threading
 import time
 import warnings
 from html import unescape
-from pathlib import Path
 from urllib.parse import unquote
 
 import matplotlib
@@ -484,16 +483,14 @@ def test_the_frame_script_is_served_once_rather_than_sent(fake_session):
 
 
 @pytest.mark.parametrize("plotly", [False, True])
-def test_a_frame_made_into_a_string_loads_its_script_itself(fake_session, plotly):
+def test_a_frame_made_into_a_string_carries_its_script(fake_session, plotly):
     """``ui.HTML(str(maidr.render(fig)))`` in a ``render.ui``: no dependency.
 
-    ``str()`` drops the frame's ``maidr-shiny-frame`` dependency, which
-    Shiny then neither loads nor serves, and the frame, on a page with no
-    other chart, stayed 150px tall and cut the chart off. The dependency is
-    registered with the app, and the frame's ``onload`` loads the script
-    from the app's URL for it when it is not there: one URL whatever the
-    session, so that a string kept from one session is sized in another,
-    where a route of the session's own answered 404 once it had ended.
+    ``str()`` drops a frame's dependency, which Shiny then neither loads
+    nor serves, and the frame, on a page with no other chart, stayed 150px
+    tall and cut the chart off. A frame made outside ``render_maidr``
+    carries the script, as frames did before it was served, so that it is
+    sized wherever it is shown: a later session, a file, another process.
     """
     if plotly:
         go = pytest.importorskip("plotly.graph_objects")
@@ -504,38 +501,19 @@ def test_a_frame_made_into_a_string_loads_its_script_itself(fake_session, plotly
     html = str(maidr.render(figure))
     onload = unescape(re.search(r'onload="([^"]*)"', html).group(1))
 
-    url = re.search(r"s\.src=\"([^\"]+)\"", onload).group(1)
-    assert url == f"lib/{SHINY_FRAME_NAME}-{_shiny_frame_version()}/frame.js"
-    assert "session" not in url
-    assert not fake_session._dynamic_routes
-    # Loaded once per page, whatever the number of frames, only when the
-    # script is not there as the frame loads.
-    assert "if(!n&&!w.maidrShinyFrameSrc)" in onload
-    # Where the URL is not served -- a file, a restarted server -- the frame
-    # is as tall as what it holds rather than 150px.
-    assert "s.onerror=function(){w.maidrShinyFrameSrc=2}" in onload
-    assert "var y=d.body.scrollHeight;" in onload
-    assert "f.style.height=y+'px'" in onload
-    # A chart that takes its height from its container is given the one
-    # the served script gives it, and told so, one that keeps its shape no
-    # wider than that height allows; and the frame stops growing after six
-    # measures in a row at one width without a move of the reader's, rather
-    # than following content that follows it without end.
-    assert "p.style.height=o.fillHeight+'px'" in onload
-    assert "c.dispatchEvent(new c.Event('resize'))" in onload
-    assert "p.style.maxWidth=Math.floor(o.fillHeight*b.width/b.height)+'px'" in onload
-    assert "&&++k>6)return;" in onload
-    assert "if(c.innerWidth!==q){q=c.innerWidth;k=0}" in onload
-    assert "r=function(){k=0;l()}" in onload
+    assert "window.maidrShinyFrame = function (frame, kind, options)" in onload
+    kind = "plotly" if plotly else "matplotlib"
+    assert re.search(rf"\nmaidrShinyFrame\(this,'{kind}',\{{[^}}]*\}}\)$", onload)
     if plotly:
         assert '"fillHeight":450' in onload
-    [served] = [
+    # Nothing to load, route to register or size to guess at.
+    for gone in ("createElement", "s.src=", "maidrShinyFrameSrc", "++k>6"):
+        assert gone not in onload, gone
+    assert SHINY_FRAME_NAME not in html
+    assert not fake_session._dynamic_routes
+    assert not [
         dep for dep in fake_session.app.registered if dep.name == SHINY_FRAME_NAME
     ]
-    paths = served.source_path_map(lib_prefix=fake_session.app.lib_prefix)
-    assert url == paths["href"] + "/frame.js"
-    source = Path(paths["source"]) / "frame.js"
-    assert source.read_text(encoding="utf-8") == shiny_frame_script()
 
 
 def test_a_frame_made_in_express_s_page_carries_its_script():
