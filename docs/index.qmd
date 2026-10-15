@@ -1164,14 +1164,8 @@ frame is as tall as the part of the notebook you see (the area JupyterLab and
 Notebook 7 scroll the notebook in, or the window of an exported page), and
 as wide as the dialog where the chart is narrower, and it is scrolled to the
 middle of that part, so that the dialog is shown whole. A chart taller than
-that keeps its height, and the dialog is shown in the part of it you see,
-which is scrolled into view only as far as the dialog needs: the chart's top
-stays where it was. The frame goes back to the chart's size when the dialog
-closes. The notebook stays
-where the dialog left it, with the chart in view; if the chart is not wholly
-in view then — the window changed size while the dialog was open, as when
-you zoom or turn a phone — it is scrolled into view, by as little as that
-takes.
+that keeps its height, and the dialog keeps to the part you see. The frame
+goes back to the chart's size when the dialog closes.
 
 Where a chart differs from the plain one:
 
@@ -1274,25 +1268,18 @@ stays where it is). A scrollbar the output takes narrows the chart with it
 rather than covering its edge.
 
 **While one of maidr's dialogs is open** — help, settings, the chat — the
-output is as tall as the part of the window you see, however short its own
-height, and is scrolled into view, so that the dialog is shown whole and its
-Close button can be reached. Over a chart taller than the window, the
-dialog is shown in the part of the chart you see, and the page moves only
-as far as the dialog needs, so that the chart's top, and the mark you were
-on, stay where they were. That holds in a card or a sidebar layout whose
-height follows its content, as every card's does on a phone: it grows with
-the output. In one of a height of its own — a card in `ui.page_fillable()`
-on a wide screen, a card given a `height` — the dialog keeps to what the
-card shows, and scrolls within it; take the card full screen for more room.
-When the dialog closes, the output goes back to its own height and the page
-stays where the dialog left it, with the chart in view; if the chart is not
-wholly in view then — the window changed size while the dialog was open, as
-when you zoom or turn a phone — it is scrolled into view, by as little as
-that takes. Where the page was before the dialog opened is not put back. If
-the chart is drawn again while the dialog is open, the output gives up the
-dialog's room and keeps its own height until the new chart is in; if it is
-emptied, it gives the room up at once. Either way the page is left where it
-is, as far as its new length allows.
+output is laid out as it was before charts were fitted to their outputs, so
+the dialog has at least the room it had then: a matplotlib, seaborn or
+plotnine chart is at its own size, and the output as tall as it and its
+text; a Plotly, Bokeh or Altair chart keeps the height it had, and the
+output is at least as tall as it is with no height of its own. In a
+container of a height of its own — a card in `ui.page_fillable()` on a wide
+screen, a card given a `height`, a sidebar layout's main area — the chart
+scrolls within it, as it did. Nothing scrolls the page for the dialog, as
+nothing did then: over a chart taller than the window, scroll to the
+dialog's Close button, or press `Esc`. When the dialog closes, the chart is
+fitted to its output again. A chart drawn again, or an output emptied,
+while the dialog is open is left to Shiny.
 
 **When a chart is drawn again** — an input it reads changed, or new data
 came in — its output keeps the height it had until the new chart is in, and
@@ -1337,18 +1324,13 @@ Where a chart differs from `render.plot`'s:
 
 The script that sizes a chart's frame is served by the app once, as a web
 dependency (`lib/maidr-shiny-frame-<version>/`), rather than sent with every
-reactive flush of the output. A chart turned into a string —
-`ui.HTML(str(maidr.render(fig)))` — loses the dependency, and its frame
-loads the script from there itself, in any session the server process that
-made it runs; one made in the page of a Shiny Express app, outside a render
-function, carries it. Where nothing serves that URL — the string written to
-a file by a download handler and opened later, or kept past a restart of the
-server — the frame is as tall as the chart and its text, not fitted to the
-page, and the browser's console says so; a chart that takes its height from
-its container (see above) is 450px tall, as in an output with no height of
-its own, and a Bokeh plot scaled both ways is as wide as that allows at its
-shape. To give a reader a chart as a file, write it with
-`maidr.save_html()`.
+reactive flush of a `render_maidr` output. A chart rendered any other way in
+a Shiny app — `maidr.render(fig)` returned from `render.ui`, or turned into
+a string, `ui.HTML(str(maidr.render(fig)))` — carries the script itself, as
+every chart's frame did before it was served, so it is sized as
+`render_maidr`'s is wherever it is shown: in a later session, in another
+process, or in a file a download handler writes. To give a reader a chart
+as a file of its own, write it with `maidr.save_html()`.
 
 ## Quarto Documents
 
