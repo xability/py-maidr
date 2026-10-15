@@ -9,9 +9,9 @@ and in a sidebar layout, in a card halfway down a long page (one drawn
 again as an input changes too, one emptied while the input ``shown`` is 0,
 and Plotly charts taller than a short window: in an output 400px tall,
 and of a figure 1100px tall), above a slider that draws it again
-(matplotlib, Plotly and Bokeh; beside an output that is not in the page
-too), as an HTML string a ``render.ui`` returns (one kept from the first
-session too, which ``/kept_str.html`` hands out as a download would),
+(matplotlib, Plotly, Bokeh and Altair; beside an output that is not in
+the page too), as an HTML string a ``render.ui`` returns (one kept from the
+first session too, which ``/kept_str.html`` hands out as a download would),
 Plotly figures (with no height of their own, in an output with one, and with
 ``autosize`` off), Bokeh plots (of a fixed width, stretched both ways, and
 scaled both ways), Altair charts (of their own size, and their
@@ -283,6 +283,14 @@ def _scaled_bokeh(n):
     return plot
 
 
+def _scaled_altair(n):
+    import altair as alt
+    import pandas as pd
+
+    data = pd.DataFrame({"fruit": LABELS, "boxes": [v * n for v in VALUES]})
+    return alt.Chart(data, title="Fruit sold").mark_bar().encode(x="fruit", y="boxes")
+
+
 def _under_a_slider(figure, unplaced=False):
     """A chart halfway down a long page, drawn again as the slider below it moves.
 
@@ -341,6 +349,7 @@ OTHER_APPS = {
     "slider_mpl": _under_a_slider(_scaled_bars),
     "slider_plotly": _under_a_slider(_scaled_plotly),
     "slider_bokeh": _under_a_slider(_scaled_bokeh),
+    "slider_altair": _under_a_slider(_scaled_altair),
     "slider_nowhere": _under_a_slider(_scaled_bars, unplaced=True),
     "str_altair_container": _string_of(lambda: maidr.render(_altair_container())),
     "str_bokeh_stretched": _string_of(lambda: maidr.render(_bokeh_stretched())),

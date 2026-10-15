@@ -875,7 +875,7 @@ def _assert_still(page, before: dict, where: str) -> None:
 
 
 @pytest.mark.parametrize("size", _SIZES, ids=_SIZE_IDS)
-@pytest.mark.parametrize("kind", ["mpl", "plotly", "bokeh"])
+@pytest.mark.parametrize("kind", ["mpl", "plotly", "bokeh", "altair"])
 def test_a_chart_drawn_again_above_the_window_leaves_the_page_still(
     browser, shiny_size_app_url, kind, size
 ):
@@ -904,7 +904,7 @@ def test_a_chart_drawn_again_above_the_window_leaves_the_page_still(
         page.close()
 
 
-@pytest.mark.parametrize("kind", ["mpl", "plotly", "bokeh"])
+@pytest.mark.parametrize("kind", ["mpl", "plotly", "bokeh", "altair"])
 def test_a_slider_moved_with_the_keyboard_stays_where_it_is(
     browser, shiny_size_app_url, kind
 ):
