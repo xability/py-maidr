@@ -1073,7 +1073,7 @@ def shiny_frame_dependency_sent() -> Iterator[None]:
 def _shiny_frame_inline() -> str:
     """:func:`shiny_frame_script` as a frame carries it in its ``onload``.
 
-    Its comments and indentation left out: 19 KB rather than 37.
+    Its comments and indentation left out: 22 KB rather than 44.
     """
     lines = (line.strip() for line in shiny_frame_script().splitlines())
     return "\n".join(line for line in lines if line and not line.startswith("//"))
