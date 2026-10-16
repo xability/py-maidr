@@ -657,22 +657,33 @@ _BOX_JS = """
                 }
             };
         }
-        // A frame whose height flips between two as its box's width flips
-        // between two a scrollbar's width apart -- the page's scrollbar
-        // coming as the frame grows and going as it shrinks, and the chart
-        // fitted to the width it leaves -- keeps the taller of the two: at
-        // the classic scrollbars' threshold it was resized without end.
-        // That alone: each of the two heights measured at its own width,
-        // the narrower width giving the shorter height, each within a
-        // second of the last, the window the same size. The hold lets go as
-        // soon as the window changes size, or the box a width other than
+        // A frame whose height flips between two as a scrollbar comes and
+        // goes round it -- the page's, or a box's, coming as the frame grows
+        // and going as it shrinks, and the chart fitted to the width it
+        // leaves -- keeps the taller of the two: at the classic scrollbars'
+        // threshold it was resized without end. That alone: each of the two
+        // heights measured at its own width, the box narrower by no more
+        // than the scrollbars that came took (maidrBars), whatever their
+        // width, the narrower width giving the shorter height, each within
+        // a second of the last, the window the same size. The hold lets go
+        // as soon as the window changes size, or the box a width other than
         // those two, or the chart a height other than those two: a card
         // taken full screen and back, a window made shorter, a plot drawn
         // again at another size.
+        function maidrBars(box) {
+            var page = box.ownerDocument;
+            var bars = page.defaultView.innerWidth - page.documentElement.clientWidth;
+            for (var el = box; el && el !== page.documentElement; el = el.parentElement) {
+                // An inline element has no client width, nor scrollbar.
+                if (el.clientWidth) bars += el.offsetWidth - el.clientWidth;
+            }
+            return bars;
+        }
         function maidrSteady(iframe, height) {
             var win = iframe.ownerDocument.defaultView;
             var box = iframe.parentElement;
             var width = box ? box.clientWidth : 0;
+            var bars = box ? maidrBars(box) : 0;
             var size = win.innerWidth + 'x' + win.innerHeight;
             var flip = iframe.maidrFlip;
             if (!flip || flip.size !== size) {
@@ -690,12 +701,14 @@ _BOX_JS = """
             var now = win.performance.now();
             var last = seen[seen.length - 1];
             if (last && last.height === height) return height;
-            seen.push({height: height, width: width, at: now});
+            seen.push({height: height, width: width, bars: bars, at: now});
             while (seen.length > 3 || now - seen[0].at > 2000) seen.shift();
             if (seen.length === 3) {
                 var a = seen[0], b = seen[1], c = seen[2];
                 if (c.height === a.height && c.width === a.width
-                        && b.width !== a.width && Math.abs(b.width - a.width) <= 24
+                        && b.width !== a.width && b.bars !== a.bars
+                        && Math.abs(b.width - a.width) <= Math.abs(b.bars - a.bars) + 1
+                        && (b.width < a.width) === (b.bars > a.bars)
                         && (b.width < a.width) === (b.height < a.height)
                         && c.at - b.at <= 1000 && b.at - a.at <= 1000) {
                     flip.seen = [a, b];

@@ -2060,9 +2060,23 @@ _COUNT_RESIZES = r"""() => {
 }"""
 
 
-@pytest.mark.parametrize("case", ["default", "as_str"])
+#: A page's scrollbar 30px wide, as Windows' 17px one is at a browser zoom of
+#: 57%, or as an app's stylesheet may make it.
+_WIDE_SCROLLBAR = (
+    "document.addEventListener('DOMContentLoaded', () => {"
+    " const style = document.createElement('style');"
+    " style.textContent = 'html::-webkit-scrollbar{width:30px;height:30px;"
+    "background:#ddd}html::-webkit-scrollbar-thumb{background:#888}';"
+    " document.head.appendChild(style); });"
+)
+
+
+@pytest.mark.parametrize(
+    "case,scrollbar",
+    [("default", ""), ("as_str", ""), ("default", "wide")],
+)
 def test_a_frame_at_rest_is_still_at_the_scrollbars_threshold(
-    classic_scrollbar_browser, shiny_size_app_url, case
+    classic_scrollbar_browser, shiny_size_app_url, case, scrollbar
 ):
     """Classic scrollbars, a page whose height is about the window's.
 
@@ -2070,15 +2084,28 @@ def test_a_frame_at_rest_is_still_at_the_scrollbars_threshold(
     shrinks with it, and the frame with the chart, and the scrollbar goes:
     render_maidr's frame was resized 1079 times in 1.5s at rest. The frame
     keeps the taller of the two heights now, for as long as its box flips
-    between the two widths and nothing else changes. A string frame, whose
-    output has no box of its own, does not flip.
+    between the two widths and nothing else changes, however wide the
+    scrollbar: one 30px wide was let resize it 240 times in 4s. A string
+    frame, whose output has no box of its own, does not flip.
     """
     if case == "as_str":
         page = _without_the_served_script(
             classic_scrollbar_browser, f"{shiny_size_app_url}/{case}/", width=390
         )
     else:
-        page = _open(classic_scrollbar_browser, f"{shiny_size_app_url}/{case}/", 390)
+        page = classic_scrollbar_browser.new_page(
+            viewport={"width": 390, "height": 900}
+        )
+        if scrollbar:
+            page.add_init_script(_WIDE_SCROLLBAR)
+        errors: list[str] = []
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        page.errors = errors  # type: ignore[attr-defined]
+        page.goto(f"{shiny_size_app_url}/{case}/")
+        page.wait_for_selector("#m iframe", timeout=30_000)
+        page.frame_locator("#m iframe").locator(CHART).first.wait_for(
+            state="attached", timeout=30_000
+        )
     try:
         page.set_viewport_size({"width": 390, "height": 844})
         _settle(page)

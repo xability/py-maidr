@@ -503,13 +503,16 @@ def test_a_frame_holds_a_height_only_at_the_scrollbars_threshold():
     reader did something in the chart: after full screen and back, a
     window made shorter and taller, and a Bokeh plot scaled both ways
     drawn at 1256px, 450px, 1256px as it loads. It is held now only when
-    the box's width flips with it, a scrollbar's width apart, the narrower
-    giving the shorter height, and let go at any other change.
+    the box's width flips with it, by no more than the scrollbars that came
+    and went round it took, whatever their width (a 24px limit let a 25px
+    one resize the frame without end), the narrower giving the shorter
+    height, and let go at any other change.
     """
     script = shiny_frame_script()
 
     assert script.count("height = maidrSteady(iframe, height);") == 2
-    assert "Math.abs(b.width - a.width) <= 24" in script
+    assert "Math.abs(b.width - a.width) <= Math.abs(b.bars - a.bars) + 1" in script
+    assert "(b.width < a.width) === (b.bars > a.bars)" in script
     assert "(b.width < a.width) === (b.height < a.height)" in script
     assert "var size = win.innerWidth + 'x' + win.innerHeight;" in script
     for gone in ("maidrSteadyReset", "iframe.maidrSteady"):
