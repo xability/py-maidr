@@ -34,7 +34,9 @@ class PrebuiltPlot(MaidrPlot):
     data : Any
         The layer's ``data``, in the shape its type reads.
     selectors : Any
-        The layer's ``selectors``, in the shape its type reads.
+        The layer's ``selectors``, in the shape its type reads, or ``None``
+        when nothing drawn answers to its points one for one -- the layer is
+        then emitted without ``selectors`` and is not highlighted.
     """
 
     def __init__(
@@ -50,6 +52,7 @@ class PrebuiltPlot(MaidrPlot):
         self._labels = labels
         self._data = data
         self._selectors = selectors
+        self._support_highlighting = selectors is not None
 
     def _extract_axes_data(self) -> dict:
         """Each axis the layer names, labelled as given."""

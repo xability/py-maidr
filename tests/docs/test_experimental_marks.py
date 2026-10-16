@@ -41,9 +41,17 @@ STABLE = {PlotType[name].value for name in _members("Stable")}
 
 
 def _emitted(figures: list[list[str]]) -> set[str]:
-    """Every layer type a section shows, across all its figures and cells."""
+    """Every layer type a section shows, across all its figures and cells.
+
+    A cell holding no layer -- the corner of a clustermap, written ``""`` --
+    shows no type.
+    """
     return {
-        layer for figure in figures for cell in figure for layer in cell.split(" + ")
+        layer
+        for figure in figures
+        for cell in figure
+        for layer in cell.split(" + ")
+        if layer
     }
 
 

@@ -153,6 +153,11 @@ class PlotType(str, Enum):
     TREEMAP = "treemap"
     SUNBURST = "sunburst"
     ICICLE = "icicle"
+    #: The same hierarchy again, drawn as nodes joined by links rather than as
+    #: areas -- the reading maidr.js gives a dendrogram, whose clusters nest
+    #: and whose leaves have no size. Emitted for the row and column trees of
+    #: `seaborn.clustermap`. See `docs/stability.qmd` -- experimental.
+    TREE = "tree"
     #: One measure against a dial, with the range it sits in and -- when the
     #: chart draws one -- the target it is measured against. The one type
     #: here whose payload is a single point rather than a list of them.

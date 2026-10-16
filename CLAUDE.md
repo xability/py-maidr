@@ -44,7 +44,7 @@ The `maidr/patch/` modules use `wrapt` to intercept matplotlib/seaborn plot call
 
 ### Supported Plot Types
 
-Defined in `maidr/core/enum/plot_type.py`, which has **47** members. They do
+Defined in `maidr/core/enum/plot_type.py`, which has **48** members. They do
 not all carry the same promise -- see `docs/stability.qmd`, and keep that page
 in step when adding one (`tests/core/test_plot_type_stability.py` enforces it).
 
@@ -54,13 +54,13 @@ exercised by real readers:
 BAR, BOX, CANDLESTICK, COUNT, DODGED, HEAT, HIST, LINE, PIE, SCATTER,
 SMOOTH, STACKED, STEP, VIOLIN_BOX, VIOLIN_KDE
 
-**Experimental** (32) -- added by that roadmap or after it, none validated
+**Experimental** (33) -- added by that roadmap or after it, none validated
 with a reader, and subject to change without a deprecation period:
 
 ALLUVIAL, AREA, BOXEN, CHOROPLETH, CONTOUR, DIRECTED_GRAPH, ERRORBAR, FUNNEL,
 GANTT, GAUGE, HEXBIN, ICICLE, LOLLIPOP, MANHATTAN, NORMALIZED, NORMALIZED_AREA,
 PARALLEL, PERCENTILE_BAND, POLAR_AREA, PR_CURVE, RADAR, RIDGELINE, ROC, RUG,
-SANKEY, STACKED_AREA, SUNBURST, SURVIVAL, TREEMAP, VOLCANO, WATERFALL,
+SANKEY, STACKED_AREA, SUNBURST, SURVIVAL, TREE, TREEMAP, VOLCANO, WATERFALL,
 WORD_CLOUD
 
 Docs convention: wherever user docs name a plot type as a heading, nav/sidebar
