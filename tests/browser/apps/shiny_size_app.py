@@ -171,6 +171,15 @@ def _scroll_box(output):
     )
 
 
+def _card_full_screen(output):
+    """A card that can be taken full screen, in a page that is not fillable."""
+    return ui.page_fluid(
+        ui.h4("Before the chart"),
+        ui.card(ui.card_header("Chart card"), output, full_screen=True, id="card"),
+        ui.p("After the card"),
+    )
+
+
 def _hand_written(output):
     """The output written by hand, as ``ui.output_ui``, not ``output_maidr``."""
     return _fluid(ui.output_ui("m"))
@@ -209,6 +218,7 @@ CASES = {
     "page_end": (_page_end, output_maidr("m", height=300), {}, _bars),
     "page_end_plotly": (_page_end, output_maidr("m"), {}, _plotly),
     "scroll_box": (_scroll_box, output_maidr("m"), {}, _bars),
+    "fs_card": (_card_full_screen, output_maidr("m"), {}, _bars),
 }
 
 
@@ -313,6 +323,15 @@ def _scaled_bokeh(n):
     return plot
 
 
+def _scaled_bokeh_both(n):
+    """A Bokeh plot scaled both ways, which Bokeh draws at 1256, 450, 1256px."""
+    from bokeh.plotting import figure
+
+    plot = figure(x_range=LABELS, sizing_mode="scale_both", title="Fruit sold")
+    plot.vbar(x=LABELS, top=[v * n for v in VALUES], width=0.8)
+    return plot
+
+
 def _scaled_altair(n):
     import altair as alt
     import pandas as pd
@@ -379,6 +398,7 @@ OTHER_APPS = {
     "slider_mpl": _under_a_slider(_scaled_bars),
     "slider_plotly": _under_a_slider(_scaled_plotly),
     "slider_bokeh": _under_a_slider(_scaled_bokeh),
+    "slider_bokeh_scaled": _under_a_slider(_scaled_bokeh_both),
     "slider_altair": _under_a_slider(_scaled_altair),
     "slider_nowhere": _under_a_slider(_scaled_bars, unplaced=True),
     "str_altair_container": _string_of(lambda: maidr.render(_altair_container())),

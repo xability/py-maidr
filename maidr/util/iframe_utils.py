@@ -624,38 +624,51 @@ _BOX_JS = """
                 }
             };
         }
-        // A frame whose height flips between two, its window the same
-        // width -- the page's scrollbar coming as the frame grows, and going
-        // as it shrinks, the chart following the width the scrollbar leaves
-        // -- keeps the taller of the two until the reader does something in
-        // the chart or the window changes width: at the classic scrollbars'
-        // threshold, it was resized without end.
-        function maidrSteady(iframe, doc, height) {
-            var width = iframe.ownerDocument.defaultView.innerWidth;
-            if (!doc.maidrSteadyReset) {
-                doc.maidrSteadyReset = true;
-                ['keydown', 'pointerdown', 'focusin'].forEach(function(type) {
-                    doc.addEventListener(type, function() {
-                        iframe.maidrSteady = null;
-                    }, true);
-                });
+        // A frame whose height flips between two as its box's width flips
+        // between two a scrollbar's width apart -- the page's scrollbar
+        // coming as the frame grows and going as it shrinks, and the chart
+        // fitted to the width it leaves -- keeps the taller of the two: at
+        // the classic scrollbars' threshold it was resized without end.
+        // That alone: each of the two heights measured at its own width,
+        // the narrower width giving the shorter height, each within a
+        // second of the last, the window the same size. The hold lets go as
+        // soon as the window changes size, or the box a width other than
+        // those two, or the chart a height other than those two: a card
+        // taken full screen and back, a window made shorter, a plot drawn
+        // again at another size.
+        function maidrSteady(iframe, height) {
+            var win = iframe.ownerDocument.defaultView;
+            var box = iframe.parentElement;
+            var width = box ? box.clientWidth : 0;
+            var size = win.innerWidth + 'x' + win.innerHeight;
+            var flip = iframe.maidrFlip;
+            if (!flip || flip.size !== size) {
+                flip = iframe.maidrFlip = {size: size, seen: [], hold: 0};
             }
-            var steady = iframe.maidrSteady;
-            if (!steady || steady.width !== width) {
-                steady = iframe.maidrSteady = {width: width, seen: [], hold: 0};
-            }
-            var seen = steady.seen;
-            if (steady.hold) {
-                if (height === seen[0] || height === seen[1]) return steady.hold;
-                steady.hold = 0;
+            var seen = flip.seen;
+            if (flip.hold) {
+                if ((height === seen[0].height || height === seen[1].height)
+                        && (width === seen[0].width || width === seen[1].width)) {
+                    return flip.hold;
+                }
+                flip.hold = 0;
                 seen.length = 0;
             }
-            if (seen[seen.length - 1] !== height) seen.push(height);
-            if (seen.length > 3) seen.shift();
-            if (seen.length === 3 && seen[0] === seen[2]) {
-                seen.shift();
-                steady.hold = Math.max(seen[0], seen[1]);
-                return steady.hold;
+            var now = win.performance.now();
+            var last = seen[seen.length - 1];
+            if (last && last.height === height) return height;
+            seen.push({height: height, width: width, at: now});
+            while (seen.length > 3 || now - seen[0].at > 2000) seen.shift();
+            if (seen.length === 3) {
+                var a = seen[0], b = seen[1], c = seen[2];
+                if (c.height === a.height && c.width === a.width
+                        && b.width !== a.width && Math.abs(b.width - a.width) <= 24
+                        && (b.width < a.width) === (b.height < a.height)
+                        && c.at - b.at <= 1000 && b.at - a.at <= 1000) {
+                    flip.seen = [a, b];
+                    flip.hold = Math.max(a.height, b.height);
+                    return flip.hold;
+                }
             }
             return height;
         }
@@ -1514,7 +1527,7 @@ def _matplotlib_resizer(
                     height += 50;
                 }}
                 height = Math.max(height, room);
-                @S if (fitted) height = maidrSteady(iframe, iframeDocument, height);
+                @S if (fitted) height = maidrSteady(iframe, height);
                 iframe.style.height = (height) + 'px';
                 if (restoreScroll) restoreScroll();
                 @S if (letGo) letGo();
@@ -1854,7 +1867,7 @@ def _plotly_resizer(
                 height += 50;
             }}
             height = Math.max(height, room);
-            @S if (fitted) height = maidrSteady(iframe, doc, height);
+            @S if (fitted) height = maidrSteady(iframe, height);
 
             iframe.style.height = height + 'px';
             if (restoreScroll) restoreScroll();

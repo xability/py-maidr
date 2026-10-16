@@ -1129,7 +1129,7 @@ def _assert_still(page, before: dict, where: str) -> None:
 
 
 @pytest.mark.parametrize("size", _SIZES, ids=_SIZE_IDS)
-@pytest.mark.parametrize("kind", ["mpl", "plotly", "bokeh", "altair"])
+@pytest.mark.parametrize("kind", ["mpl", "plotly", "bokeh", "bokeh_scaled", "altair"])
 def test_a_chart_drawn_again_above_the_window_leaves_the_page_still(
     browser, shiny_size_app_url, kind, size
 ):
@@ -1139,7 +1139,9 @@ def test_a_chart_drawn_again_above_the_window_leaves_the_page_still(
     200%), taking the slider and the chart off screen, and crept further
     with each one: the output collapsed as Shiny put the new frame in, the
     frame was measured at no height and at 4000px, and the page was
-    scrolled back by what the frame had grown.
+    scrolled back by what the frame had grown. A Bokeh plot scaled both
+    ways, held at the height Bokeh first drew it at, moved the page 497px
+    on its first redraw.
     """
     page = _open(browser, f"{shiny_size_app_url}/slider_{kind}/", *size)
     try:
@@ -2012,11 +2014,11 @@ def test_a_frame_at_rest_is_still_at_the_scrollbars_threshold(
     """Classic scrollbars, a page whose height is about the window's.
 
     The page's scrollbar comes as the frame grows, and narrows it; the chart
-    shrinks with it, and the frame with the chart, and the scrollbar goes.
-    A string frame's guess at its own size, without its script, did that 36
-    times in 4s, at rest, for good, at a spacer of 470px above a phone's
-    chart, and not at 460px or 480px; render_maidr's frame, 240 times. The
-    frame keeps the taller of the two heights now.
+    shrinks with it, and the frame with the chart, and the scrollbar goes:
+    render_maidr's frame was resized 1079 times in 1.5s at rest. The frame
+    keeps the taller of the two heights now, for as long as its box flips
+    between the two widths and nothing else changes. A string frame, whose
+    output has no box of its own, does not flip.
     """
     if case == "as_str":
         page = _without_the_served_script(
@@ -2153,3 +2155,90 @@ def test_a_hand_written_output_ui_shows_the_chart(browser, shiny_size_app_url):
         _assert_reads(page, "a hand-written output")
     finally:
         page.close()
+
+
+#: The chart's frame's height, and its box's.
+_HEIGHTS = r"""() => {
+  const frame = document.querySelector('#m iframe');
+  const box = frame.parentElement;
+  return {frame: frame.getBoundingClientRect().height,
+          box: box.getBoundingClientRect().height,
+          boxClient: box.clientHeight};
+}"""
+
+
+def test_a_card_taken_full_screen_and_back_has_its_chart_s_height_again(
+    browser, shiny_size_app_url
+):
+    """A card in a page that is not fillable, full screen and back, untouched.
+
+    The frame kept the height it had full screen, 678px for a 463px chart,
+    215px of blank below the chart and the card that much taller: the two
+    heights, A then B then A again, were taken for the classic scrollbars'
+    flip, and the taller held until the reader did something in the chart.
+    """
+    page = _open(browser, f"{shiny_size_app_url}/fs_card/", 1280, 900)
+    try:
+        first = page.evaluate(_HEIGHTS)
+        for _ in range(2):
+            _full_screen(page, True)
+            _settle(page)
+            _full_screen(page, False)
+            _settle(page)
+            back = page.evaluate(_HEIGHTS)
+            assert back["frame"] == pytest.approx(first["frame"], abs=2), (first, back)
+            assert back["box"] == pytest.approx(first["box"], abs=2), (first, back)
+        assert page.errors == []  # type: ignore[attr-defined]
+    finally:
+        page.close()
+
+
+def test_a_chart_follows_a_window_made_shorter_and_taller_again(
+    browser, shiny_size_app_url
+):
+    """A fillable card's chart, the window 900, 700, 900 and 700px tall.
+
+    The second 700px window left the frame 726px tall in a 578px box, which
+    scrolled over 148px of blank: the heights were taken for the classic
+    scrollbars' flip, and the taller held.
+    """
+    page = _open(browser, f"{shiny_size_app_url}/card/", 1280, 900)
+    try:
+        seen = {}
+        for height in (700, 900, 700, 900):
+            page.set_viewport_size({"width": 1280, "height": height})
+            page.wait_for_timeout(1000)
+            _settle(page)
+            now = page.evaluate(_HEIGHTS)
+            assert now["frame"] <= now["boxClient"] + 1, (height, now)
+            if height in seen:
+                assert now["frame"] == pytest.approx(seen[height], abs=2), (
+                    height,
+                    seen,
+                    now,
+                )
+            seen[height] = now["frame"]
+        assert page.errors == []  # type: ignore[attr-defined]
+    finally:
+        page.close()
+
+
+def test_a_bokeh_plot_scaled_both_ways_is_its_own_height_once_loaded(
+    browser, shiny_size_app_url
+):
+    """Untouched after load, the frame is as tall as the plot and its text.
+
+    Bokeh draws the plot at 1256px, then 450px, then 1256px as it loads;
+    taken for the classic scrollbars' flip, the frame was held at 1256px
+    for a 450px plot, 806px of blank until the reader did something in the
+    chart, and the first redraw moved the page 497px.
+    """
+    for case in ("bokeh_scaled", "str_bokeh_scaled"):
+        page = _open(browser, f"{shiny_size_app_url}/{case}/", 1280, 900)
+        try:
+            page.wait_for_timeout(1500)
+            seen = page.evaluate(_CONTAINER)
+            assert seen["frame"] <= seen["plot"] + 120, (case, seen)
+            assert page.errors == []  # type: ignore[attr-defined]
+        finally:
+            page.close()

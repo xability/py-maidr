@@ -489,6 +489,27 @@ def test_a_dialog_lays_the_frame_out_as_a_notebooks():
     assert "if (old[i].maidrSuspended) return;" in script
 
 
+def test_a_frame_holds_a_height_only_at_the_scrollbars_threshold():
+    """The two heights of a frame at the classic scrollbars' threshold.
+
+    Any height, then another, then the first again, at one window width
+    was taken for the threshold's flip, and the taller held until the
+    reader did something in the chart: after full screen and back, a
+    window made shorter and taller, and a Bokeh plot scaled both ways
+    drawn at 1256px, 450px, 1256px as it loads. It is held now only when
+    the box's width flips with it, a scrollbar's width apart, the narrower
+    giving the shorter height, and let go at any other change.
+    """
+    script = shiny_frame_script()
+
+    assert script.count("height = maidrSteady(iframe, height);") == 2
+    assert "Math.abs(b.width - a.width) <= 24" in script
+    assert "(b.width < a.width) === (b.height < a.height)" in script
+    assert "var size = win.innerWidth + 'x' + win.innerHeight;" in script
+    for gone in ("maidrSteadyReset", "iframe.maidrSteady"):
+        assert gone not in script, gone
+
+
 def test_the_frame_script_is_served_once_rather_than_sent(fake_session):
     """The script that sizes the frame rides no flush; the app serves it.
 
