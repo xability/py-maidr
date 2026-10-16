@@ -3,16 +3,20 @@ from __future__ import annotations
 import json
 import os
 import warnings
+from collections.abc import Sequence
 from typing import Any, Literal
 
 from htmltools import Tag
 from matplotlib.axes import Axes
+from matplotlib.collections import PathCollection
 from matplotlib.container import BarContainer
 from matplotlib.figure import Figure
 
 from maidr.core import Maidr
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
+from maidr.core.plot.scatterplot import ScatterPlot
+from maidr.core.plot.volcano import VolcanoPlot, threshold_options
 from maidr.excel import ExcelChart
 from maidr.office import PowerPointChart, WordChart
 from maidr.tensorboard import TensorBoardChart
@@ -1146,6 +1150,247 @@ def save_html(
 def stacked(plot: Axes | BarContainer) -> Maidr:
     ax = FigureManager.get_axes(plot)
     return FigureManager.create_maidr(ax, PlotType.STACKED)
+
+
+def volcano(
+    points: Axes | PathCollection | Sequence[PathCollection],
+    *,
+    significance: float,
+    effect: float | None = None,
+    significance_direction: Literal["above", "below"] = "above",
+    labels: Sequence[Any] | None = None,
+    groups: Sequence[Any] | None = None,
+) -> Maidr:
+    """
+    Declare a scatter a volcano plot. Experimental.
+
+    A volcano plot puts effect size (x, usually log2 fold change) against
+    significance (y, usually -log10 p). Declared one, the chart opens with
+    how many points clear the threshold and which, offers a rotor over just
+    those points, and announces each point's name -- the gene a reader came
+    for rather than two numbers the axes already describe.
+
+    Nothing in the drawing says where the threshold is, so it is never
+    guessed: ``significance`` is required.
+
+    Parameters
+    ----------
+    points : Axes, PathCollection or sequence of PathCollection
+        What ``ax.scatter`` returned, several of them (one per color, say),
+        or the axes they are drawn on -- which is what ``sns.scatterplot``
+        returns -- for every scatter on it. They become one layer, in the
+        order given, or the order they were drawn for an ``Axes``.
+    significance : float
+        The cutoff on the y axis: 1.3 for p < 0.05 on a -log10(p) axis.
+    effect : float or None, optional
+        The cutoff on the magnitude of x: 1 for a two-fold change on a log2
+        axis. ``None`` declares none.
+    significance_direction : {"above", "below"}, default "above"
+        Which side of ``significance`` the significant points are on.
+        ``"below"`` is for a raw p-value axis.
+    labels : sequence or None, optional
+        A name per point, in the order the points were given to the scatter
+        calls -- the gene names.
+    groups : sequence or None, optional
+        A region per point, in the same order, announced beside it.
+
+    Returns
+    -------
+    Maidr
+        The figure's Maidr, now holding the volcano layer in place of the
+        scatter layers of those points.
+
+    Raises
+    ------
+    TypeError
+        If ``points`` is not a scatter or axes, or a cutoff is not a number.
+    ValueError
+        If there is no scatter to declare, a cutoff is invalid, or ``labels``
+        or ``groups`` does not hold one entry per point.
+
+    Examples
+    --------
+    >>> import matplotlib.pyplot as plt
+    >>> import maidr
+    >>> fig, ax = plt.subplots()
+    >>> points = ax.scatter([-2.5, 0.1, 3.2], [6.0, 0.4, 8.1])
+    >>> _ = maidr.volcano(
+    ...     points, significance=1.3, effect=1.0, labels=["TP53", "GAPDH", "MYC"]
+    ... )
+    """
+    return _declare_threshold_layer(
+        PlotType.VOLCANO,
+        points,
+        threshold_options(
+            significance, direction=significance_direction, effect=effect
+        ),
+        labels,
+        groups,
+    )
+
+
+def manhattan(
+    points: Axes | PathCollection | Sequence[PathCollection],
+    *,
+    significance: float,
+    significance_direction: Literal["above", "below"] = "above",
+    labels: Sequence[Any] | None = None,
+    groups: Sequence[Any] | None = None,
+) -> Maidr:
+    """
+    Declare a scatter a Manhattan plot. Experimental.
+
+    A Manhattan plot puts genomic position (x) against significance (y,
+    usually -log10 p). Declared one, the chart opens with how many points
+    clear the threshold, which they are and which chromosomes they fall on,
+    offers a rotor over just those points, and announces each point's name
+    and chromosome.
+
+    There is no effect cutoff: x is a position on the genome, not a size.
+    Nothing in the drawing says where the threshold is, so it is never
+    guessed: ``significance`` is required.
+
+    Parameters
+    ----------
+    points : Axes, PathCollection or sequence of PathCollection
+        What ``ax.scatter`` returned -- often one call per chromosome --
+        or the axes they are drawn on, for every scatter on it. They become
+        one layer, in the order given, or the order they were drawn for an
+        ``Axes``.
+    significance : float
+        The cutoff on the y axis: 7.3 for genome-wide significance
+        (p < 5e-8) on a -log10(p) axis.
+    significance_direction : {"above", "below"}, default "above"
+        Which side of ``significance`` the significant points are on.
+        ``"below"`` is for a raw p-value axis.
+    labels : sequence or None, optional
+        A name per point, in the order the points were given to the scatter
+        calls -- the SNP ids.
+    groups : sequence or None, optional
+        A chromosome per point, in the same order.
+
+    Returns
+    -------
+    Maidr
+        The figure's Maidr, now holding the Manhattan layer in place of the
+        scatter layers of those points.
+
+    Raises
+    ------
+    TypeError
+        If ``points`` is not a scatter or axes, or the cutoff is not a number.
+    ValueError
+        If there is no scatter to declare, the cutoff is invalid, or
+        ``labels`` or ``groups`` does not hold one entry per point.
+
+    Examples
+    --------
+    >>> import matplotlib.pyplot as plt
+    >>> import maidr
+    >>> fig, ax = plt.subplots()
+    >>> points = ax.scatter([10, 120, 260], [2.1, 8.4, 1.0])
+    >>> _ = maidr.manhattan(
+    ...     points,
+    ...     significance=7.3,
+    ...     labels=["rs1", "rs2", "rs3"],
+    ...     groups=["chr1", "chr1", "chr2"],
+    ... )
+    """
+    return _declare_threshold_layer(
+        PlotType.MANHATTAN,
+        points,
+        threshold_options(significance, direction=significance_direction),
+        labels,
+        groups,
+    )
+
+
+def _declare_threshold_layer(
+    plot_type: PlotType,
+    points: Axes | PathCollection | Sequence[PathCollection],
+    thresholds: dict[str, Any],
+    labels: Sequence[Any] | None,
+    groups: Sequence[Any] | None,
+) -> Maidr:
+    """
+    Replace the scatter layers of some points with one threshold layer.
+
+    Parameters
+    ----------
+    plot_type : PlotType
+        :attr:`PlotType.VOLCANO` or :attr:`PlotType.MANHATTAN`.
+    points : Axes, PathCollection or sequence of PathCollection
+        As :func:`volcano` takes it.
+    thresholds : dict
+        The layer's ``thresholdOptions``.
+    labels, groups : sequence or None
+        A name and a region per point.
+
+    Returns
+    -------
+    Maidr
+        The figure's Maidr, holding the new layer.
+    """
+    if isinstance(points, Axes):
+        ax = points
+        collections: list[PathCollection] | None = None
+    else:
+        given = [points] if isinstance(points, PathCollection) else list(points)
+        if not given or not all(isinstance(c, PathCollection) for c in given):
+            raise TypeError(
+                f"maidr.{plot_type.value} takes what ax.scatter returned, a list "
+                "of them, or the axes they are drawn on"
+            )
+        ax = given[0].axes
+        if ax is None or any(c.axes is not ax for c in given):
+            raise ValueError(
+                f"maidr.{plot_type.value} needs scatters drawn on one axes"
+            )
+        collections = given
+
+    fig = ax.get_figure()
+    if fig is None:
+        raise ValueError(f"No figure found for axis: {ax}.")
+    maidr = FigureManager._get_maidr(fig, plot_type)
+
+    # Only plain scatter layers: a dash or a text layer is a `ScatterPlot`
+    # too, and reads artists that are not points.
+    def drawn(layer: Any) -> list[PathCollection]:
+        return list(layer._own_points or layer._swept())
+
+    scatters = [
+        layer for layer in maidr.plots if type(layer) is ScatterPlot and layer.ax is ax
+    ]
+    if collections is None:
+        collections = []
+        for layer in scatters:
+            collections.extend(c for c in drawn(layer) if c not in collections)
+        if not collections:
+            raise ValueError(f"maidr.{plot_type.value}: no scatter on these axes")
+
+    replaced = [
+        layer for layer in scatters if any(c in collections for c in drawn(layer))
+    ]
+    for layer in replaced:
+        missing = [c for c in drawn(layer) if c not in collections]
+        if missing:
+            # The layer reads points beyond the ones given, and replacing it
+            # would drop them from the chart without a word.
+            raise ValueError(
+                f"maidr.{plot_type.value}: a scatter layer spans more "
+                "collections than were given; pass the axes instead"
+            )
+
+    layer = VolcanoPlot(
+        ax,
+        plot_type,
+        points=collections,
+        thresholds=thresholds,
+        labels=labels,
+        groups=groups,
+    )
+    FigureManager.replace_plots(maidr, replaced, layer)
+    return maidr
 
 
 def close(plot: Any | None = None) -> None:

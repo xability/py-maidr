@@ -31,7 +31,7 @@ The `maidr/patch/` modules use `wrapt` to intercept matplotlib/seaborn plot call
 
 ### Key Components
 
-- **`maidr/api.py`** — Public API: `render()`, `show()`, `save_html()`, `stacked()`, `close()`
+- **`maidr/api.py`** — Public API: `render()`, `show()`, `save_html()`, `stacked()`, `volcano()`, `manhattan()`, `close()`. `volcano()`/`manhattan()` replace the scatter layers of the points they are given with one `VolcanoPlot` (`maidr/core/plot/volcano.py`) through `FigureManager.replace_plots`
 - **`maidr/core/figure_manager.py`** — Thread-safe singleton mapping matplotlib `Figure` objects to `Maidr` instances
 - **`maidr/core/maidr.py`** — `Maidr` class: holds a Figure + list of `MaidrPlot` objects, handles SVG extraction (via `lxml`), MAIDR JSON schema generation, and HTML rendering
 - **`maidr/core/plot/`** — Factory pattern: `MaidrPlotFactory` dispatches to concrete `MaidrPlot` subclasses (BarPlot, BoxPlot, HeatPlot, etc.) based on `PlotType` enum. Each subclass implements `_extract_plot_data()`
@@ -44,7 +44,7 @@ The `maidr/patch/` modules use `wrapt` to intercept matplotlib/seaborn plot call
 
 ### Supported Plot Types
 
-Defined in `maidr/core/enum/plot_type.py`, which has **44** members. They do
+Defined in `maidr/core/enum/plot_type.py`, which has **46** members. They do
 not all carry the same promise -- see `docs/stability.qmd`, and keep that page
 in step when adding one (`tests/core/test_plot_type_stability.py` enforces it).
 
@@ -54,13 +54,13 @@ exercised by real readers:
 BAR, BOX, CANDLESTICK, COUNT, DODGED, HEAT, HIST, LINE, PIE, SCATTER,
 SMOOTH, STACKED, STEP, VIOLIN_BOX, VIOLIN_KDE
 
-**Experimental** (29) -- added by that roadmap or after it, none validated
+**Experimental** (31) -- added by that roadmap or after it, none validated
 with a reader, and subject to change without a deprecation period:
 
 ALLUVIAL, AREA, BOXEN, CHOROPLETH, CONTOUR, DIRECTED_GRAPH, ERRORBAR, FUNNEL,
-GANTT, GAUGE, HEXBIN, ICICLE, LOLLIPOP, NORMALIZED, NORMALIZED_AREA, PARALLEL,
-PERCENTILE_BAND, POLAR_AREA, PR_CURVE, RADAR, RIDGELINE, ROC, RUG, SANKEY,
-STACKED_AREA, SUNBURST, TREEMAP, WATERFALL, WORD_CLOUD
+GANTT, GAUGE, HEXBIN, ICICLE, LOLLIPOP, MANHATTAN, NORMALIZED, NORMALIZED_AREA,
+PARALLEL, PERCENTILE_BAND, POLAR_AREA, PR_CURVE, RADAR, RIDGELINE, ROC, RUG,
+SANKEY, STACKED_AREA, SUNBURST, TREEMAP, VOLCANO, WATERFALL, WORD_CLOUD
 
 Docs convention: wherever user docs name a plot type as a heading, nav/sidebar
 label, list item or table row (outside the `docs/stability.qmd` tables), an

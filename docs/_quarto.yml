@@ -425,10 +425,14 @@ quartodoc:
         - mlflow.load_mlflow_metrics
     - title: Registering and releasing figures
       desc: >
-        Mark a bar container as a stacked bar plot with `maidr.stacked()`, and
-        release the figures maidr tracks with `maidr.close()`.
+        Mark a bar container as a stacked bar plot with `maidr.stacked()`,
+        declare a scatter a volcano or a Manhattan plot with `maidr.volcano()`
+        or `maidr.manhattan()` (experimental), and release the figures maidr
+        tracks with `maidr.close()`.
       contents:
         - stacked
+        - volcano
+        - manhattan
         - close
     - title: Switching the matplotlib backend
       desc: >
