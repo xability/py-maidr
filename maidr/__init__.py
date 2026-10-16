@@ -236,6 +236,7 @@ from .tensorboard import (  # noqa: E402
     read_tensorboard_projector,
     read_tensorboard_scalars,
 )
+from .survival import plot_survival  # noqa: E402
 from .wandb import read_wandb_history  # noqa: E402
 from .util.bundle_capability import MaidrBundleTraceWarning  # noqa: E402
 from .util.bundle_freshness import (  # noqa: E402
@@ -357,6 +358,7 @@ __all__ = [
     "log_mlflow_chart",
     "maidr_js_version",
     "manhattan",
+    "plot_survival",
     "read_bundled_js",
     "read_bundled_math_css",
     "read_excel_charts",

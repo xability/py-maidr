@@ -161,6 +161,13 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
         "Volcano Plot [experimental]": [["volcano"]],
         "Manhattan Plot [experimental]": [["manhattan"]],
     },
+    "examples/survival.qmd": {
+        # Two calls on one axes are two arms of one layer; the band and the
+        # censoring ticks are not layers of their own. The lifelines section
+        # is not executed: lifelines is not installed for the suite.
+        "One arm": [["survival"]],
+        "Comparing arms": [["survival"]],
+    },
     "examples-plotly.qmd": {
         "Bar Plot": [["bar"]],
         "Dodged (Grouped) Bar Plot": [["dodged_bar"]],
@@ -675,6 +682,22 @@ def test_pie_is_walked_clockwise_from_the_top(gallery: _Gallery) -> None:
     )[MaidrKey.DATA]
 
     assert [piece[MaidrKey.X] for piece in slices] == ["Fri", "Thur", "Sun", "Sat"]
+
+
+def test_survival_holds_through_a_censored_time(gallery: _Gallery) -> None:
+    """'the Treatment arm holds at 0.79 through month 12, where a subject was
+    censored', and 'month 15 is announced as censored'."""
+    one = gallery.shown("examples/survival.qmd", "One arm").layer(PlotType.SURVIVAL)
+    (arm,) = one[MaidrKey.DATA]
+    assert [p["x"] for p in arm if p.get("censored")] == [15]
+
+    layer = gallery.shown("examples/survival.qmd", "Comparing arms").layer(
+        PlotType.SURVIVAL
+    )
+    control, treatment = layer[MaidrKey.DATA]
+    assert [p["x"] for p in treatment if p.get("censored")] == [12, 18]
+    at_12 = next(p for p in treatment if p["x"] == 12)
+    assert at_12["y"] == 0.79 and at_12["z"] == "Treatment"
 
 
 def test_step_points_carry_the_stage_names(gallery: _Gallery) -> None:

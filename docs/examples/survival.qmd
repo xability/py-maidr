@@ -1,0 +1,140 @@
+---
+title: "Accessible Kaplan-Meier Survival Curves with py-maidr"
+pagetitle: "Accessible Kaplan-Meier Survival Curves"
+description: "Make Kaplan-Meier survival curves accessible with py-maidr: survival probability read by keyboard, censored times announced and reachable with the rotor, the confidence band and the median survival of each arm."
+jupyter: python3
+html-table-processing: none
+filters:
+  - line-highlight
+---
+
+A Kaplan-Meier curve is the share of subjects still free of the event at each
+time, dropping in steps as events occur. Drawn with `ax.step`, it is read as a
+step chart: the probability at each time, and nothing else. What the figure is
+read for is lost -- which times are censored (a subject who left the study
+without the event, where the curve does *not* step), the confidence band, and
+the median survival.
+
+`maidr.plot_survival()` draws the curve from its numbers and reads it as a
+survival curve: each censored time is announced as censored and can be reached
+with the rotor, the band is announced after the estimate, and the description
+(`d`) gives each arm's median survival, or says it was not reached.
+
+`SURVIVAL` is **experimental** and may change without a deprecation period:
+see [Plot Type Stability](../stability.qmd).
+
+::: {.callout-warning title="Prototype"}
+This is one of the experimental plot types. It has not been through a user
+study, and it may change without a deprecation period. See
+[Plot type stability](../stability.qmd).
+:::
+
+## Setup
+
+```{python}
+#| warning: false
+
+import matplotlib.pyplot as plt
+
+# Just import maidr package: plt.show() now renders accessible output #<<
+import maidr  #<<
+```
+
+## One arm
+
+```{python}
+#| warning: false
+#| fig-alt: Kaplan-Meier curve of overall survival over 18 months, with a shaded confidence band and a censoring tick at month 15
+
+import matplotlib.pyplot as plt
+
+import maidr  #<<
+
+months = [0, 3, 6, 9, 12, 15, 18]
+survival = [1.0, 0.88, 0.71, 0.5, 0.41, 0.34, 0.29]
+lower = [0.88, 0.76, 0.59, 0.38, 0.29, 0.22, 0.17]
+upper = [1.0, 1.0, 0.83, 0.62, 0.53, 0.46, 0.41]
+
+fig, ax = plt.subplots()
+maidr.plot_survival(  #<<
+    months, survival, lower=lower, upper=upper, censored=[15], ax=ax  #<<
+)  #<<
+ax.set_xlabel("Months")
+ax.set_ylabel("Survival probability")
+ax.set_title("Overall survival")
+
+plt.show()  #<<
+```
+
+Left and Right move along the times. Each stop announces the survival
+probability and the band around it, and month 15 is announced as censored.
+The curve reaches one half at month 9, which the description gives as the
+median survival.
+
+## Comparing arms
+
+Each call on the same axes adds an arm to one chart, so Up and Down switch
+between arms at the same time. A censoring time that is not one of the times
+given is added as a point of its own, at the survival in force then: the
+Treatment arm holds at 0.79 through month 12, where a subject was censored.
+
+```{python}
+#| warning: false
+#| fig-alt: Kaplan-Meier curves of a control and a treatment arm over 18 months, with censoring ticks
+
+import matplotlib.pyplot as plt
+
+import maidr  #<<
+
+fig, ax = plt.subplots()
+maidr.plot_survival(  #<<
+    [0, 3, 6, 9, 12, 15, 18],
+    [1.0, 0.88, 0.71, 0.5, 0.41, 0.34, 0.29],
+    censored=[15],
+    label="Control",
+    ax=ax,
+)
+maidr.plot_survival(  #<<
+    [0, 3, 6, 9, 15],
+    [1.0, 0.95, 0.86, 0.79, 0.72],
+    censored=[12, 18],
+    label="Treatment",
+    ax=ax,
+)
+ax.set_xlabel("Months")
+ax.set_ylabel("Survival probability")
+ax.set_title("Overall survival by arm")
+ax.legend(title="Arm")
+
+plt.show()  #<<
+```
+
+The rotor offers the censored times as a unit of its own, so a reader can jump
+from one to the next and hear how much of the tail is still backed by
+subjects. Control reaches one half at month 9; Treatment never does, and the
+description says its median was not reached.
+
+## From lifelines
+
+With [lifelines](https://lifelines.readthedocs.io/) installed, a fitted
+`KaplanMeierFitter` is read the same way when you plot it: the estimate, its
+confidence band and the times the fitter recorded as censored. Nothing in
+maidr imports lifelines; the reading is wired up when your own code imports
+it.
+
+```python
+import matplotlib.pyplot as plt
+from lifelines import KaplanMeierFitter
+from lifelines.datasets import load_waltons
+
+import maidr
+
+df = load_waltons()
+fig, ax = plt.subplots()
+for group, rows in df.groupby("group"):
+    KaplanMeierFitter().fit(rows["T"], rows["E"], label=group).plot_survival_function(
+        ax=ax, show_censors=True
+    )
+
+plt.show()
+```

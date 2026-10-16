@@ -86,6 +86,11 @@ class MaidrKey(str, Enum):
     # area beside the curve it belongs to.
     AUC = "auc"
 
+    # Survival keys. A subject left the study at this time without the event
+    # happening; the curve does not step there. The confidence band at each
+    # time reuses `Y_MIN` and `Y_MAX` below.
+    CENSORED = "censored"
+
     # Flow keys. One link states the two nodes it joins and how much moves.
     # Only the source needs a key of its own: the amount reuses `VALUE` and
     # the far node reuses `TARGET`, both below. `TARGET` carrying two
