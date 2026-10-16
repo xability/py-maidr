@@ -404,6 +404,7 @@ OTHER_APPS = {
     "str_altair_container": _string_of(lambda: maidr.render(_altair_container())),
     "str_bokeh_stretched": _string_of(lambda: maidr.render(_bokeh_stretched())),
     "str_bokeh_scaled": _string_of(lambda: maidr.render(_bokeh_scaled())),
+    "str_plotly": _string_of(lambda: maidr.render(_plotly())),
 }
 
 app = Starlette(

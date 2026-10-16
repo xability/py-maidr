@@ -8,13 +8,11 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import base64
 import re
 import sys
 import threading
 import time
 import warnings
-import zlib
 from html import unescape
 from urllib.parse import unquote
 
@@ -127,11 +125,10 @@ def _clean_figures():
 # ---------------------------------------------------------------------------
 
 
-
 def carried_script(onload: str) -> str:
-    """The script a string frame's ``onload`` carries, unpacked."""
-    packed = re.search(r"atob\('([^']+)'\)", onload).group(1)
-    return zlib.decompress(base64.b64decode(packed), -15).decode("utf-8")
+    """The script a string frame's ``onload`` carries."""
+    return re.match(r"var f=this;(.*)maidrShinyFrame\(f,", onload, re.S).group(1)
+
 
 def test_render_maidr_subclasses_renderer_not_a_concrete_renderer():
     """The documented base is ``Renderer``, not another renderer."""
@@ -607,7 +604,7 @@ def test_a_frame_made_in_express_s_page_carries_its_script():
     Express runs the app's file with a stand-in session to build its page,
     which has no app to register the dependency with and serves nothing:
     the frame had no URL to load its script from, and stayed 150px tall.
-    It carries the script instead, in its ``onload``, compacted and packed.
+    It carries the script instead, in its ``onload``, compacted.
     """
     from shiny.express._stub_session import ExpressStubSession
     from shiny.session import session_context
@@ -621,7 +618,7 @@ def test_a_frame_made_in_express_s_page_carries_its_script():
     script = carried_script(onload)
     assert "window.maidrShinyFrame=function(frame,kind,options)" in script
     assert "\n//" not in script
-    assert len(onload) < len(shiny_frame_script()) * 0.2, len(onload)
+    assert len(onload) < len(shiny_frame_script()) * 0.4, len(onload)
 
 
 def test_a_shiny_frame_starts_with_the_rules_it_is_laid_out_by():
@@ -651,13 +648,16 @@ _ONLOAD_BEFORE = {"matplotlib": 10_467, "plotly": 9_151}
 
 
 @pytest.mark.parametrize("plotly", [False, True])
-def test_a_string_frame_carries_no_more_than_it_did(plotly):
+def test_a_string_frame_carries_its_script_compacted_as_plain_text(plotly):
     """A string frame's script and stylesheet, against its old script alone.
 
     The script it carried, its comments left out, was 22 KB of every flush,
     20 KB more than before charts were fitted. It carries its own kind's
-    alone now, compacted and packed, and its stylesheet compacted: no more,
-    together, than the script it carried then.
+    alone now, compacted, and its stylesheet compacted: about twice what it
+    carried then, as plain text, which every browser runs. Packed, it was
+    less than that, but a browser that could not unpack it left the frame
+    150px tall, the chart cut off
+    (``test_a_string_frame_is_sized_in_a_browser_that_cannot_unpack``).
     """
     from shiny.express._stub_session import ExpressStubSession
     from shiny.session import session_context
@@ -672,7 +672,12 @@ def test_a_string_frame_carries_no_more_than_it_did(plotly):
     onload = re.search(r'onload="([^"]*)"', html).group(1)
     style = re.search(r'srcdoc="(&lt;style&gt;.*?&lt;/style&gt;)', html).group(1)
     kind = "plotly" if plotly else "matplotlib"
-    assert len(onload) + len(style) <= _ONLOAD_BEFORE[kind], (len(onload), len(style))
+    for gone in ("DecompressionStream", "atob(", "createElement('script')"):
+        assert gone not in onload, gone
+    assert len(onload) + len(style) <= 2.4 * _ONLOAD_BEFORE[kind], (
+        len(onload),
+        len(style),
+    )
 
 
 def test_a_plotly_figure_has_a_height_of_its_own_in_shiny(fake_session):

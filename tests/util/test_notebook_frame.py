@@ -19,10 +19,8 @@ notebook's is ``tests/browser/test_notebook_figure_size.py``.
 
 from __future__ import annotations
 
-import base64
 import html as html_module
 import re
-import zlib
 
 import matplotlib
 
@@ -76,11 +74,10 @@ def css() -> dict[str, dict[str, str]]:
 # --- The stylesheet -------------------------------------------------------------
 
 
-
 def carried_script(onload: str) -> str:
-    """The script a string frame's ``onload`` carries, unpacked."""
-    packed = re.search(r"atob\('([^']+)'\)", onload).group(1)
-    return zlib.decompress(base64.b64decode(packed), -15).decode("utf-8")
+    """The script a string frame's ``onload`` carries."""
+    return re.match(r"var f=this;(.*)maidrShinyFrame\(f,", onload, re.S).group(1)
+
 
 def test_the_chart_starts_at_the_frames_edge(css):
     for selector in ("html", "body"):

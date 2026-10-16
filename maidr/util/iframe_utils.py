@@ -12,12 +12,10 @@ plots in Jupyter notebooks, Google Colab, VSCode, Flask, and Shiny environments.
 # outright on the oldest supported interpreter.
 from __future__ import annotations
 
-import base64
 import hashlib
 import json
 import re
 import uuid
-import zlib
 from contextlib import contextmanager
 from contextvars import ContextVar
 from functools import lru_cache
@@ -1202,15 +1200,14 @@ def shiny_frame_dependency_sent() -> Iterator[None]:
 def _shiny_frame_inline(kind: str) -> str:
     """:func:`shiny_frame_script` as a frame of ``kind`` carries it.
 
-    Its own kind's alone, compacted (:func:`maidr.util.compact.compact_js`),
-    and deflated, in base64: about 7.3 KB, where the served script is 54 KB,
-    and a frame's ``onload`` carried 9-10 KB before charts were fitted to
-    their outputs. :func:`_shiny_onload` unpacks it.
+    Its own kind's alone, compacted (:func:`maidr.util.compact.compact_js`):
+    about 19 KB, where the served script is 54 KB. Plain text, which every
+    browser runs, as a frame's ``onload`` always carried its script: packed,
+    it was smaller, but a browser that could not unpack it (before Safari
+    16.4, Firefox 113 or Chrome 103) left the frame 150px tall, its chart
+    cut off.
     """
-    script = compact_js(shiny_frame_script((kind,))).encode("utf-8")
-    packer = zlib.compressobj(9, zlib.DEFLATED, -15)
-    packed = packer.compress(script) + packer.flush()
-    return base64.b64encode(packed).decode("ascii")
+    return compact_js(shiny_frame_script((kind,)))
 
 
 def _shiny_onload(kind: str, options: dict | None = None, carried: bool = False) -> str:
@@ -1225,12 +1222,10 @@ def _shiny_onload(kind: str, options: dict | None = None, carried: bool = False)
     ``render.ui``, turned into a string, kept for another session, written
     to a file -- carries the script itself (``carried``), as a frame's
     ``onload`` always had: such a frame can lose a dependency on its way to
-    the page, and needs nothing served. It carries it packed
-    (:func:`_shiny_frame_inline`), which the browser unpacks
-    (``DecompressionStream``) and runs as an inline script, as the
-    ``onload`` itself runs, once per page and kind of chart; a browser that
-    cannot unpack it (before Safari 16.4 or Firefox 113) leaves the frame
-    unsized, and says so in the console.
+    the page, and needs nothing served. It carries it compacted
+    (:func:`_shiny_frame_inline`); the script registers its kind once per
+    page, and returns at once wherever that kind is registered already, by
+    the served script or by another frame.
 
     Parameters
     ----------
@@ -1249,20 +1244,9 @@ def _shiny_onload(kind: str, options: dict | None = None, carried: bool = False)
     """
     given = json.dumps(options or {}, separators=(",", ":"))
     if carried:
-        # The script registers its kind once per page, whichever frame, or
-        # the served script, runs it first.
         return (
-            f"var f=this,k=window.maidrShinyKinds;"
-            f"function go(){{maidrShinyFrame(f,'{kind}',{given})}}"
-            f"if(k&&k.{kind})go();"
-            "else if(!window.DecompressionStream)console.warn('maidr: this "
-            "browser cannot unpack the script that sizes this chart');"
-            "else new Response(new Blob([Uint8Array.from(atob("
-            f"'{_shiny_frame_inline(kind)}'),function(c){{return c.charCodeAt(0)}})])"
-            ".stream().pipeThrough(new DecompressionStream('deflate-raw')))"
-            ".text().then(function(c){k=window.maidrShinyKinds;"
-            f"if(!(k&&k.{kind})){{var s=document.createElement('script');"
-            "s.textContent=c;document.head.appendChild(s);s.remove()}go()})"
+            f"var f=this;{_shiny_frame_inline(kind)}"
+            f"maidrShinyFrame(f,'{kind}',{given})"
         )
     return (
         "var f=this;(function g(n){var k=window.maidrShinyKinds;if(k&&k."

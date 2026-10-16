@@ -2002,6 +2002,51 @@ def test_a_string_frame_needs_nothing_served(browser, shiny_size_app_url, case):
         page.close()
 
 
+#: A browser that has no ``DecompressionStream`` (Safari before 16.4,
+#: Firefox before 113), or one that cannot unpack ``deflate-raw`` (Chrome and
+#: Edge before 103).
+_CANNOT_UNPACK = {
+    "none": "delete window.DecompressionStream; delete window.CompressionStream;",
+    "old": "window.DecompressionStream = function (format) {"
+    " throw new TypeError('Unsupported compression format: ' + format); };",
+}
+
+
+@pytest.mark.parametrize("unpack", sorted(_CANNOT_UNPACK))
+@pytest.mark.parametrize("case", ["as_str", "str_plotly"])
+def test_a_string_frame_is_sized_in_a_browser_that_cannot_unpack(
+    browser, shiny_size_app_url, case, unpack
+):
+    """A string frame's script is plain text, which every browser runs.
+
+    It was packed, and unpacked with ``DecompressionStream('deflate-raw')``:
+    a browser without it left the frame 150px tall, 313px of a 463px
+    matplotlib chart and 300px of a 450px Plotly chart cut off.
+    """
+    page = browser.new_page(viewport={"width": 1280, "height": 900})
+    page.add_init_script(_CANNOT_UNPACK[unpack])
+    errors: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    try:
+        page.goto(f"{shiny_size_app_url}/{case}/")
+        page.wait_for_selector("#m iframe", timeout=30_000)
+        page.frame_locator("#m iframe").locator(CHART).first.wait_for(
+            state="attached", timeout=30_000
+        )
+        seen = _settle(page)
+        if case == "as_str":
+            assert (seen["svg"]["width"], seen["svg"]["height"]) == pytest.approx(
+                _OWN, abs=2
+            ), seen
+        else:
+            assert seen["svg"]["height"] == pytest.approx(450, abs=2), seen
+        assert seen["frame"]["height"] >= seen["svg"]["height"], seen
+        assert _inside(seen["svg"], seen["frame"]), seen
+        assert errors == [], errors
+    finally:
+        page.close()
+
+
 #: How many times the frame's height has changed, frame by frame, from now.
 _COUNT_RESIZES = r"""() => {
   const frame = document.querySelector('#m iframe');
@@ -2129,7 +2174,7 @@ def test_a_string_frame_written_to_a_file_shows_the_chart(
         html = first.request.get(f"{shiny_size_app_url}/kept_str.html").text()
     finally:
         first.close()
-    assert "maidrShinyFrame(f," in html and "DecompressionStream" in html
+    assert "maidrShinyFrame(f," in html and "maidrShinyKinds" in html
     saved = tmp_path / "chart.html"
     saved.write_text(
         "<!doctype html><html><head><meta charset='utf-8'></head>"
