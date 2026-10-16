@@ -2,7 +2,10 @@
 // once rather than sent with every flush of the output. Written by
 // maidr/util/iframe_utils.py (shiny_frame_script); do not edit by hand.
 (function () {
-    if (window.maidrShinyFrame) return;
+    // One copy per kind of chart is enough: a frame that carries its
+    // script (_shiny_onload) brings its own kind's alone.
+    var kinds = window.maidrShinyKinds = window.maidrShinyKinds || {};
+    if (kinds.matplotlib && kinds.plotly) return;
 
         function maidrOutputWidth(iframe, keepPadding) {
             var host = iframe.parentElement;
@@ -595,7 +598,18 @@
             box.maidrBoxObserver.observe(box);
         }
 
+    // The rest of frame.css, which the frame's document starts without:
+    // focus rings, a dialog's band, a fitted chart's centring.
+    function maidrFrameStyle(frame) {
+        var doc = frame.contentWindow && frame.contentWindow.document;
+        if (!doc || doc.getElementById('maidr-frame-style')) return;
+        var style = doc.createElement('style');
+        style.id = 'maidr-frame-style';
+        style.textContent = "html[data-maidr-fit-box] figure[id^=maidr-figure-]>div[tabindex]{margin-left:auto;margin-right:auto}figure[id^=maidr-figure]>div[tabindex=\"0\"]:focus{outline:3px solid #1a5fb4 !important;outline-offset:-3px !important}figure[id^=maidr-figure]>div[tabindex=\"0\"]:focus svg.maidr-frame-svg{outline:2px solid #ffffff !important;outline-offset:-5px !important}.js-plotly-plot .svg-container:focus-within{outline:none !important}.js-plotly-plot .svg-container:focus-within::after{content:\"\";position:absolute;inset:0;border:3px solid #1a5fb4;pointer-events:none;z-index:1000}figure[id^=maidr-figure]>div[tabindex=\"0\"]:focus [id^=maidr-bokeh-][id$=-plot]::after{content:\"\";position:absolute;inset:0;border:3px solid #1a5fb4;pointer-events:none;z-index:1000}figure[id^=maidr-figure]>div[tabindex=\"0\"]:focus:has([id^=maidr-bokeh-][id$=-plot]){outline:none !important}textarea:focus,input:focus,select:focus,button:focus-visible,a:focus-visible,[role=button]:focus-visible{outline:3px solid #1a5fb4 !important;outline-offset:-3px !important}@media (forced-colors:active){figure[id^=maidr-figure]>div[tabindex=\"0\"]:focus,textarea:focus,input:focus,select:focus,button:focus-visible,a:focus-visible,[role=button]:focus-visible{outline-color:Highlight !important}figure[id^=maidr-figure]>div[tabindex=\"0\"]:focus svg.maidr-frame-svg{outline:none !important}.js-plotly-plot .svg-container:focus-within::after,figure[id^=maidr-figure]>div[tabindex=\"0\"]:focus [id^=maidr-bokeh-][id$=-plot]::after{border-color:Highlight}}html[data-maidr-dialog-room] .MuiDialog-container{height:var(--maidr-dialog-room) !important;margin-top:calc((100vh - var(--maidr-dialog-room)) / 2) !important}html[data-maidr-dialog-room] .MuiDialog-paper{max-height:calc(var(--maidr-dialog-room) - 64px) !important}";
+        (doc.head || doc.documentElement).appendChild(style);
+    }
     function matplotlibFrame(frame, options) {
+        maidrFrameStyle(frame);
 
         function resizeIframe() {
             let iframe = frame;
@@ -816,6 +830,7 @@
 
     }
     function plotlyFrame(frame, options) {
+        maidrFrameStyle(frame);
 
         function resizeIframe() {
             var iframe = frame;
@@ -1000,8 +1015,11 @@
         } catch (_) {}
 
     }
+    if (!kinds.matplotlib) kinds.matplotlib = matplotlibFrame;
+    if (!kinds.plotly) kinds.plotly = plotlyFrame;
+    if (window.maidrShinyFrame) return;
     window.maidrShinyFrame = function (frame, kind, options) {
-        (kind === 'plotly' ? plotlyFrame : matplotlibFrame)(frame, options || {});
+        kinds[kind](frame, options || {});
     };
     if (window.jQuery) {
         // Shiny runs this in its message loop, where an error stops the

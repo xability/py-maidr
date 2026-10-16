@@ -2121,7 +2121,7 @@ def test_a_string_frame_written_to_a_file_shows_the_chart(
         html = first.request.get(f"{shiny_size_app_url}/kept_str.html").text()
     finally:
         first.close()
-    assert "maidrShinyFrame(this," in html
+    assert "maidrShinyFrame(f," in html and "DecompressionStream" in html
     saved = tmp_path / "chart.html"
     saved.write_text(
         "<!doctype html><html><head><meta charset='utf-8'></head>"

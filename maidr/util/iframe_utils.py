@@ -12,10 +12,12 @@ plots in Jupyter notebooks, Google Colab, VSCode, Flask, and Shiny environments.
 # outright on the oldest supported interpreter.
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import re
 import uuid
+import zlib
 from contextlib import contextmanager
 from contextvars import ContextVar
 from functools import lru_cache
@@ -23,6 +25,8 @@ from pathlib import Path
 from typing import Iterator
 
 from htmltools import HTMLDependency, Tag, tags
+
+from maidr.util.compact import compact_css, compact_js, css_blocks
 
 # What the frame is called when the chart it holds has no title of its own.
 _UNTITLED_NAME = "Accessible chart"
@@ -221,6 +225,33 @@ def frame_style() -> str:
     from maidr.util.inline_chart import _asset
 
     return f"<style>{_asset('frame.css')}</style>"
+
+
+#: The rules of ``frame.css`` a Shiny app's frame needs only once its script
+#: runs: focus rings, a dialog's band, a fitted chart's centring. Not the
+#: ones its document is laid out by as it loads.
+_LATER_RULES = re.compile(r":focus|forced-colors|data-maidr-dialog-room|data-maidr-fit-box")
+
+
+@lru_cache(maxsize=1)
+def _shiny_frame_css() -> tuple:
+    """``frame.css`` compacted, as rules a Shiny frame's document starts with
+    and rules its script adds (:data:`_LATER_RULES`)."""
+    from maidr.util.inline_chart import _asset
+
+    blocks = css_blocks(compact_css(_asset("frame.css")))
+    later = [block for block in blocks if _LATER_RULES.search(block)]
+    first = [block for block in blocks if block not in later]
+    return "".join(first), "".join(later)
+
+
+def _frame_style(in_shiny: bool) -> str:
+    """:func:`frame_style`, or, in a Shiny app, whose frame is sent with every
+    flush of its output, the part of it the frame's document is laid out
+    by as it loads, compacted; the frame's script adds the rest."""
+    if not in_shiny:
+        return frame_style()
+    return f"<style>{_shiny_frame_css()[0]}</style>"
 
 
 #: The width a notebook's frame may take: its output area's, and the padding
@@ -979,7 +1010,7 @@ SHINY_FRAME_FILE = "frame.js"
 SHINY_FRAME_NAME = "maidr-shiny-frame"
 
 
-def shiny_frame_script() -> str:
+def shiny_frame_script(kinds: tuple = ("matplotlib", "plotly")) -> str:
     """The script every chart frame in a Shiny app sizes itself with.
 
     A Shiny app sends a frame, ``onload`` and all, over its websocket with
@@ -989,13 +1020,19 @@ def shiny_frame_script() -> str:
     browser keeps, and a frame's ``onload`` only names its kind and its
     options (:func:`_shiny_onload`). It fits the frame to its output as a
     notebook's frame fits the output area, and the chart to the output's
-    box; while a dialog of maidr's is open, it sizes the frame as a frame
-    elsewhere is sized. See :data:`_BOX_JS` and :func:`_for_host`.
+    box; while a dialog of maidr's is open, it lays the frame out as a
+    notebook's frame is. See :data:`_BOX_JS` and :func:`_for_host`.
 
     ``maidr/assets/shiny/frame.js`` is this, written out; a test keeps the
     two the same. After changing what goes into it, write it again::
 
         python -c "from maidr.util.iframe_utils import write_shiny_frame_script; write_shiny_frame_script()"
+
+    Parameters
+    ----------
+    kinds : tuple of str, default ("matplotlib", "plotly")
+        The kinds of frame it sizes: the served script sizes both, and a
+        frame that carries its script carries its own kind's.
 
     Returns
     -------
@@ -1030,20 +1067,41 @@ def shiny_frame_script() -> str:
     )
     matplotlib = _matplotlib_resizer("frame", fits_output=True, in_shiny=True)
     plotly = _plotly_resizer("frame", fits_output=True, in_shiny=True)
+    has = " && ".join(f"kinds.{kind}" for kind in kinds)
+    register = "\n".join(
+        f"    if (!kinds.{kind}) kinds.{kind} = {kind}Frame;" for kind in kinds
+    )
     script = f"""// The script that sizes a maidr chart's frame in a Shiny app, served
 // once rather than sent with every flush of the output. Written by
 // maidr/util/iframe_utils.py (shiny_frame_script); do not edit by hand.
 (function () {{
-    if (window.maidrShinyFrame) return;
+    // One copy per kind of chart is enough: a frame that carries its
+    // script (_shiny_onload) brings its own kind's alone.
+    var kinds = window.maidrShinyKinds = window.maidrShinyKinds || {{}};
+    if ({has}) return;
 {helpers}
+    // The rest of frame.css, which the frame's document starts without:
+    // focus rings, a dialog's band, a fitted chart's centring.
+    function maidrFrameStyle(frame) {{
+        var doc = frame.contentWindow && frame.contentWindow.document;
+        if (!doc || doc.getElementById('maidr-frame-style')) return;
+        var style = doc.createElement('style');
+        style.id = 'maidr-frame-style';
+        style.textContent = {json.dumps(_shiny_frame_css()[1])};
+        (doc.head || doc.documentElement).appendChild(style);
+    }}
     function matplotlibFrame(frame, options) {{
+        maidrFrameStyle(frame);
 {matplotlib}
     }}
     function plotlyFrame(frame, options) {{
+        maidrFrameStyle(frame);
 {plotly}
     }}
+{register}
+    if (window.maidrShinyFrame) return;
     window.maidrShinyFrame = function (frame, kind, options) {{
-        (kind === 'plotly' ? plotlyFrame : matplotlibFrame)(frame, options || {{}});
+        kinds[kind](frame, options || {{}});
     }};
     if (window.jQuery) {{
         // Shiny runs this in its message loop, where an error stops the
@@ -1136,14 +1194,19 @@ def shiny_frame_dependency_sent() -> Iterator[None]:
         _DEPENDENCY_SENT.reset(token)
 
 
-@lru_cache(maxsize=1)
-def _shiny_frame_inline() -> str:
-    """:func:`shiny_frame_script` as a frame carries it in its ``onload``.
+@lru_cache(maxsize=2)
+def _shiny_frame_inline(kind: str) -> str:
+    """:func:`shiny_frame_script` as a frame of ``kind`` carries it.
 
-    Its comments and indentation left out: 22 KB rather than 44.
+    Its own kind's alone, compacted (:func:`maidr.util.compact.compact_js`),
+    and deflated, in base64: 6 KB, where the served script is 46 KB, and a
+    frame's ``onload`` carried 9-10 KB before charts were fitted to their
+    outputs. :func:`_shiny_onload` unpacks it.
     """
-    lines = (line.strip() for line in shiny_frame_script().splitlines())
-    return "\n".join(line for line in lines if line and not line.startswith("//"))
+    script = compact_js(shiny_frame_script((kind,))).encode("utf-8")
+    packer = zlib.compressobj(9, zlib.DEFLATED, -15)
+    packed = packer.compress(script) + packer.flush()
+    return base64.b64encode(packed).decode("ascii")
 
 
 def _shiny_onload(kind: str, options: dict | None = None, carried: bool = False) -> str:
@@ -1158,7 +1221,12 @@ def _shiny_onload(kind: str, options: dict | None = None, carried: bool = False)
     ``render.ui``, turned into a string, kept for another session, written
     to a file -- carries the script itself (``carried``), as a frame's
     ``onload`` always had: such a frame can lose a dependency on its way to
-    the page, and needs nothing served.
+    the page, and needs nothing served. It carries it packed
+    (:func:`_shiny_frame_inline`), which the browser unpacks
+    (``DecompressionStream``) and runs as an inline script, as the
+    ``onload`` itself runs, once per page and kind of chart; a browser that
+    cannot unpack it (before Safari 16.4 or Firefox 113) leaves the frame
+    unsized, and says so in the console.
 
     Parameters
     ----------
@@ -1177,12 +1245,24 @@ def _shiny_onload(kind: str, options: dict | None = None, carried: bool = False)
     """
     given = json.dumps(options or {}, separators=(",", ":"))
     if carried:
-        # The script defines maidrShinyFrame once per page, whichever
-        # frame, or the served script, runs it first.
-        return _shiny_frame_inline() + f"\nmaidrShinyFrame(this,'{kind}',{given})"
+        # The script registers its kind once per page, whichever frame, or
+        # the served script, runs it first.
+        return (
+            f"var f=this,k=window.maidrShinyKinds;"
+            f"function go(){{maidrShinyFrame(f,'{kind}',{given})}}"
+            f"if(k&&k.{kind})go();"
+            "else if(!window.DecompressionStream)console.warn('maidr: this "
+            "browser cannot unpack the script that sizes this chart');"
+            "else new Response(new Blob([Uint8Array.from(atob("
+            f"'{_shiny_frame_inline(kind)}'),function(c){{return c.charCodeAt(0)}})])"
+            ".stream().pipeThrough(new DecompressionStream('deflate-raw')))"
+            ".text().then(function(c){k=window.maidrShinyKinds;"
+            f"if(!(k&&k.{kind})){{var s=document.createElement('script');"
+            "s.textContent=c;document.head.appendChild(s);s.remove()}go()})"
+        )
     return (
-        "var f=this;(function g(n){if(window.maidrShinyFrame)"
-        f"maidrShinyFrame(f,'{kind}',{given});"
+        "var f=this;(function g(n){var k=window.maidrShinyKinds;if(k&&k."
+        f"{kind})maidrShinyFrame(f,'{kind}',{given});"
         "else if(n<200)setTimeout(function(){g(n+1)},50);"
         "else console.warn('maidr: maidr-shiny-frame did not load; "
         "this chart is not sized')})(0)"
@@ -1330,7 +1410,7 @@ def wrap_in_iframe_matplotlib(
 
     srcdoc = str(base_html.get_html_string())
     if fits_output:
-        srcdoc = frame_style() + srcdoc
+        srcdoc = _frame_style(in_shiny) + srcdoc
     return tags.iframe(
         *children,
         id=unique_id,
@@ -1699,7 +1779,7 @@ def wrap_in_iframe_plotly(
     srcdoc = str(base_html.get_html_string())
     if fits_output:
         width_first = "" if keep_padding or in_shiny else _OUTPUT_WIDTH_FIRST
-        srcdoc = frame_style() + width_first + srcdoc
+        srcdoc = _frame_style(in_shiny) + width_first + srcdoc
     return tags.iframe(
         *children,
         id=unique_id,

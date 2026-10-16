@@ -8,11 +8,13 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import base64
 import re
 import sys
 import threading
 import time
 import warnings
+import zlib
 from html import unescape
 from urllib.parse import unquote
 
@@ -35,6 +37,7 @@ from maidr.core.figure_manager import FigureManager  # noqa: E402
 from maidr.util.dependencies import maidr_js_version, read_bundled_js  # noqa: E402
 from maidr.util.iframe_utils import (  # noqa: E402
     SHINY_FRAME_NAME,
+    _shiny_frame_css,
     _shiny_frame_version,
     shiny_frame_script,
 )
@@ -123,6 +126,12 @@ def _clean_figures():
 # Renderer contract
 # ---------------------------------------------------------------------------
 
+
+
+def carried_script(onload: str) -> str:
+    """The script a string frame's ``onload`` carries, unpacked."""
+    packed = re.search(r"atob\('([^']+)'\)", onload).group(1)
+    return zlib.decompress(base64.b64decode(packed), -15).decode("utf-8")
 
 def test_render_maidr_subclasses_renderer_not_a_concrete_renderer():
     """The documented base is ``Renderer``, not another renderer."""
@@ -572,13 +581,18 @@ def test_a_frame_made_into_a_string_carries_its_script(fake_session, plotly):
     html = str(maidr.render(figure))
     onload = unescape(re.search(r'onload="([^"]*)"', html).group(1))
 
-    assert "window.maidrShinyFrame = function (frame, kind, options)" in onload
+    script = carried_script(onload)
+    assert "window.maidrShinyFrame=function(frame,kind,options)" in script
     kind = "plotly" if plotly else "matplotlib"
-    assert re.search(rf"\nmaidrShinyFrame\(this,'{kind}',\{{[^}}]*\}}\)$", onload)
+    # Its own kind's script alone.
+    assert f"kinds.{kind}=" in script.replace(" ", "")
+    other = "matplotlib" if plotly else "plotly"
+    assert f"kinds.{other}" not in script
+    assert re.search(rf"maidrShinyFrame\(f,'{kind}',\{{[^}}]*\}}\)", onload)
     if plotly:
         assert '"fillHeight":450' in onload
     # Nothing to load, route to register or size to guess at.
-    for gone in ("createElement", "s.src=", "maidrShinyFrameSrc", "++k>6"):
+    for gone in (".src=", "maidrShinyFrameSrc", "++k>6"):
         assert gone not in onload, gone
     assert SHINY_FRAME_NAME not in html
     assert not fake_session._dynamic_routes
@@ -593,7 +607,7 @@ def test_a_frame_made_in_express_s_page_carries_its_script():
     Express runs the app's file with a stand-in session to build its page,
     which has no app to register the dependency with and serves nothing:
     the frame had no URL to load its script from, and stayed 150px tall.
-    It carries the script instead, in its ``onload``, without comments.
+    It carries the script instead, in its ``onload``, compacted and packed.
     """
     from shiny.express._stub_session import ExpressStubSession
     from shiny.session import session_context
@@ -602,11 +616,63 @@ def test_a_frame_made_in_express_s_page_carries_its_script():
         html = str(maidr.render(_bar_axes()))
     onload = unescape(re.search(r'onload="([^"]*)"', html).group(1))
 
-    assert "createElement" not in onload
-    assert "window.maidrShinyFrame = function (frame, kind, options)" in onload
-    assert onload.endswith("\nmaidrShinyFrame(this,'matplotlib',{})")
-    assert "\n//" not in onload
-    assert len(onload) < len(shiny_frame_script()) * 0.6, len(onload)
+    assert ".src=" not in onload
+    assert "maidrShinyFrame(f,'matplotlib',{})" in onload
+    script = carried_script(onload)
+    assert "window.maidrShinyFrame=function(frame,kind,options)" in script
+    assert "\n//" not in script
+    assert len(onload) < len(shiny_frame_script()) * 0.2, len(onload)
+
+
+def test_a_shiny_frame_starts_with_the_rules_it_is_laid_out_by():
+    """Its document has the rules it is laid out by; its script adds the rest.
+
+    Focus rings, a dialog's band and a fitted chart's centring apply once
+    the frame's script runs, and travel in it, once per page, rather than
+    in every frame's document with every flush.
+    """
+    import json
+
+    first, later = _shiny_frame_css()
+    assert "html,body{margin:0;padding:0}" in first
+    assert ".maidr-frame-fill" in first and "svg.maidr-frame-svg{" in first
+    for rule in (":focus", "forced-colors", "data-maidr-dialog-room", "fit-box"):
+        assert rule not in first and rule in later, rule
+    script = shiny_frame_script()
+    assert f"style.textContent = {json.dumps(later)};" in script
+    assert script.count("maidrFrameStyle(frame);") == 2
+
+
+#: What a frame made into a string carried for its sizing before charts were
+#: fitted to their outputs (3ac3a5db): its ``onload`` attribute, the script
+#: that sized it, as HTML writes it; its document had no stylesheet of its
+#: own. The same for every chart of a kind.
+_ONLOAD_BEFORE = {"matplotlib": 10_467, "plotly": 9_151}
+
+
+@pytest.mark.parametrize("plotly", [False, True])
+def test_a_string_frame_carries_no_more_than_it_did(plotly):
+    """A string frame's script and stylesheet, against its old script alone.
+
+    The script it carried, its comments left out, was 22 KB of every flush,
+    20 KB more than before charts were fitted. It carries its own kind's
+    alone now, compacted and packed, and its stylesheet compacted: no more,
+    together, than the script it carried then.
+    """
+    from shiny.express._stub_session import ExpressStubSession
+    from shiny.session import session_context
+
+    if plotly:
+        go = pytest.importorskip("plotly.graph_objects")
+        figure = go.Figure(go.Bar(x=["a", "b"], y=[1, 2]))
+    else:
+        figure = _bar_axes()
+    with session_context(ExpressStubSession()):  # type: ignore[arg-type]
+        html = str(maidr.render(figure))
+    onload = re.search(r'onload="([^"]*)"', html).group(1)
+    style = re.search(r'srcdoc="(&lt;style&gt;.*?&lt;/style&gt;)', html).group(1)
+    kind = "plotly" if plotly else "matplotlib"
+    assert len(onload) + len(style) <= _ONLOAD_BEFORE[kind], (len(onload), len(style))
 
 
 def test_a_plotly_figure_has_a_height_of_its_own_in_shiny(fake_session):

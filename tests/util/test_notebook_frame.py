@@ -19,8 +19,10 @@ notebook's is ``tests/browser/test_notebook_figure_size.py``.
 
 from __future__ import annotations
 
+import base64
 import html as html_module
 import re
+import zlib
 
 import matplotlib
 
@@ -73,6 +75,12 @@ def css() -> dict[str, dict[str, str]]:
 
 # --- The stylesheet -------------------------------------------------------------
 
+
+
+def carried_script(onload: str) -> str:
+    """The script a string frame's ``onload`` carries, unpacked."""
+    packed = re.search(r"atob\('([^']+)'\)", onload).group(1)
+    return zlib.decompress(base64.b64decode(packed), -15).decode("utf-8")
 
 def test_the_chart_starts_at_the_frames_edge(css):
     for selector in ("html", "body"):
@@ -377,7 +385,8 @@ def test_a_shiny_apps_frame_fits_its_output(monkeypatch):
     assert re.search(rf'<svg[^>]*class="{FRAME_SVG_CLASS}"', html)
     # Outside render_maidr's output, the frame carries the script that
     # sizes it (test_a_shiny_frame_outside_render_maidr_carries_its_script).
-    assert "maidrShinyFrame(this,'matplotlib',{})" in html
+    assert "maidrShinyFrame(f,'matplotlib',{})" in html
+    assert "maidrShinyKinds" in html
     # It fits the chart to its box unless a dialog of maidr's is open.
     assert "let fitted = !maidrSuspendBox(iframe);" in script
     # No padding to take back, as a notebook's output area has.
@@ -460,20 +469,22 @@ def test_a_shiny_frame_outside_render_maidr_carries_its_script():
     served, as every frame before the script was served.
     """
     for tag, call in (
-        (_frame(in_shiny=True), "maidrShinyFrame(this,'matplotlib',{})"),
+        (_frame(in_shiny=True), "maidrShinyFrame(f,'matplotlib',{})"),
         (
             wrap_in_iframe_plotly(
                 tags.div("chart"), "Sales", in_shiny=True, fill_height=450
             ),
-            "maidrShinyFrame(this,'plotly',{\"widens\":true,\"fillHeight\":450})",
+            "maidrShinyFrame(f,'plotly',{\"widens\":true,\"fillHeight\":450})",
         ),
     ):
         onload = _attribute(tag, "onload")
-        assert onload.endswith("\n" + call), onload[-200:]
-        assert "window.maidrShinyFrame = function (frame, kind, options)" in onload
-        # Without comments, and without anything to load or guess at.
-        assert "\n//" not in onload
-        for gone in ("createElement", "s.src=", "maidrShinyFrameSrc", "++k>6"):
+        assert call in onload, onload[:300]
+        # Packed, unpacked by the browser and run as the onload itself is.
+        script = carried_script(onload)
+        assert "window.maidrShinyFrame=function(frame,kind,options)" in script
+        assert "\n//" not in script
+        # Without anything to load or guess at.
+        for gone in ("s.src=", "maidrShinyFrameSrc", "++k>6", ".src="):
             assert gone not in onload, gone
         assert not tag.get_dependencies()
 
