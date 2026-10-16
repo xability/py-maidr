@@ -250,31 +250,34 @@
             }
             return open;
         }
-        // Where the page, and every box round the frame that scrolls, are
-        // scrolled as a dialog opens, and what puts them back there as it
-        // closes, the frame's layout as it was again: scrolled to show the
-        // dialog, the page had kept that place, and the browser, giving
-        // the chart the focus back, scrolled again to what took it -- for
-        // a Plotly chart, a line at its top -- to the window's middle,
-        // 185px down, and the reader's highlight half off screen. A chart
-        // drawn again, or taken away, under the dialog puts them back too:
-        // its output is as it was before the dialog opened. Not once the
-        // reader has scrolled, or the window changed size, meanwhile.
+        // Where the page, and every element round the frame, are scrolled
+        // as a dialog opens, and what puts them back there as it closes:
+        // at their top too, which showing the dialog scrolls a box at its
+        // top away from. Put back as the frame's layout is put back, and
+        // again for a second after, whenever anything scrolls: the
+        // browser, giving the chart the focus back, scrolls to what took
+        // it where that is out of view, smoothly on a Bootstrap page --
+        // a Plotly chart's line at its top, to the window's middle,
+        // 480-650px; a chart whose bottom was below the window, to its
+        // edge, 24-40px. The page is then where the reader left it, as it
+        // was when charts were not fitted and a dialog moved nothing. A
+        // chart drawn again, or taken away, under the dialog puts them
+        // back too: its output is as it was before the dialog opened. Not
+        // once the reader has scrolled, or the window changed size.
         function maidrKeepPlace(iframe) {
             var page = iframe.ownerDocument;
             var win = page.defaultView;
             var kept = [[page.scrollingElement, page.scrollingElement.scrollTop,
                          page.scrollingElement.scrollLeft]];
             for (var el = iframe.parentElement; el; el = el.parentElement) {
-                if (el.scrollTop || el.scrollLeft) kept.push([el, el.scrollTop, el.scrollLeft]);
+                kept.push([el, el.scrollTop, el.scrollLeft]);
             }
             var moved = false;
             var size = win.innerWidth + 'x' + win.innerHeight;
-            var events = ['wheel', 'touchmove', 'keydown'];
+            var events = ['wheel', 'touchmove', 'keydown', 'pointerdown'];
             function move() { moved = true; }
             events.forEach(function(type) { win.addEventListener(type, move, true); });
-            return function() {
-                events.forEach(function(type) { win.removeEventListener(type, move, true); });
+            function put() {
                 if (moved || win.innerWidth + 'x' + win.innerHeight !== size) return;
                 for (var i = 0; i < kept.length; i++) {
                     var to = kept[i];
@@ -282,6 +285,22 @@
                         to[0].scrollTo({top: to[1], left: to[2], behavior: 'instant'});
                     }
                 }
+            }
+            return function() {
+                put();
+                // The reader in the chart once it has the focus back.
+                var inner = iframe.contentWindow;
+                if (inner) {
+                    events.forEach(function(type) { inner.addEventListener(type, move, true); });
+                }
+                win.addEventListener('scroll', put, true);
+                win.setTimeout(function() {
+                    events.forEach(function(type) {
+                        win.removeEventListener(type, move, true);
+                        if (inner) inner.removeEventListener(type, move, true);
+                    });
+                    win.removeEventListener('scroll', put, true);
+                }, 1000);
             };
         }
         // A frame whose height flips between two as a scrollbar comes and

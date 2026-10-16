@@ -1274,16 +1274,18 @@ chart's frame is laid out as a notebook's is (see *Jupyter Notebooks*). A
 matplotlib, seaborn or plotnine chart is at its own size, or as wide as the
 page allows where that is less; a Plotly, Bokeh or Altair chart keeps its
 height, is never made wider, and narrows with a narrower window. The frame
-is as tall as the part of the page you see — the window, or a container of
-a height of its own that scrolls — and as wide as the dialog where the
+is as tall as the part of the page you see — the window, or a container
+of a height of its own that scrolls — and as wide as the dialog where the
 chart is narrower, and it is scrolled to the middle of that part, so that
 the dialog is shown whole: opening a dialog can scroll the page. A chart
 taller than that keeps its height, and the dialog keeps to the part you
-see. When the dialog closes, the page goes back to where it was as the
-dialog opened, unless you scrolled or the window changed size meanwhile,
-and the chart is fitted to its output again. A chart drawn again, or an
-output emptied, while the dialog is open is fitted to its output, and the
-page put back, the same way.
+see. When the dialog closes, the page, and every
+container round the chart, go back to where they were as the dialog
+opened, even where the chart, given the focus back, is not all in view,
+unless you scrolled the page or the window changed size meanwhile; and
+the chart is fitted to its output again. A chart drawn again, or an output
+emptied, while the dialog is open is fitted to its output, and the page
+put back, the same way.
 
 **When a chart is drawn again** — an input it reads changed, or new data
 came in — its output keeps the height it had until the new chart is in, and
@@ -1332,7 +1334,7 @@ reactive flush of a `render_maidr` output. A chart rendered any other way in
 a Shiny app — `maidr.render(fig)` returned from `render.ui`, or turned into
 a string, `ui.HTML(str(maidr.render(fig)))` — carries the script itself, as
 every chart's frame did before it was served: its own kind's part of it,
-compacted, about 20 KB, as plain text that every browser runs. So it is
+compacted, about 21 KB, as plain text that every browser runs. So it is
 sized as `render_maidr`'s is wherever its page is shown: in a later
 session, in another process, or in a file a download handler writes. A
 string frame in a card is not fitted to the card, as `render_maidr`'s is: it

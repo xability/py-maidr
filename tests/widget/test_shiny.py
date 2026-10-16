@@ -485,10 +485,14 @@ def test_a_dialog_lays_the_frame_out_as_a_notebooks():
     ) in script
     assert "el.scrollTo({top: top, left: kept[i][2], behavior: 'instant'});" in script
     assert "el.scrollTop = top;" not in script
-    # The page put back where it was as the dialog opened, as it closes,
-    # unless the reader scrolled or the window changed size.
+    # The page, and every element round the frame, put back where they
+    # were as the dialog opened, as it closes and once the browser has
+    # scrolled to the chart given the focus back, unless the reader
+    # scrolled or the window changed size.
     assert "kept: maidrKeepPlace(iframe)" in script
     assert "was.kept();" in script
+    assert "                kept.push([el, el.scrollTop, el.scrollLeft]);\n" in script
+    assert "win.addEventListener('scroll', put, true);" in script
     assert "doc.addEventListener('focusin', suspended.back, true);" in script
     assert "field.scrollIntoView({block: 'nearest', inline: 'nearest'});" in script
     # A chart drawn again under a dialog is left to Shiny.

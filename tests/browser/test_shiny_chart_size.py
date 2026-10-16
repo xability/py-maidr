@@ -623,31 +623,46 @@ _LIT = r"""() => {
 }"""
 
 
+#: The page scrolled so that the chart's frame's top is this far down the
+#: window.
+_FRAME_TOP_AT = (
+    "(at) => window.scrollBy({top: document.querySelector('#m iframe')"
+    ".getBoundingClientRect().top - at, behavior: 'instant'})"
+)
+
+
 @pytest.mark.parametrize(
-    ("case", "size"),
-    [("tall_plotly_h400", (844, 390)), ("tall_plotly", (1280, 900))],
-    ids=["phone-turned", "tall-figure"],
+    ("case", "size", "scrolled"),
+    [
+        ("tall_plotly_h400", (844, 390), None),
+        ("tall_plotly", (1280, 900), None),
+        ("tall_plotly", (1280, 900), -200),
+        ("tall_plotly_auto", (844, 390), -30),
+    ],
+    ids=["phone-turned", "tall-figure", "tall-figure-read", "phone-turned-read"],
 )
 def test_closing_a_dialog_over_a_plotly_chart_taller_than_the_window_leaves_it_be(
-    browser, shiny_size_app_url, case, size
+    browser, shiny_size_app_url, case, size, scrolled
 ):
     """Help opens and closes over a Plotly chart the window cannot show whole.
 
     Help is scrolled into view as it opens, as a notebook's is, and kept to
     the window's height in the frame's middle. As it closes the browser
-    brings back the element a Plotly chart takes the focus on: the page is
-    where it was before help opened, give or take, and so is the mark the
-    reader had highlighted. It had been scrolled 200-570px further, the
-    mark off screen.
+    brings back the element a Plotly chart takes the focus on, a line at
+    its top, scrolling to it where it is out of view: the page is put back
+    where it was before help opened, and so is the mark the reader had
+    highlighted. It had been scrolled 200-570px further, the mark off
+    screen; and, the reader having scrolled down the chart as they read
+    it, its top above the window, 480-650px back up, the mark 22% shown.
     """
     page = _open(browser, f"{shiny_size_app_url}/{case}/", *size)
     try:
-        page.evaluate(
-            "() => window.scrollBy({top: document.querySelector('#m iframe')"
-            ".getBoundingClientRect().top - 10, behavior: 'instant'})"
-        )
+        page.evaluate(_FRAME_TOP_AT, 10)
         page.wait_for_timeout(400)
         _read(page, presses=2)
+        if scrolled is not None:
+            page.evaluate(_FRAME_TOP_AT, scrolled)
+            page.wait_for_timeout(600)
         before = page.evaluate(_LIT)
         assert before["litShown"] is not None and before["litShown"] > 0, before
         page.keyboard.press("Control+/")
@@ -661,8 +676,11 @@ def test_closing_a_dialog_over_a_plotly_chart_taller_than_the_window_leaves_it_b
         back = page.evaluate(_LIT)
         assert page.evaluate(_DIALOG) is None
         assert back["focused"], back
-        assert abs(back["scrollY"] - before["scrollY"]) <= 20, (before, back)
-        assert back["litShown"] >= before["litShown"] - 0.05, (before, back)
+        assert back["scrollY"] == pytest.approx(before["scrollY"], abs=1), (
+            before,
+            back,
+        )
+        assert back["litShown"] >= before["litShown"] - 0.01, (before, back)
         assert page.errors == []  # type: ignore[attr-defined]
     finally:
         page.close()
@@ -859,11 +877,22 @@ _DIALOG_SHOWN = r"""() => {
             - document.scrollingElement.clientWidth};
 }"""
 
+#: How far the page, and the box that scrolls round the chart, are scrolled.
+_SCROLLED = r"""() => {
+  const box = document.getElementById('scroller');
+  return {page: window.scrollY, box: box ? box.scrollTop : null};
+}"""
+
 #: Where the chart's frame is put in the window before a dialog opens.
 _PLACE = r"""(where) => {
   const frame = document.querySelector('#m iframe');
   const box = document.getElementById('scroller');
   const r = frame.getBoundingClientRect();
+  if (box && where === 'boxtop') {
+    box.scrollTop = 0;
+    box.scrollIntoView({block: 'center', behavior: 'instant'});
+    return;
+  }
   if (box) {
     const b = box.getBoundingClientRect();
     box.scrollBy({top: r.top + r.height / 2 - (b.top + b.height / 2),
@@ -906,6 +935,7 @@ _HELP, _SETTINGS = "Control+/", "Control+,"
         ("page_end_plotly", "end", (1280, 900), _SETTINGS),
         ("scroll_box", "centre", (1280, 900), _HELP),
         ("scroll_box", "centre", (1280, 900), _SETTINGS),
+        ("scroll_box", "boxtop", (1280, 900), _HELP),
         ("tall_plotly_h400", "top", (844, 390), _HELP),
         # A Bokeh plot of a fixed width wider than a phone.
         ("bokeh", "centre", (390, 844), _HELP),
@@ -922,6 +952,7 @@ _HELP, _SETTINGS = "Control+/", "Control+,"
         "page-end-plotly-settings",
         "scroll-box-help",
         "scroll-box-settings",
+        "scroll-box-at-its-top-help",
         "plotly-phone-turned-help",
         "bokeh-fixed-width-phone-help",
     ],
@@ -943,7 +974,9 @@ def test_a_dialog_is_shown_whole_wherever_the_chart_is(
     64% across the window. The frame is laid out as a
     notebook's while a dialog is open, its room and its scrolling into
     view included, as before charts were fitted. On closing it, the chart
-    is fitted again, with its highlight in view, and the focus back in it.
+    is fitted again, with its highlight in view, and the focus back in it,
+    and the page and the box are where the reader left them: a box at its
+    top had been left 136px down.
     """
     page = _open(browser, f"{shiny_size_app_url}/{case}/", *size)
     try:
@@ -956,6 +989,7 @@ def test_a_dialog_is_shown_whole_wherever_the_chart_is(
         own = _settle(page)
         page.evaluate(_PLACE, where)
         page.wait_for_timeout(500)
+        placed = page.evaluate(_SCROLLED)
         page.keyboard.press(key)
         page.wait_for_timeout(1500)
         _settle(page)
@@ -965,12 +999,55 @@ def test_a_dialog_is_shown_whole_wherever_the_chart_is(
         page.wait_for_timeout(1500)
         back = _settle(page)
         assert page.evaluate(_DIALOG) is None
+        assert page.evaluate(_SCROLLED) == pytest.approx(placed, abs=1), placed
         lit = page.evaluate(_LIT)
         assert lit["focused"], lit
         # A Bokeh plot's highlight is drawn on its canvas, not in the page.
         if not case.startswith("bokeh"):
             assert lit["litShown"] is not None and lit["litShown"] >= 0.95, lit
         assert back["box"]["height"] == pytest.approx(own["box"]["height"], abs=1)
+        assert page.errors == []  # type: ignore[attr-defined]
+    finally:
+        page.close()
+
+
+@pytest.mark.parametrize(
+    "size", [(1280, 500), (640, 450), (844, 390)], ids=["short", "zoom-200", "phone"]
+)
+def test_closing_a_dialog_leaves_the_page_where_the_reader_left_it(
+    browser, shiny_size_app_url, size
+):
+    """A chart whose bottom is below the window, focused there, and read.
+
+    Help opens, scrolled into view, and closes. The page went back to where
+    it was, and the browser, giving the chart the focus back, then scrolled
+    on to show the chart's bottom: 24-40px further down than the reader had
+    left it, which a dialog never moved before charts were fitted. It is
+    put back once more after that, for as long as nothing else moves it.
+    """
+    page = _open(browser, f"{shiny_size_app_url}/tall_page/", *size)
+    try:
+        page.evaluate(_PLACE, "bottom")
+        page.wait_for_timeout(500)
+        _read(page, presses=2)
+        page.wait_for_timeout(600)
+        before = page.evaluate(_LIT)
+        page.keyboard.press(_HELP)
+        page.wait_for_timeout(1500)
+        _settle(page)
+        _assert_dialog_whole(page, "help open")
+
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(1500)
+        _settle(page)
+        back = page.evaluate(_LIT)
+        assert page.evaluate(_DIALOG) is None
+        assert back["focused"], back
+        assert back["scrollY"] == pytest.approx(before["scrollY"], abs=1), (
+            before,
+            back,
+        )
+        assert back["litShown"] >= before["litShown"] - 0.01, (before, back)
         assert page.errors == []  # type: ignore[attr-defined]
     finally:
         page.close()
