@@ -33,6 +33,7 @@ WHOLE_PAGE_EXPERIMENTAL = {
     "examples/roc.qmd",
     "examples/pr-curve.qmd",
     "examples/network-graph.qmd",
+    "examples/survival.qmd",
 }
 
 EXPERIMENTAL = {PlotType[name].value for name in _members("Experimental")}

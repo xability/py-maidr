@@ -206,6 +206,8 @@ These may change without a deprecation period; see [Plot Type Stability](stabili
 
 * Volcano plot [experimental] and Manhattan plot [experimental]: a scatter (`ax.scatter()`, `sns.scatterplot()`) declared one with `maidr.volcano()` or `maidr.manhattan()`, which take the significance threshold and each point's name (a gene, a SNP) and, for a Manhattan plot, its chromosome. Opens with how many points clear the threshold, and a rotor mode walks just those points.
 
+* Kaplan-Meier survival curve [experimental]: drawn from its times and survival probabilities with `maidr.plot_survival()`, with censoring times and an optional confidence band, or a lifelines `KaplanMeierFitter.plot_survival_function()`. Each censored time is announced and a rotor mode walks just those times; the description gives each arm's median survival.
+
 * Filled area plot [experimental] (`ax.stackplot()`, `ax.fill_between()`, `ax.fill_betweenx()`) having one x (numerical) and one y (numerical) axis. A band drawn from the baseline to a curve reads as an area; several stacked bands read as a stacked area [experimental], with each band's own value announced alongside the running total. A band drawn *between two curves* is not read as an area, since its content is the gap rather than either edge.
 
 
