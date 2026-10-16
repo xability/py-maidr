@@ -22,7 +22,6 @@ from typing import Any, Literal
 
 import numpy as np
 import numpy.ma as ma
-import pandas as pd
 from matplotlib.axes import Axes
 from matplotlib.collections import PathCollection
 
@@ -147,6 +146,9 @@ def _missing(value: Any) -> bool:
     """
     if value is None:
         return True
+    # Imported here: ``import maidr`` alone must not load pandas.
+    import pandas as pd
+
     if not pd.api.types.is_scalar(value):
         return False
     try:
