@@ -127,3 +127,13 @@ class MaidrKey(str, Enum):
     # for its y.
     X_LABEL = "xLabel"
     Y_LABEL = "yLabel"
+
+    # Volcano and Manhattan keys. A point names what it is -- reusing `LABEL`
+    # above for the gene or SNP -- and the region it sits in, a chromosome on
+    # a Manhattan plot. The cutoffs live once on the layer, under
+    # `THRESHOLD_OPTIONS`, never on a point.
+    GROUP = "group"
+    THRESHOLD_OPTIONS = "thresholdOptions"
+    SIGNIFICANCE = "significance"
+    SIGNIFICANCE_DIRECTION = "significanceDirection"
+    EFFECT = "effect"

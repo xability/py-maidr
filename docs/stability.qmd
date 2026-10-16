@@ -6,15 +6,15 @@ html-table-processing: none
 
 ## Two sets, two different promises
 
-`PlotType` in `maidr/core/enum/plot_type.py` names **44** plot types. They do
+`PlotType` in `maidr/core/enum/plot_type.py` names **46** plot types. They do
 not all carry the same promise, and nothing in the enum says so — which is what
 this page is for.
 
 Fifteen of them predate the plot coverage roadmap
 ([#345](https://github.com/xability/py-maidr/issues/345)). Twenty-three were
 added by it, most inside about two weeks, and `ROC`, `RUG`, `RIDGELINE`,
-`DIRECTED_GRAPH`, `PERCENTILE_BAND` and `PR_CURVE` after it. **None of the
-twenty-nine has been through a user study**.
+`DIRECTED_GRAPH`, `PERCENTILE_BAND`, `PR_CURVE`, `VOLCANO` and `MANHATTAN`
+after it. **None of the thirty-one has been through a user study**.
 
 Elsewhere in these docs — the example gallery, the navigation and the
 supported-plots lists on the home page — an experimental type is marked
@@ -73,6 +73,7 @@ readers they are for.
 | `HEXBIN` | `hexbin` |
 | `ICICLE` | `icicle` |
 | `LOLLIPOP` | `lollipop` |
+| `MANHATTAN` | `manhattan` |
 | `NORMALIZED` | `stacked_normalized_bar` |
 | `NORMALIZED_AREA` | `stacked_normalized_area` |
 | `PARALLEL` | `parallel_coordinates` |
@@ -87,6 +88,7 @@ readers they are for.
 | `STACKED_AREA` | `stacked_area` |
 | `SUNBURST` | `sunburst` |
 | `TREEMAP` | `treemap` |
+| `VOLCANO` | `volcano` |
 | `WATERFALL` | `waterfall` |
 | `WORD_CLOUD` | `word_cloud` |
 

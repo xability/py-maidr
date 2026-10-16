@@ -172,6 +172,15 @@ class PlotType(str, Enum):
     #: and written down nowhere, so a term and its number is the whole of what
     #: it encodes. See `docs/stability.qmd` -- experimental.
     WORD_CLOUD = "word_cloud"
+    #: A scatter read through a declared significance threshold: effect size
+    #: against significance for a volcano, genomic position against it for a
+    #: Manhattan. Each point carries the name of what it is -- a gene, a SNP
+    #: -- and, on a Manhattan, the chromosome it sits on, which is what these
+    #: charts are read for. Never inferred from a drawing: a scatter is
+    #: declared one with `maidr.volcano` or `maidr.manhattan`, which take the
+    #: threshold explicitly. See `docs/stability.qmd` -- experimental.
+    VOLCANO = "volcano"
+    MANHATTAN = "manhattan"
 
     @property
     def display_name(self) -> str:

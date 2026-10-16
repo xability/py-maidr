@@ -198,11 +198,13 @@ from .api import (  # noqa: E402
     close,
     get_use_cdn,
     init_notebook,
+    manhattan,
     render,
     save_html,
     set_use_cdn,
     show,
     stacked,
+    volcano,
 )
 from .core import Maidr  # noqa: E402, F401
 from .core.enum import PlotType  # noqa: E402, F401
@@ -354,6 +356,7 @@ __all__ = [
     "init_notebook",
     "log_mlflow_chart",
     "maidr_js_version",
+    "manhattan",
     "read_bundled_js",
     "read_bundled_math_css",
     "read_excel_charts",
@@ -379,4 +382,5 @@ __all__ = [
     "set_use_cdn",
     "show",
     "stacked",
+    "volcano",
 ]

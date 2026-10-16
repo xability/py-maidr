@@ -156,6 +156,10 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
         # `hue="species"`: one point layer per species.
         "Scatter Plot": [["point + point + point"]],
         "Regression Plot": [["point + smooth"]],
+        # Declared with `maidr.volcano` / `maidr.manhattan`: the scatter's
+        # layer, or the four per-chromosome scatters', becomes one layer.
+        "Volcano Plot [experimental]": [["volcano"]],
+        "Manhattan Plot [experimental]": [["manhattan"]],
     },
     "examples-plotly.qmd": {
         "Bar Plot": [["bar"]],
