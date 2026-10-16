@@ -378,8 +378,8 @@ def test_a_shiny_apps_frame_fits_its_output(monkeypatch):
     # Outside render_maidr's output, the frame carries the script that
     # sizes it (test_a_shiny_frame_outside_render_maidr_carries_its_script).
     assert "maidrShinyFrame(this,'matplotlib',{})" in html
-    # It fits the output unless a dialog of maidr's is open.
-    assert "let fitsOutput = !maidrSuspendBox(iframe);" in script
+    # It fits the chart to its box unless a dialog of maidr's is open.
+    assert "let fitted = !maidrSuspendBox(iframe);" in script
     # No padding to take back, as a notebook's output area has.
     assert "iframe.style.width = maidrOutputWidth(iframe, true);" in script
     assert "maidrWatchBox(iframe, scheduleResize);" in script

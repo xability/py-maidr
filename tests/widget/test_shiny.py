@@ -412,51 +412,78 @@ def test_a_chart_drawn_again_does_not_scroll_the_page():
     assert "} catch (e) {}" in script
     assert script.count("maidrHoldStill(iframe)") == 3  # defined, and 2 calls
     assert script.count("maidrRedrawn(iframe);") == 2
-    # Only the frame's own box is scrolled back after a measure.
+    # Only the frame's own box is scrolled back after a fitted measure; the
+    # page, as a notebook's, only while a dialog is open.
     assert script.count("maidrKeepBoxScroll(iframe)") == 3
-    assert "maidrKeepScroll(" not in script
 
 
-def test_a_dialog_suspends_the_box_and_scrolls_nothing():
-    """While a dialog of maidr's is open, the frame is sized as before.
+def test_a_dialog_lays_the_frame_out_as_a_notebooks():
+    """While a dialog of maidr's is open, the frame is laid out as before.
 
     Room, placement and scrolling of its own for a dialog in a fitted box
-    cut one dialog or another off, or moved the page as it closed. While
-    one is open the box and the output round it are pass-through
-    containers again, as Shiny makes an output that has children, and the
-    frame runs the lines a frame outside a notebook runs: no room, no
-    scrolling, nothing kept for later. Both come back once it has gone, or
-    once the frame has left the page.
+    cut one dialog or another off, or moved the page as it closed; laying
+    the chart out at its own size, but keeping the box's and the output's
+    style, cut a dialog in the lower part of the window, narrowed it, and
+    moved the page at its end. While one is open, the box is a
+    pass-through container, the output has none of output_maidr's style
+    or fill classes (Shiny's own rule makes it a pass-through container
+    too), the frame has an iframe's style as it had then, and the frame
+    runs a notebook frame's lines, its dialog room and scrolling included.
+    All of it comes back once the dialog has gone, or once the frame has
+    left the page.
     """
     script = shiny_frame_script()
 
-    assert script.count("Output = !maidrSuspendBox(iframe);") == 2
-    assert "held[i].style.display = 'contents';" in script
-    assert "was.held[j][0].style.display = was.held[j][1];" in script
+    assert script.count("let fitted = !maidrSuspendBox(iframe);") == 1
+    assert script.count("var fitted = !maidrSuspendBox(iframe);") == 1
+    assert "box.setAttribute('style', 'display: contents');" in script
+    assert "out.removeAttribute('style');" in script
+    assert "['html-fill-container', 'html-fill-item']" in script
+    assert (
+        "iframe.setAttribute('style', "
+        "'background-color: #fff; position: relative; border: none');"
+    ) in script
     assert "if (!iframe.isConnected) maidrSuspendBox(iframe);" in script
-    # The chart at its own size, as wide as its frame is then made.
-    assert "chart.style.maxWidth = 'none';" in script
-    # The page left where it is as the box goes and comes back: the
-    # browser's scroll anchoring, its anchor gone with the box, scrolled a
-    # frame whose top was in the window up by all it grew.
-    assert "maidrNoAnchor(iframe);" in script
-    assert "el.style.overflowAnchor = 'none';" in script
-    # Nothing of the room, placement and scrolling that replaced.
+    # A chart that takes its frame's width is not drawn again wider.
+    assert "iframe.style.maxWidth = width + 'px';" in script
+    # A notebook frame's width, room and scrolling, as they are in one.
+    assert "let room = fitted ? 0 : maidrDialogRoom(iframeDocument, iframe);" in script
+    assert "var room = fitted ? 0 : maidrDialogRoom(doc, iframe);" in script
+    assert (
+        "iframe.style.maxWidth = Math.max(own + side, dialogOpen ? 664 : 0) + 'px';"
+    ) in script
+    assert script.count("maidrShowDialog(") == 3  # defined, and 2 calls
+    assert script.count("? maidrKeepBoxScroll(iframe) : maidrKeepScroll(iframe);") == 2
+    # Nothing of the branch's own placement, anchoring or held heights.
     for gone in (
-        "maidrDialogRoom",
-        "maidrShowDialog",
+        "maidrNoAnchor",
+        "overflowAnchor",
         "maidrBoxDialogRoom",
         "maidrHoldBox",
         "maidrShown",
-        "maidrOwn",
-        "maidrDialogOpen",
-        "--maidr-dialog",
+        "--maidr-dialog-top",
         "maidrPutBack",
         "maidrDialogPlaces",
+        "body.style.minHeight",
+        "maxWidth = 'none'",
     ):
         assert gone not in script, gone
-    # The page is scrolled by nothing but a field of maidr's own.
-    assert script.count("scrollIntoView(") == 1
+    # The page is scrolled by a notebook's dialog code and a field of
+    # maidr's own, and nothing else.
+    assert script.count("scrollIntoView(") == 2
+    # At once: a Shiny page scrolls smoothly, and the next measure stopped
+    # a smooth scroll halfway.
+    assert (
+        "iframe.scrollIntoView({block: 'center', inline: 'nearest', "
+        "behavior: 'instant'});"
+    ) in script
+    assert "el.scrollTo({top: top, left: kept[i][2], behavior: 'instant'});" in script
+    assert "el.scrollTop = top;" not in script
+    # The page put back where it was as the dialog opened, as it closes,
+    # unless the reader scrolled or the window changed size.
+    assert "kept: maidrKeepPlace(iframe)" in script
+    assert "was.kept();" in script
+    assert "doc.addEventListener('focusin', suspended.back, true);" in script
     assert "field.scrollIntoView({block: 'nearest', inline: 'nearest'});" in script
     # A chart drawn again under a dialog is left to Shiny.
     assert "if (old[i].maidrSuspended) return;" in script

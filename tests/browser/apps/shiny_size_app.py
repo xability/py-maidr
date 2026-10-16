@@ -145,6 +145,32 @@ def _tall_page(output):
     )
 
 
+def _page_end(output):
+    """A card at the end of a page longer than the window."""
+    words = "A paragraph of text that makes the page longer than the window."
+    filler = [ui.p(words) for _ in range(16)]
+    return ui.page_fluid(
+        ui.h4("Before the chart"), *filler, ui.card(ui.card_header("Chart card"), output)
+    )
+
+
+def _scroll_box(output):
+    """The output in a box of a fixed height, which scrolls, in a page."""
+    words = "A paragraph of text that makes the box longer than it is tall."
+    filler = [ui.p(words) for _ in range(6)]
+    return ui.page_fluid(
+        ui.h4("Before the box"),
+        ui.div(
+            *filler,
+            output,
+            *filler,
+            id="scroller",
+            style="height: 500px; overflow: auto; border: 1px solid #ccc",
+        ),
+        ui.p("After the box"),
+    )
+
+
 def _hand_written(output):
     """The output written by hand, as ``ui.output_ui``, not ``output_maidr``."""
     return _fluid(ui.output_ui("m"))
@@ -179,6 +205,10 @@ CASES = {
     "tall_page": (_tall_page, output_maidr("m", height=300), {}, _bars),
     "tall_plotly": (_tall_page, output_maidr("m"), {}, lambda: _plotly(1100)),
     "tall_plotly_h400": (_tall_page, output_maidr("m", height=400), {}, _plotly),
+    "tall_plotly_auto": (_tall_page, output_maidr("m"), {}, _plotly),
+    "page_end": (_page_end, output_maidr("m", height=300), {}, _bars),
+    "page_end_plotly": (_page_end, output_maidr("m"), {}, _plotly),
+    "scroll_box": (_scroll_box, output_maidr("m"), {}, _bars),
 }
 
 

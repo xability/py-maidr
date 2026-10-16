@@ -405,6 +405,7 @@ _LAID_OUT = r"""() => {
   const r = svg.getBoundingClientRect();
   return {out: getComputedStyle(out).display, box: getComputedStyle(box).display,
           frame: frame.getBoundingClientRect().height,
+          frameWidth: frame.getBoundingClientRect().width,
           svg: [r.width, r.height],
           own: [svg.width.baseVal.value, svg.height.baseVal.value]};
 }"""
@@ -414,14 +415,17 @@ def _assert_as_before_fitting(page, where: str) -> dict:
     """The output and its box pass-through containers, the chart its own size.
 
     As every output was before charts were fitted to their outputs: Shiny
-    makes a UI output that has children ``display: contents``, and the
-    frame was as tall as the chart at its own size, its text and the
-    document's margins.
+    makes a UI output that has children ``display: contents``. The frame is
+    laid out as a notebook's: the chart at its own size, or as wide as the
+    frame where that is narrower, keeping its shape, and the frame at least
+    as tall as the chart.
     """
     laid = page.evaluate(_LAID_OUT)
     assert laid["out"] == "contents" and laid["box"] == "contents", (where, laid)
-    assert laid["svg"] == pytest.approx(laid["own"], abs=1), (where, laid)
-    assert laid["frame"] >= laid["own"][1] + 16, (where, laid)
+    width = min(laid["own"][0], laid["frameWidth"])
+    shape = laid["own"][1] / laid["own"][0]
+    assert laid["svg"] == pytest.approx([width, width * shape], abs=1), (where, laid)
+    assert laid["frame"] >= laid["svg"][1], (where, laid)
     return laid
 
 
@@ -628,13 +632,12 @@ def test_closing_a_dialog_over_a_plotly_chart_taller_than_the_window_leaves_it_b
 ):
     """Help opens and closes over a Plotly chart the window cannot show whole.
 
-    The frame was centred in the window as help opened, its top, and the
-    element a Plotly chart takes the focus on, above the window; the
-    browser scrolled that element to the window's middle as the focus came
-    back to it, 200-570px, and the mark the reader had highlighted went
-    off screen. Nothing scrolls the page for a dialog now, as nothing did
-    before charts were fitted to their outputs: the chart stays where help
-    left it.
+    Help is scrolled into view as it opens, as a notebook's is, and kept to
+    the window's height in the frame's middle. As it closes the browser
+    brings back the element a Plotly chart takes the focus on: the page is
+    where it was before help opened, give or take, and so is the mark the
+    reader had highlighted. It had been scrolled 200-570px further, the
+    mark off screen.
     """
     page = _open(browser, f"{shiny_size_app_url}/{case}/", *size)
     try:
@@ -648,10 +651,8 @@ def test_closing_a_dialog_over_a_plotly_chart_taller_than_the_window_leaves_it_b
         assert before["litShown"] is not None and before["litShown"] > 0, before
         page.keyboard.press("Control+/")
         page.wait_for_timeout(1500)
-        assert page.evaluate(_DIALOG) is not None, "no dialog opened"
-        # Where the page is as help opens is the browser's and MUI's, as it
-        # was before charts were fitted: the dialog takes the focus.
-        opened = page.evaluate(_LIT)
+        _settle(page)
+        _assert_dialog_whole(page, "help open")
 
         page.keyboard.press("Escape")
         page.wait_for_timeout(1500)
@@ -659,9 +660,8 @@ def test_closing_a_dialog_over_a_plotly_chart_taller_than_the_window_leaves_it_b
         back = page.evaluate(_LIT)
         assert page.evaluate(_DIALOG) is None
         assert back["focused"], back
-        assert abs(back["scrollY"] - opened["scrollY"]) <= 20, (before, opened, back)
-        assert abs(back["litTop"] - opened["litTop"]) <= 20, (opened, back)
-        assert back["litShown"] >= opened["litShown"] - 0.05, (opened, back)
+        assert abs(back["scrollY"] - before["scrollY"]) <= 20, (before, back)
+        assert back["litShown"] >= before["litShown"] - 0.05, (before, back)
         assert page.errors == []  # type: ignore[attr-defined]
     finally:
         page.close()
@@ -750,15 +750,14 @@ def test_a_chart_drawn_again_under_a_dialog_does_not_move_the_page(
 ):
     """The output is drawn again while help is open, as live data would.
 
-    The page stays where the dialog had it, and the output goes back to its
-    own height: it had been put back, later, to where it was as the dialog
-    opened, by the next frame in the output, from places kept for it that
-    never expired.
+    The output goes back to its own height, and the page to where it was as
+    the dialog opened, at once, as it does when the dialog closes: it had
+    been put back, later, by the next frame in the output, from places kept
+    for it that never expired.
     """
     page = _open(browser, f"{shiny_size_app_url}/tall_drawn_again/", width, 800)
     try:
-        _open_help_halfway_down(page)
-        opened = _settle(page)
+        opened = _open_help_halfway_down(page)
         _replaced(
             page,
             lambda: page.evaluate(
@@ -815,6 +814,261 @@ def test_a_chart_emptied_under_a_dialog_lets_its_output_go(
         back = _settle(page)
         assert back["scrollY"] == 0, back
         assert page.errors == []  # type: ignore[attr-defined]
+    finally:
+        page.close()
+
+
+#: How much of maidr's open dialog, and of its Close button, is on screen:
+#: cut by the frame, every container of it that clips, and the window, both
+#: ways. With the dialog's width, and its text shown and in all.
+_DIALOG_SHOWN = r"""() => {
+  const frame = document.querySelector('#m iframe');
+  const doc = frame.contentDocument;
+  const paper = doc.querySelector('.MuiDialog-paper');
+  if (!paper) return null;
+  const close = [...paper.querySelectorAll('button')]
+    .find(b => b.textContent.trim() === 'Close');
+  const f = frame.getBoundingClientRect();
+  const shown = (el) => {
+    const r = el.getBoundingClientRect();
+    let top = Math.max(r.top + f.top, f.top, 0);
+    let bottom = Math.min(r.bottom + f.top, f.bottom, innerHeight);
+    let left = Math.max(r.left + f.left, f.left, 0);
+    let right = Math.min(r.right + f.left, f.right, innerWidth);
+    for (let a = frame.parentElement; a && a !== document.body; a = a.parentElement) {
+      const s = getComputedStyle(a);
+      if (s.display === 'contents') continue;
+      const ar = a.getBoundingClientRect();
+      if (s.overflowY !== 'visible') {
+        top = Math.max(top, ar.top + a.clientTop);
+        bottom = Math.min(bottom, ar.top + a.clientTop + a.clientHeight);
+      }
+      if (s.overflowX !== 'visible') {
+        left = Math.max(left, ar.left + a.clientLeft);
+        right = Math.min(right, ar.left + a.clientLeft + a.clientWidth);
+      }
+    }
+    return Math.max(0, bottom - top) * Math.max(0, right - left) / (r.width * r.height);
+  };
+  const text = paper.querySelector('.MuiDialogContent-root') || paper;
+  return {paper: shown(paper), close: close ? shown(close) : null,
+          width: paper.getBoundingClientRect().width,
+          text: text.clientHeight, textAll: text.scrollHeight,
+          sideways: document.scrollingElement.scrollWidth
+            - document.scrollingElement.clientWidth};
+}"""
+
+#: Where the chart's frame is put in the window before a dialog opens.
+_PLACE = r"""(where) => {
+  const frame = document.querySelector('#m iframe');
+  const box = document.getElementById('scroller');
+  const r = frame.getBoundingClientRect();
+  if (box) {
+    const b = box.getBoundingClientRect();
+    box.scrollBy({top: r.top + r.height / 2 - (b.top + b.height / 2),
+                  behavior: 'instant'});
+    box.scrollIntoView({block: 'center', behavior: 'instant'});
+    return;
+  }
+  const by = where === 'bottom' ? r.bottom - innerHeight + 10
+    : where === 'top' ? r.top - 10
+    : where === 'end' ? document.scrollingElement.scrollHeight
+    : r.top + r.height / 2 - innerHeight / 2;
+  window.scrollBy({top: by, behavior: 'instant'});
+}"""
+
+
+def _assert_dialog_whole(page, where: str) -> dict:
+    """maidr's dialog, and its Close button, wholly on screen."""
+    shown = page.evaluate(_DIALOG_SHOWN)
+    assert shown is not None, (where, "no dialog opened")
+    assert shown["paper"] >= 0.99 and shown["close"] >= 0.99, (where, shown)
+    assert shown["sideways"] == 0, (where, shown)
+    return shown
+
+
+_HELP, _SETTINGS = "Control+/", "Control+,"
+
+
+@pytest.mark.parametrize(
+    ("case", "where", "size", "key"),
+    [
+        ("tall_page", "bottom", (1280, 900), _HELP),
+        ("tall_page", "bottom", (1280, 900), _SETTINGS),
+        ("tall_page", "bottom", (390, 844), _HELP),
+        ("tall_page", "bottom", (390, 844), _SETTINGS),
+        # Settings is taller than this window: MUI squeezes it, as it did.
+        ("tall_page", "centre", (640, 450), _HELP),
+        ("page_end", "end", (1280, 900), _HELP),
+        ("page_end", "end", (1280, 900), _SETTINGS),
+        ("page_end_plotly", "end", (1280, 900), _HELP),
+        ("page_end_plotly", "end", (1280, 900), _SETTINGS),
+        ("scroll_box", "centre", (1280, 900), _HELP),
+        ("scroll_box", "centre", (1280, 900), _SETTINGS),
+        ("tall_plotly_h400", "top", (844, 390), _HELP),
+    ],
+    ids=[
+        "bottom-1280-help",
+        "bottom-1280-settings",
+        "bottom-phone-help",
+        "bottom-phone-settings",
+        "short-window-help",
+        "page-end-help",
+        "page-end-settings",
+        "page-end-plotly-help",
+        "page-end-plotly-settings",
+        "scroll-box-help",
+        "scroll-box-settings",
+        "plotly-phone-turned-help",
+    ],
+)
+def test_a_dialog_is_shown_whole_wherever_the_chart_is(
+    browser, shiny_size_app_url, case, where, size, key
+):
+    """Help and settings, the chart where a reader leaves it, shown whole.
+
+    The chart fitted to its output, a reader scrolls just far enough to see
+    it, or reads it at the page's end, in a box that scrolls, or in a
+    window shorter than the chart's frame is while a dialog is open. Laid
+    out as before fitting, but from where the fitted chart was, the frame
+    grew down past the window: help showed 47% of itself and none of its
+    Close button with the chart's bottom at the window's, 33% at the page's
+    end, where the page jumped up 67-269px as it opened; in a box that
+    scrolls its Close button was 0-56% shown. The frame is laid out as a
+    notebook's while a dialog is open, its room and its scrolling into
+    view included, as before charts were fitted. On closing it, the chart
+    is fitted again, with its highlight in view, and the focus back in it.
+    """
+    page = _open(browser, f"{shiny_size_app_url}/{case}/", *size)
+    try:
+        page.evaluate(
+            "() => document.querySelector('#m iframe')"
+            ".scrollIntoView({block: 'center', behavior: 'instant'})"
+        )
+        page.wait_for_timeout(300)
+        _read(page, presses=2)
+        own = _settle(page)
+        page.evaluate(_PLACE, where)
+        page.wait_for_timeout(500)
+        page.keyboard.press(key)
+        page.wait_for_timeout(1500)
+        _settle(page)
+        _assert_dialog_whole(page, f"{key} open")
+
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(1500)
+        back = _settle(page)
+        assert page.evaluate(_DIALOG) is None
+        lit = page.evaluate(_LIT)
+        assert lit["focused"], lit
+        assert lit["litShown"] is not None and lit["litShown"] >= 0.95, lit
+        assert back["box"]["height"] == pytest.approx(own["box"]["height"], abs=1)
+        assert page.errors == []  # type: ignore[attr-defined]
+    finally:
+        page.close()
+
+
+@pytest.mark.parametrize("size", [(1280, 900), (390, 844)], ids=["1280", "phone"])
+def test_help_over_a_plotly_chart_reached_with_tab_is_shown_whole(
+    browser, shiny_size_app_url, size
+):
+    """A reader Tabs into a default Plotly output on a long page and asks for help.
+
+    The browser shows as much of the chart as fits as the focus comes to
+    it; help, centred in the frame, had its Close button below the window,
+    at 1280px and on a phone. Closing it leaves the page where it was.
+    """
+    page = _open(browser, f"{shiny_size_app_url}/tall_plotly_auto/", *size)
+    try:
+        page.evaluate(
+            "() => { const b = document.createElement('button'); b.id = 'pre';"
+            " b.textContent = 'Before'; const card = document.getElementById('m')"
+            ".closest('.card'); card.parentElement.insertBefore(b, card);"
+            " window.scrollTo({top: 0, behavior: 'instant'});"
+            " b.focus({preventScroll: true}); }"
+        )
+        page.wait_for_timeout(400)
+        page.keyboard.press("Tab")
+        page.wait_for_timeout(1000)
+        page.keyboard.press("ArrowRight")
+        page.wait_for_timeout(800)
+        _settle(page)
+        before = page.evaluate(_LIT)
+        page.keyboard.press("Control+/")
+        page.wait_for_timeout(1500)
+        _settle(page)
+        _assert_dialog_whole(page, "help open")
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(1500)
+        _settle(page)
+        # Where the reader was, the highlight as much in view as it was.
+        lit = page.evaluate(_LIT)
+        assert lit["focused"], lit
+        assert lit["scrollY"] == pytest.approx(before["scrollY"], abs=1), (before, lit)
+        assert lit["litShown"] >= before["litShown"] - 0.01, (before, lit)
+        assert page.errors == []  # type: ignore[attr-defined]
+    finally:
+        page.close()
+
+
+def test_settings_has_the_width_it_had_before_charts_were_fitted(
+    browser, shiny_size_app_url
+):
+    """Settings over a chart in a 300px output, in a wide window.
+
+    The frame was the chart's width under the dialog, 557px, and the dialog
+    493px, narrower than the 574px it had before charts were fitted: its
+    controls took 384px to show, where they had taken 285px, and had to be
+    scrolled to. A notebook frame gives a dialog MUI's 600px.
+    """
+    page = _open(browser, f"{shiny_size_app_url}/h300/", 1280)
+    try:
+        _read(page)
+        page.keyboard.press("Control+,")
+        page.wait_for_timeout(1500)
+        _settle(page)
+        shown = _assert_dialog_whole(page, "settings open")
+        assert shown["width"] >= 574, shown
+        assert shown["text"] >= shown["textAll"] - 1, shown
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(1200)
+        assert page.evaluate(_DIALOG) is None
+        assert page.errors == []  # type: ignore[attr-defined]
+    finally:
+        page.close()
+
+
+@pytest.mark.parametrize(
+    ("case", "start", "end"),
+    [
+        ("plotly", (1280, 900), (390, 844)),
+        ("plotly_card", (844, 390), (390, 844)),
+    ],
+    ids=["narrower", "phone-turned"],
+)
+def test_a_dialog_follows_a_narrower_window(
+    browser, shiny_size_app_url, case, start, end
+):
+    """Help is open over a Plotly chart, and the window narrows.
+
+    The frame kept the width it had as help opened, 1256px in a 390px
+    window: the page scrolled sideways and 8% of the dialog showed across
+    the window. It follows the window now, as a notebook's frame does.
+    """
+    page = _open(browser, f"{shiny_size_app_url}/{case}/", *start)
+    try:
+        _read(page)
+        page.keyboard.press("Control+/")
+        page.wait_for_timeout(1500)
+        _settle(page)
+        page.set_viewport_size({"width": end[0], "height": end[1]})
+        page.wait_for_timeout(1500)
+        _settle(page)
+        _assert_dialog_whole(page, "after the window narrowed")
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(1500)
+        back = _settle(page)
+        assert back["pageScroll"] == 0, back
     finally:
         page.close()
 
