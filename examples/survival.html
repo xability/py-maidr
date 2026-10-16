@@ -1,0 +1,2268 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.19">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
+<meta name="description" content="Make Kaplan-Meier survival curves accessible with py-maidr: survival probability read by keyboard, censored times announced and reachable with the rotor, the confidence band and the median survival of each arm.">
+
+<title>Accessible Kaplan-Meier Survival Curves – py-maidr</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha384-ZvpUoO/+PpLXR1lu4jmpXWu80pZlYUAfxl5NsBMWOEPSjUn/6Z/hRTt8+pR6L4N2" crossorigin="anonymous"></script><script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../examples/network-graph.html" rel="next">
+<link href="../examples/pr-curve.html" rel="prev">
+<script src="../site_libs/cookie-consent/cookie-consent.js"></script>
+<link href="../site_libs/cookie-consent/cookie-consent.css" rel="stylesheet">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-bf27225e3a48a9273f3daa8f8e829971.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-d1b407a2afbd6680ea33db73888feb24.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/quarto-contrib/line-highlight-1.0.0/line-highlight.css" rel="stylesheet">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script async="" src="https://www.googletagmanager.com/gtag/js?id=G-TL8SVL5VRE"></script>
+
+<script type="text/plain" cookie-consent="tracking">
+
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-TL8SVL5VRE', { 'anonymize_ip': true});
+</script>
+
+<script type="text/javascript" charset="UTF-8">
+document.addEventListener('DOMContentLoaded', function () {
+cookieconsent.run({
+  "notice_banner_type":"simple",
+  "consent_type":"express",
+  "palette":"light",
+  "language":"en",
+  "page_load_consent_levels":["strictly-necessary"],
+  "notice_banner_reject_button_hide":false,
+  "preferences_center_close_button_hide":false,
+  "website_name":""
+  ,
+"language":"en"
+  });
+});
+</script> 
+  
+<script src="https://cdn.jsdelivr.net/npm/requirejs@2.3.6/require.min.js" integrity="sha384-c9c+LnTbwQ3aujuU7ULEPVvgLs+Fn6fJUvIGTsuu1ZcCf11fiEubah0ttpca4ntM sha384-6V1/AdqZRWk1KAlWbKBlGhN7VG4iE/yAZcO6NZPMF8od0vukrvr0tg4qY6NSrItx" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+<script type="text/plain" cookie-consent="tracking">
+  (function(c,l,a,r,i,t,y){
+    c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+    t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+    y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+  })(window, document, "clarity", "script", "vwqybbep0i");
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://maidr.ai/#organization",
+      "name": "(x)Ability Design Lab",
+      "url": "https://xabilitylab.ischool.illinois.edu/",
+      "sameAs": [
+        "https://github.com/xability",
+        "https://xability.github.io/"
+      ],
+      "parentOrganization": {
+        "@type": "CollegeOrUniversity",
+        "name": "University of Illinois Urbana-Champaign",
+        "url": "https://illinois.edu/"
+      }
+    },
+    {
+      "@type": ["SoftwareSourceCode", "SoftwareApplication"],
+      "@id": "https://maidr.ai/#software",
+      "name": "MAIDR",
+      "url": "https://maidr.ai/",
+      "sameAs": ["https://github.com/xability/maidr"]
+    },
+    {
+      "@type": ["SoftwareSourceCode", "SoftwareApplication"],
+      "@id": "https://py.maidr.ai/#software",
+      "name": "py-maidr",
+      "alternateName": ["maidr (PyPI)"],
+      "description": "Python library that makes matplotlib, seaborn, Plotly, Bokeh, plotnine and Altair charts accessible to blind and low-vision users with sonification, braille, text and AI.",
+      "url": "https://py.maidr.ai/",
+      "codeRepository": "https://github.com/xability/py-maidr",
+      "downloadUrl": "https://pypi.org/project/maidr/",
+      "installUrl": "https://pypi.org/project/maidr/",
+      "applicationCategory": "DeveloperApplication",
+      "license": "https://www.gnu.org/licenses/gpl-3.0.html",
+      "isAccessibleForFree": true,
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "programmingLanguage": "Python",
+      "runtimePlatform": "Python",
+      "softwareRequirements": ["Python >= 3.9", "matplotlib"],
+      "softwareVersion": "1.27.0",
+      "operatingSystem": "Cross-platform",
+      "keywords": ["accessibility", "data visualization", "sonification", "braille", "blind", "low vision", "matplotlib", "seaborn", "plotly", "bokeh", "plotnine", "altair"],
+      "sameAs": [
+        "https://github.com/xability/py-maidr",
+        "https://pypi.org/project/maidr/"
+      ],
+      "author": {"@id": "https://maidr.ai/#organization"},
+      "isBasedOn": {"@id": "https://maidr.ai/#software"}
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://py.maidr.ai/#website",
+      "name": "py-maidr",
+      "url": "https://py.maidr.ai/",
+      "inLanguage": "en",
+      "publisher": {"@id": "https://maidr.ai/#organization"},
+      "about": {"@id": "https://py.maidr.ai/#software"}
+    }
+  ]
+}
+</script>
+
+
+<link rel="stylesheet" href="../styles.css">
+<meta property="og:title" content="Accessible Kaplan-Meier Survival Curves">
+<meta property="og:description" content="Make Kaplan-Meier survival curves accessible with py-maidr: survival probability read by keyboard, censored times announced and reachable with the rotor, the confidence band and the median survival of each arm.">
+<meta property="og:image" content="https://py.maidr.ai/media/logo.jpg">
+<meta property="og:site_name" content="py-maidr">
+<meta property="og:locale" content="en_US">
+<meta property="og:image:alt" content="MAIDR logo - Data Insight for All">
+<meta name="twitter:title" content="Accessible Kaplan-Meier Survival Curves">
+<meta name="twitter:description" content="Make Kaplan-Meier survival curves accessible with py-maidr: survival probability read by keyboard, censored times announced and reachable with the rotor, the confidence band and the median survival of each arm.">
+<meta name="twitter:image" content="https://py.maidr.ai/media/logo.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image:alt" content="MAIDR logo - Data Insight for All">
+<link rel="canonical" href="https://py.maidr.ai/examples/survival.html">
+<meta name="DC.title" content="Accessible Kaplan-Meier Survival Curves">
+<meta name="DC.creator" content="Seo, JooYoung">
+<meta name="DC.creator" content="Venkatesh, Saairam">
+<meta name="DC.publisher" content="(x)Ability Design Lab, University of Illinois Urbana-Champaign">
+<meta name="DC.description" content="Make Kaplan-Meier survival curves accessible with py-maidr: survival probability read by keyboard, censored times announced and reachable with the rotor, the confidence band and the median survival of each arm.">
+<meta name="DC.identifier" content="https://py.maidr.ai/examples/survival.html">
+<meta name="DC.type" content="Text">
+<meta name="DC.format" content="text/html">
+<meta name="DC.language" content="en">
+<meta name="DC.rights" content="GPL-3.0-or-later">
+<meta name="DC.date" content="2026-10-16">
+</head>
+
+<body class="nav-sidebar docked nav-fixed quarto-light">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="https://py.maidr.ai/">
+    <span class="navbar-title">py-maidr</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../index.html"> 
+<span class="menu-text">Welcome</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-examples" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Examples</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-examples">    
+        <li>
+    <a class="dropdown-item" href="../examples.html">
+ <span class="dropdown-text">Matplotlib / Seaborn (overview)</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/bar.html">
+ <span class="dropdown-text">Bar, Count, Stacked and Dodged Bar Charts</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/pie-wordcloud.html">
+ <span class="dropdown-text">Pie Charts and Word Clouds [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/histogram-kde.html">
+ <span class="dropdown-text">Histograms and KDE Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/line-step.html">
+ <span class="dropdown-text">Line and Step Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/heatmap-hexbin-contour.html">
+ <span class="dropdown-text">Heatmaps, Hexbin [experimental] and Contour Plots [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/box-boxen-violin.html">
+ <span class="dropdown-text">Box, Boxen [experimental] and Violin Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/scatter-regression.html">
+ <span class="dropdown-text">Scatter and Regression Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/multi-layer-panel-facet.html">
+ <span class="dropdown-text">Multi-Layer, Multi-Panel and Facet Plots</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/candlestick-gantt.html">
+ <span class="dropdown-text">Candlestick and Gantt Charts [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/dashboards.html">
+ <span class="dropdown-text">Shiny, Streamlit and Gradio Dashboards</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li class="dropdown-header">Experimental</li>
+        <li>
+    <a class="dropdown-item" href="../examples/area-errorbar-point-lollipop.html">
+ <span class="dropdown-text">Area [experimental], Error Bar [experimental], Point [experimental] and Lollipop Plots [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/roc.html">
+ <span class="dropdown-text">ROC Curves [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/pr-curve.html">
+ <span class="dropdown-text">Precision-Recall Curves [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/survival.html">
+ <span class="dropdown-text">Kaplan-Meier Survival Curves [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples/network-graph.html">
+ <span class="dropdown-text">Directed Graphs [experimental]</span></a>
+  </li>  
+        <li><hr class="dropdown-divider"></li>
+        <li class="dropdown-header">Other libraries</li>
+        <li>
+    <a class="dropdown-item" href="../examples-plotly.html">
+ <span class="dropdown-text">Plotly</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples-bokeh.html">
+ <span class="dropdown-text">Bokeh [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples-plotnine.html">
+ <span class="dropdown-text">plotnine [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples-altair.html">
+ <span class="dropdown-text">Altair</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples-excel.html">
+ <span class="dropdown-text">Excel [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples-office.html">
+ <span class="dropdown-text">PowerPoint and Word [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples-tensorboard.html">
+ <span class="dropdown-text">TensorBoard [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples-keras.html">
+ <span class="dropdown-text">Keras [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples-wandb.html">
+ <span class="dropdown-text">Weights &amp; Biases [experimental]</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="../examples-mlflow.html">
+ <span class="dropdown-text">MLflow [experimental]</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="../stability.html"> 
+<span class="menu-text">Plot Type Stability</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../api/"> 
+<span class="menu-text">API Reference</span></a>
+  </li>  
+</ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/xability/py-maidr"> <i class="bi bi-github" role="img" aria-label="GitHub">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../examples/area-errorbar-point-lollipop.html">Experimental plot families</a></li><li class="breadcrumb-item"><a href="../examples/survival.html">Kaplan-Meier Survival Curves [experimental]</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation docked overflow-auto">
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false">
+ <span class="menu-text">Plot families</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/bar.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Bar, Count, Stacked and Dodged Bar Charts</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/pie-wordcloud.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Pie Charts and Word Clouds [experimental]</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/histogram-kde.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Histograms and KDE Plots</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/line-step.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Line and Step Plots</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/heatmap-hexbin-contour.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Heatmaps, Hexbin [experimental] and Contour Plots [experimental]</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/box-boxen-violin.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Box, Boxen [experimental] and Violin Plots</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/scatter-regression.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Scatter and Regression Plots</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/multi-layer-panel-facet.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Multi-Layer, Multi-Panel and Facet Plots</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/candlestick-gantt.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Candlestick and Gantt Charts [experimental]</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Experimental plot families</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/area-errorbar-point-lollipop.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Area [experimental], Error Bar [experimental], Point [experimental] and Lollipop Plots [experimental]</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/roc.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ROC Curves [experimental]</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/pr-curve.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Precision-Recall Curves [experimental]</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/survival.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">Kaplan-Meier Survival Curves [experimental]</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/network-graph.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Directed Graphs [experimental]</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/dashboards.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Accessible Shiny, Streamlit and Gradio Dashboards with py-maidr</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="false">
+ <span class="menu-text">Other libraries</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 ">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples-plotly.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Plotly Accessible Plot Examples</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples-bokeh.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Bokeh [experimental]</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples-plotnine.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">plotnine [experimental]</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples-altair.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Altair Accessible Plot Examples</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples-excel.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Excel [experimental]</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples-office.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">PowerPoint and Word [experimental]</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples-tensorboard.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">TensorBoard [experimental]</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples-keras.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Keras [experimental]</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples-wandb.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Weights &amp; Biases [experimental]</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples-mlflow.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">MLflow [experimental]</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#setup" id="toc-setup" class="nav-link active" data-scroll-target="#setup">Setup</a></li>
+  <li><a href="#one-arm" id="toc-one-arm" class="nav-link" data-scroll-target="#one-arm">One arm</a></li>
+  <li><a href="#comparing-arms" id="toc-comparing-arms" class="nav-link" data-scroll-target="#comparing-arms">Comparing arms</a></li>
+  <li><a href="#from-lifelines" id="toc-from-lifelines" class="nav-link" data-scroll-target="#from-lifelines">From lifelines</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.com/xability/py-maidr/issues/new/choose" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../examples/area-errorbar-point-lollipop.html">Experimental plot families</a></li><li class="breadcrumb-item"><a href="../examples/survival.html">Kaplan-Meier Survival Curves [experimental]</a></li></ol></nav>
+<div class="quarto-title">
+<h1 class="title">Accessible Kaplan-Meier Survival Curves with py-maidr</h1>
+</div>
+
+<div>
+  <div class="description">
+    Make Kaplan-Meier survival curves accessible with py-maidr: survival probability read by keyboard, censored times announced and reachable with the rotor, the confidence band and the median survival of each arm.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>A Kaplan-Meier curve is the share of subjects still free of the event at each time, dropping in steps as events occur. Drawn with <code>ax.step</code>, it is read as a step chart: the probability at each time, and nothing else. What the figure is read for is lost – which times are censored (a subject who left the study without the event, where the curve does <em>not</em> step), the confidence band, and the median survival.</p>
+<p><code>maidr.plot_survival()</code> draws the curve from its numbers and reads it as a survival curve: each censored time is announced as censored and can be reached with the rotor, the band is announced after the estimate, and the description (<code>d</code>) gives each arm’s median survival, or says it was not reached.</p>
+<p><code>SURVIVAL</code> is <strong>experimental</strong> and may change without a deprecation period: see <a href="../stability.html">Plot Type Stability</a>.</p>
+<div class="callout callout-style-default callout-warning callout-titled" title="Prototype">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+<span class="screen-reader-only">Warning</span>Prototype
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>This is one of the experimental plot types. It has not been through a user study, and it may change without a deprecation period. See <a href="../stability.html">Plot type stability</a>.</p>
+</div>
+</div>
+<section id="setup" class="level2">
+<h2 class="anchored" data-anchor-id="setup">Setup</h2>
+<div id="1163a7d7" class="cell" data-execution_count="1">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" data-source-line-numbers="nil" data-code-line-numbers="3,4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Just import maidr package: plt.show() now renders accessible output </span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> maidr  </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+</section>
+<section id="one-arm" class="level2">
+<h2 class="anchored" data-anchor-id="one-arm">One arm</h2>
+<div id="cf70f25c" class="cell" data-execution_count="2">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2" data-source-line-numbers="nil" data-code-line-numbers="3,11,12,13,18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> maidr  </span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>months <span class="op">=</span> [<span class="dv">0</span>, <span class="dv">3</span>, <span class="dv">6</span>, <span class="dv">9</span>, <span class="dv">12</span>, <span class="dv">15</span>, <span class="dv">18</span>]</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>survival <span class="op">=</span> [<span class="fl">1.0</span>, <span class="fl">0.88</span>, <span class="fl">0.71</span>, <span class="fl">0.5</span>, <span class="fl">0.41</span>, <span class="fl">0.34</span>, <span class="fl">0.29</span>]</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>lower <span class="op">=</span> [<span class="fl">0.88</span>, <span class="fl">0.76</span>, <span class="fl">0.59</span>, <span class="fl">0.38</span>, <span class="fl">0.29</span>, <span class="fl">0.22</span>, <span class="fl">0.17</span>]</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>upper <span class="op">=</span> [<span class="fl">1.0</span>, <span class="fl">1.0</span>, <span class="fl">0.83</span>, <span class="fl">0.62</span>, <span class="fl">0.53</span>, <span class="fl">0.46</span>, <span class="fl">0.41</span>]</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots()</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>maidr.plot_survival(  </span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>    months, survival, lower<span class="op">=</span>lower, upper<span class="op">=</span>upper, censored<span class="op">=</span>[<span class="dv">15</span>], ax<span class="op">=</span>ax  </span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>)  </span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>ax.set_xlabel(<span class="st">"Months"</span>)</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>ax.set_ylabel(<span class="st">"Survival probability"</span>)</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>ax.set_title(<span class="st">"Overall survival"</span>)</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>plt.show()  </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<div class="maidr-inline" role="img" aria-label="Kaplan-Meier curve of overall survival over 18 months, with a shaded confidence band and a censoring tick at month 15" data-maidr-inline="" data-lm-suppress-shortcuts="">
+  <style data-maidr-inline-css="">.maidr-inline {
+margin: 0 0 1em;
+max-width: 100%;
+}
+.maidr-inline article,
+.maidr-inline figure {
+margin: 0;
+padding: 0;
+}
+.maidr-inline-svg {
+display: block;
+max-width: 100%;
+height: auto;
+}
+.reveal .maidr-inline {
+max-width: 95%;
+}
+.quarto-figure-center .maidr-inline,
+.quarto-figure-right .maidr-inline {
+width: fit-content;
+}
+.quarto-figure-center .maidr-inline {
+margin-inline: auto;
+}
+.quarto-figure-right .maidr-inline {
+margin-inline-start: auto;
+}
+.maidr-inline textarea[id^="maidr-braille-textarea"],
+.maidr-inline input[id^="maidr-review-input"] {
+max-width: 100%;
+box-sizing: border-box;
+}
+.maidr-inline .MuiDialog-root {
+zoom: var(--maidr-inline-unzoom, 1);
+}
+.maidr-inline .MuiDialog-paper {
+zoom: var(--maidr-inline-zoom, 1);
+max-width: min(600px, calc((100vw - 64px) / var(--maidr-inline-zoom, 1)));
+max-height: calc((100vh - 64px) / var(--maidr-inline-zoom, 1));
+}
+.reveal .maidr-inline .MuiDialog-paper {
+max-height: min(calc(100% - 64px), calc((100vh - 64px) / var(--maidr-inline-zoom, 1)));
+}
+.reveal .slides:has(.maidr-inline .MuiDialog-root),
+.reveal .slides section:has(.maidr-inline .MuiDialog-root) {
+perspective: none !important;
+}
+.maidr-inline [role="dialog"] {
+text-align: start;
+font-size: var(--maidr-inline-rem, 1rem);
+line-height: 1.5;
+}
+.maidr-inline [role="dialog"] :is(h1, h2, h3, h4, h5, h6):not([class*="MuiTypography-"]) {
+font-size: inherit !important;
+line-height: inherit !important;
+margin: 0 !important;
+}
+.maidr-inline [role="dialog"] .MuiTypography-caption {
+font-size: calc(0.75 * var(--maidr-inline-rem, 1rem)) !important;
+line-height: 1.66 !important;
+}
+.maidr-inline [role="dialog"] :is(ul, ol) {
+display: block !important;
+margin: 0 !important;
+}
+.maidr-inline [role="dialog"] :is(h1, h2, h3, h4, h5, h6) {
+font-family: "Roboto", "Helvetica", "Arial", sans-serif !important;
+color: inherit !important;
+text-transform: none !important;
+text-shadow: none !important;
+word-wrap: normal !important;
+}
+.maidr-inline [role="dialog"] .MuiTypography-h6 {
+font-size: calc(1.25 * var(--maidr-inline-rem, 1rem)) !important;
+line-height: 1.6 !important;
+letter-spacing: 0.0075em !important;
+}
+.maidr-inline [role="dialog"] .MuiTypography-subtitle1 {
+font-size: var(--maidr-inline-rem, 1rem) !important;
+line-height: 1.75 !important;
+letter-spacing: 0.00938em !important;
+}
+.maidr-inline [role="dialog"] .MuiTypography-subtitle2 {
+font-size: calc(0.875 * var(--maidr-inline-rem, 1rem)) !important;
+line-height: 1.57 !important;
+letter-spacing: 0.00714em !important;
+}
+.html-fill-item:has(> .maidr-inline) {
+overflow: auto;
+}
+.html-fill-item > .maidr-inline {
+margin-bottom: 0;
+}
+.html-fill-item > .maidr-inline figure[id^="maidr-figure"] > [tabindex],
+.html-fill-item > .maidr-inline .maidr-inline-svg {
+margin-inline: auto;
+}</style>
+  <style>.maidr-inline-mc622994716ac, .maidr-inline-mc622994716ac * {stroke-linejoin: round; stroke-linecap: butt}</style>
+  <svg xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2000/svg" width="589.87px" height="450.659px" viewbox="18.398 20.883 442.402 337.995" version="1.1" id="18240753-3607-408e-a410-1f15ddf3938c" class="maidr-inline-svg maidr-inline-mc622994716ac" aria-hidden="true" maidr="{&quot;id&quot;: &quot;18240753-3607-408e-a410-1f15ddf3938c&quot;, &quot;subplots&quot;: [[{&quot;id&quot;: &quot;e11398fa-db7c-4523-9163-5dcc94cfd997&quot;, &quot;layers&quot;: [{&quot;id&quot;: &quot;9c8d1c06-77b5-4b57-86db-afe1f80ac480&quot;, &quot;type&quot;: &quot;survival&quot;, &quot;title&quot;: &quot;Overall survival&quot;, &quot;axes&quot;: {&quot;x&quot;: {&quot;label&quot;: &quot;Months&quot;}, &quot;y&quot;: {&quot;label&quot;: &quot;Survival probability&quot;}}, &quot;data&quot;: [[{&quot;x&quot;: 0.0, &quot;y&quot;: 1.0, &quot;yMin&quot;: 0.88, &quot;yMax&quot;: 1.0}, {&quot;x&quot;: 3.0, &quot;y&quot;: 0.88, &quot;yMin&quot;: 0.76, &quot;yMax&quot;: 1.0}, {&quot;x&quot;: 6.0, &quot;y&quot;: 0.71, &quot;yMin&quot;: 0.59, &quot;yMax&quot;: 0.83}, {&quot;x&quot;: 9.0, &quot;y&quot;: 0.5, &quot;yMin&quot;: 0.38, &quot;yMax&quot;: 0.62}, {&quot;x&quot;: 12.0, &quot;y&quot;: 0.41, &quot;yMin&quot;: 0.29, &quot;yMax&quot;: 0.53}, {&quot;x&quot;: 15.0, &quot;y&quot;: 0.34, &quot;yMin&quot;: 0.22, &quot;yMax&quot;: 0.46, &quot;censored&quot;: true}, {&quot;x&quot;: 18.0, &quot;y&quot;: 0.29, &quot;yMin&quot;: 0.17, &quot;yMax&quot;: 0.41}]], &quot;selectors&quot;: [&quot;g[id='maidr-4f522d46-d2b5-4d18-92f9-b78da8d82e30-mc622994716ac'] > path&quot;], &quot;stepDirection&quot;: &quot;hv&quot;}]}]]}"><defs></defs><g id="figure_1-mc622994716ac"><g id="maidr-d5469f7e-ce1c-4f6c-9bcf-c1a0b3c59cc8-mc622994716ac"><path d="M 0 360  L 504 360  L 504 0  L 0 0  z " style="fill: #ffffff"></path></g><g id="axes_1-mc622994716ac"><g id="maidr-dccdbedf-5b50-4028-8662-a40e5e594a20-mc622994716ac"><path d="M 63 320.4  L 453.6 320.4  L 453.6 43.2  L 63 43.2  z " style="fill: #ffffff"></path></g><g id="maidr-db828127-ee05-4c50-be04-83ff893b3e56-mc622994716ac"><defs><path id="m0becbd8706-mc622994716ac" d="M 80.754545 -304.2  L 80.754545 -267.766265  L 139.936364 -267.766265  L 139.936364 -231.33253  L 199.118182 -231.33253  L 199.118182 -179.718072  L 258.3 -179.718072  L 258.3 -115.959036  L 317.481818 -115.959036  L 317.481818 -88.633735  L 376.663636 -88.633735  L 376.663636 -67.380723  L 435.845455 -67.380723  L 435.845455 -52.2  L 435.845455 -125.06747  L 435.845455 -125.06747  L 435.845455 -140.248193  L 376.663636 -140.248193  L 376.663636 -161.501205  L 317.481818 -161.501205  L 317.481818 -188.826506  L 258.3 -188.826506  L 258.3 -252.585542  L 199.118182 -252.585542  L 199.118182 -304.2  L 139.936364 -304.2  L 139.936364 -304.2  L 80.754545 -304.2  z "></path></defs><g clip-path="url(#p8ec885aafb-mc622994716ac)"><use href="#m0becbd8706-mc622994716ac" x="0" y="360" style="fill: #1f77b4; fill-opacity: 0.25"></use></g></g><g id="matplotlib.axis_1-mc622994716ac"><g id="xtick_1-mc622994716ac"><g id="maidr-d5e91ff9-7328-4530-972f-8332d99c20bc-mc622994716ac"><defs><path id="mdf724468c1-mc622994716ac" d="M 0 0  L 0 3.5  " style="stroke: #000000; stroke-width: 0.8"></path></defs><g><use href="#mdf724468c1-mc622994716ac" x="80.754545" y="320.4" style="stroke: #000000; stroke-width: 0.8"></use></g></g><g id="text_1-mc622994716ac"><!-- 0.0 --><g transform="translate(72.802983 334.997656) scale(0.1 -0.1)"><defs><path id="DejaVuSans-13-mc622994716ac" d="M 2034 4250  Q 1547 4250 1301 3770  Q 1056 3291 1056 2328  Q 1056 1369 1301 889  Q 1547 409 2034 409  Q 2525 409 2770 889  Q 3016 1369 3016 2328  Q 3016 3291 2770 3770  Q 2525 4250 2034 4250  z M 2034 4750  Q 2819 4750 3233 4129  Q 3647 3509 3647 2328  Q 3647 1150 3233 529  Q 2819 -91 2034 -91  Q 1250 -91 836 529  Q 422 1150 422 2328  Q 422 3509 836 4129  Q 1250 4750 2034 4750  z " transform="scale(0.015625)"></path><path id="DejaVuSans-11-mc622994716ac" d="M 684 794  L 1344 794  L 1344 0  L 684 0  L 684 794  z " transform="scale(0.015625)"></path></defs><use href="#DejaVuSans-13-mc622994716ac"></use><use href="#DejaVuSans-11-mc622994716ac" transform="translate(63.625 0)"></use><use href="#DejaVuSans-13-mc622994716ac" transform="translate(95.40625 0)"></use></g></g></g><g id="xtick_2-mc622994716ac"><g id="maidr-4c6e1a51-6605-464b-9c19-00eb56096648-mc622994716ac"><g><use href="#mdf724468c1-mc622994716ac" x="130.072727" y="320.4" style="stroke: #000000; stroke-width: 0.8"></use></g></g><g id="text_2-mc622994716ac"><!-- 2.5 --><g transform="translate(122.121165 334.997656) scale(0.1 -0.1)"><defs><path id="DejaVuSans-15-mc622994716ac" d="M 1228 531  L 3431 531  L 3431 0  L 469 0  L 469 531  Q 828 903 1448 1529  Q 2069 2156 2228 2338  Q 2531 2678 2651 2914  Q 2772 3150 2772 3378  Q 2772 3750 2511 3984  Q 2250 4219 1831 4219  Q 1534 4219 1204 4116  Q 875 4013 500 3803  L 500 4441  Q 881 4594 1212 4672  Q 1544 4750 1819 4750  Q 2544 4750 2975 4387  Q 3406 4025 3406 3419  Q 3406 3131 3298 2873  Q 3191 2616 2906 2266  Q 2828 2175 2409 1742  Q 1991 1309 1228 531  z " transform="scale(0.015625)"></path><path id="DejaVuSans-18-mc622994716ac" d="M 691 4666  L 3169 4666  L 3169 4134  L 1269 4134  L 1269 2991  Q 1406 3038 1543 3061  Q 1681 3084 1819 3084  Q 2600 3084 3056 2656  Q 3513 2228 3513 1497  Q 3513 744 3044 326  Q 2575 -91 1722 -91  Q 1428 -91 1123 -41  Q 819 9 494 109  L 494 744  Q 775 591 1075 516  Q 1375 441 1709 441  Q 2250 441 2565 725  Q 2881 1009 2881 1497  Q 2881 1984 2565 2268  Q 2250 2553 1709 2553  Q 1456 2553 1204 2497  Q 953 2441 691 2322  L 691 4666  z " transform="scale(0.015625)"></path></defs><use href="#DejaVuSans-15-mc622994716ac"></use><use href="#DejaVuSans-11-mc622994716ac" transform="translate(63.625 0)"></use><use href="#DejaVuSans-18-mc622994716ac" transform="translate(95.40625 0)"></use></g></g></g><g id="xtick_3-mc622994716ac"><g id="maidr-022b639a-2d98-488d-833a-cc181dcf4b98-mc622994716ac"><g><use href="#mdf724468c1-mc622994716ac" x="179.390909" y="320.4" style="stroke: #000000; stroke-width: 0.8"></use></g></g><g id="text_3-mc622994716ac"><!-- 5.0 --><g transform="translate(171.439347 334.997656) scale(0.1 -0.1)"><use href="#DejaVuSans-18-mc622994716ac"></use><use href="#DejaVuSans-11-mc622994716ac" transform="translate(63.625 0)"></use><use href="#DejaVuSans-13-mc622994716ac" transform="translate(95.40625 0)"></use></g></g></g><g id="xtick_4-mc622994716ac"><g id="maidr-d81c9c8c-fa34-4a36-8fce-f5db733bc569-mc622994716ac"><g><use href="#mdf724468c1-mc622994716ac" x="228.709091" y="320.4" style="stroke: #000000; stroke-width: 0.8"></use></g></g><g id="text_4-mc622994716ac"><!-- 7.5 --><g transform="translate(220.757528 334.997656) scale(0.1 -0.1)"><defs><path id="DejaVuSans-1a-mc622994716ac" d="M 525 4666  L 3525 4666  L 3525 4397  L 1831 0  L 1172 0  L 2766 4134  L 525 4134  L 525 4666  z " transform="scale(0.015625)"></path></defs><use href="#DejaVuSans-1a-mc622994716ac"></use><use href="#DejaVuSans-11-mc622994716ac" transform="translate(63.625 0)"></use><use href="#DejaVuSans-18-mc622994716ac" transform="translate(95.40625 0)"></use></g></g></g><g id="xtick_5-mc622994716ac"><g id="maidr-b6807ec4-cb2a-44e0-bf3e-fc3c432b9de8-mc622994716ac"><g><use href="#mdf724468c1-mc622994716ac" x="278.027273" y="320.4" style="stroke: #000000; stroke-width: 0.8"></use></g></g><g id="text_5-mc622994716ac"><!-- 10.0 --><g transform="translate(266.89446 334.997656) scale(0.1 -0.1)"><defs><path id="DejaVuSans-14-mc622994716ac" d="M 794 531  L 1825 531  L 1825 4091  L 703 3866  L 703 4441  L 1819 4666  L 2450 4666  L 2450 531  L 3481 531  L 3481 0  L 794 0  L 794 531  z " transform="scale(0.015625)"></path></defs><use href="#DejaVuSans-14-mc622994716ac"></use><use href="#DejaVuSans-13-mc622994716ac" transform="translate(63.625 0)"></use><use href="#DejaVuSans-11-mc622994716ac" transform="translate(127.25 0)"></use><use href="#DejaVuSans-13-mc622994716ac" transform="translate(159.03125 0)"></use></g></g></g><g id="xtick_6-mc622994716ac"><g id="maidr-c28560a4-5a3a-48a4-adba-82447b3dad49-mc622994716ac"><g><use href="#mdf724468c1-mc622994716ac" x="327.345455" y="320.4" style="stroke: #000000; stroke-width: 0.8"></use></g></g><g id="text_6-mc622994716ac"><!-- 12.5 --><g transform="translate(316.212642 334.997656) scale(0.1 -0.1)"><use href="#DejaVuSans-14-mc622994716ac"></use><use href="#DejaVuSans-15-mc622994716ac" transform="translate(63.625 0)"></use><use href="#DejaVuSans-11-mc622994716ac" transform="translate(127.25 0)"></use><use href="#DejaVuSans-18-mc622994716ac" transform="translate(159.03125 0)"></use></g></g></g><g id="xtick_7-mc622994716ac"><g id="maidr-604fded4-b054-4191-a1a3-720d395599d8-mc622994716ac"><g><use href="#mdf724468c1-mc622994716ac" x="376.663636" y="320.4" style="stroke: #000000; stroke-width: 0.8"></use></g></g><g id="text_7-mc622994716ac"><!-- 15.0 --><g transform="translate(365.530824 334.997656) scale(0.1 -0.1)"><use href="#DejaVuSans-14-mc622994716ac"></use><use href="#DejaVuSans-18-mc622994716ac" transform="translate(63.625 0)"></use><use href="#DejaVuSans-11-mc622994716ac" transform="translate(127.25 0)"></use><use href="#DejaVuSans-13-mc622994716ac" transform="translate(159.03125 0)"></use></g></g></g><g id="xtick_8-mc622994716ac"><g id="maidr-bbec3bd3-f980-42ca-a54e-42775f80baa0-mc622994716ac"><g><use href="#mdf724468c1-mc622994716ac" x="425.981818" y="320.4" style="stroke: #000000; stroke-width: 0.8"></use></g></g><g id="text_8-mc622994716ac"><!-- 17.5 --><g transform="translate(414.849006 334.997656) scale(0.1 -0.1)"><use href="#DejaVuSans-14-mc622994716ac"></use><use href="#DejaVuSans-1a-mc622994716ac" transform="translate(63.625 0)"></use><use href="#DejaVuSans-11-mc622994716ac" transform="translate(127.25 0)"></use><use href="#DejaVuSans-18-mc622994716ac" transform="translate(159.03125 0)"></use></g></g></g><g id="text_9-mc622994716ac"><!-- Months --><g transform="translate(240.024219 348.998438) scale(0.1 -0.1)"><defs><path id="DejaVuSans-30-mc622994716ac" d="M 628 4666  L 1569 4666  L 2759 1491  L 3956 4666  L 4897 4666  L 4897 0  L 4281 0  L 4281 4097  L 3078 897  L 2444 897  L 1241 4097  L 1241 0  L 628 0  L 628 4666  z " transform="scale(0.015625)"></path><path id="DejaVuSans-52-mc622994716ac" d="M 1959 3097  Q 1497 3097 1228 2736  Q 959 2375 959 1747  Q 959 1119 1226 758  Q 1494 397 1959 397  Q 2419 397 2687 759  Q 2956 1122 2956 1747  Q 2956 2369 2687 2733  Q 2419 3097 1959 3097  z M 1959 3584  Q 2709 3584 3137 3096  Q 3566 2609 3566 1747  Q 3566 888 3137 398  Q 2709 -91 1959 -91  Q 1206 -91 779 398  Q 353 888 353 1747  Q 353 2609 779 3096  Q 1206 3584 1959 3584  z " transform="scale(0.015625)"></path><path id="DejaVuSans-51-mc622994716ac" d="M 3513 2113  L 3513 0  L 2938 0  L 2938 2094  Q 2938 2591 2744 2837  Q 2550 3084 2163 3084  Q 1697 3084 1428 2787  Q 1159 2491 1159 1978  L 1159 0  L 581 0  L 581 3500  L 1159 3500  L 1159 2956  Q 1366 3272 1645 3428  Q 1925 3584 2291 3584  Q 2894 3584 3203 3211  Q 3513 2838 3513 2113  z " transform="scale(0.015625)"></path><path id="DejaVuSans-57-mc622994716ac" d="M 1172 4494  L 1172 3500  L 2356 3500  L 2356 3053  L 1172 3053  L 1172 1153  Q 1172 725 1289 603  Q 1406 481 1766 481  L 2356 481  L 2356 0  L 1766 0  Q 1100 0 847 248  Q 594 497 594 1153  L 594 3053  L 172 3053  L 172 3500  L 594 3500  L 594 4494  L 1172 4494  z " transform="scale(0.015625)"></path><path id="DejaVuSans-4b-mc622994716ac" d="M 3513 2113  L 3513 0  L 2938 0  L 2938 2094  Q 2938 2591 2744 2837  Q 2550 3084 2163 3084  Q 1697 3084 1428 2787  Q 1159 2491 1159 1978  L 1159 0  L 581 0  L 581 4863  L 1159 4863  L 1159 2956  Q 1366 3272 1645 3428  Q 1925 3584 2291 3584  Q 2894 3584 3203 3211  Q 3513 2838 3513 2113  z " transform="scale(0.015625)"></path><path id="DejaVuSans-56-mc622994716ac" d="M 2834 3397  L 2834 2853  Q 2591 2978 2328 3040  Q 2066 3103 1784 3103  Q 1356 3103 1142 2972  Q 928 2841 928 2578  Q 928 2378 1081 2264  Q 1234 2150 1697 2047  L 1894 2003  Q 2506 1872 2764 1633  Q 3022 1394 3022 966  Q 3022 478 2636 193  Q 2250 -91 1575 -91  Q 1294 -91 989 -36  Q 684 19 347 128  L 347 722  Q 666 556 975 473  Q 1284 391 1588 391  Q 1994 391 2212 530  Q 2431 669 2431 922  Q 2431 1156 2273 1281  Q 2116 1406 1581 1522  L 1381 1569  Q 847 1681 609 1914  Q 372 2147 372 2553  Q 372 3047 722 3315  Q 1072 3584 1716 3584  Q 2034 3584 2315 3537  Q 2597 3491 2834 3397  z " transform="scale(0.015625)"></path></defs><use href="#DejaVuSans-30-mc622994716ac"></use><use href="#DejaVuSans-52-mc622994716ac" transform="translate(86.28125 0)"></use><use href="#DejaVuSans-51-mc622994716ac" transform="translate(147.46875 0)"></use><use href="#DejaVuSans-57-mc622994716ac" transform="translate(210.84375 0)"></use><use href="#DejaVuSans-4b-mc622994716ac" transform="translate(250.046875 0)"></use><use href="#DejaVuSans-56-mc622994716ac" transform="translate(313.421875 0)"></use></g></g></g><g id="matplotlib.axis_2-mc622994716ac"><g id="ytick_1-mc622994716ac"><g id="maidr-e77d8d03-7ce6-413f-8449-1569b1a7ccaf-mc622994716ac"><defs><path id="m5b8587e718-mc622994716ac" d="M 0 0  L -3.5 0  " style="stroke: #000000; stroke-width: 0.8"></path></defs><g><use href="#m5b8587e718-mc622994716ac" x="63" y="298.691566" style="stroke: #000000; stroke-width: 0.8"></use></g></g><g id="text_10-mc622994716ac"><!-- 0.2 --><g transform="translate(40.096875 302.490394) scale(0.1 -0.1)"><use href="#DejaVuSans-13-mc622994716ac"></use><use href="#DejaVuSans-11-mc622994716ac" transform="translate(63.625 0)"></use><use href="#DejaVuSans-15-mc622994716ac" transform="translate(95.40625 0)"></use></g></g></g><g id="ytick_2-mc622994716ac"><g id="maidr-d7ab2a51-3804-493c-96a3-e3b6836f985a-mc622994716ac"><g><use href="#m5b8587e718-mc622994716ac" x="63" y="237.968675" style="stroke: #000000; stroke-width: 0.8"></use></g></g><g id="text_11-mc622994716ac"><!-- 0.4 --><g transform="translate(40.096875 241.767503) scale(0.1 -0.1)"><defs><path id="DejaVuSans-17-mc622994716ac" d="M 2419 4116  L 825 1625  L 2419 1625  L 2419 4116  z M 2253 4666  L 3047 4666  L 3047 1625  L 3713 1625  L 3713 1100  L 3047 1100  L 3047 0  L 2419 0  L 2419 1100  L 313 1100  L 313 1709  L 2253 4666  z " transform="scale(0.015625)"></path></defs><use href="#DejaVuSans-13-mc622994716ac"></use><use href="#DejaVuSans-11-mc622994716ac" transform="translate(63.625 0)"></use><use href="#DejaVuSans-17-mc622994716ac" transform="translate(95.40625 0)"></use></g></g></g><g id="ytick_3-mc622994716ac"><g id="maidr-dd24683d-eaef-45f0-a434-65342780975c-mc622994716ac"><g><use href="#m5b8587e718-mc622994716ac" x="63" y="177.245783" style="stroke: #000000; stroke-width: 0.8"></use></g></g><g id="text_12-mc622994716ac"><!-- 0.6 --><g transform="translate(40.096875 181.044611) scale(0.1 -0.1)"><defs><path id="DejaVuSans-19-mc622994716ac" d="M 2113 2584  Q 1688 2584 1439 2293  Q 1191 2003 1191 1497  Q 1191 994 1439 701  Q 1688 409 2113 409  Q 2538 409 2786 701  Q 3034 994 3034 1497  Q 3034 2003 2786 2293  Q 2538 2584 2113 2584  z M 3366 4563  L 3366 3988  Q 3128 4100 2886 4159  Q 2644 4219 2406 4219  Q 1781 4219 1451 3797  Q 1122 3375 1075 2522  Q 1259 2794 1537 2939  Q 1816 3084 2150 3084  Q 2853 3084 3261 2657  Q 3669 2231 3669 1497  Q 3669 778 3244 343  Q 2819 -91 2113 -91  Q 1303 -91 875 529  Q 447 1150 447 2328  Q 447 3434 972 4092  Q 1497 4750 2381 4750  Q 2619 4750 2861 4703  Q 3103 4656 3366 4563  z " transform="scale(0.015625)"></path></defs><use href="#DejaVuSans-13-mc622994716ac"></use><use href="#DejaVuSans-11-mc622994716ac" transform="translate(63.625 0)"></use><use href="#DejaVuSans-19-mc622994716ac" transform="translate(95.40625 0)"></use></g></g></g><g id="ytick_4-mc622994716ac"><g id="maidr-ae71456d-9ce9-4ade-984b-7c49a1d3fb37-mc622994716ac"><g><use href="#m5b8587e718-mc622994716ac" x="63" y="116.522892" style="stroke: #000000; stroke-width: 0.8"></use></g></g><g id="text_13-mc622994716ac"><!-- 0.8 --><g transform="translate(40.096875 120.32172) scale(0.1 -0.1)"><defs><path id="DejaVuSans-1b-mc622994716ac" d="M 2034 2216  Q 1584 2216 1326 1975  Q 1069 1734 1069 1313  Q 1069 891 1326 650  Q 1584 409 2034 409  Q 2484 409 2743 651  Q 3003 894 3003 1313  Q 3003 1734 2745 1975  Q 2488 2216 2034 2216  z M 1403 2484  Q 997 2584 770 2862  Q 544 3141 544 3541  Q 544 4100 942 4425  Q 1341 4750 2034 4750  Q 2731 4750 3128 4425  Q 3525 4100 3525 3541  Q 3525 3141 3298 2862  Q 3072 2584 2669 2484  Q 3125 2378 3379 2068  Q 3634 1759 3634 1313  Q 3634 634 3220 271  Q 2806 -91 2034 -91  Q 1263 -91 848 271  Q 434 634 434 1313  Q 434 1759 690 2068  Q 947 2378 1403 2484  z M 1172 3481  Q 1172 3119 1398 2916  Q 1625 2713 2034 2713  Q 2441 2713 2670 2916  Q 2900 3119 2900 3481  Q 2900 3844 2670 4047  Q 2441 4250 2034 4250  Q 1625 4250 1398 4047  Q 1172 3844 1172 3481  z " transform="scale(0.015625)"></path></defs><use href="#DejaVuSans-13-mc622994716ac"></use><use href="#DejaVuSans-11-mc622994716ac" transform="translate(63.625 0)"></use><use href="#DejaVuSans-1b-mc622994716ac" transform="translate(95.40625 0)"></use></g></g></g><g id="ytick_5-mc622994716ac"><g id="maidr-840c84f9-e709-4fff-a117-0279dd8e6b3c-mc622994716ac"><g><use href="#m5b8587e718-mc622994716ac" x="63" y="55.8" style="stroke: #000000; stroke-width: 0.8"></use></g></g><g id="text_14-mc622994716ac"><!-- 1.0 --><g transform="translate(40.096875 59.598828) scale(0.1 -0.1)"><use href="#DejaVuSans-14-mc622994716ac"></use><use href="#DejaVuSans-11-mc622994716ac" transform="translate(63.625 0)"></use><use href="#DejaVuSans-13-mc622994716ac" transform="translate(95.40625 0)"></use></g></g></g><g id="text_15-mc622994716ac"><!-- Survival probability --><g transform="translate(33.694531 230.226562) rotate(-90) scale(0.1 -0.1)"><defs><path id="DejaVuSans-36-mc622994716ac" d="M 3425 4513  L 3425 3897  Q 3066 4069 2747 4153  Q 2428 4238 2131 4238  Q 1616 4238 1336 4038  Q 1056 3838 1056 3469  Q 1056 3159 1242 3001  Q 1428 2844 1947 2747  L 2328 2669  Q 3034 2534 3370 2195  Q 3706 1856 3706 1288  Q 3706 609 3251 259  Q 2797 -91 1919 -91  Q 1588 -91 1214 -16  Q 841 59 441 206  L 441 856  Q 825 641 1194 531  Q 1563 422 1919 422  Q 2459 422 2753 634  Q 3047 847 3047 1241  Q 3047 1584 2836 1778  Q 2625 1972 2144 2069  L 1759 2144  Q 1053 2284 737 2584  Q 422 2884 422 3419  Q 422 4038 858 4394  Q 1294 4750 2059 4750  Q 2388 4750 2728 4690  Q 3069 4631 3425 4513  z " transform="scale(0.015625)"></path><path id="DejaVuSans-58-mc622994716ac" d="M 544 1381  L 544 3500  L 1119 3500  L 1119 1403  Q 1119 906 1312 657  Q 1506 409 1894 409  Q 2359 409 2629 706  Q 2900 1003 2900 1516  L 2900 3500  L 3475 3500  L 3475 0  L 2900 0  L 2900 538  Q 2691 219 2414 64  Q 2138 -91 1772 -91  Q 1169 -91 856 284  Q 544 659 544 1381  z M 1991 3584  L 1991 3584  z " transform="scale(0.015625)"></path><path id="DejaVuSans-55-mc622994716ac" d="M 2631 2963  Q 2534 3019 2420 3045  Q 2306 3072 2169 3072  Q 1681 3072 1420 2755  Q 1159 2438 1159 1844  L 1159 0  L 581 0  L 581 3500  L 1159 3500  L 1159 2956  Q 1341 3275 1631 3429  Q 1922 3584 2338 3584  Q 2397 3584 2469 3576  Q 2541 3569 2628 3553  L 2631 2963  z " transform="scale(0.015625)"></path><path id="DejaVuSans-59-mc622994716ac" d="M 191 3500  L 800 3500  L 1894 563  L 2988 3500  L 3597 3500  L 2284 0  L 1503 0  L 191 3500  z " transform="scale(0.015625)"></path><path id="DejaVuSans-4c-mc622994716ac" d="M 603 3500  L 1178 3500  L 1178 0  L 603 0  L 603 3500  z M 603 4863  L 1178 4863  L 1178 4134  L 603 4134  L 603 4863  z " transform="scale(0.015625)"></path><path id="DejaVuSans-44-mc622994716ac" d="M 2194 1759  Q 1497 1759 1228 1600  Q 959 1441 959 1056  Q 959 750 1161 570  Q 1363 391 1709 391  Q 2188 391 2477 730  Q 2766 1069 2766 1631  L 2766 1759  L 2194 1759  z M 3341 1997  L 3341 0  L 2766 0  L 2766 531  Q 2569 213 2275 61  Q 1981 -91 1556 -91  Q 1019 -91 701 211  Q 384 513 384 1019  Q 384 1609 779 1909  Q 1175 2209 1959 2209  L 2766 2209  L 2766 2266  Q 2766 2663 2505 2880  Q 2244 3097 1772 3097  Q 1472 3097 1187 3025  Q 903 2953 641 2809  L 641 3341  Q 956 3463 1253 3523  Q 1550 3584 1831 3584  Q 2591 3584 2966 3190  Q 3341 2797 3341 1997  z " transform="scale(0.015625)"></path><path id="DejaVuSans-4f-mc622994716ac" d="M 603 4863  L 1178 4863  L 1178 0  L 603 0  L 603 4863  z " transform="scale(0.015625)"></path><path id="DejaVuSans-3-mc622994716ac" transform="scale(0.015625)"></path><path id="DejaVuSans-53-mc622994716ac" d="M 1159 525  L 1159 -1331  L 581 -1331  L 581 3500  L 1159 3500  L 1159 2969  Q 1341 3281 1617 3432  Q 1894 3584 2278 3584  Q 2916 3584 3314 3078  Q 3713 2572 3713 1747  Q 3713 922 3314 415  Q 2916 -91 2278 -91  Q 1894 -91 1617 61  Q 1341 213 1159 525  z M 3116 1747  Q 3116 2381 2855 2742  Q 2594 3103 2138 3103  Q 1681 3103 1420 2742  Q 1159 2381 1159 1747  Q 1159 1113 1420 752  Q 1681 391 2138 391  Q 2594 391 2855 752  Q 3116 1113 3116 1747  z " transform="scale(0.015625)"></path><path id="DejaVuSans-45-mc622994716ac" d="M 3116 1747  Q 3116 2381 2855 2742  Q 2594 3103 2138 3103  Q 1681 3103 1420 2742  Q 1159 2381 1159 1747  Q 1159 1113 1420 752  Q 1681 391 2138 391  Q 2594 391 2855 752  Q 3116 1113 3116 1747  z M 1159 2969  Q 1341 3281 1617 3432  Q 1894 3584 2278 3584  Q 2916 3584 3314 3078  Q 3713 2572 3713 1747  Q 3713 922 3314 415  Q 2916 -91 2278 -91  Q 1894 -91 1617 61  Q 1341 213 1159 525  L 1159 0  L 581 0  L 581 4863  L 1159 4863  L 1159 2969  z " transform="scale(0.015625)"></path><path id="DejaVuSans-5c-mc622994716ac" d="M 2059 -325  Q 1816 -950 1584 -1140  Q 1353 -1331 966 -1331  L 506 -1331  L 506 -850  L 844 -850  Q 1081 -850 1212 -737  Q 1344 -625 1503 -206  L 1606 56  L 191 3500  L 800 3500  L 1894 763  L 2988 3500  L 3597 3500  L 2059 -325  z " transform="scale(0.015625)"></path></defs><use href="#DejaVuSans-36-mc622994716ac"></use><use href="#DejaVuSans-58-mc622994716ac" transform="translate(63.484375 0)"></use><use href="#DejaVuSans-55-mc622994716ac" transform="translate(126.859375 0)"></use><use href="#DejaVuSans-59-mc622994716ac" transform="translate(167.96875 0)"></use><use href="#DejaVuSans-4c-mc622994716ac" transform="translate(227.15625 0)"></use><use href="#DejaVuSans-59-mc622994716ac" transform="translate(254.9375 0)"></use><use href="#DejaVuSans-44-mc622994716ac" transform="translate(314.125 0)"></use><use href="#DejaVuSans-4f-mc622994716ac" transform="translate(375.40625 0)"></use><use href="#DejaVuSans-3-mc622994716ac" transform="translate(403.1875 0)"></use><use href="#DejaVuSans-53-mc622994716ac" transform="translate(434.96875 0)"></use><use href="#DejaVuSans-55-mc622994716ac" transform="translate(498.453125 0)"></use><use href="#DejaVuSans-52-mc622994716ac" transform="translate(537.359375 0)"></use><use href="#DejaVuSans-45-mc622994716ac" transform="translate(598.546875 0)"></use><use href="#DejaVuSans-44-mc622994716ac" transform="translate(662.03125 0)"></use><use href="#DejaVuSans-45-mc622994716ac" transform="translate(723.3125 0)"></use><use href="#DejaVuSans-4c-mc622994716ac" transform="translate(786.796875 0)"></use><use href="#DejaVuSans-4f-mc622994716ac" transform="translate(814.578125 0)"></use><use href="#DejaVuSans-4c-mc622994716ac" transform="translate(842.359375 0)"></use><use href="#DejaVuSans-57-mc622994716ac" transform="translate(870.140625 0)"></use><use href="#DejaVuSans-5c-mc622994716ac" transform="translate(909.34375 0)"></use></g></g></g><g id="maidr-4f522d46-d2b5-4d18-92f9-b78da8d82e30-mc622994716ac" maidr="783c1cc6-c742-4894-aa35-a92caee8f2b8-mc622994716ac"><path d="M 80.754545 55.8  L 139.936364 55.8  L 139.936364 92.233735  L 199.118182 92.233735  L 199.118182 143.848193  L 258.3 143.848193  L 258.3 207.607229  L 317.481818 207.607229  L 317.481818 234.93253  L 376.663636 234.93253  L 376.663636 256.185542  L 435.845455 256.185542  L 435.845455 271.366265  " clip-path="url(#p8ec885aafb-mc622994716ac)" style="fill: none; stroke: #1f77b4; stroke-width: 1.5; stroke-linecap: square"></path></g><g id="maidr-2d00cd08-462e-45eb-b4ac-9d3792a7d723-mc622994716ac"><defs><path id="m84b1fe2168-mc622994716ac" d="M 0 5  L 0 -5  " style="stroke: #1f77b4; stroke-width: 1.5"></path></defs><g clip-path="url(#p8ec885aafb-mc622994716ac)"><use href="#m84b1fe2168-mc622994716ac" x="376.663636" y="256.185542" style="fill: #1f77b4; stroke: #1f77b4; stroke-width: 1.5"></use></g></g><g id="maidr-b75fa085-60a4-46dc-81f8-f395e13e5cd8-mc622994716ac"><path d="M 63 320.4  L 63 43.2  " style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"></path></g><g id="maidr-4cb05d3f-9233-4591-b063-9017f07d9b77-mc622994716ac"><path d="M 453.6 320.4  L 453.6 43.2  " style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"></path></g><g id="maidr-b66fe8f9-ecd7-4c01-9048-4ade1893df0a-mc622994716ac"><path d="M 63 320.4  L 453.6 320.4  " style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"></path></g><g id="maidr-b9eb08ae-231c-474c-9382-f4b6beec47a7-mc622994716ac"><path d="M 63 43.2  L 453.6 43.2  " style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"></path></g><g id="text_16-mc622994716ac"><!-- Overall survival --><g transform="translate(211.441875 37.2) scale(0.12 -0.12)"><defs><path id="DejaVuSans-32-mc622994716ac" d="M 2522 4238  Q 1834 4238 1429 3725  Q 1025 3213 1025 2328  Q 1025 1447 1429 934  Q 1834 422 2522 422  Q 3209 422 3611 934  Q 4013 1447 4013 2328  Q 4013 3213 3611 3725  Q 3209 4238 2522 4238  z M 2522 4750  Q 3503 4750 4090 4092  Q 4678 3434 4678 2328  Q 4678 1225 4090 567  Q 3503 -91 2522 -91  Q 1538 -91 948 565  Q 359 1222 359 2328  Q 359 3434 948 4092  Q 1538 4750 2522 4750  z " transform="scale(0.015625)"></path><path id="DejaVuSans-48-mc622994716ac" d="M 3597 1894  L 3597 1613  L 953 1613  Q 991 1019 1311 708  Q 1631 397 2203 397  Q 2534 397 2845 478  Q 3156 559 3463 722  L 3463 178  Q 3153 47 2828 -22  Q 2503 -91 2169 -91  Q 1331 -91 842 396  Q 353 884 353 1716  Q 353 2575 817 3079  Q 1281 3584 2069 3584  Q 2775 3584 3186 3129  Q 3597 2675 3597 1894  z M 3022 2063  Q 3016 2534 2758 2815  Q 2500 3097 2075 3097  Q 1594 3097 1305 2825  Q 1016 2553 972 2059  L 3022 2063  z " transform="scale(0.015625)"></path></defs><use href="#DejaVuSans-32-mc622994716ac"></use><use href="#DejaVuSans-59-mc622994716ac" transform="translate(78.71875 0)"></use><use href="#DejaVuSans-48-mc622994716ac" transform="translate(137.90625 0)"></use><use href="#DejaVuSans-55-mc622994716ac" transform="translate(199.4375 0)"></use><use href="#DejaVuSans-44-mc622994716ac" transform="translate(240.546875 0)"></use><use href="#DejaVuSans-4f-mc622994716ac" transform="translate(301.828125 0)"></use><use href="#DejaVuSans-4f-mc622994716ac" transform="translate(329.609375 0)"></use><use href="#DejaVuSans-3-mc622994716ac" transform="translate(357.390625 0)"></use><use href="#DejaVuSans-56-mc622994716ac" transform="translate(389.171875 0)"></use><use href="#DejaVuSans-58-mc622994716ac" transform="translate(441.265625 0)"></use><use href="#DejaVuSans-55-mc622994716ac" transform="translate(504.640625 0)"></use><use href="#DejaVuSans-59-mc622994716ac" transform="translate(545.75 0)"></use><use href="#DejaVuSans-4c-mc622994716ac" transform="translate(604.9375 0)"></use><use href="#DejaVuSans-59-mc622994716ac" transform="translate(632.71875 0)"></use><use href="#DejaVuSans-44-mc622994716ac" transform="translate(691.90625 0)"></use><use href="#DejaVuSans-4f-mc622994716ac" transform="translate(753.1875 0)"></use></g></g></g></g><defs><clippath id="p8ec885aafb-mc622994716ac"><rect x="63" y="43.2" width="390.6" height="277.2"></rect></clippath></defs></svg><span id="18240753-3607-408e-a410-1f15ddf3938c-alt" class="maidr-inline-alt" hidden="">Kaplan-Meier curve of overall survival over 18 months, with a shaded confidence band and a censoring tick at month 15</span><span id="18240753-3607-408e-a410-1f15ddf3938c-title" class="maidr-inline-title" hidden="">Overall survival</span>
+  <script>(function () {
+'use strict';
+if (window.__maidrInlineWithoutAmd) return;
+var noAmd = [];
+function withoutAmd(script) {
+var amd = window.define;
+if (typeof amd !== 'function' || !amd.amd) return;
+noAmd.push(script);
+if (amd.__maidrInline) return;
+var shim = function () {
+var factory = arguments[arguments.length - 1];
+if (noAmd.indexOf(document.currentScript) >= 0 && typeof factory === 'function') {
+return factory();
+}
+return amd.apply(this, arguments);
+};
+for (var key in amd) shim[key] = amd[key];
+shim.__maidrInline = true;
+window.define = shim;
+}
+window.__maidrInlineWithoutAmd = withoutAmd;
+var PACK = /\/locale-[a-z]{2,3}(?:-[A-Za-z0-9]+)?\.js(?:[?#]|$)/;
+if (window.MutationObserver) {
+new MutationObserver(function (records) {
+for (var i = 0; i < records.length; i++) {
+var added = records[i].addedNodes;
+for (var j = 0; j < added.length; j++) {
+var node = added[j];
+if (node.nodeType === 1 && node.tagName === 'SCRIPT' && PACK.test(node.src || '')) {
+withoutAmd(node);
+}
+}
+}
+}).observe(document.documentElement, { childList: true, subtree: true });
+}
+})();</script>
+  <script>(function () {
+'use strict';
+if (window.__maidrInline) return;
+window.__maidrInline = true;
+var CHART = '.maidr-inline, article[id^="maidr-article-"]';
+var PLOT = 'figure[id^="maidr-figure"] > [tabindex]';
+function inChart(node) {
+return !!(node && node.closest && node.closest(CHART));
+}
+function focusInChart() {
+return inChart(document.activeElement);
+}
+function wrapperOf(node) {
+return node && node.closest ? node.closest('.maidr-inline') : null;
+}
+function settle() {
+var wrappers = document.querySelectorAll('.maidr-inline[data-maidr-inline]');
+for (var i = 0; i < wrappers.length; i++) {
+var wrapper = wrappers[i];
+var plot = wrapper.querySelector(PLOT);
+if (!plot) continue;
+wrapper.removeAttribute('data-maidr-inline');
+wrapper.removeAttribute('role');
+wrapper.removeAttribute('aria-label');
+describe(plot);
+fitChart(wrapper);
+}
+liftStyles();
+}
+function liftStyles() {
+var styles = document.querySelectorAll('.maidr-inline > style');
+for (var i = 0; i < styles.length; i++) {
+var style = styles[i];
+if (style.hasAttribute('data-maidr-inline-css') &&
+document.head.querySelector('style[data-maidr-inline-css]')) {
+style.remove();
+} else {
+document.head.appendChild(style);
+}
+}
+}
+var MAIDR_INSTRUCTION = 'maidr-instruction-';
+function namedBy(plot, element) {
+var text = (element.textContent || '').trim();
+return !!text && (plot.getAttribute('aria-label') || '').indexOf(text) === 0;
+}
+function describe(plot) {
+var wrapper = wrapperOf(plot);
+if (!wrapper) return;
+var ids = [];
+var alt = wrapper.querySelector(':scope > .maidr-inline-alt[id]');
+if (alt) ids.push(alt.id);
+var title = wrapper.querySelector(':scope > .maidr-inline-title[id]');
+if (title && !namedBy(plot, title)) ids.push(title.id);
+var host = wrapper.parentNode && wrapper.parentNode.closest &&
+wrapper.parentNode.closest('[aria-describedby]');
+if (host && !inChart(host)) ids.push(host.getAttribute('aria-describedby'));
+if (!ids.length) return;
+var current = plot.getAttribute('aria-describedby') || '';
+var maidrIds = current.split(/\s+/).filter(function (id) {
+return id.indexOf(MAIDR_INSTRUCTION) === 0;
+});
+var value = ids.concat(maidrIds).join(' ');
+if (current !== value) {
+plot.setAttribute('aria-describedby', value);
+}
+}
+var DIALOG_TEXT = '[role="dialog"] .MuiTypography-body1, [role="dialog"] .MuiTypography-body2, ' +
+'[role="dialog"] .MuiInputBase-root';
+function probeFontSize(className, fontSize) {
+var probe = document.createElement('maidr-inline-probe');
+probe.className = className;
+probe.style.setProperty('display', 'none', 'important');
+if (fontSize) probe.style.setProperty('font-size', fontSize, 'important');
+document.documentElement.appendChild(probe);
+try {
+return parseFloat(getComputedStyle(probe).fontSize);
+} finally {
+probe.remove();
+}
+}
+function sizeDialogs(wrapper) {
+if (!wrapper) return;
+var host = 1;
+for (var node = wrapper.parentElement; node; node = node.parentElement) {
+var z = parseFloat(getComputedStyle(node).zoom);
+if (z > 0) host *= z;
+}
+wrapper.style.setProperty('--maidr-inline-unzoom', String(1 / host));
+var text = wrapper.querySelector(DIALOG_TEXT);
+if (!text) return;
+var size = text.classList.contains('MuiTypography-body2') ? 0.875 : 1;
+var rem = Math.round(probeFontSize(text.className) / size * 100) / 100;
+var medium = probeFontSize('', 'medium');
+if (!(rem > 0) || !(medium > 0)) return;
+wrapper.style.setProperty('--maidr-inline-rem', rem + 'px');
+wrapper.style.setProperty('--maidr-inline-zoom', String(rem < medium ? medium / rem : 1));
+}
+var FITTED = '.html-fill-item > .maidr-inline';
+function textLine(wrapper) {
+var style = getComputedStyle(wrapper);
+var line = parseFloat(style.lineHeight);
+return line > 0 ? line : 1.5 * parseFloat(style.fontSize);
+}
+function edges(style, side) {
+return parseFloat(style['padding' + side]) + parseFloat(style['border' + side + 'Width']);
+}
+function fitChart(wrapper) {
+if (!wrapper || !wrapper.matches(FITTED)) return;
+var body = wrapper.parentElement.parentElement;
+if (body) fitCard(body);
+}
+function fitCard(body) {
+var wrappers = body.querySelectorAll(':scope > .html-fill-item > .maidr-inline');
+var charts = [];
+for (var i = 0; i < wrappers.length; i++) {
+var svg = wrappers[i].querySelector('svg.maidr-inline-svg');
+var view = svg && svg.viewBox && svg.viewBox.baseVal;
+if (!view || !(view.width > 0) || !(view.height > 0)) continue;
+var box = wrappers[i].parentElement;
+charts.push({ wrapper: wrappers[i], box: box, size: svg.style, view: view,
+scrolled: box.scrollTop });
+}
+if (!charts.length || !body.clientWidth) return;
+var chart;
+for (i = 0; i < charts.length; i++) {
+chart = charts[i];
+chart.wrapper.style.paddingTop = '';
+chart.box.style.flexBasis = '';
+chart.size.maxHeight = 'none';
+chart.size.width = '0px';
+chart.size.height = '0px';
+}
+charts[0].size.height = '4000px';
+var tall = body.clientHeight;
+charts[0].size.height = '0px';
+var layout = getComputedStyle(body);
+var sized = Math.abs(tall - body.clientHeight) < 1 &&
+/flex/.test(layout.display) && /^column/.test(layout.flexDirection);
+for (i = 0; i < charts.length; i++) {
+chart = charts[i];
+chart.style = getComputedStyle(chart.box);
+var width = chart.box.clientWidth - parseFloat(chart.style.paddingLeft) -
+parseFloat(chart.style.paddingRight);
+chart.scale = width / chart.view.width;
+if (sized) {
+chart.box.style.flexBasis = chart.view.height * chart.scale +
+edges(chart.style, 'Top') + edges(chart.style, 'Bottom') + 'px';
+}
+}
+for (i = 0; i < charts.length; i++) {
+chart = charts[i];
+var room = 0;
+if (sized) {
+room = chart.box.clientHeight - parseFloat(chart.style.paddingTop) -
+parseFloat(chart.style.paddingBottom) - textLine(chart.wrapper);
+chart.scale = Math.min(chart.scale, Math.max(room, 96) / chart.view.height);
+}
+var height = chart.view.height * chart.scale;
+chart.size.width = chart.view.width * chart.scale + 'px';
+chart.size.height = height + 'px';
+if (room > height) chart.wrapper.style.paddingTop = (room - height) / 2 + 'px';
+}
+for (i = 0; i < charts.length; i++) charts[i].box.scrollTop = charts[i].scrolled;
+}
+var FIELDS = 'textarea[id^="maidr-braille-textarea"], input[id^="maidr-review-input"]';
+function keepInView(target) {
+var wrapper = wrapperOf(target);
+if (!wrapper || !wrapper.matches(FITTED) || !target.matches(FIELDS)) return;
+requestAnimationFrame(function () {
+if (document.activeElement === target) {
+target.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+});
+}
+var TEXT = '[id^="maidr-text-container"]';
+var textObserver = null;
+var steered = null;
+function showText(wrapper) {
+if (!wrapper || wrapper !== steered || !wrapper.matches(FITTED) ||
+!wrapper.contains(document.activeElement)) return;
+var text = wrapper.querySelector(TEXT);
+var area = text && text.parentElement;
+if (!area) return;
+var box = wrapper.parentElement;
+var top = box.getBoundingClientRect().top + box.clientTop;
+var r = area.getBoundingClientRect();
+var over = r.bottom - (top + box.clientHeight);
+if (over > 0.5) box.scrollTop += Math.min(over, Math.max(0, r.top - top));
+}
+function watchText(target, from) {
+var wrapper = wrapperOf(target);
+if (wrapperOf(from) !== wrapper) steered = null;
+if (!wrapper || !wrapper.matches(FITTED) || !window.ResizeObserver) return;
+var figure = wrapper.querySelector('figure[id^="maidr-figure"]');
+if (!figure) return;
+if (!textObserver) {
+textObserver = new ResizeObserver(function (entries) {
+for (var i = 0; i < entries.length; i++) showText(wrapperOf(entries[i].target));
+});
+}
+textObserver.observe(figure);
+}
+function fitCharts() {
+var wrappers = document.querySelectorAll(FITTED);
+if (!wrappers.length) return;
+var observer = window.ResizeObserver && new ResizeObserver(function (entries) {
+var bodies = [];
+for (var i = 0; i < entries.length; i++) {
+var body = entries[i].target.parentElement;
+if (body && bodies.indexOf(body) < 0) bodies.push(body);
+}
+requestAnimationFrame(function () {
+for (var j = 0; j < bodies.length; j++) fitCard(bodies[j]);
+});
+});
+for (var i = 0; i < wrappers.length; i++) {
+fitChart(wrappers[i]);
+if (observer) observer.observe(wrappers[i].parentElement);
+}
+}
+function quietPreview(root) {
+if (!root.querySelector(CHART + ', svg[maidr]')) return;
+root.setAttribute('inert', '');
+var nodes = root.querySelectorAll('[id], [tabindex], [maidr], [maidr-data]');
+for (var i = 0; i < nodes.length; i++) {
+var id = nodes[i].id;
+if (id && document.getElementById(id) !== nodes[i]) nodes[i].removeAttribute('id');
+nodes[i].removeAttribute('tabindex');
+nodes[i].removeAttribute('maidr');
+nodes[i].removeAttribute('maidr-data');
+}
+}
+var HELD = 'data-maidr-inline-held';
+var UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g;
+function hold(svg) {
+if (!svg.id || document.querySelectorAll('[id="' + svg.id + '"]').length < 2) {
+return false;
+}
+svg.setAttribute(HELD, svg.getAttribute('maidr'));
+svg.removeAttribute('maidr');
+return true;
+}
+function hex(length) {
+var bytes = new Uint8Array(length);
+window.crypto.getRandomValues(bytes);
+var out = '';
+for (var i = 0; i < length; i++) out += (bytes[i] % 16).toString(16);
+return out;
+}
+function freshUuid() {
+var h = hex(32);
+return h.slice(0, 8) + '-' + h.slice(8, 12) + '-4' + h.slice(13, 16) + '-a' +
+h.slice(17, 20) + '-' + h.slice(20);
+}
+function rekey(svg) {
+var tokens = {};
+var key = /maidr-inline-(m[0-9a-f]{12})/.exec(svg.getAttribute('class') || '');
+if (key) tokens[key[1]] = 'm' + hex(12);
+var named = [svg].concat(Array.prototype.slice.call(svg.querySelectorAll('[id], [maidr]')));
+for (var i = 0; i < named.length; i++) {
+var found = (named[i].id + ' ' + (named[i] === svg ? '' : named[i].getAttribute('maidr') || ''))
+.match(UUID) || [];
+for (var j = 0; j < found.length; j++) {
+if (!tokens[found[j]]) tokens[found[j]] = freshUuid();
+}
+}
+var pattern = new RegExp(Object.keys(tokens).join('|'), 'g');
+var swap = function (value) {
+return value.replace(pattern, function (token) { return tokens[token]; });
+};
+var elements = [svg].concat(Array.prototype.slice.call(svg.querySelectorAll('*')));
+for (var k = 0; k < elements.length; k++) {
+var attributes = Array.prototype.slice.call(elements[k].attributes);
+for (var m = 0; m < attributes.length; m++) {
+if (attributes[m].name === 'class') continue;
+var swapped = swap(attributes[m].value);
+if (swapped !== attributes[m].value) elements[k].setAttribute(attributes[m].name, swapped);
+}
+}
+var wrapper = wrapperOf(svg);
+var title = wrapper && wrapper.querySelector(':scope > .maidr-inline-title[id]');
+if (title) title.id = swap(title.id);
+var schema = svg.getAttribute(HELD);
+svg.removeAttribute(HELD);
+svg.setAttribute('maidr', schema);
+}
+window.__maidrInlineClaim = function (script) {
+var wrapper = wrapperOf(script);
+var svg = wrapper && wrapper.querySelector('svg[' + HELD + ']');
+if (svg) rekey(svg);
+};
+function holdCopies(node) {
+var svgs = node.matches('.maidr-inline svg[maidr]') ? [node]
+: node.querySelectorAll('.maidr-inline svg[maidr]');
+for (var i = 0; i < svgs.length; i++) {
+if (hold(svgs[i]) && document.readyState !== 'loading') rekey(svgs[i]);
+}
+}
+var settling = false;
+function settleSoon() {
+if (settling) return;
+settling = true;
+requestAnimationFrame(function () {
+settling = false;
+settle();
+});
+}
+if (window.MutationObserver) {
+new MutationObserver(function (records) {
+for (var i = 0; i < records.length; i++) {
+var added = records[i].addedNodes;
+for (var j = 0; j < added.length; j++) {
+var node = added[j];
+if (node.nodeType !== 1) continue;
+var root = node.closest('[data-tippy-root]') ||
+(node.querySelector && node.querySelector('[data-tippy-root]'));
+if (root) {
+quietPreview(root);
+continue;
+}
+holdCopies(node);
+}
+}
+settleSoon();
+}).observe(document.documentElement, { childList: true, subtree: true });
+}
+window.addEventListener('keydown', function (event) {
+if (!focusInChart()) return;
+steered = wrapperOf(document.activeElement);
+}, true);
+document.addEventListener('focusin', function (event) {
+var target = event.target;
+if (!inChart(target)) return;
+if (target.matches && target.matches(PLOT)) describe(target);
+sizeDialogs(wrapperOf(target));
+keepInView(target);
+watchText(target, event.relatedTarget);
+}, true);
+function onReady() {
+settle();
+window.addEventListener('load', function () {
+settle();
+fitCharts();
+});
+}
+if (document.readyState === 'loading') {
+document.addEventListener('DOMContentLoaded', onReady);
+} else {
+onReady();
+}
+})();</script>
+  <script>(function () {
+  if (window.__maidrInlineClaim) window.__maidrInlineClaim(document.currentScript);
+  if (window.maidrLive || window.__maidrInlineLoader) return;
+  window.__maidrInlineLoader = true;
+
+  function fail(why) {
+    window.__maidrInlineLoader = false;
+    console.error('[maidr] The chart loaded but its runtime did not: ' + why +
+      '. Re-render with use_cdn=False to carry maidr.js in the page, which ' +
+      'works without network access.');
+  }
+
+
+  function fromStash(why) {
+    window.maidrLocaleBaseUrl = window.maidrLocaleBaseUrl || "https://cdn.jsdelivr.net/npm/maidr@4.15.0/dist/";
+    var source = window.__maidrJsSource;
+    if (!source) { fail(why); return; }
+    var css = window.__maidrMathCssSource;
+    if (css) {
+      var style = document.createElement('style');
+      style.textContent = css;
+      document.head.appendChild(style);
+      // maidr.js looks for a <link> with this attribute before it fetches
+      // maidr-math.css itself, which it cannot here.
+      var mark = document.createElement('link');
+      mark.setAttribute('data-maidr-math', '');
+      document.head.appendChild(mark);
+    }
+    var script = document.createElement('script');
+    script.text = source;
+    document.head.appendChild(script);
+  }
+
+
+  function fromUrl(url, onError) {
+    var script = document.createElement('script');
+    script.src = url;
+    script.onerror = onError;
+    document.head.appendChild(script);
+  }
+
+  fromUrl("https://cdn.jsdelivr.net/npm/maidr@4.15.0/dist/maidr.js", function () { fromStash('it did not load from ' + "https://cdn.jsdelivr.net/npm/maidr@4.15.0/dist/maidr.js" + ' and the page has no copy of the bundle'); });
+})();</script>
+</div>
+</div>
+</div>
+<p>Left and Right move along the times. Each stop announces the survival probability and the band around it, and month 15 is announced as censored. The curve reaches one half at month 9, which the description gives as the median survival.</p>
+</section>
+<section id="comparing-arms" class="level2">
+<h2 class="anchored" data-anchor-id="comparing-arms">Comparing arms</h2>
+<p>Each call on the same axes adds an arm to one chart, so Up and Down switch between arms at the same time. A censoring time that is not one of the times given is added as a point of its own, at the survival in force then: the Treatment arm holds at 0.79 through month 12, where a subject was censored.</p>
+<div id="c1523d05" class="cell" data-execution_count="3">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3" data-source-line-numbers="nil" data-code-line-numbers="3,6,13,25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> maidr  </span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots()</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>maidr.plot_survival(  </span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">0</span>, <span class="dv">3</span>, <span class="dv">6</span>, <span class="dv">9</span>, <span class="dv">12</span>, <span class="dv">15</span>, <span class="dv">18</span>],</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    [<span class="fl">1.0</span>, <span class="fl">0.88</span>, <span class="fl">0.71</span>, <span class="fl">0.5</span>, <span class="fl">0.41</span>, <span class="fl">0.34</span>, <span class="fl">0.29</span>],</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    censored<span class="op">=</span>[<span class="dv">15</span>],</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>    label<span class="op">=</span><span class="st">"Control"</span>,</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>    ax<span class="op">=</span>ax,</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>maidr.plot_survival(  </span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>    [<span class="dv">0</span>, <span class="dv">3</span>, <span class="dv">6</span>, <span class="dv">9</span>, <span class="dv">15</span>],</span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>    [<span class="fl">1.0</span>, <span class="fl">0.95</span>, <span class="fl">0.86</span>, <span class="fl">0.79</span>, <span class="fl">0.72</span>],</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>    censored<span class="op">=</span>[<span class="dv">12</span>, <span class="dv">18</span>],</span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>    label<span class="op">=</span><span class="st">"Treatment"</span>,</span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>    ax<span class="op">=</span>ax,</span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>ax.set_xlabel(<span class="st">"Months"</span>)</span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>ax.set_ylabel(<span class="st">"Survival probability"</span>)</span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>ax.set_title(<span class="st">"Overall survival by arm"</span>)</span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>ax.legend(title<span class="op">=</span><span class="st">"Arm"</span>)</span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>plt.show()  </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-display">
+<div class="maidr-inline" role="img" aria-label="Kaplan-Meier curves of a control and a treatment arm over 18 months, with censoring ticks" data-maidr-inline="" data-lm-suppress-shortcuts="">
+  <style data-maidr-inline-css="">.maidr-inline {
+margin: 0 0 1em;
+max-width: 100%;
+}
+.maidr-inline article,
+.maidr-inline figure {
+margin: 0;
+padding: 0;
+}
+.maidr-inline-svg {
+display: block;
+max-width: 100%;
+height: auto;
+}
+.reveal .maidr-inline {
+max-width: 95%;
+}
+.quarto-figure-center .maidr-inline,
+.quarto-figure-right .maidr-inline {
+width: fit-content;
+}
+.quarto-figure-center .maidr-inline {
+margin-inline: auto;
+}
+.quarto-figure-right .maidr-inline {
+margin-inline-start: auto;
+}
+.maidr-inline textarea[id^="maidr-braille-textarea"],
+.maidr-inline input[id^="maidr-review-input"] {
+max-width: 100%;
+box-sizing: border-box;
+}
+.maidr-inline .MuiDialog-root {
+zoom: var(--maidr-inline-unzoom, 1);
+}
+.maidr-inline .MuiDialog-paper {
+zoom: var(--maidr-inline-zoom, 1);
+max-width: min(600px, calc((100vw - 64px) / var(--maidr-inline-zoom, 1)));
+max-height: calc((100vh - 64px) / var(--maidr-inline-zoom, 1));
+}
+.reveal .maidr-inline .MuiDialog-paper {
+max-height: min(calc(100% - 64px), calc((100vh - 64px) / var(--maidr-inline-zoom, 1)));
+}
+.reveal .slides:has(.maidr-inline .MuiDialog-root),
+.reveal .slides section:has(.maidr-inline .MuiDialog-root) {
+perspective: none !important;
+}
+.maidr-inline [role="dialog"] {
+text-align: start;
+font-size: var(--maidr-inline-rem, 1rem);
+line-height: 1.5;
+}
+.maidr-inline [role="dialog"] :is(h1, h2, h3, h4, h5, h6):not([class*="MuiTypography-"]) {
+font-size: inherit !important;
+line-height: inherit !important;
+margin: 0 !important;
+}
+.maidr-inline [role="dialog"] .MuiTypography-caption {
+font-size: calc(0.75 * var(--maidr-inline-rem, 1rem)) !important;
+line-height: 1.66 !important;
+}
+.maidr-inline [role="dialog"] :is(ul, ol) {
+display: block !important;
+margin: 0 !important;
+}
+.maidr-inline [role="dialog"] :is(h1, h2, h3, h4, h5, h6) {
+font-family: "Roboto", "Helvetica", "Arial", sans-serif !important;
+color: inherit !important;
+text-transform: none !important;
+text-shadow: none !important;
+word-wrap: normal !important;
+}
+.maidr-inline [role="dialog"] .MuiTypography-h6 {
+font-size: calc(1.25 * var(--maidr-inline-rem, 1rem)) !important;
+line-height: 1.6 !important;
+letter-spacing: 0.0075em !important;
+}
+.maidr-inline [role="dialog"] .MuiTypography-subtitle1 {
+font-size: var(--maidr-inline-rem, 1rem) !important;
+line-height: 1.75 !important;
+letter-spacing: 0.00938em !important;
+}
+.maidr-inline [role="dialog"] .MuiTypography-subtitle2 {
+font-size: calc(0.875 * var(--maidr-inline-rem, 1rem)) !important;
+line-height: 1.57 !important;
+letter-spacing: 0.00714em !important;
+}
+.html-fill-item:has(> .maidr-inline) {
+overflow: auto;
+}
+.html-fill-item > .maidr-inline {
+margin-bottom: 0;
+}
+.html-fill-item > .maidr-inline figure[id^="maidr-figure"] > [tabindex],
+.html-fill-item > .maidr-inline .maidr-inline-svg {
+margin-inline: auto;
+}</style>
+  <style>.maidr-inline-m6dc37c91cb7e, .maidr-inline-m6dc37c91cb7e * {stroke-linejoin: round; stroke-linecap: butt}</style>
+  <svg xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2000/svg" width="589.87px" height="450.659px" viewbox="18.398 20.883 442.402 337.995" version="1.1" id="f908e306-8ff3-49c2-9f81-85b9ce3bd45c" class="maidr-inline-svg maidr-inline-m6dc37c91cb7e" aria-hidden="true" maidr="{&quot;id&quot;: &quot;f908e306-8ff3-49c2-9f81-85b9ce3bd45c&quot;, &quot;subplots&quot;: [[{&quot;id&quot;: &quot;c7f6b276-d82f-442c-9ddd-3e3e151501ba&quot;, &quot;layers&quot;: [{&quot;id&quot;: &quot;c2d14f93-61f1-4254-b10e-afae66d0812e&quot;, &quot;type&quot;: &quot;survival&quot;, &quot;title&quot;: &quot;Overall survival by arm&quot;, &quot;axes&quot;: {&quot;x&quot;: {&quot;label&quot;: &quot;Months&quot;}, &quot;y&quot;: {&quot;label&quot;: &quot;Survival probability&quot;}, &quot;z&quot;: {&quot;label&quot;: &quot;Arm&quot;}}, &quot;data&quot;: [[{&quot;x&quot;: 0.0, &quot;y&quot;: 1.0, &quot;z&quot;: &quot;Control&quot;}, {&quot;x&quot;: 3.0, &quot;y&quot;: 0.88, &quot;z&quot;: &quot;Control&quot;}, {&quot;x&quot;: 6.0, &quot;y&quot;: 0.71, &quot;z&quot;: &quot;Control&quot;}, {&quot;x&quot;: 9.0, &quot;y&quot;: 0.5, &quot;z&quot;: &quot;Control&quot;}, {&quot;x&quot;: 12.0, &quot;y&quot;: 0.41, &quot;z&quot;: &quot;Control&quot;}, {&quot;x&quot;: 15.0, &quot;y&quot;: 0.34, &quot;z&quot;: &quot;Control&quot;, &quot;censored&quot;: true}, {&quot;x&quot;: 18.0, &quot;y&quot;: 0.29, &quot;z&quot;: &quot;Control&quot;}], [{&quot;x&quot;: 0.0, &quot;y&quot;: 1.0, &quot;z&quot;: &quot;Treatment&quot;}, {&quot;x&quot;: 3.0, &quot;y&quot;: 0.95, &quot;z&quot;: &quot;Treatment&quot;}, {&quot;x&quot;: 6.0, &quot;y&quot;: 0.86, &quot;z&quot;: &quot;Treatment&quot;}, {&quot;x&quot;: 9.0, &quot;y&quot;: 0.79, &quot;z&quot;: &quot;Treatment&quot;}, {&quot;x&quot;: 12.0, &quot;y&quot;: 0.79, &quot;z&quot;: &quot;Treatment&quot;, &quot;censored&quot;: true}, {&quot;x&quot;: 15.0, &quot;y&quot;: 0.72, &quot;z&quot;: &quot;Treatment&quot;}, {&quot;x&quot;: 18.0, &quot;y&quot;: 0.72, &quot;z&quot;: &quot;Treatment&quot;, &quot;censored&quot;: true}]], &quot;selectors&quot;: [&quot;g[id='maidr-0d1af2a4-95a0-49ec-be3e-737e03a6f472-m6dc37c91cb7e'] > path&quot;, &quot;g[id='maidr-7a984640-f704-41a8-9948-24aee4b68ede-m6dc37c91cb7e'] > path&quot;], &quot;stepDirection&quot;: &quot;hv&quot;}]}]]}"><defs></defs><g id="figure_1-m6dc37c91cb7e"><g id="maidr-4e2144b5-8dfc-44cc-8cf2-589e8453d59f-m6dc37c91cb7e"><path d="M 0 360  L 504 360  L 504 0  L 0 0  z " style="fill: #ffffff"></path></g><g id="axes_1-m6dc37c91cb7e"><g id="maidr-97408949-b4f2-4dde-ac75-4a1ed9adb0e7-m6dc37c91cb7e"><path d="M 63 320.4  L 453.6 320.4  L 453.6 43.2  L 63 43.2  z " style="fill: #ffffff"></path></g><g id="matplotlib.axis_1-m6dc37c91cb7e"><g id="xtick_1-m6dc37c91cb7e"><g id="maidr-b9080e1f-b22f-43b4-96c2-c06e7730157e-m6dc37c91cb7e"><defs><path id="ma912e78de5-m6dc37c91cb7e" d="M 0 0  L 0 3.5  " style="stroke: #000000; stroke-width: 0.8"></path></defs><g><use href="#ma912e78de5-m6dc37c91cb7e" x="80.754545" y="320.4" style="stroke: #000000; stroke-width: 0.8"></use></g></g><g id="text_1-m6dc37c91cb7e"><!-- 0.0 --><g transform="translate(72.802983 334.997656) scale(0.1 -0.1)"><defs><path id="DejaVuSans-13-m6dc37c91cb7e" d="M 2034 4250  Q 1547 4250 1301 3770  Q 1056 3291 1056 2328  Q 1056 1369 1301 889  Q 1547 409 2034 409  Q 2525 409 2770 889  Q 3016 1369 3016 2328  Q 3016 3291 2770 3770  Q 2525 4250 2034 4250  z M 2034 4750  Q 2819 4750 3233 4129  Q 3647 3509 3647 2328  Q 3647 1150 3233 529  Q 2819 -91 2034 -91  Q 1250 -91 836 529  Q 422 1150 422 2328  Q 422 3509 836 4129  Q 1250 4750 2034 4750  z " transform="scale(0.015625)"></path><path id="DejaVuSans-11-m6dc37c91cb7e" d="M 684 794  L 1344 794  L 1344 0  L 684 0  L 684 794  z " transform="scale(0.015625)"></path></defs><use href="#DejaVuSans-13-m6dc37c91cb7e"></use><use href="#DejaVuSans-11-m6dc37c91cb7e" transform="translate(63.625 0)"></use><use href="#DejaVuSans-13-m6dc37c91cb7e" transform="translate(95.40625 0)"></use></g></g></g><g id="xtick_2-m6dc37c91cb7e"><g id="maidr-ebd322cc-504f-488c-b5da-02503af06d40-m6dc37c91cb7e"><g><use href="#ma912e78de5-m6dc37c91cb7e" x="130.072727" y="320.4" style="stroke: #000000; stroke-width: 0.8"></use></g></g><g id="text_2-m6dc37c91cb7e"><!-- 2.5 --><g transform="translate(122.121165 334.997656) scale(0.1 -0.1)"><defs><path id="DejaVuSans-15-m6dc37c91cb7e" d="M 1228 531  L 3431 531  L 3431 0  L 469 0  L 469 531  Q 828 903 1448 1529  Q 2069 2156 2228 2338  Q 2531 2678 2651 2914  Q 2772 3150 2772 3378  Q 2772 3750 2511 3984  Q 2250 4219 1831 4219  Q 1534 4219 1204 4116  Q 875 4013 500 3803  L 500 4441  Q 881 4594 1212 4672  Q 1544 4750 1819 4750  Q 2544 4750 2975 4387  Q 3406 4025 3406 3419  Q 3406 3131 3298 2873  Q 3191 2616 2906 2266  Q 2828 2175 2409 1742  Q 1991 1309 1228 531  z " transform="scale(0.015625)"></path><path id="DejaVuSans-18-m6dc37c91cb7e" d="M 691 4666  L 3169 4666  L 3169 4134  L 1269 4134  L 1269 2991  Q 1406 3038 1543 3061  Q 1681 3084 1819 3084  Q 2600 3084 3056 2656  Q 3513 2228 3513 1497  Q 3513 744 3044 326  Q 2575 -91 1722 -91  Q 1428 -91 1123 -41  Q 819 9 494 109  L 494 744  Q 775 591 1075 516  Q 1375 441 1709 441  Q 2250 441 2565 725  Q 2881 1009 2881 1497  Q 2881 1984 2565 2268  Q 2250 2553 1709 2553  Q 1456 2553 1204 2497  Q 953 2441 691 2322  L 691 4666  z " transform="scale(0.015625)"></path></defs><use href="#DejaVuSans-15-m6dc37c91cb7e"></use><use href="#DejaVuSans-11-m6dc37c91cb7e" transform="translate(63.625 0)"></use><use href="#DejaVuSans-18-m6dc37c91cb7e" transform="translate(95.40625 0)"></use></g></g></g><g id="xtick_3-m6dc37c91cb7e"><g id="maidr-461afce0-40f2-4905-ae48-4840cd5e277c-m6dc37c91cb7e"><g><use href="#ma912e78de5-m6dc37c91cb7e" x="179.390909" y="320.4" style="stroke: #000000; stroke-width: 0.8"></use></g></g><g id="text_3-m6dc37c91cb7e"><!-- 5.0 --><g transform="translate(171.439347 334.997656) scale(0.1 -0.1)"><use href="#DejaVuSans-18-m6dc37c91cb7e"></use><use href="#DejaVuSans-11-m6dc37c91cb7e" transform="translate(63.625 0)"></use><use href="#DejaVuSans-13-m6dc37c91cb7e" transform="translate(95.40625 0)"></use></g></g></g><g id="xtick_4-m6dc37c91cb7e"><g id="maidr-3c27bfac-241e-459f-8f0e-1c95c619b669-m6dc37c91cb7e"><g><use href="#ma912e78de5-m6dc37c91cb7e" x="228.709091" y="320.4" style="stroke: #000000; stroke-width: 0.8"></use></g></g><g id="text_4-m6dc37c91cb7e"><!-- 7.5 --><g transform="translate(220.757528 334.997656) scale(0.1 -0.1)"><defs><path id="DejaVuSans-1a-m6dc37c91cb7e" d="M 525 4666  L 3525 4666  L 3525 4397  L 1831 0  L 1172 0  L 2766 4134  L 525 4134  L 525 4666  z " transform="scale(0.015625)"></path></defs><use href="#DejaVuSans-1a-m6dc37c91cb7e"></use><use href="#DejaVuSans-11-m6dc37c91cb7e" transform="translate(63.625 0)"></use><use href="#DejaVuSans-18-m6dc37c91cb7e" transform="translate(95.40625 0)"></use></g></g></g><g id="xtick_5-m6dc37c91cb7e"><g id="maidr-2dee7719-5045-4b5e-b8ce-76f0f76c24a2-m6dc37c91cb7e"><g><use href="#ma912e78de5-m6dc37c91cb7e" x="278.027273" y="320.4" style="stroke: #000000; stroke-width: 0.8"></use></g></g><g id="text_5-m6dc37c91cb7e"><!-- 10.0 --><g transform="translate(266.89446 334.997656) scale(0.1 -0.1)"><defs><path id="DejaVuSans-14-m6dc37c91cb7e" d="M 794 531  L 1825 531  L 1825 4091  L 703 3866  L 703 4441  L 1819 4666  L 2450 4666  L 2450 531  L 3481 531  L 3481 0  L 794 0  L 794 531  z " transform="scale(0.015625)"></path></defs><use href="#DejaVuSans-14-m6dc37c91cb7e"></use><use href="#DejaVuSans-13-m6dc37c91cb7e" transform="translate(63.625 0)"></use><use href="#DejaVuSans-11-m6dc37c91cb7e" transform="translate(127.25 0)"></use><use href="#DejaVuSans-13-m6dc37c91cb7e" transform="translate(159.03125 0)"></use></g></g></g><g id="xtick_6-m6dc37c91cb7e"><g id="maidr-731e8a84-e792-4509-ad4a-cd8ec0c29a63-m6dc37c91cb7e"><g><use href="#ma912e78de5-m6dc37c91cb7e" x="327.345455" y="320.4" style="stroke: #000000; stroke-width: 0.8"></use></g></g><g id="text_6-m6dc37c91cb7e"><!-- 12.5 --><g transform="translate(316.212642 334.997656) scale(0.1 -0.1)"><use href="#DejaVuSans-14-m6dc37c91cb7e"></use><use href="#DejaVuSans-15-m6dc37c91cb7e" transform="translate(63.625 0)"></use><use href="#DejaVuSans-11-m6dc37c91cb7e" transform="translate(127.25 0)"></use><use href="#DejaVuSans-18-m6dc37c91cb7e" transform="translate(159.03125 0)"></use></g></g></g><g id="xtick_7-m6dc37c91cb7e"><g id="maidr-dc2f901b-f82e-4dd4-abfb-ee7704751937-m6dc37c91cb7e"><g><use href="#ma912e78de5-m6dc37c91cb7e" x="376.663636" y="320.4" style="stroke: #000000; stroke-width: 0.8"></use></g></g><g id="text_7-m6dc37c91cb7e"><!-- 15.0 --><g transform="translate(365.530824 334.997656) scale(0.1 -0.1)"><use href="#DejaVuSans-14-m6dc37c91cb7e"></use><use href="#DejaVuSans-18-m6dc37c91cb7e" transform="translate(63.625 0)"></use><use href="#DejaVuSans-11-m6dc37c91cb7e" transform="translate(127.25 0)"></use><use href="#DejaVuSans-13-m6dc37c91cb7e" transform="translate(159.03125 0)"></use></g></g></g><g id="xtick_8-m6dc37c91cb7e"><g id="maidr-519fb41f-a0b1-4ebe-8e10-07ff7135bafe-m6dc37c91cb7e"><g><use href="#ma912e78de5-m6dc37c91cb7e" x="425.981818" y="320.4" style="stroke: #000000; stroke-width: 0.8"></use></g></g><g id="text_8-m6dc37c91cb7e"><!-- 17.5 --><g transform="translate(414.849006 334.997656) scale(0.1 -0.1)"><use href="#DejaVuSans-14-m6dc37c91cb7e"></use><use href="#DejaVuSans-1a-m6dc37c91cb7e" transform="translate(63.625 0)"></use><use href="#DejaVuSans-11-m6dc37c91cb7e" transform="translate(127.25 0)"></use><use href="#DejaVuSans-18-m6dc37c91cb7e" transform="translate(159.03125 0)"></use></g></g></g><g id="text_9-m6dc37c91cb7e"><!-- Months --><g transform="translate(240.024219 348.998438) scale(0.1 -0.1)"><defs><path id="DejaVuSans-30-m6dc37c91cb7e" d="M 628 4666  L 1569 4666  L 2759 1491  L 3956 4666  L 4897 4666  L 4897 0  L 4281 0  L 4281 4097  L 3078 897  L 2444 897  L 1241 4097  L 1241 0  L 628 0  L 628 4666  z " transform="scale(0.015625)"></path><path id="DejaVuSans-52-m6dc37c91cb7e" d="M 1959 3097  Q 1497 3097 1228 2736  Q 959 2375 959 1747  Q 959 1119 1226 758  Q 1494 397 1959 397  Q 2419 397 2687 759  Q 2956 1122 2956 1747  Q 2956 2369 2687 2733  Q 2419 3097 1959 3097  z M 1959 3584  Q 2709 3584 3137 3096  Q 3566 2609 3566 1747  Q 3566 888 3137 398  Q 2709 -91 1959 -91  Q 1206 -91 779 398  Q 353 888 353 1747  Q 353 2609 779 3096  Q 1206 3584 1959 3584  z " transform="scale(0.015625)"></path><path id="DejaVuSans-51-m6dc37c91cb7e" d="M 3513 2113  L 3513 0  L 2938 0  L 2938 2094  Q 2938 2591 2744 2837  Q 2550 3084 2163 3084  Q 1697 3084 1428 2787  Q 1159 2491 1159 1978  L 1159 0  L 581 0  L 581 3500  L 1159 3500  L 1159 2956  Q 1366 3272 1645 3428  Q 1925 3584 2291 3584  Q 2894 3584 3203 3211  Q 3513 2838 3513 2113  z " transform="scale(0.015625)"></path><path id="DejaVuSans-57-m6dc37c91cb7e" d="M 1172 4494  L 1172 3500  L 2356 3500  L 2356 3053  L 1172 3053  L 1172 1153  Q 1172 725 1289 603  Q 1406 481 1766 481  L 2356 481  L 2356 0  L 1766 0  Q 1100 0 847 248  Q 594 497 594 1153  L 594 3053  L 172 3053  L 172 3500  L 594 3500  L 594 4494  L 1172 4494  z " transform="scale(0.015625)"></path><path id="DejaVuSans-4b-m6dc37c91cb7e" d="M 3513 2113  L 3513 0  L 2938 0  L 2938 2094  Q 2938 2591 2744 2837  Q 2550 3084 2163 3084  Q 1697 3084 1428 2787  Q 1159 2491 1159 1978  L 1159 0  L 581 0  L 581 4863  L 1159 4863  L 1159 2956  Q 1366 3272 1645 3428  Q 1925 3584 2291 3584  Q 2894 3584 3203 3211  Q 3513 2838 3513 2113  z " transform="scale(0.015625)"></path><path id="DejaVuSans-56-m6dc37c91cb7e" d="M 2834 3397  L 2834 2853  Q 2591 2978 2328 3040  Q 2066 3103 1784 3103  Q 1356 3103 1142 2972  Q 928 2841 928 2578  Q 928 2378 1081 2264  Q 1234 2150 1697 2047  L 1894 2003  Q 2506 1872 2764 1633  Q 3022 1394 3022 966  Q 3022 478 2636 193  Q 2250 -91 1575 -91  Q 1294 -91 989 -36  Q 684 19 347 128  L 347 722  Q 666 556 975 473  Q 1284 391 1588 391  Q 1994 391 2212 530  Q 2431 669 2431 922  Q 2431 1156 2273 1281  Q 2116 1406 1581 1522  L 1381 1569  Q 847 1681 609 1914  Q 372 2147 372 2553  Q 372 3047 722 3315  Q 1072 3584 1716 3584  Q 2034 3584 2315 3537  Q 2597 3491 2834 3397  z " transform="scale(0.015625)"></path></defs><use href="#DejaVuSans-30-m6dc37c91cb7e"></use><use href="#DejaVuSans-52-m6dc37c91cb7e" transform="translate(86.28125 0)"></use><use href="#DejaVuSans-51-m6dc37c91cb7e" transform="translate(147.46875 0)"></use><use href="#DejaVuSans-57-m6dc37c91cb7e" transform="translate(210.84375 0)"></use><use href="#DejaVuSans-4b-m6dc37c91cb7e" transform="translate(250.046875 0)"></use><use href="#DejaVuSans-56-m6dc37c91cb7e" transform="translate(313.421875 0)"></use></g></g></g><g id="matplotlib.axis_2-m6dc37c91cb7e"><g id="ytick_1-m6dc37c91cb7e"><g id="maidr-75cfa79e-fe22-4c4c-9bba-b4222aacb541-m6dc37c91cb7e"><defs><path id="m4e2c312e4c-m6dc37c91cb7e" d="M 0 0  L -3.5 0  " style="stroke: #000000; stroke-width: 0.8"></path></defs><g><use href="#m4e2c312e4c-m6dc37c91cb7e" x="63" y="304.250704" style="stroke: #000000; stroke-width: 0.8"></use></g></g><g id="text_10-m6dc37c91cb7e"><!-- 0.3 --><g transform="translate(40.096875 308.049532) scale(0.1 -0.1)"><defs><path id="DejaVuSans-16-m6dc37c91cb7e" d="M 2597 2516  Q 3050 2419 3304 2112  Q 3559 1806 3559 1356  Q 3559 666 3084 287  Q 2609 -91 1734 -91  Q 1441 -91 1130 -33  Q 819 25 488 141  L 488 750  Q 750 597 1062 519  Q 1375 441 1716 441  Q 2309 441 2620 675  Q 2931 909 2931 1356  Q 2931 1769 2642 2001  Q 2353 2234 1838 2234  L 1294 2234  L 1294 2753  L 1863 2753  Q 2328 2753 2575 2939  Q 2822 3125 2822 3475  Q 2822 3834 2567 4026  Q 2313 4219 1838 4219  Q 1578 4219 1281 4162  Q 984 4106 628 3988  L 628 4550  Q 988 4650 1302 4700  Q 1616 4750 1894 4750  Q 2613 4750 3031 4423  Q 3450 4097 3450 3541  Q 3450 3153 3228 2886  Q 3006 2619 2597 2516  z " transform="scale(0.015625)"></path></defs><use href="#DejaVuSans-13-m6dc37c91cb7e"></use><use href="#DejaVuSans-11-m6dc37c91cb7e" transform="translate(63.625 0)"></use><use href="#DejaVuSans-16-m6dc37c91cb7e" transform="translate(95.40625 0)"></use></g></g></g><g id="ytick_2-m6dc37c91cb7e"><g id="maidr-e15f5e69-12b0-4fba-8e23-bffc9beecfba-m6dc37c91cb7e"><g><use href="#m4e2c312e4c-m6dc37c91cb7e" x="63" y="268.757746" style="stroke: #000000; stroke-width: 0.8"></use></g></g><g id="text_11-m6dc37c91cb7e"><!-- 0.4 --><g transform="translate(40.096875 272.556575) scale(0.1 -0.1)"><defs><path id="DejaVuSans-17-m6dc37c91cb7e" d="M 2419 4116  L 825 1625  L 2419 1625  L 2419 4116  z M 2253 4666  L 3047 4666  L 3047 1625  L 3713 1625  L 3713 1100  L 3047 1100  L 3047 0  L 2419 0  L 2419 1100  L 313 1100  L 313 1709  L 2253 4666  z " transform="scale(0.015625)"></path></defs><use href="#DejaVuSans-13-m6dc37c91cb7e"></use><use href="#DejaVuSans-11-m6dc37c91cb7e" transform="translate(63.625 0)"></use><use href="#DejaVuSans-17-m6dc37c91cb7e" transform="translate(95.40625 0)"></use></g></g></g><g id="ytick_3-m6dc37c91cb7e"><g id="maidr-796a1ab3-0aac-48b8-9fc4-67af23172fdf-m6dc37c91cb7e"><g><use href="#m4e2c312e4c-m6dc37c91cb7e" x="63" y="233.264789" style="stroke: #000000; stroke-width: 0.8"></use></g></g><g id="text_12-m6dc37c91cb7e"><!-- 0.5 --><g transform="translate(40.096875 237.063617) scale(0.1 -0.1)"><use href="#DejaVuSans-13-m6dc37c91cb7e"></use><use href="#DejaVuSans-11-m6dc37c91cb7e" transform="translate(63.625 0)"></use><use href="#DejaVuSans-18-m6dc37c91cb7e" transform="translate(95.40625 0)"></use></g></g></g><g id="ytick_4-m6dc37c91cb7e"><g id="maidr-f7c63f02-2105-46d5-9405-08aafd1c8b12-m6dc37c91cb7e"><g><use href="#m4e2c312e4c-m6dc37c91cb7e" x="63" y="197.771831" style="stroke: #000000; stroke-width: 0.8"></use></g></g><g id="text_13-m6dc37c91cb7e"><!-- 0.6 --><g transform="translate(40.096875 201.570659) scale(0.1 -0.1)"><defs><path id="DejaVuSans-19-m6dc37c91cb7e" d="M 2113 2584  Q 1688 2584 1439 2293  Q 1191 2003 1191 1497  Q 1191 994 1439 701  Q 1688 409 2113 409  Q 2538 409 2786 701  Q 3034 994 3034 1497  Q 3034 2003 2786 2293  Q 2538 2584 2113 2584  z M 3366 4563  L 3366 3988  Q 3128 4100 2886 4159  Q 2644 4219 2406 4219  Q 1781 4219 1451 3797  Q 1122 3375 1075 2522  Q 1259 2794 1537 2939  Q 1816 3084 2150 3084  Q 2853 3084 3261 2657  Q 3669 2231 3669 1497  Q 3669 778 3244 343  Q 2819 -91 2113 -91  Q 1303 -91 875 529  Q 447 1150 447 2328  Q 447 3434 972 4092  Q 1497 4750 2381 4750  Q 2619 4750 2861 4703  Q 3103 4656 3366 4563  z " transform="scale(0.015625)"></path></defs><use href="#DejaVuSans-13-m6dc37c91cb7e"></use><use href="#DejaVuSans-11-m6dc37c91cb7e" transform="translate(63.625 0)"></use><use href="#DejaVuSans-19-m6dc37c91cb7e" transform="translate(95.40625 0)"></use></g></g></g><g id="ytick_5-m6dc37c91cb7e"><g id="maidr-cda62591-4804-4f22-bdc3-4bc4e55abc74-m6dc37c91cb7e"><g><use href="#m4e2c312e4c-m6dc37c91cb7e" x="63" y="162.278873" style="stroke: #000000; stroke-width: 0.8"></use></g></g><g id="text_14-m6dc37c91cb7e"><!-- 0.7 --><g transform="translate(40.096875 166.077701) scale(0.1 -0.1)"><use href="#DejaVuSans-13-m6dc37c91cb7e"></use><use href="#DejaVuSans-11-m6dc37c91cb7e" transform="translate(63.625 0)"></use><use href="#DejaVuSans-1a-m6dc37c91cb7e" transform="translate(95.40625 0)"></use></g></g></g><g id="ytick_6-m6dc37c91cb7e"><g id="maidr-70caf3c1-f9af-47f9-80fb-b03fa8d62070-m6dc37c91cb7e"><g><use href="#m4e2c312e4c-m6dc37c91cb7e" x="63" y="126.785915" style="stroke: #000000; stroke-width: 0.8"></use></g></g><g id="text_15-m6dc37c91cb7e"><!-- 0.8 --><g transform="translate(40.096875 130.584744) scale(0.1 -0.1)"><defs><path id="DejaVuSans-1b-m6dc37c91cb7e" d="M 2034 2216  Q 1584 2216 1326 1975  Q 1069 1734 1069 1313  Q 1069 891 1326 650  Q 1584 409 2034 409  Q 2484 409 2743 651  Q 3003 894 3003 1313  Q 3003 1734 2745 1975  Q 2488 2216 2034 2216  z M 1403 2484  Q 997 2584 770 2862  Q 544 3141 544 3541  Q 544 4100 942 4425  Q 1341 4750 2034 4750  Q 2731 4750 3128 4425  Q 3525 4100 3525 3541  Q 3525 3141 3298 2862  Q 3072 2584 2669 2484  Q 3125 2378 3379 2068  Q 3634 1759 3634 1313  Q 3634 634 3220 271  Q 2806 -91 2034 -91  Q 1263 -91 848 271  Q 434 634 434 1313  Q 434 1759 690 2068  Q 947 2378 1403 2484  z M 1172 3481  Q 1172 3119 1398 2916  Q 1625 2713 2034 2713  Q 2441 2713 2670 2916  Q 2900 3119 2900 3481  Q 2900 3844 2670 4047  Q 2441 4250 2034 4250  Q 1625 4250 1398 4047  Q 1172 3844 1172 3481  z " transform="scale(0.015625)"></path></defs><use href="#DejaVuSans-13-m6dc37c91cb7e"></use><use href="#DejaVuSans-11-m6dc37c91cb7e" transform="translate(63.625 0)"></use><use href="#DejaVuSans-1b-m6dc37c91cb7e" transform="translate(95.40625 0)"></use></g></g></g><g id="ytick_7-m6dc37c91cb7e"><g id="maidr-9913bb53-6f86-41a3-b59e-0dc913543060-m6dc37c91cb7e"><g><use href="#m4e2c312e4c-m6dc37c91cb7e" x="63" y="91.292958" style="stroke: #000000; stroke-width: 0.8"></use></g></g><g id="text_16-m6dc37c91cb7e"><!-- 0.9 --><g transform="translate(40.096875 95.091786) scale(0.1 -0.1)"><defs><path id="DejaVuSans-1c-m6dc37c91cb7e" d="M 703 97  L 703 672  Q 941 559 1184 500  Q 1428 441 1663 441  Q 2288 441 2617 861  Q 2947 1281 2994 2138  Q 2813 1869 2534 1725  Q 2256 1581 1919 1581  Q 1219 1581 811 2004  Q 403 2428 403 3163  Q 403 3881 828 4315  Q 1253 4750 1959 4750  Q 2769 4750 3195 4129  Q 3622 3509 3622 2328  Q 3622 1225 3098 567  Q 2575 -91 1691 -91  Q 1453 -91 1209 -44  Q 966 3 703 97  z M 1959 2075  Q 2384 2075 2632 2365  Q 2881 2656 2881 3163  Q 2881 3666 2632 3958  Q 2384 4250 1959 4250  Q 1534 4250 1286 3958  Q 1038 3666 1038 3163  Q 1038 2656 1286 2365  Q 1534 2075 1959 2075  z " transform="scale(0.015625)"></path></defs><use href="#DejaVuSans-13-m6dc37c91cb7e"></use><use href="#DejaVuSans-11-m6dc37c91cb7e" transform="translate(63.625 0)"></use><use href="#DejaVuSans-1c-m6dc37c91cb7e" transform="translate(95.40625 0)"></use></g></g></g><g id="ytick_8-m6dc37c91cb7e"><g id="maidr-b223823c-1597-440a-b04a-680dfc4648e9-m6dc37c91cb7e"><g><use href="#m4e2c312e4c-m6dc37c91cb7e" x="63" y="55.8" style="stroke: #000000; stroke-width: 0.8"></use></g></g><g id="text_17-m6dc37c91cb7e"><!-- 1.0 --><g transform="translate(40.096875 59.598828) scale(0.1 -0.1)"><use href="#DejaVuSans-14-m6dc37c91cb7e"></use><use href="#DejaVuSans-11-m6dc37c91cb7e" transform="translate(63.625 0)"></use><use href="#DejaVuSans-13-m6dc37c91cb7e" transform="translate(95.40625 0)"></use></g></g></g><g id="text_18-m6dc37c91cb7e"><!-- Survival probability --><g transform="translate(33.694531 230.226562) rotate(-90) scale(0.1 -0.1)"><defs><path id="DejaVuSans-36-m6dc37c91cb7e" d="M 3425 4513  L 3425 3897  Q 3066 4069 2747 4153  Q 2428 4238 2131 4238  Q 1616 4238 1336 4038  Q 1056 3838 1056 3469  Q 1056 3159 1242 3001  Q 1428 2844 1947 2747  L 2328 2669  Q 3034 2534 3370 2195  Q 3706 1856 3706 1288  Q 3706 609 3251 259  Q 2797 -91 1919 -91  Q 1588 -91 1214 -16  Q 841 59 441 206  L 441 856  Q 825 641 1194 531  Q 1563 422 1919 422  Q 2459 422 2753 634  Q 3047 847 3047 1241  Q 3047 1584 2836 1778  Q 2625 1972 2144 2069  L 1759 2144  Q 1053 2284 737 2584  Q 422 2884 422 3419  Q 422 4038 858 4394  Q 1294 4750 2059 4750  Q 2388 4750 2728 4690  Q 3069 4631 3425 4513  z " transform="scale(0.015625)"></path><path id="DejaVuSans-58-m6dc37c91cb7e" d="M 544 1381  L 544 3500  L 1119 3500  L 1119 1403  Q 1119 906 1312 657  Q 1506 409 1894 409  Q 2359 409 2629 706  Q 2900 1003 2900 1516  L 2900 3500  L 3475 3500  L 3475 0  L 2900 0  L 2900 538  Q 2691 219 2414 64  Q 2138 -91 1772 -91  Q 1169 -91 856 284  Q 544 659 544 1381  z M 1991 3584  L 1991 3584  z " transform="scale(0.015625)"></path><path id="DejaVuSans-55-m6dc37c91cb7e" d="M 2631 2963  Q 2534 3019 2420 3045  Q 2306 3072 2169 3072  Q 1681 3072 1420 2755  Q 1159 2438 1159 1844  L 1159 0  L 581 0  L 581 3500  L 1159 3500  L 1159 2956  Q 1341 3275 1631 3429  Q 1922 3584 2338 3584  Q 2397 3584 2469 3576  Q 2541 3569 2628 3553  L 2631 2963  z " transform="scale(0.015625)"></path><path id="DejaVuSans-59-m6dc37c91cb7e" d="M 191 3500  L 800 3500  L 1894 563  L 2988 3500  L 3597 3500  L 2284 0  L 1503 0  L 191 3500  z " transform="scale(0.015625)"></path><path id="DejaVuSans-4c-m6dc37c91cb7e" d="M 603 3500  L 1178 3500  L 1178 0  L 603 0  L 603 3500  z M 603 4863  L 1178 4863  L 1178 4134  L 603 4134  L 603 4863  z " transform="scale(0.015625)"></path><path id="DejaVuSans-44-m6dc37c91cb7e" d="M 2194 1759  Q 1497 1759 1228 1600  Q 959 1441 959 1056  Q 959 750 1161 570  Q 1363 391 1709 391  Q 2188 391 2477 730  Q 2766 1069 2766 1631  L 2766 1759  L 2194 1759  z M 3341 1997  L 3341 0  L 2766 0  L 2766 531  Q 2569 213 2275 61  Q 1981 -91 1556 -91  Q 1019 -91 701 211  Q 384 513 384 1019  Q 384 1609 779 1909  Q 1175 2209 1959 2209  L 2766 2209  L 2766 2266  Q 2766 2663 2505 2880  Q 2244 3097 1772 3097  Q 1472 3097 1187 3025  Q 903 2953 641 2809  L 641 3341  Q 956 3463 1253 3523  Q 1550 3584 1831 3584  Q 2591 3584 2966 3190  Q 3341 2797 3341 1997  z " transform="scale(0.015625)"></path><path id="DejaVuSans-4f-m6dc37c91cb7e" d="M 603 4863  L 1178 4863  L 1178 0  L 603 0  L 603 4863  z " transform="scale(0.015625)"></path><path id="DejaVuSans-3-m6dc37c91cb7e" transform="scale(0.015625)"></path><path id="DejaVuSans-53-m6dc37c91cb7e" d="M 1159 525  L 1159 -1331  L 581 -1331  L 581 3500  L 1159 3500  L 1159 2969  Q 1341 3281 1617 3432  Q 1894 3584 2278 3584  Q 2916 3584 3314 3078  Q 3713 2572 3713 1747  Q 3713 922 3314 415  Q 2916 -91 2278 -91  Q 1894 -91 1617 61  Q 1341 213 1159 525  z M 3116 1747  Q 3116 2381 2855 2742  Q 2594 3103 2138 3103  Q 1681 3103 1420 2742  Q 1159 2381 1159 1747  Q 1159 1113 1420 752  Q 1681 391 2138 391  Q 2594 391 2855 752  Q 3116 1113 3116 1747  z " transform="scale(0.015625)"></path><path id="DejaVuSans-45-m6dc37c91cb7e" d="M 3116 1747  Q 3116 2381 2855 2742  Q 2594 3103 2138 3103  Q 1681 3103 1420 2742  Q 1159 2381 1159 1747  Q 1159 1113 1420 752  Q 1681 391 2138 391  Q 2594 391 2855 752  Q 3116 1113 3116 1747  z M 1159 2969  Q 1341 3281 1617 3432  Q 1894 3584 2278 3584  Q 2916 3584 3314 3078  Q 3713 2572 3713 1747  Q 3713 922 3314 415  Q 2916 -91 2278 -91  Q 1894 -91 1617 61  Q 1341 213 1159 525  L 1159 0  L 581 0  L 581 4863  L 1159 4863  L 1159 2969  z " transform="scale(0.015625)"></path><path id="DejaVuSans-5c-m6dc37c91cb7e" d="M 2059 -325  Q 1816 -950 1584 -1140  Q 1353 -1331 966 -1331  L 506 -1331  L 506 -850  L 844 -850  Q 1081 -850 1212 -737  Q 1344 -625 1503 -206  L 1606 56  L 191 3500  L 800 3500  L 1894 763  L 2988 3500  L 3597 3500  L 2059 -325  z " transform="scale(0.015625)"></path></defs><use href="#DejaVuSans-36-m6dc37c91cb7e"></use><use href="#DejaVuSans-58-m6dc37c91cb7e" transform="translate(63.484375 0)"></use><use href="#DejaVuSans-55-m6dc37c91cb7e" transform="translate(126.859375 0)"></use><use href="#DejaVuSans-59-m6dc37c91cb7e" transform="translate(167.96875 0)"></use><use href="#DejaVuSans-4c-m6dc37c91cb7e" transform="translate(227.15625 0)"></use><use href="#DejaVuSans-59-m6dc37c91cb7e" transform="translate(254.9375 0)"></use><use href="#DejaVuSans-44-m6dc37c91cb7e" transform="translate(314.125 0)"></use><use href="#DejaVuSans-4f-m6dc37c91cb7e" transform="translate(375.40625 0)"></use><use href="#DejaVuSans-3-m6dc37c91cb7e" transform="translate(403.1875 0)"></use><use href="#DejaVuSans-53-m6dc37c91cb7e" transform="translate(434.96875 0)"></use><use href="#DejaVuSans-55-m6dc37c91cb7e" transform="translate(498.453125 0)"></use><use href="#DejaVuSans-52-m6dc37c91cb7e" transform="translate(537.359375 0)"></use><use href="#DejaVuSans-45-m6dc37c91cb7e" transform="translate(598.546875 0)"></use><use href="#DejaVuSans-44-m6dc37c91cb7e" transform="translate(662.03125 0)"></use><use href="#DejaVuSans-45-m6dc37c91cb7e" transform="translate(723.3125 0)"></use><use href="#DejaVuSans-4c-m6dc37c91cb7e" transform="translate(786.796875 0)"></use><use href="#DejaVuSans-4f-m6dc37c91cb7e" transform="translate(814.578125 0)"></use><use href="#DejaVuSans-4c-m6dc37c91cb7e" transform="translate(842.359375 0)"></use><use href="#DejaVuSans-57-m6dc37c91cb7e" transform="translate(870.140625 0)"></use><use href="#DejaVuSans-5c-m6dc37c91cb7e" transform="translate(909.34375 0)"></use></g></g></g><g id="maidr-0d1af2a4-95a0-49ec-be3e-737e03a6f472-m6dc37c91cb7e" maidr="77333356-1601-4f0a-96fc-b6fb105976a1-m6dc37c91cb7e"><path d="M 80.754545 55.8  L 139.936364 55.8  L 139.936364 98.391549  L 199.118182 98.391549  L 199.118182 158.729577  L 258.3 158.729577  L 258.3 233.264789  L 317.481818 233.264789  L 317.481818 265.208451  L 376.663636 265.208451  L 376.663636 290.053521  L 435.845455 290.053521  L 435.845455 307.8  " clip-path="url(#pe328b0c5ad-m6dc37c91cb7e)" style="fill: none; stroke: #1f77b4; stroke-width: 1.5; stroke-linecap: square"></path></g><g id="maidr-a13c2c13-021d-462e-8381-5cab1b457cf9-m6dc37c91cb7e"><defs><path id="mf857d1c095-m6dc37c91cb7e" d="M 0 5  L 0 -5  " style="stroke: #1f77b4; stroke-width: 1.5"></path></defs><g clip-path="url(#pe328b0c5ad-m6dc37c91cb7e)"><use href="#mf857d1c095-m6dc37c91cb7e" x="376.663636" y="290.053521" style="fill: #1f77b4; stroke: #1f77b4; stroke-width: 1.5"></use></g></g><g id="maidr-7a984640-f704-41a8-9948-24aee4b68ede-m6dc37c91cb7e" maidr="77333356-1601-4f0a-96fc-b6fb105976a1-m6dc37c91cb7e"><path d="M 80.754545 55.8  L 139.936364 55.8  L 139.936364 73.546479  L 199.118182 73.546479  L 199.118182 105.490141  L 258.3 105.490141  L 258.3 130.335211  L 317.481818 130.335211  L 317.481818 130.335211  L 376.663636 130.335211  L 376.663636 155.180282  L 435.845455 155.180282  L 435.845455 155.180282  " clip-path="url(#pe328b0c5ad-m6dc37c91cb7e)" style="fill: none; stroke: #ff7f0e; stroke-width: 1.5; stroke-linecap: square"></path></g><g id="maidr-a65f85b3-f0a9-4087-aa01-f29bc9dff706-m6dc37c91cb7e"><defs><path id="m9fa79be578-m6dc37c91cb7e" d="M 0 5  L 0 -5  " style="stroke: #ff7f0e; stroke-width: 1.5"></path></defs><g clip-path="url(#pe328b0c5ad-m6dc37c91cb7e)"><use href="#m9fa79be578-m6dc37c91cb7e" x="317.481818" y="130.335211" style="fill: #ff7f0e; stroke: #ff7f0e; stroke-width: 1.5"></use><use href="#m9fa79be578-m6dc37c91cb7e" x="435.845455" y="155.180282" style="fill: #ff7f0e; stroke: #ff7f0e; stroke-width: 1.5"></use></g></g><g id="maidr-b9c21a4e-ad17-499a-bbe9-1b0cb994b4ce-m6dc37c91cb7e"><path d="M 63 320.4  L 63 43.2  " style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"></path></g><g id="maidr-00b8a02f-98ff-4221-baaf-fed0efef2e52-m6dc37c91cb7e"><path d="M 453.6 320.4  L 453.6 43.2  " style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"></path></g><g id="maidr-ecbacc65-4f9c-41ab-abbd-b65dff913bf3-m6dc37c91cb7e"><path d="M 63 320.4  L 453.6 320.4  " style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"></path></g><g id="maidr-0e94a0ab-75bc-45e0-8ef1-93f272146777-m6dc37c91cb7e"><path d="M 63 43.2  L 453.6 43.2  " style="fill: none; stroke: #000000; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"></path></g><g id="text_19-m6dc37c91cb7e"><!-- Overall survival by arm --><g transform="translate(188.385 37.2) scale(0.12 -0.12)"><defs><path id="DejaVuSans-32-m6dc37c91cb7e" d="M 2522 4238  Q 1834 4238 1429 3725  Q 1025 3213 1025 2328  Q 1025 1447 1429 934  Q 1834 422 2522 422  Q 3209 422 3611 934  Q 4013 1447 4013 2328  Q 4013 3213 3611 3725  Q 3209 4238 2522 4238  z M 2522 4750  Q 3503 4750 4090 4092  Q 4678 3434 4678 2328  Q 4678 1225 4090 567  Q 3503 -91 2522 -91  Q 1538 -91 948 565  Q 359 1222 359 2328  Q 359 3434 948 4092  Q 1538 4750 2522 4750  z " transform="scale(0.015625)"></path><path id="DejaVuSans-48-m6dc37c91cb7e" d="M 3597 1894  L 3597 1613  L 953 1613  Q 991 1019 1311 708  Q 1631 397 2203 397  Q 2534 397 2845 478  Q 3156 559 3463 722  L 3463 178  Q 3153 47 2828 -22  Q 2503 -91 2169 -91  Q 1331 -91 842 396  Q 353 884 353 1716  Q 353 2575 817 3079  Q 1281 3584 2069 3584  Q 2775 3584 3186 3129  Q 3597 2675 3597 1894  z M 3022 2063  Q 3016 2534 2758 2815  Q 2500 3097 2075 3097  Q 1594 3097 1305 2825  Q 1016 2553 972 2059  L 3022 2063  z " transform="scale(0.015625)"></path><path id="DejaVuSans-50-m6dc37c91cb7e" d="M 3328 2828  Q 3544 3216 3844 3400  Q 4144 3584 4550 3584  Q 5097 3584 5394 3201  Q 5691 2819 5691 2113  L 5691 0  L 5113 0  L 5113 2094  Q 5113 2597 4934 2840  Q 4756 3084 4391 3084  Q 3944 3084 3684 2787  Q 3425 2491 3425 1978  L 3425 0  L 2847 0  L 2847 2094  Q 2847 2600 2669 2842  Q 2491 3084 2119 3084  Q 1678 3084 1418 2786  Q 1159 2488 1159 1978  L 1159 0  L 581 0  L 581 3500  L 1159 3500  L 1159 2956  Q 1356 3278 1631 3431  Q 1906 3584 2284 3584  Q 2666 3584 2933 3390  Q 3200 3197 3328 2828  z " transform="scale(0.015625)"></path></defs><use href="#DejaVuSans-32-m6dc37c91cb7e"></use><use href="#DejaVuSans-59-m6dc37c91cb7e" transform="translate(78.71875 0)"></use><use href="#DejaVuSans-48-m6dc37c91cb7e" transform="translate(137.90625 0)"></use><use href="#DejaVuSans-55-m6dc37c91cb7e" transform="translate(199.4375 0)"></use><use href="#DejaVuSans-44-m6dc37c91cb7e" transform="translate(240.546875 0)"></use><use href="#DejaVuSans-4f-m6dc37c91cb7e" transform="translate(301.828125 0)"></use><use href="#DejaVuSans-4f-m6dc37c91cb7e" transform="translate(329.609375 0)"></use><use href="#DejaVuSans-3-m6dc37c91cb7e" transform="translate(357.390625 0)"></use><use href="#DejaVuSans-56-m6dc37c91cb7e" transform="translate(389.171875 0)"></use><use href="#DejaVuSans-58-m6dc37c91cb7e" transform="translate(441.265625 0)"></use><use href="#DejaVuSans-55-m6dc37c91cb7e" transform="translate(504.640625 0)"></use><use href="#DejaVuSans-59-m6dc37c91cb7e" transform="translate(545.75 0)"></use><use href="#DejaVuSans-4c-m6dc37c91cb7e" transform="translate(604.9375 0)"></use><use href="#DejaVuSans-59-m6dc37c91cb7e" transform="translate(632.71875 0)"></use><use href="#DejaVuSans-44-m6dc37c91cb7e" transform="translate(691.90625 0)"></use><use href="#DejaVuSans-4f-m6dc37c91cb7e" transform="translate(753.1875 0)"></use><use href="#DejaVuSans-3-m6dc37c91cb7e" transform="translate(780.96875 0)"></use><use href="#DejaVuSans-45-m6dc37c91cb7e" transform="translate(812.75 0)"></use><use href="#DejaVuSans-5c-m6dc37c91cb7e" transform="translate(876.234375 0)"></use><use href="#DejaVuSans-3-m6dc37c91cb7e" transform="translate(935.421875 0)"></use><use href="#DejaVuSans-44-m6dc37c91cb7e" transform="translate(967.203125 0)"></use><use href="#DejaVuSans-55-m6dc37c91cb7e" transform="translate(1028.484375 0)"></use><use href="#DejaVuSans-50-m6dc37c91cb7e" transform="translate(1067.84375 0)"></use></g></g><g id="legend_1-m6dc37c91cb7e"><g id="maidr-f9e5acaa-c7fc-44e2-b61a-84afdc97e821-m6dc37c91cb7e"><path d="M 363.71875 96.202344  L 446.6 96.202344  Q 448.6 96.202344 448.6 94.202344  L 448.6 50.2  Q 448.6 48.2 446.6 48.2  L 363.71875 48.2  Q 361.71875 48.2 361.71875 50.2  L 361.71875 94.202344  Q 361.71875 96.202344 363.71875 96.202344  z " style="fill: #ffffff; opacity: 0.8; stroke: #cccccc; stroke-linejoin: miter"></path></g><g id="text_20-m6dc37c91cb7e"><!-- Arm --><g transform="translate(394.900781 59.798437) scale(0.1 -0.1)"><defs><path id="DejaVuSans-24-m6dc37c91cb7e" d="M 2188 4044  L 1331 1722  L 3047 1722  L 2188 4044  z M 1831 4666  L 2547 4666  L 4325 0  L 3669 0  L 3244 1197  L 1141 1197  L 716 0  L 50 0  L 1831 4666  z " transform="scale(0.015625)"></path></defs><use href="#DejaVuSans-24-m6dc37c91cb7e"></use><use href="#DejaVuSans-55-m6dc37c91cb7e" transform="translate(68.40625 0)"></use><use href="#DejaVuSans-50-m6dc37c91cb7e" transform="translate(107.765625 0)"></use></g></g><g id="maidr-46022f20-7452-4173-8e86-ac78ef9cb796-m6dc37c91cb7e"><path d="M 365.71875 71.299219  L 375.71875 71.299219  L 375.71875 71.299219  L 385.71875 71.299219  L 385.71875 71.299219  " style="fill: none; stroke: #1f77b4; stroke-width: 1.5; stroke-linecap: square"></path></g><g id="text_21-m6dc37c91cb7e"><!-- Control --><g transform="translate(393.71875 74.799219) scale(0.1 -0.1)"><defs><path id="DejaVuSans-26-m6dc37c91cb7e" d="M 4122 4306  L 4122 3641  Q 3803 3938 3442 4084  Q 3081 4231 2675 4231  Q 1875 4231 1450 3742  Q 1025 3253 1025 2328  Q 1025 1406 1450 917  Q 1875 428 2675 428  Q 3081 428 3442 575  Q 3803 722 4122 1019  L 4122 359  Q 3791 134 3420 21  Q 3050 -91 2638 -91  Q 1578 -91 968 557  Q 359 1206 359 2328  Q 359 3453 968 4101  Q 1578 4750 2638 4750  Q 3056 4750 3426 4639  Q 3797 4528 4122 4306  z " transform="scale(0.015625)"></path></defs><use href="#DejaVuSans-26-m6dc37c91cb7e"></use><use href="#DejaVuSans-52-m6dc37c91cb7e" transform="translate(69.828125 0)"></use><use href="#DejaVuSans-51-m6dc37c91cb7e" transform="translate(131.015625 0)"></use><use href="#DejaVuSans-57-m6dc37c91cb7e" transform="translate(194.390625 0)"></use><use href="#DejaVuSans-55-m6dc37c91cb7e" transform="translate(233.59375 0)"></use><use href="#DejaVuSans-52-m6dc37c91cb7e" transform="translate(272.5 0)"></use><use href="#DejaVuSans-4f-m6dc37c91cb7e" transform="translate(333.6875 0)"></use></g></g><g id="maidr-fe7d469e-68e4-4f8a-9246-509a7b66d0c0-m6dc37c91cb7e"><path d="M 365.71875 86.3  L 375.71875 86.3  L 375.71875 86.3  L 385.71875 86.3  L 385.71875 86.3  " style="fill: none; stroke: #ff7f0e; stroke-width: 1.5; stroke-linecap: square"></path></g><g id="text_22-m6dc37c91cb7e"><!-- Treatment --><g transform="translate(393.71875 89.8) scale(0.1 -0.1)"><defs><path id="DejaVuSans-37-m6dc37c91cb7e" d="M -19 4666  L 3928 4666  L 3928 4134  L 2272 4134  L 2272 0  L 1638 0  L 1638 4134  L -19 4134  L -19 4666  z " transform="scale(0.015625)"></path></defs><use href="#DejaVuSans-37-m6dc37c91cb7e"></use><use href="#DejaVuSans-55-m6dc37c91cb7e" transform="translate(46.375 0)"></use><use href="#DejaVuSans-48-m6dc37c91cb7e" transform="translate(85.28125 0)"></use><use href="#DejaVuSans-44-m6dc37c91cb7e" transform="translate(146.8125 0)"></use><use href="#DejaVuSans-57-m6dc37c91cb7e" transform="translate(208.09375 0)"></use><use href="#DejaVuSans-50-m6dc37c91cb7e" transform="translate(247.296875 0)"></use><use href="#DejaVuSans-48-m6dc37c91cb7e" transform="translate(344.703125 0)"></use><use href="#DejaVuSans-51-m6dc37c91cb7e" transform="translate(406.234375 0)"></use><use href="#DejaVuSans-57-m6dc37c91cb7e" transform="translate(469.609375 0)"></use></g></g></g></g></g><defs><clippath id="pe328b0c5ad-m6dc37c91cb7e"><rect x="63" y="43.2" width="390.6" height="277.2"></rect></clippath></defs></svg><span id="f908e306-8ff3-49c2-9f81-85b9ce3bd45c-alt" class="maidr-inline-alt" hidden="">Kaplan-Meier curves of a control and a treatment arm over 18 months, with censoring ticks</span><span id="f908e306-8ff3-49c2-9f81-85b9ce3bd45c-title" class="maidr-inline-title" hidden="">Overall survival by arm</span>
+  <script>(function () {
+'use strict';
+if (window.__maidrInlineWithoutAmd) return;
+var noAmd = [];
+function withoutAmd(script) {
+var amd = window.define;
+if (typeof amd !== 'function' || !amd.amd) return;
+noAmd.push(script);
+if (amd.__maidrInline) return;
+var shim = function () {
+var factory = arguments[arguments.length - 1];
+if (noAmd.indexOf(document.currentScript) >= 0 && typeof factory === 'function') {
+return factory();
+}
+return amd.apply(this, arguments);
+};
+for (var key in amd) shim[key] = amd[key];
+shim.__maidrInline = true;
+window.define = shim;
+}
+window.__maidrInlineWithoutAmd = withoutAmd;
+var PACK = /\/locale-[a-z]{2,3}(?:-[A-Za-z0-9]+)?\.js(?:[?#]|$)/;
+if (window.MutationObserver) {
+new MutationObserver(function (records) {
+for (var i = 0; i < records.length; i++) {
+var added = records[i].addedNodes;
+for (var j = 0; j < added.length; j++) {
+var node = added[j];
+if (node.nodeType === 1 && node.tagName === 'SCRIPT' && PACK.test(node.src || '')) {
+withoutAmd(node);
+}
+}
+}
+}).observe(document.documentElement, { childList: true, subtree: true });
+}
+})();</script>
+  <script>(function () {
+'use strict';
+if (window.__maidrInline) return;
+window.__maidrInline = true;
+var CHART = '.maidr-inline, article[id^="maidr-article-"]';
+var PLOT = 'figure[id^="maidr-figure"] > [tabindex]';
+function inChart(node) {
+return !!(node && node.closest && node.closest(CHART));
+}
+function focusInChart() {
+return inChart(document.activeElement);
+}
+function wrapperOf(node) {
+return node && node.closest ? node.closest('.maidr-inline') : null;
+}
+function settle() {
+var wrappers = document.querySelectorAll('.maidr-inline[data-maidr-inline]');
+for (var i = 0; i < wrappers.length; i++) {
+var wrapper = wrappers[i];
+var plot = wrapper.querySelector(PLOT);
+if (!plot) continue;
+wrapper.removeAttribute('data-maidr-inline');
+wrapper.removeAttribute('role');
+wrapper.removeAttribute('aria-label');
+describe(plot);
+fitChart(wrapper);
+}
+liftStyles();
+}
+function liftStyles() {
+var styles = document.querySelectorAll('.maidr-inline > style');
+for (var i = 0; i < styles.length; i++) {
+var style = styles[i];
+if (style.hasAttribute('data-maidr-inline-css') &&
+document.head.querySelector('style[data-maidr-inline-css]')) {
+style.remove();
+} else {
+document.head.appendChild(style);
+}
+}
+}
+var MAIDR_INSTRUCTION = 'maidr-instruction-';
+function namedBy(plot, element) {
+var text = (element.textContent || '').trim();
+return !!text && (plot.getAttribute('aria-label') || '').indexOf(text) === 0;
+}
+function describe(plot) {
+var wrapper = wrapperOf(plot);
+if (!wrapper) return;
+var ids = [];
+var alt = wrapper.querySelector(':scope > .maidr-inline-alt[id]');
+if (alt) ids.push(alt.id);
+var title = wrapper.querySelector(':scope > .maidr-inline-title[id]');
+if (title && !namedBy(plot, title)) ids.push(title.id);
+var host = wrapper.parentNode && wrapper.parentNode.closest &&
+wrapper.parentNode.closest('[aria-describedby]');
+if (host && !inChart(host)) ids.push(host.getAttribute('aria-describedby'));
+if (!ids.length) return;
+var current = plot.getAttribute('aria-describedby') || '';
+var maidrIds = current.split(/\s+/).filter(function (id) {
+return id.indexOf(MAIDR_INSTRUCTION) === 0;
+});
+var value = ids.concat(maidrIds).join(' ');
+if (current !== value) {
+plot.setAttribute('aria-describedby', value);
+}
+}
+var DIALOG_TEXT = '[role="dialog"] .MuiTypography-body1, [role="dialog"] .MuiTypography-body2, ' +
+'[role="dialog"] .MuiInputBase-root';
+function probeFontSize(className, fontSize) {
+var probe = document.createElement('maidr-inline-probe');
+probe.className = className;
+probe.style.setProperty('display', 'none', 'important');
+if (fontSize) probe.style.setProperty('font-size', fontSize, 'important');
+document.documentElement.appendChild(probe);
+try {
+return parseFloat(getComputedStyle(probe).fontSize);
+} finally {
+probe.remove();
+}
+}
+function sizeDialogs(wrapper) {
+if (!wrapper) return;
+var host = 1;
+for (var node = wrapper.parentElement; node; node = node.parentElement) {
+var z = parseFloat(getComputedStyle(node).zoom);
+if (z > 0) host *= z;
+}
+wrapper.style.setProperty('--maidr-inline-unzoom', String(1 / host));
+var text = wrapper.querySelector(DIALOG_TEXT);
+if (!text) return;
+var size = text.classList.contains('MuiTypography-body2') ? 0.875 : 1;
+var rem = Math.round(probeFontSize(text.className) / size * 100) / 100;
+var medium = probeFontSize('', 'medium');
+if (!(rem > 0) || !(medium > 0)) return;
+wrapper.style.setProperty('--maidr-inline-rem', rem + 'px');
+wrapper.style.setProperty('--maidr-inline-zoom', String(rem < medium ? medium / rem : 1));
+}
+var FITTED = '.html-fill-item > .maidr-inline';
+function textLine(wrapper) {
+var style = getComputedStyle(wrapper);
+var line = parseFloat(style.lineHeight);
+return line > 0 ? line : 1.5 * parseFloat(style.fontSize);
+}
+function edges(style, side) {
+return parseFloat(style['padding' + side]) + parseFloat(style['border' + side + 'Width']);
+}
+function fitChart(wrapper) {
+if (!wrapper || !wrapper.matches(FITTED)) return;
+var body = wrapper.parentElement.parentElement;
+if (body) fitCard(body);
+}
+function fitCard(body) {
+var wrappers = body.querySelectorAll(':scope > .html-fill-item > .maidr-inline');
+var charts = [];
+for (var i = 0; i < wrappers.length; i++) {
+var svg = wrappers[i].querySelector('svg.maidr-inline-svg');
+var view = svg && svg.viewBox && svg.viewBox.baseVal;
+if (!view || !(view.width > 0) || !(view.height > 0)) continue;
+var box = wrappers[i].parentElement;
+charts.push({ wrapper: wrappers[i], box: box, size: svg.style, view: view,
+scrolled: box.scrollTop });
+}
+if (!charts.length || !body.clientWidth) return;
+var chart;
+for (i = 0; i < charts.length; i++) {
+chart = charts[i];
+chart.wrapper.style.paddingTop = '';
+chart.box.style.flexBasis = '';
+chart.size.maxHeight = 'none';
+chart.size.width = '0px';
+chart.size.height = '0px';
+}
+charts[0].size.height = '4000px';
+var tall = body.clientHeight;
+charts[0].size.height = '0px';
+var layout = getComputedStyle(body);
+var sized = Math.abs(tall - body.clientHeight) < 1 &&
+/flex/.test(layout.display) && /^column/.test(layout.flexDirection);
+for (i = 0; i < charts.length; i++) {
+chart = charts[i];
+chart.style = getComputedStyle(chart.box);
+var width = chart.box.clientWidth - parseFloat(chart.style.paddingLeft) -
+parseFloat(chart.style.paddingRight);
+chart.scale = width / chart.view.width;
+if (sized) {
+chart.box.style.flexBasis = chart.view.height * chart.scale +
+edges(chart.style, 'Top') + edges(chart.style, 'Bottom') + 'px';
+}
+}
+for (i = 0; i < charts.length; i++) {
+chart = charts[i];
+var room = 0;
+if (sized) {
+room = chart.box.clientHeight - parseFloat(chart.style.paddingTop) -
+parseFloat(chart.style.paddingBottom) - textLine(chart.wrapper);
+chart.scale = Math.min(chart.scale, Math.max(room, 96) / chart.view.height);
+}
+var height = chart.view.height * chart.scale;
+chart.size.width = chart.view.width * chart.scale + 'px';
+chart.size.height = height + 'px';
+if (room > height) chart.wrapper.style.paddingTop = (room - height) / 2 + 'px';
+}
+for (i = 0; i < charts.length; i++) charts[i].box.scrollTop = charts[i].scrolled;
+}
+var FIELDS = 'textarea[id^="maidr-braille-textarea"], input[id^="maidr-review-input"]';
+function keepInView(target) {
+var wrapper = wrapperOf(target);
+if (!wrapper || !wrapper.matches(FITTED) || !target.matches(FIELDS)) return;
+requestAnimationFrame(function () {
+if (document.activeElement === target) {
+target.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+});
+}
+var TEXT = '[id^="maidr-text-container"]';
+var textObserver = null;
+var steered = null;
+function showText(wrapper) {
+if (!wrapper || wrapper !== steered || !wrapper.matches(FITTED) ||
+!wrapper.contains(document.activeElement)) return;
+var text = wrapper.querySelector(TEXT);
+var area = text && text.parentElement;
+if (!area) return;
+var box = wrapper.parentElement;
+var top = box.getBoundingClientRect().top + box.clientTop;
+var r = area.getBoundingClientRect();
+var over = r.bottom - (top + box.clientHeight);
+if (over > 0.5) box.scrollTop += Math.min(over, Math.max(0, r.top - top));
+}
+function watchText(target, from) {
+var wrapper = wrapperOf(target);
+if (wrapperOf(from) !== wrapper) steered = null;
+if (!wrapper || !wrapper.matches(FITTED) || !window.ResizeObserver) return;
+var figure = wrapper.querySelector('figure[id^="maidr-figure"]');
+if (!figure) return;
+if (!textObserver) {
+textObserver = new ResizeObserver(function (entries) {
+for (var i = 0; i < entries.length; i++) showText(wrapperOf(entries[i].target));
+});
+}
+textObserver.observe(figure);
+}
+function fitCharts() {
+var wrappers = document.querySelectorAll(FITTED);
+if (!wrappers.length) return;
+var observer = window.ResizeObserver && new ResizeObserver(function (entries) {
+var bodies = [];
+for (var i = 0; i < entries.length; i++) {
+var body = entries[i].target.parentElement;
+if (body && bodies.indexOf(body) < 0) bodies.push(body);
+}
+requestAnimationFrame(function () {
+for (var j = 0; j < bodies.length; j++) fitCard(bodies[j]);
+});
+});
+for (var i = 0; i < wrappers.length; i++) {
+fitChart(wrappers[i]);
+if (observer) observer.observe(wrappers[i].parentElement);
+}
+}
+function quietPreview(root) {
+if (!root.querySelector(CHART + ', svg[maidr]')) return;
+root.setAttribute('inert', '');
+var nodes = root.querySelectorAll('[id], [tabindex], [maidr], [maidr-data]');
+for (var i = 0; i < nodes.length; i++) {
+var id = nodes[i].id;
+if (id && document.getElementById(id) !== nodes[i]) nodes[i].removeAttribute('id');
+nodes[i].removeAttribute('tabindex');
+nodes[i].removeAttribute('maidr');
+nodes[i].removeAttribute('maidr-data');
+}
+}
+var HELD = 'data-maidr-inline-held';
+var UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g;
+function hold(svg) {
+if (!svg.id || document.querySelectorAll('[id="' + svg.id + '"]').length < 2) {
+return false;
+}
+svg.setAttribute(HELD, svg.getAttribute('maidr'));
+svg.removeAttribute('maidr');
+return true;
+}
+function hex(length) {
+var bytes = new Uint8Array(length);
+window.crypto.getRandomValues(bytes);
+var out = '';
+for (var i = 0; i < length; i++) out += (bytes[i] % 16).toString(16);
+return out;
+}
+function freshUuid() {
+var h = hex(32);
+return h.slice(0, 8) + '-' + h.slice(8, 12) + '-4' + h.slice(13, 16) + '-a' +
+h.slice(17, 20) + '-' + h.slice(20);
+}
+function rekey(svg) {
+var tokens = {};
+var key = /maidr-inline-(m[0-9a-f]{12})/.exec(svg.getAttribute('class') || '');
+if (key) tokens[key[1]] = 'm' + hex(12);
+var named = [svg].concat(Array.prototype.slice.call(svg.querySelectorAll('[id], [maidr]')));
+for (var i = 0; i < named.length; i++) {
+var found = (named[i].id + ' ' + (named[i] === svg ? '' : named[i].getAttribute('maidr') || ''))
+.match(UUID) || [];
+for (var j = 0; j < found.length; j++) {
+if (!tokens[found[j]]) tokens[found[j]] = freshUuid();
+}
+}
+var pattern = new RegExp(Object.keys(tokens).join('|'), 'g');
+var swap = function (value) {
+return value.replace(pattern, function (token) { return tokens[token]; });
+};
+var elements = [svg].concat(Array.prototype.slice.call(svg.querySelectorAll('*')));
+for (var k = 0; k < elements.length; k++) {
+var attributes = Array.prototype.slice.call(elements[k].attributes);
+for (var m = 0; m < attributes.length; m++) {
+if (attributes[m].name === 'class') continue;
+var swapped = swap(attributes[m].value);
+if (swapped !== attributes[m].value) elements[k].setAttribute(attributes[m].name, swapped);
+}
+}
+var wrapper = wrapperOf(svg);
+var title = wrapper && wrapper.querySelector(':scope > .maidr-inline-title[id]');
+if (title) title.id = swap(title.id);
+var schema = svg.getAttribute(HELD);
+svg.removeAttribute(HELD);
+svg.setAttribute('maidr', schema);
+}
+window.__maidrInlineClaim = function (script) {
+var wrapper = wrapperOf(script);
+var svg = wrapper && wrapper.querySelector('svg[' + HELD + ']');
+if (svg) rekey(svg);
+};
+function holdCopies(node) {
+var svgs = node.matches('.maidr-inline svg[maidr]') ? [node]
+: node.querySelectorAll('.maidr-inline svg[maidr]');
+for (var i = 0; i < svgs.length; i++) {
+if (hold(svgs[i]) && document.readyState !== 'loading') rekey(svgs[i]);
+}
+}
+var settling = false;
+function settleSoon() {
+if (settling) return;
+settling = true;
+requestAnimationFrame(function () {
+settling = false;
+settle();
+});
+}
+if (window.MutationObserver) {
+new MutationObserver(function (records) {
+for (var i = 0; i < records.length; i++) {
+var added = records[i].addedNodes;
+for (var j = 0; j < added.length; j++) {
+var node = added[j];
+if (node.nodeType !== 1) continue;
+var root = node.closest('[data-tippy-root]') ||
+(node.querySelector && node.querySelector('[data-tippy-root]'));
+if (root) {
+quietPreview(root);
+continue;
+}
+holdCopies(node);
+}
+}
+settleSoon();
+}).observe(document.documentElement, { childList: true, subtree: true });
+}
+window.addEventListener('keydown', function (event) {
+if (!focusInChart()) return;
+steered = wrapperOf(document.activeElement);
+}, true);
+document.addEventListener('focusin', function (event) {
+var target = event.target;
+if (!inChart(target)) return;
+if (target.matches && target.matches(PLOT)) describe(target);
+sizeDialogs(wrapperOf(target));
+keepInView(target);
+watchText(target, event.relatedTarget);
+}, true);
+function onReady() {
+settle();
+window.addEventListener('load', function () {
+settle();
+fitCharts();
+});
+}
+if (document.readyState === 'loading') {
+document.addEventListener('DOMContentLoaded', onReady);
+} else {
+onReady();
+}
+})();</script>
+  <script>(function () {
+  if (window.__maidrInlineClaim) window.__maidrInlineClaim(document.currentScript);
+  if (window.maidrLive || window.__maidrInlineLoader) return;
+  window.__maidrInlineLoader = true;
+
+  function fail(why) {
+    window.__maidrInlineLoader = false;
+    console.error('[maidr] The chart loaded but its runtime did not: ' + why +
+      '. Re-render with use_cdn=False to carry maidr.js in the page, which ' +
+      'works without network access.');
+  }
+
+
+  function fromStash(why) {
+    window.maidrLocaleBaseUrl = window.maidrLocaleBaseUrl || "https://cdn.jsdelivr.net/npm/maidr@4.15.0/dist/";
+    var source = window.__maidrJsSource;
+    if (!source) { fail(why); return; }
+    var css = window.__maidrMathCssSource;
+    if (css) {
+      var style = document.createElement('style');
+      style.textContent = css;
+      document.head.appendChild(style);
+      // maidr.js looks for a <link> with this attribute before it fetches
+      // maidr-math.css itself, which it cannot here.
+      var mark = document.createElement('link');
+      mark.setAttribute('data-maidr-math', '');
+      document.head.appendChild(mark);
+    }
+    var script = document.createElement('script');
+    script.text = source;
+    document.head.appendChild(script);
+  }
+
+
+  function fromUrl(url, onError) {
+    var script = document.createElement('script');
+    script.src = url;
+    script.onerror = onError;
+    document.head.appendChild(script);
+  }
+
+  fromUrl("https://cdn.jsdelivr.net/npm/maidr@4.15.0/dist/maidr.js", function () { fromStash('it did not load from ' + "https://cdn.jsdelivr.net/npm/maidr@4.15.0/dist/maidr.js" + ' and the page has no copy of the bundle'); });
+})();</script>
+</div>
+</div>
+</div>
+<p>The rotor offers the censored times as a unit of its own, so a reader can jump from one to the next and hear how much of the tail is still backed by subjects. Control reaches one half at month 9; Treatment never does, and the description says its median was not reached.</p>
+</section>
+<section id="from-lifelines" class="level2">
+<h2 class="anchored" data-anchor-id="from-lifelines">From lifelines</h2>
+<p>With <a href="https://lifelines.readthedocs.io/">lifelines</a> installed, a fitted <code>KaplanMeierFitter</code> is read the same way when you plot it: the estimate, its confidence band and the times the fitter recorded as censored. Nothing in maidr imports lifelines; the reading is wired up when your own code imports it.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> lifelines <span class="im">import</span> KaplanMeierFitter</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> lifelines.datasets <span class="im">import</span> load_waltons</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> maidr</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> load_waltons()</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots()</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> group, rows <span class="kw">in</span> df.groupby(<span class="st">"group"</span>):</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    KaplanMeierFitter().fit(rows[<span class="st">"T"</span>], rows[<span class="st">"E"</span>], label<span class="op">=</span>group).plot_survival_function(</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>        ax<span class="op">=</span>ax, show_censors<span class="op">=</span><span class="va">True</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("^(?:http:|https:)");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
+            // default icon
+            link.classList.add("external");
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../examples/pr-curve.html" class="pagination-link" aria-label="Precision-Recall Curves [experimental]">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Precision-Recall Curves [experimental]</span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../examples/network-graph.html" class="pagination-link" aria-label="Directed Graphs [experimental]">
+        <span class="nav-page-text">Directed Graphs [experimental]</span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+<p>© (x)Ability Design Lab, University of Illinois Urbana-Champaign</p>
+</div>   
+    <div class="nav-footer-center">
+<p><a href="https://maidr.ai/">maidr.ai</a> | <a href="https://r.maidr.ai/">r.maidr.ai</a> | <a href="https://pypi.org/project/maidr/">PyPI</a></p>
+<div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.com/xability/py-maidr/issues/new/choose" class="toc-action"><i class="bi bi-github"></i>Report an issue</a></li></ul></div><div class="cookie-consent-footer"><a href="#" id="open_preferences_center">Cookie Preferences</a></div></div>
+    <div class="nav-footer-right">
+<p><a href="https://github.com/xability/py-maidr">GitHub</a></p>
+</div>
+  </div>
+</footer>
+
+
+
+
+<script src="../site_libs/quarto-contrib/line-highlight-1.0.0/line-highlight.js" defer="true"></script>
+</body></html>

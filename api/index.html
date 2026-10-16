@@ -294,6 +294,10 @@ cookieconsent.run({
  <span class="dropdown-text">Precision-Recall Curves [experimental]</span></a>
   </li>  
         <li>
+    <a class="dropdown-item" href="../examples/survival.html">
+ <span class="dropdown-text">Kaplan-Meier Survival Curves [experimental]</span></a>
+  </li>  
+        <li>
     <a class="dropdown-item" href="../examples/network-graph.html">
  <span class="dropdown-text">Directed Graphs [experimental]</span></a>
   </li>  
@@ -379,6 +383,7 @@ cookieconsent.run({
   <li><a href="#reading-the-charts-of-an-excel-workbook" id="toc-reading-the-charts-of-an-excel-workbook" class="nav-link" data-scroll-target="#reading-the-charts-of-an-excel-workbook">Reading the charts of an Excel workbook</a></li>
   <li><a href="#reading-the-charts-of-a-powerpoint-presentation-or-a-word-document" id="toc-reading-the-charts-of-a-powerpoint-presentation-or-a-word-document" class="nav-link" data-scroll-target="#reading-the-charts-of-a-powerpoint-presentation-or-a-word-document">Reading the charts of a PowerPoint presentation or a Word document</a></li>
   <li><a href="#reading-the-charts-of-a-tensorboard-log-directory" id="toc-reading-the-charts-of-a-tensorboard-log-directory" class="nav-link" data-scroll-target="#reading-the-charts-of-a-tensorboard-log-directory">Reading the charts of a TensorBoard log directory</a></li>
+  <li><a href="#drawing-a-kaplan-meier-survival-curve" id="toc-drawing-a-kaplan-meier-survival-curve" class="nav-link" data-scroll-target="#drawing-a-kaplan-meier-survival-curve">Drawing a Kaplan-Meier survival curve</a></li>
   <li><a href="#drawing-the-training-curves-and-graph-of-a-keras-model" id="toc-drawing-the-training-curves-and-graph-of-a-keras-model" class="nav-link" data-scroll-target="#drawing-the-training-curves-and-graph-of-a-keras-model">Drawing the training curves and graph of a Keras model</a></li>
   <li><a href="#reading-the-training-curves-of-weights-biases-runs" id="toc-reading-the-training-curves-of-weights-biases-runs" class="nav-link" data-scroll-target="#reading-the-training-curves-of-weights-biases-runs">Reading the training curves of Weights &amp; Biases runs</a></li>
   <li><a href="#reading-the-training-curves-of-mlflow-runs" id="toc-reading-the-training-curves-of-mlflow-runs" class="nav-link" data-scroll-target="#reading-the-training-curves-of-mlflow-runs">Reading the training curves of MLflow runs</a></li>
@@ -568,6 +573,18 @@ cookieconsent.run({
 <tr class="even">
 <td><a href="../api/read_tensorboard_graph.html#maidr.read_tensorboard_graph">read_tensorboard_graph</a></td>
 <td>Read the Keras model graphs of a TensorBoard log directory.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="drawing-a-kaplan-meier-survival-curve" class="level2">
+<h2 class="anchored" data-anchor-id="drawing-a-kaplan-meier-survival-curve">Drawing a Kaplan-Meier survival curve</h2>
+<p>Draw a survival curve from its times, probabilities, censoring times and confidence band with <code>maidr.plot_survival()</code>, read as a survival curve rather than as a step plot. lifelines’ <code>KaplanMeierFitter.plot_survival_function()</code> is read the same way. Experimental.</p>
+<table class="caption-top table">
+<tbody>
+<tr class="odd">
+<td><a href="../api/plot_survival.html#maidr.plot_survival">plot_survival</a></td>
+<td>Draw a Kaplan-Meier curve and read it as a <code>survival</code> layer.</td>
 </tr>
 </tbody>
 </table>
