@@ -19,17 +19,24 @@ order and with the values of ``ClusterGrid.data2d``. Two things were missing:
   clustermap instead of a heatmap -- reached the reader only as an unexplained
   row order. Each is registered here as a ``tree`` layer built from the
   linkage seaborn clustered with, the hierarchy maidr.js navigates by parent,
-  child and sibling.
+  child and sibling. maidr.js highlights a tree node by an element drawn for
+  it, one per node, and seaborn draws one link per merge and nothing at a
+  leaf, so an unseen mark is drawn at each node -- the apex of a merge's link,
+  the tip of a leaf -- and the layer's selectors name them.
 """
 
 from __future__ import annotations
 
+import uuid
 from collections.abc import Sequence
 from typing import Any
 
 import numpy as np
 import wrapt
 from matplotlib.axes import Axes
+from matplotlib.patches import PathPatch
+from matplotlib.path import Path
+from matplotlib.transforms import Affine2D, ScaledTranslation
 
 from maidr.core.context_manager import ContextManager
 from maidr.core.enum import PlotType
@@ -44,6 +51,10 @@ from maidr.util.panel_title import remember_panel_title
 HEATMAP_TITLE = "Clustered heatmap"
 ROW_TREE_TITLE = "Row dendrogram"
 COLUMN_TREE_TITLE = "Column dendrogram"
+
+#: The radius, in points, of the unseen mark at each node -- and so of the dot
+#: maidr.js draws when it highlights one.
+NODE_MARK_RADIUS = 4.0
 
 
 def _label(value: Any) -> str:
@@ -150,6 +161,27 @@ def dendrogram_nodes(
         ``{"x": name}``, with ``"path"`` (its ancestors' names, root first)
         on every node but the root. Empty when nothing was merged.
     """
+    return [entry for _node, entry in _numbered_nodes(linkage, leaves, names)]
+
+
+def _numbered_nodes(
+    linkage: Any, leaves: Sequence[int], names: Sequence[str]
+) -> list[tuple[int, dict[str, Any]]]:
+    """
+    :func:`dendrogram_nodes`, each entry beside the node it is.
+
+    Parameters
+    ----------
+    linkage, leaves, names
+        As :func:`dendrogram_nodes` takes them.
+
+    Returns
+    -------
+    list of tuple
+        ``(node, entry)`` in :func:`dendrogram_nodes`' order, where ``node``
+        is the linkage's number for it: the original index of a leaf, and
+        ``n + i`` for the cluster row ``i`` of the linkage made.
+    """
     merges = np.asarray(linkage, dtype=float)
     if not len(merges):
         return []
@@ -181,11 +213,11 @@ def dendrogram_nodes(
 
     root = count + len(merges) - 1
 
-    nodes: list[dict[str, Any]] = []
+    nodes: list[tuple[int, dict[str, Any]]] = []
     stack: list[tuple[int, str, list[str]]] = [(root, name(root), [])]
     while stack:
         node, own, path = stack.pop()
-        nodes.append({"x": own, "path": path} if path else {"x": own})
+        nodes.append((node, {"x": own, "path": path} if path else {"x": own}))
         if node not in children:
             continue
         taken: set[str] = set()
@@ -202,11 +234,135 @@ def dendrogram_nodes(
     return nodes
 
 
+def _node_positions(
+    linkage: Any, leaves: Sequence[int], dendrogram: Any
+) -> dict[int, tuple[float, float]] | None:
+    """
+    Where each node of a dendrogram is drawn, in seaborn's tree coordinates.
+
+    seaborn draws the links scipy's ``dendrogram`` laid out: leaf ``k`` of
+    the drawn order at ``5 + 10 * k`` along the tree, at distance ``0``, and
+    each merge as a link whose apex sits midway between its two children,
+    at the distance they merged at. A node is placed at the tip of its leaf
+    or the apex of its link, and every merge is checked against a link
+    seaborn drew, so a layout this does not foresee places nothing rather
+    than a mark beside the link it names.
+
+    Parameters
+    ----------
+    linkage : array-like
+        The ``(n - 1, 4)`` linkage matrix the dendrogram was drawn from.
+    leaves : sequence of int
+        The original index of each leaf, in drawn order.
+    dendrogram : Any
+        seaborn's ``_DendrogramPlotter``: its ``independent_coord`` and
+        ``dependent_coord`` are the drawn links, along the tree and in
+        distance.
+
+    Returns
+    -------
+    dict or None
+        Each node's ``(along, distance)``, keyed by its number in the
+        linkage, or ``None`` when a merge has no link drawn where it should.
+    """
+    merges = np.asarray(linkage, dtype=float)
+    try:
+        along = np.asarray(dendrogram.independent_coord, dtype=float)
+        height = np.asarray(dendrogram.dependent_coord, dtype=float)
+    except (AttributeError, TypeError, ValueError):
+        return None
+    if along.shape != (len(merges), 4) or height.shape != along.shape:
+        return None
+    count = len(leaves)
+    positions = {int(leaf): (5.0 + 10.0 * at, 0.0) for at, leaf in enumerate(leaves)}
+    if len(positions) != count:
+        return None
+    links = np.column_stack([along, height])
+    for row, (left, right, distance, _size) in enumerate(merges):
+        first, second = positions.get(int(left)), positions.get(int(right))
+        if first is None or second is None:
+            return None
+        (low_at, low_height), (high_at, high_height) = sorted((first, second))
+        # The link scipy draws for this merge: up from one child, across at
+        # the merge distance, and down to the other.
+        expected = [
+            low_at, low_at, high_at, high_at,
+            low_height, distance, distance, high_height,
+        ]  # fmt: skip
+        if not np.isclose(links, expected).all(axis=1).any():
+            return None
+        positions[count + row] = ((low_at + high_at) / 2, float(distance))
+    return positions
+
+
+def _mark_nodes(
+    ax: Axes, positions: Sequence[tuple[float, float]], rotated: bool
+) -> list[str]:
+    """
+    Draw an unseen mark at each node, for maidr.js to outline, and name them.
+
+    The ``tree`` trace highlights one drawn element per node, and seaborn
+    draws one link per merge and nothing at a leaf. Each mark is a small
+    circle, sized in points so it is the same on screen whatever the
+    dendrogram's scale, centered on its node: fully transparent and with no
+    edge, so the figure looks as it did. The highlight copies it in the
+    highlight color at full opacity, a dot on the apex of a link or the tip
+    of a leaf. The marks are left out of layout and unclipped, so a leaf's
+    mark at the edge of the axes is whole and a tight bounding box is
+    unchanged, and drawn above everything else on the axes: maidr.js outlines
+    a selected panel by stroking the first shape in it, which is the tree's
+    links on a dendrogram's axes, and a mark drawn first would take that
+    outline instead.
+
+    Parameters
+    ----------
+    ax : Axes
+        The dendrogram's axes.
+    positions : sequence of tuple
+        Each node's ``(along, distance)``, in the layer's node order.
+    rotated : bool
+        Whether the tree is drawn on its side, distance along ``x`` -- the
+        row dendrogram.
+
+    Returns
+    -------
+    list of str
+        One selector per mark, in the order given.
+    """
+    figure = ax.get_figure()
+    size = Affine2D().scale(NODE_MARK_RADIUS / 72) + figure.dpi_scale_trans
+    above = max((artist.get_zorder() for artist in ax.get_children()), default=0)
+    selectors = []
+    with ContextManager.set_internal_context():
+        for along, distance in positions:
+            x, y = (distance, along) if rotated else (along, distance)
+            mark = PathPatch(
+                Path.unit_circle(),
+                transform=size + ScaledTranslation(x, y, ax.transData),
+                facecolor=(0, 0, 0, 0),
+                edgecolor="none",
+                linewidth=0,
+                clip_on=False,
+                zorder=above + 1,
+            )
+            mark.set_in_layout(False)
+            mark.set_gid(f"maidr-{uuid.uuid4()}")
+            ax.add_artist(mark)
+            selectors.append(f"g[id='{mark.get_gid()}'] > path")
+    return selectors
+
+
 def _register_tree(
     ax: Axes | None, dendrogram: Any, names: list[str], noun: str, title: str
 ) -> None:
     """
     Register one dendrogram as a ``tree`` layer on the axes it is drawn on.
+
+    Each node is highlighted by a mark drawn at it (:func:`_mark_nodes`),
+    one per node and in the layer's order. When the nodes cannot be placed
+    on the drawn links, none is drawn and the layer has no ``selectors``: a
+    highlight that has slipped by one outlines a neighbour for every node
+    after it, which is worse than none.
 
     Parameters
     ----------
@@ -226,20 +382,27 @@ def _register_tree(
     leaves = getattr(dendrogram, "reordered_ind", None)
     if ax is None or linkage is None or leaves is None or len(leaves) != len(names):
         return
-    nodes = dendrogram_nodes(linkage, list(leaves), names)
-    if not nodes:
+    numbered = _numbered_nodes(linkage, list(leaves), names)
+    if not numbered:
         return
+    positions = _node_positions(linkage, list(leaves), dendrogram)
+    selectors = None
+    if positions is not None and len(positions) == len(numbered):
+        # seaborn draws only the row dendrogram on its side.
+        rotated = bool(getattr(dendrogram, "rotate", False)) and (
+            getattr(dendrogram, "axis", None) == 0
+        )
+        selectors = _mark_nodes(
+            ax, [positions[node] for node, _entry in numbered], rotated
+        )
     remember_panel_title(ax, title)
     FigureManager.add_plot(
         PrebuiltPlot(
             ax,
             PlotType.TREE,
             labels={"x": noun},
-            data=nodes,
-            # Nothing drawn answers to a node one for one: the collection draws
-            # one link per merge and nothing at a leaf, and the trace drops a
-            # highlight whose count does not match rather than misplace it.
-            selectors=None,
+            data=[entry for _node, entry in numbered],
+            selectors=selectors,
         )
     )
 

@@ -7,23 +7,28 @@ by their centers because seaborn labels only every other one, and the
 dendrograms registered nothing, so the clustering reached the reader only as
 an unexplained row order. The tests pin the heatmap against
 ``ClusterGrid.data2d``, the strips as unread, and each dendrogram as a
-``tree`` layer whose structure is the linkage seaborn clustered with.
+``tree`` layer whose structure is the linkage seaborn clustered with, and
+whose every node is highlighted by an unseen mark where seaborn drew it.
 """
 
 from __future__ import annotations
 
+import io
+import re
 from typing import Any
 
+import matplotlib.image
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pytest
 import seaborn as sns
+from matplotlib.collections import LineCollection
 
 import maidr
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.figure_manager import FigureManager
-from maidr.patch.clustermap import dendrogram_nodes
+from maidr.patch.clustermap import NODE_MARK_RADIUS, dendrogram_nodes
 from maidr.util.bundle_capability import bundle_trace_types
 
 
@@ -173,9 +178,9 @@ def test_each_dendrogram_is_the_tree_seaborn_clustered_with(frame, side):
     top = dendrogram.linkage[-1, 2]
     assert nodes[0]["x"].startswith(f"{leaf_names[0]} to {leaf_names[-1]} ")
     assert f"{top:.3g}" in nodes[0]["x"]
-    # No magnitude, and no highlight that would land on the wrong link.
+    # No magnitude, and one highlight per node.
     assert all("y" not in node for node in nodes)
-    assert MaidrKey.SELECTOR not in tree
+    assert len(tree[MaidrKey.SELECTOR]) == len(nodes)
 
 
 def test_a_tree_is_built_depth_first_in_drawn_order():
@@ -221,3 +226,184 @@ def test_a_clustermap_renders_and_the_bundle_knows_its_trees(frame):
 
     assert "Row dendrogram" in html and "Column dendrogram" in html
     assert "tree" in bundle_trace_types()
+
+
+# --- Highlighting each node -------------------------------------------------
+#
+# maidr.js outlines one drawn element per node, and seaborn draws one link per
+# merge and nothing at a leaf, so an unseen mark is drawn at every node: at
+# the apex of a merge's link and at the tip of a leaf. These pin the marks to
+# the nodes they name, in the layer's order, against the links seaborn drew,
+# and the figure as it looked without them.
+
+
+def marks(grid, ax) -> list:
+    """The artist each of the tree layer's selectors names, in its order."""
+    by_gid = {artist.get_gid(): artist for artist in ax.get_children()}
+    selectors = layer_on(grid, ax)[MaidrKey.SELECTOR]
+    return [by_gid[re.fullmatch(r"g\[id='(.+)'\] > path", s)[1]] for s in selectors]
+
+
+def tree_coords(point, rotated: bool) -> tuple[float, float]:
+    """A point in data coordinates as ``(along the tree, distance)``."""
+    x, y = point
+    return (y, x) if rotated else (x, y)
+
+
+def centre(ax, mark) -> np.ndarray:
+    """Where a mark is centred, in the axes' data coordinates."""
+    return ax.transData.inverted().transform(mark.get_transform().transform((0, 0)))
+
+
+def _clustermaps() -> list:
+    rng = np.random.default_rng(3)
+    tied = pd.DataFrame(
+        [[0, 1], [0, 1], [1, 2], [1, 2], [5, 6], [9, 10]],
+        index=list("pqrstu"),
+        columns=["A", "B"],
+    )
+    return [
+        pytest.param({}, id="default"),
+        pytest.param({"method": "ward"}, id="ward"),
+        pytest.param({"z_score": 0, "metric": "correlation"}, id="correlation"),
+        pytest.param({"data": pd.DataFrame(rng.normal(size=(60, 8)))}, id="sixty-rows"),
+        pytest.param({"data": tied}, id="tied-distances"),
+    ]
+
+
+@pytest.mark.parametrize("side", ["row", "col"])
+@pytest.mark.parametrize("options", _clustermaps())
+def test_each_node_is_marked_where_it_is_drawn(frame, side, options):
+    options = dict(options)
+    grid = sns.clustermap(options.pop("data", frame), **options)
+    ax = getattr(grid, f"ax_{side}_dendrogram")
+    rotated = side == "row"
+    nodes = layer_on(grid, ax)[MaidrKey.DATA]
+    leaf_names = layer_on(grid, grid.ax_heatmap)[MaidrKey.DATA][
+        MaidrKey.Y if rotated else MaidrKey.X
+    ]
+    (lines,) = [c for c in ax.collections if isinstance(c, LineCollection)]
+    links = [
+        np.array([tree_coords(vertex, rotated) for vertex in segment])
+        for segment in lines.get_segments()
+    ]
+    found = marks(grid, ax)
+
+    # One mark per node, each a separate artist, in the layer's order.
+    assert len(found) == len(nodes) == 2 * len(leaf_names) - 1
+    assert len({id(mark) for mark in found}) == len(found)
+    at = {
+        (*node.get("path", []), node["x"]): np.array(
+            tree_coords(centre(ax, mark), rotated)
+        )
+        for node, mark in zip(nodes, found)
+    }
+    children: dict[tuple, list[np.ndarray]] = {}
+    for address, point in at.items():
+        children.setdefault(address[:-1], []).append(point)
+
+    leaf = 0
+    for address, point in at.items():
+        below = children.get(address)
+        if below is None:
+            # A leaf: at the tip of its row or column, on the baseline.
+            assert address[-1].startswith(leaf_names[leaf])
+            np.testing.assert_allclose(point, (5 + 10 * leaf, 0), atol=1e-9)
+            leaf += 1
+            continue
+        # A merge: at the apex of the link seaborn drew down to its children.
+        (link,) = [
+            link
+            for link in links
+            if np.allclose(link[[0, 3]], below, atol=1e-9)
+            and np.isclose(link[1, 1], point[1])
+        ]
+        np.testing.assert_allclose(
+            point, ((link[1, 0] + link[2, 0]) / 2, link[1, 1]), atol=1e-9
+        )
+    assert leaf == len(leaf_names)
+
+
+def test_the_marks_are_unseen_and_above_the_links(frame):
+    grid = sns.clustermap(frame)
+
+    for ax in (grid.ax_row_dendrogram, grid.ax_col_dendrogram):
+        (lines,) = [c for c in ax.collections if isinstance(c, LineCollection)]
+        for mark in marks(grid, ax):
+            assert mark.get_facecolor()[3] == 0
+            assert mark.get_edgecolor()[3] == 0
+            assert mark.get_linewidth() == 0
+            assert not mark.get_in_layout()
+            assert not mark.get_clip_on()
+            # Above the links: maidr.js outlines a selected panel by stroking
+            # the first shape in it, and that stays the tree's links.
+            assert mark.get_zorder() > lines.get_zorder()
+            # Small, and the same size on screen whatever the tree's scale.
+            corner = mark.get_transform().transform((1, 0))
+            middle = mark.get_transform().transform((0, 0))
+            radius = np.hypot(*(corner - middle)) * 72 / grid.figure.dpi
+            assert radius == pytest.approx(NODE_MARK_RADIUS)
+
+
+def _png(figure, **options) -> np.ndarray:
+    buffer = io.BytesIO()
+    figure.savefig(buffer, format="png", **options)
+    buffer.seek(0)
+    return matplotlib.image.imread(buffer)
+
+
+@pytest.mark.parametrize("options", [{}, {"bbox_inches": "tight"}])
+def test_the_figure_looks_as_it_did_without_the_marks(frame, options):
+    grid = sns.clustermap(frame)
+    every = [
+        mark
+        for ax in (grid.ax_row_dendrogram, grid.ax_col_dendrogram)
+        for mark in marks(grid, ax)
+    ]
+
+    drawn = _png(grid.figure, **options)
+    for mark in every:
+        mark.set_visible(False)
+    without = _png(grid.figure, **options)
+
+    assert drawn.shape == without.shape
+    np.testing.assert_array_equal(drawn, without)
+
+
+def test_a_tree_not_laid_out_as_expected_is_not_highlighted(frame, monkeypatch):
+    """A link out of place would put every mark after it on the wrong node."""
+    plotter = sns.matrix._DendrogramPlotter
+    calculate = plotter.calculate_dendrogram
+
+    def shifted(self):
+        dendrogram = calculate(self)
+        dendrogram["icoord"] = [[x + 1 for x in link] for link in dendrogram["icoord"]]
+        return dendrogram
+
+    monkeypatch.setattr(plotter, "calculate_dendrogram", shifted)
+    grid = sns.clustermap(frame)
+
+    for ax in (grid.ax_row_dendrogram, grid.ax_col_dendrogram):
+        tree = layer_on(grid, ax)
+        assert (
+            len(tree[MaidrKey.DATA])
+            == 2 * len(frame.index if ax is grid.ax_row_dendrogram else frame.columns)
+            - 1
+        )
+        assert MaidrKey.SELECTOR not in tree
+        assert not ax.patches
+
+
+def test_the_rendered_page_carries_a_mark_per_selector(frame):
+    grid = sns.clustermap(frame)
+    selectors = [
+        selector
+        for ax in (grid.ax_row_dendrogram, grid.ax_col_dendrogram)
+        for selector in layer_on(grid, ax)[MaidrKey.SELECTOR]
+    ]
+
+    html = str(maidr.render(grid))
+
+    for selector in selectors:
+        gid = re.fullmatch(r"g\[id='(.+)'\] > path", selector)[1]
+        assert re.search(rf'<g id="{gid}"[^>]*>\s*<path ', html), gid
