@@ -665,7 +665,7 @@ def test_a_string_frame_carries_its_script_compacted_as_plain_text(plotly):
     The script it carried, its comments left out, was 22 KB of every flush,
     20 KB more than before charts were fitted. It carries its own kind's
     alone now, compacted, and its stylesheet compacted: 22-24 KB as HTML
-    writes it, a little over twice what it carried then (``_ONLOAD_BEFORE``),
+    writes it, 2.3-2.5 times what it carried then (``_ONLOAD_BEFORE``),
     as plain text, which every browser runs. Packed, it was less than that,
     but a browser that could not unpack it left the frame 150px tall, the
     chart cut off
@@ -686,7 +686,7 @@ def test_a_string_frame_carries_its_script_compacted_as_plain_text(plotly):
     kind = "plotly" if plotly else "matplotlib"
     for gone in ("DecompressionStream", "atob(", "createElement('script')"):
         assert gone not in onload, gone
-    assert len(onload) + len(style) <= 25_000, (
+    assert len(onload) + len(style) <= 2.6 * _ONLOAD_BEFORE[kind], (
         len(onload),
         len(style),
     )
