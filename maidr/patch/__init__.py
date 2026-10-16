@@ -24,6 +24,7 @@ from . import (  # noqa: E402, F401
     boxenplot,
     boxplot,
     clear,
+    clustermap,
     colorbar,
     contour,
     correlogram,

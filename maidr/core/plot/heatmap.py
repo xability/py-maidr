@@ -48,7 +48,31 @@ class HeatPlot(
             if isinstance(own_grid, (QuadMesh, PolyQuadMesh, AxesImage))
             else None
         )
+        # Names a reader of the whole chart gave the rows and columns -- see
+        # `name_cells`. Empty unless one did.
+        self._given_names: dict[MaidrKey, list[str]] = {}
         super().__init__(ax, PlotType.HEAT)
+
+    def name_cells(self, x: list[str], y: list[str]) -> None:
+        """
+        Name every column and row, for a caller that knows them all.
+
+        The axis names a cell only where it carries a label for every one, and
+        seaborn thins the labels of a large heatmap -- measured, a 60-row
+        ``seaborn.clustermap`` labels every other row -- so each row was named
+        by its center, ``0.5``, ``1.5``, ... A caller that drew the grid from
+        labelled data, such as the ``clustermap`` patch, hands the labels over
+        here instead. A list whose length does not match the grid is ignored.
+
+        Parameters
+        ----------
+        x : list of str
+            One name per column, left to right.
+        y : list of str
+            One name per row, in the order the rows are emitted.
+        """
+        self._given_names = {MaidrKey.X: list(x), MaidrKey.Y: list(y)}
+        self._schema = {}
 
     def render(self) -> dict:
         base_maidr = super().render()
@@ -140,6 +164,9 @@ class HeatPlot(
             One name per cell, or whatever the axis gave when the cells
             cannot be located.
         """
+        given = self._given_names.get(key)
+        if given is not None and len(given) == count:
+            return list(given)
         ticks = self.extract_level(self.ax, key)
         centers = self._cell_centers(sm, key, count)
         if centers is None:

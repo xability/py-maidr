@@ -53,6 +53,7 @@ MIXED_ITEMS = (
     "* Two-dimensional histogram (`go.Histogram2d`)",
     "* Choropleth map [experimental] (`go.Choropleth`, `px.choropleth`) and "
     "geographic scatter",
+    "* Clustered heatmap (`sns.clustermap()`)",
 )
 
 

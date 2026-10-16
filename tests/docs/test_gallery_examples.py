@@ -108,6 +108,9 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
     },
     "examples/heatmap-hexbin-contour.qmd": {
         "Heat Map": [["heat"]],
+        # The column tree above the heatmap, the row tree to its left; the
+        # corner the colorbar sits in holds no chart.
+        "Clustered Heat Map": [["", "tree", "tree", "heat"]],
         "Hexbin Plot [experimental]": [["hexbin"]],
         "Contour Plot [experimental]": [["contour"]],
     },
