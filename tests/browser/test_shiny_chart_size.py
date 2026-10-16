@@ -437,10 +437,10 @@ def test_a_dialog_has_the_room_it_had_before_charts_were_fitted(
 
     Kept to the box, help showed 104px of its text in a 300px output; room,
     placement and scrolling of its own for a dialog in a fitted box cut
-    another dialog off, or moved the page as it closed. While
-    a dialog is open, the output is laid out as before charts were fitted,
-    and the dialog has the room it had then; the output is fitted again as
-    it closes.
+    another dialog off, or moved the page as it closed. While a dialog is
+    open, the output is set aside, as before charts were fitted, and the
+    frame laid out as a notebook's: help shows at least the 349px of its
+    text it did then; the output is fitted again as it closes.
     """
     page = _open(browser, f"{shiny_size_app_url}/h300/", width, height=900)
     try:
@@ -516,8 +516,8 @@ def test_a_dialog_is_shown_whole_in_a_card_that_follows_its_content(
     its text in a 300px output, in a card of a page that is not fillable,
     and on a phone, where bslib gives up filling, in every card (110px) and
     sidebar layout (65px); settings' Close button was below what showed.
-    The output is laid out as before charts were fitted while it is open,
-    and the dialog has the room it had then, all of it in view.
+    The output is set aside while it is open, the frame laid out as a
+    notebook's, and the dialog is all in view.
     """
     page = _open(browser, f"{shiny_size_app_url}/{case}/", width, height=800)
     try:
@@ -575,11 +575,12 @@ def _assert_in_view(page, where: str) -> dict:
 def test_closing_a_dialog_halfway_down_a_long_page_leaves_the_chart_in_view(
     browser, shiny_size_app_url, width, key
 ):
-    """The frame is centred in the window while a dialog is open; it stays.
+    """The frame is centred in the window while a dialog is open.
 
-    The output is held at the window's height while the dialog is open,
-    and goes back to its own as it closes: the chart, which has the focus
-    back, is in view, its box its own height again.
+    It is as tall as the window while the dialog is open, as a notebook's
+    frame is, and goes back to its box as it closes, the page with it to
+    where it was: the chart, which has the focus back, is in view, its box
+    its own height again.
     """
     page = _open(browser, f"{shiny_size_app_url}/tall_page/", width, height=800)
     try:
@@ -705,9 +706,9 @@ def test_closing_a_dialog_after_the_window_changed_size_shows_the_chart(
     focus, was left partly or wholly off screen: its frame's top at 324px
     of a 450px window zoomed to 200%, at 561px of an 800px one narrowed to
     390px, and at -902px on a longer page. An arrow key did not bring it
-    back. Nothing scrolls the page as the dialog closes now; the chart, its
-    box its own height again, is in view, its top no more than a line
-    above the window, as before charts were fitted.
+    back. The page is not put back once the window has changed size; the
+    chart, its box its own height again, is in view as the dialog closes,
+    its top no more than a line above the window.
     """
     page = _open(browser, f"{shiny_size_app_url}/tall_page/", *start)
     try:

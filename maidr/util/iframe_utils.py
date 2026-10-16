@@ -475,14 +475,17 @@ _NOTEBOOK_JS = _OUTPUT_WIDTH_JS + _KEEP_SCROLL_JS + _NOT_LAID_OUT_JS + _DIALOG_R
 #:
 #: While a dialog of maidr's is open -- help, settings, chat -- none of this
 #: applies (``maidrSuspendBox``): the box and the output round it are
-#: pass-through containers, as Shiny makes an output that has children, and
-#: the frame is sized as a chart's frame elsewhere is, by what it holds: a
-#: matplotlib chart at its own size, a chart that takes its height from its
-#: container at the height it had, not drawn again, in a frame at least as
-#: tall as an output with no height of its own gives it. A dialog then has
-#: the room it had, and nothing scrolls the page, as before charts were
-#: fitted to their outputs. The box comes back once the dialog has gone, or
-#: the frame has left the page.
+#: pass-through containers, as Shiny makes an output that has children, the
+#: frame has an iframe's own style, and the frame is laid out by a notebook
+#: frame's lines: a matplotlib chart at its own size, or the frame's width
+#: where that is less, a chart that takes its height from its container at
+#: the height it had, not drawn again nor made wider, and the frame as tall
+#: as the window, or the box that scrolls it, and scrolled to its middle
+#: (``maidrDialogRoom``, ``maidrShowDialog``), so that the dialog is shown
+#: whole. As the dialog closes, or the frame leaves the page, all of it is
+#: given back, and the page and the boxes round the frame are scrolled back
+#: to where they were as it opened, unless the reader has scrolled or the
+#: window changed size meanwhile (``maidrKeepPlace``).
 #:
 #: A chart drawn again -- an input it reads moved, live data -- keeps its
 #: output at the height it had until the new chart's frame has measured its
@@ -490,7 +493,8 @@ _NOTEBOOK_JS = _OUTPUT_WIDTH_JS + _KEEP_SCROLL_JS + _NOT_LAID_OUT_JS + _DIALOG_R
 #: new one in at 150px, and the page round the output moved, so that a
 #: reader below a chart whose top was above the window lost the chart and
 #: the control they were moving. Nothing scrolls the page for it. Not under
-#: a dialog, whose box is not there to hold. ``maidrWatchBox`` fits the
+#: a dialog, whose box is not there to hold; the page goes back to where it
+#: was as the dialog opened. ``maidrWatchBox`` fits the
 #: chart again whenever the box changes size: a window resized, a card taken
 #: full screen or back, a sidebar closed, with nothing sent to the server.
 _BOX_JS = """
@@ -1199,9 +1203,9 @@ def _shiny_frame_inline(kind: str) -> str:
     """:func:`shiny_frame_script` as a frame of ``kind`` carries it.
 
     Its own kind's alone, compacted (:func:`maidr.util.compact.compact_js`),
-    and deflated, in base64: 6 KB, where the served script is 46 KB, and a
-    frame's ``onload`` carried 9-10 KB before charts were fitted to their
-    outputs. :func:`_shiny_onload` unpacks it.
+    and deflated, in base64: about 7.3 KB, where the served script is 54 KB,
+    and a frame's ``onload`` carried 9-10 KB before charts were fitted to
+    their outputs. :func:`_shiny_onload` unpacks it.
     """
     script = compact_js(shiny_frame_script((kind,))).encode("utf-8")
     packer = zlib.compressobj(9, zlib.DEFLATED, -15)
@@ -1308,7 +1312,7 @@ def _for_host(script: str, in_shiny: bool) -> str:
     The script that sizes a notebook's frame, or a frame elsewhere, is the
     one it has always been; a Shiny app's adds the fitting to its box (see
     :data:`_BOX_JS`), and while a dialog of maidr's is open runs the lines
-    every frame outside a notebook runs. Its lines of its own are marked
+    a notebook's frame runs. Its lines of its own are marked
     ``@S``, and the lines it replaces ``@N``; each kind of frame keeps its
     own, unmarked, and drops the other's.
 
@@ -1370,8 +1374,8 @@ def wrap_in_iframe_matplotlib(
     In a Shiny app (``in_shiny``) the frame fits its output the same way,
     without the padding a notebook keeps to an output's right, and fits the
     chart to the box it is shown in when that box has a height of its own;
-    while a dialog of maidr's is open, it is sized as a frame elsewhere is;
-    see :data:`_BOX_JS`. Elsewhere -- Flask, a Pyodide page -- the frame is
+    while a dialog of maidr's is open, it is laid out as a notebook's frame
+    is; see :data:`_BOX_JS`. Elsewhere -- Flask, a Pyodide page -- the frame is
     as wide as its content.
 
     Parameters
