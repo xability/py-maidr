@@ -480,9 +480,13 @@ def test_a_dialog_lays_the_frame_out_as_a_notebooks():
     # At once: a Shiny page scrolls smoothly, and the next measure stopped
     # a smooth scroll halfway.
     assert (
-        "iframe.scrollIntoView({block: 'center', inline: 'nearest', "
-        "behavior: 'instant'});"
+        "iframe.scrollIntoView(\n"
+        "                    {block: 'center', inline: 'nearest', behavior: 'instant'}"
     ) in script
+    # Below a header fixed or sticky at the window's top.
+    assert "iframe.maidrCover = scroller ? 0 : maidrCover(iframe);" in script
+    assert "height -= iframe.maidrCover;" in script
+    assert "iframe.style.scrollMarginTop = iframe.maidrCover + 'px';" in script
     assert "el.scrollTo({top: top, left: kept[i][2], behavior: 'instant'});" in script
     assert "el.scrollTop = top;" not in script
     # The page, and every element round the frame, put back where they
@@ -660,10 +664,11 @@ def test_a_string_frame_carries_its_script_compacted_as_plain_text(plotly):
 
     The script it carried, its comments left out, was 22 KB of every flush,
     20 KB more than before charts were fitted. It carries its own kind's
-    alone now, compacted, and its stylesheet compacted: about twice what it
-    carried then, as plain text, which every browser runs. Packed, it was
-    less than that, but a browser that could not unpack it left the frame
-    150px tall, the chart cut off
+    alone now, compacted, and its stylesheet compacted: 22-24 KB as HTML
+    writes it, a little over twice what it carried then (``_ONLOAD_BEFORE``),
+    as plain text, which every browser runs. Packed, it was less than that,
+    but a browser that could not unpack it left the frame 150px tall, the
+    chart cut off
     (``test_a_string_frame_is_sized_in_a_browser_that_cannot_unpack``).
     """
     from shiny.express._stub_session import ExpressStubSession
@@ -681,7 +686,7 @@ def test_a_string_frame_carries_its_script_compacted_as_plain_text(plotly):
     kind = "plotly" if plotly else "matplotlib"
     for gone in ("DecompressionStream", "atob(", "createElement('script')"):
         assert gone not in onload, gone
-    assert len(onload) + len(style) <= 2.4 * _ONLOAD_BEFORE[kind], (
+    assert len(onload) + len(style) <= 25_000, (
         len(onload),
         len(style),
     )

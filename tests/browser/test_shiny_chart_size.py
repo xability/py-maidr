@@ -870,7 +870,18 @@ _DIALOG_SHOWN = r"""() => {
     return Math.max(0, bottom - top) * Math.max(0, right - left) / (r.width * r.height);
   };
   const text = paper.querySelector('.MuiDialogContent-root') || paper;
+  // The rows of the paper on screen that something of the page's is drawn
+  // over, down its middle: a header fixed or sticky at the window's top.
+  const p = paper.getBoundingClientRect();
+  let covered = 0;
+  for (let y = Math.ceil(Math.max(p.top + f.top, 0));
+       y < Math.min(p.bottom + f.top, innerHeight); y += 2) {
+    if (document.elementFromPoint(p.left + f.left + p.width / 2, y) !== frame) {
+      covered += 2;
+    }
+  }
   return {paper: shown(paper), close: close ? shown(close) : null,
+          covered: covered,
           width: paper.getBoundingClientRect().width,
           text: text.clientHeight, textAll: text.scrollHeight,
           sideways: document.scrollingElement.scrollWidth
@@ -914,6 +925,7 @@ def _assert_dialog_whole(page, where: str) -> dict:
     assert shown is not None, (where, "no dialog opened")
     assert shown["paper"] >= 0.99 and shown["close"] >= 0.99, (where, shown)
     assert shown["sideways"] == 0, (where, shown)
+    assert shown["covered"] == 0, (where, shown)
     return shown
 
 
@@ -939,6 +951,10 @@ _HELP, _SETTINGS = "Control+/", "Control+,"
         ("tall_plotly_h400", "top", (844, 390), _HELP),
         # A Bokeh plot of a fixed width wider than a phone.
         ("bokeh", "centre", (390, 844), _HELP),
+        ("fixed_navbar", "centre", (1280, 900), _HELP),
+        ("fixed_navbar", "bottom", (390, 844), _HELP),
+        ("fixed_navbar_plotly", "centre", (1280, 700), _HELP),
+        ("fixed_navbar", "centre", (1280, 900), _SETTINGS),
     ],
     ids=[
         "bottom-1280-help",
@@ -955,6 +971,10 @@ _HELP, _SETTINGS = "Control+/", "Control+,"
         "scroll-box-at-its-top-help",
         "plotly-phone-turned-help",
         "bokeh-fixed-width-phone-help",
+        "fixed-navbar-help",
+        "fixed-navbar-phone-help",
+        "fixed-navbar-plotly-help",
+        "fixed-navbar-settings",
     ],
 )
 def test_a_dialog_is_shown_whole_wherever_the_chart_is(
@@ -973,10 +993,12 @@ def test_a_dialog_is_shown_whole_wherever_the_chart_is(
     a phone the frame was the plot's width, and the dialog, centred in it,
     64% across the window. The frame is laid out as a
     notebook's while a dialog is open, its room and its scrolling into
-    view included, as before charts were fitted. On closing it, the chart
-    is fitted again, with its highlight in view, and the focus back in it,
-    and the page and the box are where the reader left them: a box at its
-    top had been left 136px down.
+    view included, as before charts were fitted, below a navbar fixed at
+    the window's top, which covered the top 24px of help's title. On
+    closing it, the chart is fitted again, with its highlight in view, and
+    the focus back in it, and the page and the box are where the reader
+    left them: the page had been left 24-40px further down with the chart's
+    bottom below the window, and a box at its top 136px down.
     """
     page = _open(browser, f"{shiny_size_app_url}/{case}/", *size)
     try:

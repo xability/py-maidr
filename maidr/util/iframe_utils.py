@@ -403,6 +403,40 @@ _DIALOG_ROOM_JS = """
         }
 """
 
+#: How much of the window's top a Shiny page's header covers: an element
+#: fixed or sticky there, over the frame's middle, and any below it in turn,
+#: half the window at most. Not one the frame is inside.
+_COVER_JS = """
+        function maidrCover(iframe) {
+            var page = iframe.ownerDocument;
+            var win = page.defaultView;
+            var rect = iframe.getBoundingClientRect();
+            var x = Math.min(Math.max((rect.left + rect.right) / 2, 0), win.innerWidth - 1);
+            var top = 0;
+            for (var i = 0; i < 4; i++) {
+                var el = page.elementFromPoint(x, top);
+                while (el && el !== page.body && el !== page.documentElement) {
+                    var position = win.getComputedStyle(el).position;
+                    if (position === 'fixed' || position === 'sticky') break;
+                    el = el.parentElement;
+                }
+                if (!el || el === page.body || el === page.documentElement
+                        || el.contains(iframe)) break;
+                var bottom = Math.ceil(el.getBoundingClientRect().bottom);
+                if (!(bottom > top)) break;
+                top = bottom;
+            }
+            return Math.min(top, Math.floor(win.innerHeight / 2));
+        }
+"""
+
+
+def _replace_once(text: str, old: str, new: str) -> str:
+    """``text`` with ``old``, which it holds once, made ``new``."""
+    assert text.count(old) == 1, old
+    return text.replace(old, new)
+
+
 #: What changes a frame's height that its body's size does not show: maidr's
 #: text, braille and review fields, which can lie past the body's box (a
 #: Plotly or Bokeh chart's do), coming, going or changing, and a dialog of
@@ -478,7 +512,8 @@ _NOTEBOOK_JS = _OUTPUT_WIDTH_JS + _KEEP_SCROLL_JS + _NOT_LAID_OUT_JS + _DIALOG_R
 #: frame's lines: a matplotlib chart at its own size, or the frame's width
 #: where that is less, a chart that takes its height from its container at
 #: the height it had, not drawn again nor made wider, and the frame as tall
-#: as the window, or the box that scrolls it, and scrolled to its middle
+#: as the window below a header fixed or sticky at its top (``maidrCover``),
+#: or the box that scrolls it, and scrolled to its middle
 #: (``maidrDialogRoom``, ``maidrShowDialog``), so that the dialog is shown
 #: whole. As the dialog closes, or the frame leaves the page, all of it is
 #: given back, and the page and every element round the frame are scrolled
@@ -1086,14 +1121,32 @@ def shiny_frame_script(kinds: tuple = ("matplotlib", "plotly")) -> str:
                     }""",
     )
     assert keep_scroll != _KEEP_SCROLL_JS
-    dialog_room = _DIALOG_ROOM_JS.replace(
-        "{block: 'center', inline: 'nearest'}",
-        "{block: 'center', inline: 'nearest', behavior: 'instant'}",
+    # A Shiny page's header fixed at the window's top (a navbar of
+    # position="fixed-top") or sticky there covers what is scrolled under
+    # it, the top of the dialog among them: the dialog's room is what the
+    # window shows below it (maidrCover), and the frame is scrolled to
+    # below it (its scroll margin).
+    dialog_room = _replace_once(
+        _replace_once(
+            _DIALOG_ROOM_JS,
+            """            if (scroller) {
+                height = Math.min(height, scroller.clientHeight);""",
+            """            iframe.maidrCover = scroller ? 0 : maidrCover(iframe);
+            height -= iframe.maidrCover;
+            if (scroller) {
+                height = Math.min(height, scroller.clientHeight);""",
+        ),
+        """                iframe.scrollIntoView({block: 'center', inline: 'nearest'});""",
+        """                iframe.style.scrollMarginTop = iframe.maidrCover + 'px';
+                iframe.scrollIntoView(
+                    {block: 'center', inline: 'nearest', behavior: 'instant'}
+                );""",
     )
     helpers = (
         _OUTPUT_WIDTH_JS
         + keep_scroll
         + _NOT_LAID_OUT_JS
+        + _COVER_JS
         + dialog_room
         + _WATCH_JS
         + _BOX_JS.replace("FRAME_SVG_CLASS", FRAME_SVG_CLASS).replace(

@@ -55,6 +55,28 @@
             return !!(iframe && iframe.contentWindow && !iframe.contentWindow.innerWidth);
         }
 
+        function maidrCover(iframe) {
+            var page = iframe.ownerDocument;
+            var win = page.defaultView;
+            var rect = iframe.getBoundingClientRect();
+            var x = Math.min(Math.max((rect.left + rect.right) / 2, 0), win.innerWidth - 1);
+            var top = 0;
+            for (var i = 0; i < 4; i++) {
+                var el = page.elementFromPoint(x, top);
+                while (el && el !== page.body && el !== page.documentElement) {
+                    var position = win.getComputedStyle(el).position;
+                    if (position === 'fixed' || position === 'sticky') break;
+                    el = el.parentElement;
+                }
+                if (!el || el === page.body || el === page.documentElement
+                        || el.contains(iframe)) break;
+                var bottom = Math.ceil(el.getBoundingClientRect().bottom);
+                if (!(bottom > top)) break;
+                top = bottom;
+            }
+            return Math.min(top, Math.floor(win.innerHeight / 2));
+        }
+
         function maidrDialogRoom(doc, iframe) {
             if (!doc.querySelector('.MuiDialog-root')) return 0;
             var win = iframe.ownerDocument.defaultView;
@@ -67,6 +89,8 @@
                     scroller = el;
                 }
             }
+            iframe.maidrCover = scroller ? 0 : maidrCover(iframe);
+            height -= iframe.maidrCover;
             if (scroller) {
                 height = Math.min(height, scroller.clientHeight);
             } else if (win !== win.top) {
@@ -91,7 +115,10 @@
             if (opened && (!was || resized)) {
                 // The dialog is centred in the frame: centring the frame in
                 // the reader's view shows it whole.
-                iframe.scrollIntoView({block: 'center', inline: 'nearest', behavior: 'instant'});
+                iframe.style.scrollMarginTop = iframe.maidrCover + 'px';
+                iframe.scrollIntoView(
+                    {block: 'center', inline: 'nearest', behavior: 'instant'}
+                );
             }
         }
 

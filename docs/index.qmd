@@ -1274,12 +1274,13 @@ chart's frame is laid out as a notebook's is (see *Jupyter Notebooks*). A
 matplotlib, seaborn or plotnine chart is at its own size, or as wide as the
 page allows where that is less; a Plotly, Bokeh or Altair chart keeps its
 height, is never made wider, and narrows with a narrower window. The frame
-is as tall as the part of the page you see — the window, or a container
-of a height of its own that scrolls — and as wide as the dialog where the
-chart is narrower, and it is scrolled to the middle of that part, so that
-the dialog is shown whole: opening a dialog can scroll the page. A chart
-taller than that keeps its height, and the dialog keeps to the part you
-see. When the dialog closes, the page, and every
+is as tall as the part of the page you see — the window below any header
+fixed or sticky at its top (a `page_navbar(position="fixed-top")`'s
+navbar), or a container of a height of its own that scrolls — and as wide
+as the dialog where the chart is narrower, and it is scrolled to the middle
+of that part, so that the dialog is shown whole: opening a dialog can
+scroll the page. A chart taller than that keeps its height, and the dialog
+keeps to the part you see. When the dialog closes, the page, and every
 container round the chart, go back to where they were as the dialog
 opened, even where the chart, given the focus back, is not all in view,
 unless you scrolled the page or the window changed size meanwhile; and

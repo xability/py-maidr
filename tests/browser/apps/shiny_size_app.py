@@ -171,6 +171,22 @@ def _scroll_box(output):
     )
 
 
+def _fixed_navbar(output):
+    """The tall page's card under a navbar fixed at the window's top."""
+    words = "A paragraph of text that makes the page longer than the window."
+    filler = [ui.p(words) for _ in range(12)]
+    return ui.page_navbar(
+        ui.nav_panel(
+            "Chart",
+            *filler,
+            ui.card(ui.card_header("Chart card"), output),
+            *filler,
+        ),
+        title="Fixed navbar",
+        position="fixed-top",
+    )
+
+
 def _card_full_screen(output):
     """A card that can be taken full screen, in a page that is not fillable."""
     return ui.page_fluid(
@@ -218,6 +234,8 @@ CASES = {
     "page_end": (_page_end, output_maidr("m", height=300), {}, _bars),
     "page_end_plotly": (_page_end, output_maidr("m"), {}, _plotly),
     "scroll_box": (_scroll_box, output_maidr("m"), {}, _bars),
+    "fixed_navbar": (_fixed_navbar, output_maidr("m", height=300), {}, _bars),
+    "fixed_navbar_plotly": (_fixed_navbar, output_maidr("m"), {}, _plotly),
     "fs_card": (_card_full_screen, output_maidr("m"), {}, _bars),
 }
 
