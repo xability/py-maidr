@@ -224,3 +224,61 @@ def test_the_page_carries_the_layer():
 
     assert "&quot;volcano&quot;" in html or '"volcano"' in html
     assert "thresholdOptions" in html
+
+
+def test_declaring_the_same_points_again_replaces_the_layer():
+    # A notebook cell run again with a new cutoff, or a volcano redeclared a
+    # Manhattan: one layer, carrying what the last call said.
+    figure, ax = plt.subplots()
+    points = ax.scatter([1.0, 2.0], [3.0, 4.0])
+    manager = FigureManager.get_maidr(figure)
+    (scatter_id,) = manager.selector_ids
+
+    maidr.volcano(points, significance=1.3)
+    maidr.volcano(points, significance=2.0, labels=["a", "b"])
+
+    (layer,) = _layers(figure)
+    assert layer["thresholdOptions"]["significance"] == 2.0
+    assert [point["label"] for point in layer["data"]] == ["a", "b"]
+    assert manager.selector_ids == [scatter_id]
+
+    maidr.manhattan(ax, significance=7.3)
+    assert [layer["type"] for layer in _layers(figure)] == ["manhattan"]
+
+
+def test_one_scatter_of_several_converts_only_that_one():
+    figure, ax = plt.subplots()
+    ax.scatter([1.0], [2.0])
+    hits = ax.scatter([3.0], [4.0])
+
+    maidr.volcano(hits, significance=1.0)
+
+    assert [layer["type"] for layer in _layers(figure)] == ["point", "volcano"]
+
+
+@pytest.mark.parametrize(
+    "missing",
+    [None, float("nan"), np.float32("nan"), np.float64("nan"), pd.NA, pd.NaT, ""],
+    ids=["None", "nan", "float32-nan", "float64-nan", "pd.NA", "NaT", "empty"],
+)
+def test_every_kind_of_missing_name_is_left_off(missing):
+    figure, ax = plt.subplots()
+    points = ax.scatter([1.0, 2.0], [3.0, 4.0])
+
+    maidr.volcano(points, significance=1.0, labels=["a", missing])
+
+    assert [point.get("label") for point in _layers(figure)[0]["data"]] == ["a", None]
+
+
+def test_names_from_a_series_with_gaps_are_left_off():
+    figure, ax = plt.subplots()
+    points = ax.scatter([1.0, 2.0, 3.0], [3.0, 4.0, 5.0])
+    chromosomes = pd.Series(["chr1", None, "chr2"], dtype="string")
+
+    maidr.manhattan(points, significance=1.0, groups=chromosomes)
+
+    assert [point.get("group") for point in _layers(figure)[0]["data"]] == [
+        "chr1",
+        None,
+        "chr2",
+    ]

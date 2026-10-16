@@ -1179,7 +1179,10 @@ def volcano(
         What ``ax.scatter`` returned, several of them (one per color, say),
         or the axes they are drawn on -- which is what ``sns.scatterplot``
         returns -- for every scatter on it. They become one layer, in the
-        order given, or the order they were drawn for an ``Axes``.
+        order given, or the order they were drawn for an ``Axes``. Given one
+        scatter of several on an axes, only that one is converted; the
+        others stay plain scatter layers. Declaring points again replaces
+        the layer an earlier call made of them.
     significance : float
         The cutoff on the y axis: 1.3 for p < 0.05 on a -log10(p) axis.
     effect : float or None, optional
@@ -1256,7 +1259,9 @@ def manhattan(
         What ``ax.scatter`` returned -- often one call per chromosome --
         or the axes they are drawn on, for every scatter on it. They become
         one layer, in the order given, or the order they were drawn for an
-        ``Axes``.
+        ``Axes``. Given some scatters of several on an axes, only those are
+        converted; the others stay plain scatter layers. Declaring points
+        again replaces the layer an earlier call made of them.
     significance : float
         The cutoff on the y axis: 7.3 for genome-wide significance
         (p < 5e-8) on a -log10(p) axis.
@@ -1353,13 +1358,18 @@ def _declare_threshold_layer(
         raise ValueError(f"No figure found for axis: {ax}.")
     maidr = FigureManager._get_maidr(fig, plot_type)
 
-    # Only plain scatter layers: a dash or a text layer is a `ScatterPlot`
-    # too, and reads artists that are not points.
+    # Plain scatter layers, and a threshold layer an earlier call declared, so
+    # declaring the same points again -- a notebook cell run with a new cutoff
+    # -- replaces that layer rather than adding a second beside it. Not any
+    # `ScatterPlot`: a dash or a text layer is one too, and reads artists that
+    # are not points.
     def drawn(layer: Any) -> list[PathCollection]:
         return list(layer._own_points or layer._swept())
 
     scatters = [
-        layer for layer in maidr.plots if type(layer) is ScatterPlot and layer.ax is ax
+        layer
+        for layer in maidr.plots
+        if type(layer) in (ScatterPlot, VolcanoPlot) and layer.ax is ax
     ]
     if collections is None:
         collections = []
@@ -1377,8 +1387,9 @@ def _declare_threshold_layer(
             # The layer reads points beyond the ones given, and replacing it
             # would drop them from the chart without a word.
             raise ValueError(
-                f"maidr.{plot_type.value}: a scatter layer spans more "
-                "collections than were given; pass the axes instead"
+                f"maidr.{plot_type.value}: a layer already reads these points "
+                "together with others that were not given; pass all of them, "
+                "or the axes"
             )
 
     layer = VolcanoPlot(

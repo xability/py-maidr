@@ -22,6 +22,7 @@ from typing import Any, Literal
 
 import numpy as np
 import numpy.ma as ma
+import pandas as pd
 from matplotlib.axes import Axes
 from matplotlib.collections import PathCollection
 
@@ -80,7 +81,8 @@ def threshold_options(
     }
     if direction not in DIRECTIONS:
         raise ValueError(
-            f"significance_direction must be 'above' or 'below', not {direction!r}"
+            "the significance direction (significance_direction) must be "
+            f"'above' or 'below', not {direction!r}"
         )
     options[MaidrKey.SIGNIFICANCE_DIRECTION.value] = direction
     if effect is not None:
@@ -124,6 +126,35 @@ def _finite(name: str, value: Any) -> float:
     return number
 
 
+def _missing(value: Any) -> bool:
+    """
+    Whether one entry stands for no name.
+
+    ``pd.isna`` rather than ``math.isnan``, which a NumPy ``float32`` NaN,
+    ``pd.NA`` and ``NaT`` all slip past, to be announced as "nan" or "<NA>".
+    Asked of scalars only: on anything list-like it answers element-wise, and
+    such an entry is a name to be written out rather than a missing one.
+
+    Parameters
+    ----------
+    value : Any
+        One entry of ``labels`` or ``groups``.
+
+    Returns
+    -------
+    bool
+        True for ``None``, NaN of any float type, ``pd.NA`` and ``NaT``.
+    """
+    if value is None:
+        return True
+    if not pd.api.types.is_scalar(value):
+        return False
+    try:
+        return bool(pd.isna(value))
+    except (TypeError, ValueError):
+        return False
+
+
 def _names(values: Sequence[Any] | None, count: int, what: str) -> list[str | None]:
     """
     One name per point, or none at all.
@@ -158,7 +189,7 @@ def _names(values: Sequence[Any] | None, count: int, what: str) -> list[str | No
         )
     names: list[str | None] = []
     for value in given:
-        if value is None or (isinstance(value, float) and math.isnan(value)):
+        if _missing(value):
             names.append(None)
             continue
         text = str(value)
