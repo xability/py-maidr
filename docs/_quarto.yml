@@ -90,6 +90,8 @@ website:
             href: examples/roc.qmd
           - text: "Precision-Recall Curves [experimental]"
             href: examples/pr-curve.qmd
+          - text: "Kaplan-Meier Survival Curves [experimental]"
+            href: examples/survival.qmd
           - text: "Directed Graphs [experimental]"
             href: examples/network-graph.qmd
           - text: "---"
@@ -159,6 +161,8 @@ website:
               href: examples/roc.qmd
             - text: "Precision-Recall Curves [experimental]"
               href: examples/pr-curve.qmd
+            - text: "Kaplan-Meier Survival Curves [experimental]"
+              href: examples/survival.qmd
             - text: "Directed Graphs [experimental]"
               href: examples/network-graph.qmd
         - examples/dashboards.qmd
@@ -380,6 +384,15 @@ quartodoc:
         - tensorboard.load_embeddings
         - tensorboard.Embedding
         - read_tensorboard_graph
+    - title: Drawing a Kaplan-Meier survival curve
+      desc: >
+        Draw a survival curve from its times, probabilities, censoring times
+        and confidence band with `maidr.plot_survival()`, read as a survival
+        curve rather than as a step plot. lifelines'
+        `KaplanMeierFitter.plot_survival_function()` is read the same way.
+        Experimental.
+      contents:
+        - plot_survival
     - title: Drawing the training curves and graph of a Keras model
       desc: >
         Draw what `model.fit` returns with `maidr.keras.plot_history()` and a

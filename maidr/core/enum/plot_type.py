@@ -107,6 +107,15 @@ class PlotType(str, Enum):
     #: chart is drawn to show reached the audio not at all. See
     #: `docs/stability.qmd` -- experimental.
     RUG = "rug"
+    #: A Kaplan-Meier curve: the share still free of the event at each time,
+    #: dropping in steps as events occur. A distinct type from :attr:`STEP`
+    #: for the two facts the figure is read for: which times are censored --
+    #: a subject who left without the event, where the curve does not step --
+    #: and the median survival, which maidr.js states. Registered by
+    #: `maidr.plot_survival` and by lifelines'
+    #: `KaplanMeierFitter.plot_survival_function`. See `docs/stability.qmd` --
+    #: experimental.
+    SURVIVAL = "survival"
     SCATTER = "point"
     STACKED = "stacked_bar"
     NORMALIZED = "stacked_normalized_bar"
@@ -221,6 +230,7 @@ _DISPLAY_NAMES = {
     PlotType.POLAR_AREA: "polar area",
     PlotType.PR_CURVE: "PR curve",
     PlotType.ROC: "ROC curve",
+    PlotType.SURVIVAL: "survival curve",
     PlotType.VIOLIN_BOX: "violin",
     PlotType.VIOLIN_KDE: "violin",
     PlotType.WORD_CLOUD: "word cloud",
