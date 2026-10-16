@@ -1893,7 +1893,9 @@ def _plotly_resizer(
                     iframe.style.width = maidrOutputWidth(iframe, keepsPadding);
                 }}
                 @N if (de.scrollWidth > iframe.contentWindow.innerWidth + 1) {{
-                @S if (widens && de.scrollWidth > iframe.contentWindow.innerWidth + 1) {{
+                @S // Not while a dialog is open: MUI centres it in the frame,
+                @S // which is then as wide as the page shows.
+                @S if (fitted && widens && de.scrollWidth > iframe.contentWindow.innerWidth + 1) {{
                     iframe.style.width = de.scrollWidth + 'px';
                 }}
             }}

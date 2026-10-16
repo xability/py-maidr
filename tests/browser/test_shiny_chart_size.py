@@ -907,6 +907,8 @@ _HELP, _SETTINGS = "Control+/", "Control+,"
         ("scroll_box", "centre", (1280, 900), _HELP),
         ("scroll_box", "centre", (1280, 900), _SETTINGS),
         ("tall_plotly_h400", "top", (844, 390), _HELP),
+        # A Bokeh plot of a fixed width wider than a phone.
+        ("bokeh", "centre", (390, 844), _HELP),
     ],
     ids=[
         "bottom-1280-help",
@@ -921,6 +923,7 @@ _HELP, _SETTINGS = "Control+/", "Control+,"
         "scroll-box-help",
         "scroll-box-settings",
         "plotly-phone-turned-help",
+        "bokeh-fixed-width-phone-help",
     ],
 )
 def test_a_dialog_is_shown_whole_wherever_the_chart_is(
@@ -935,7 +938,9 @@ def test_a_dialog_is_shown_whole_wherever_the_chart_is(
     grew down past the window: help showed 47% of itself and none of its
     Close button with the chart's bottom at the window's, 33% at the page's
     end, where the page jumped up 67-269px as it opened; in a box that
-    scrolls its Close button was 0-56% shown. The frame is laid out as a
+    scrolls its Close button was 0-56% shown; over a Bokeh plot wider than
+    a phone the frame was the plot's width, and the dialog, centred in it,
+    64% across the window. The frame is laid out as a
     notebook's while a dialog is open, its room and its scrolling into
     view included, as before charts were fitted. On closing it, the chart
     is fitted again, with its highlight in view, and the focus back in it.
@@ -962,7 +967,9 @@ def test_a_dialog_is_shown_whole_wherever_the_chart_is(
         assert page.evaluate(_DIALOG) is None
         lit = page.evaluate(_LIT)
         assert lit["focused"], lit
-        assert lit["litShown"] is not None and lit["litShown"] >= 0.95, lit
+        # A Bokeh plot's highlight is drawn on its canvas, not in the page.
+        if not case.startswith("bokeh"):
+            assert lit["litShown"] is not None and lit["litShown"] >= 0.95, lit
         assert back["box"]["height"] == pytest.approx(own["box"]["height"], abs=1)
         assert page.errors == []  # type: ignore[attr-defined]
     finally:

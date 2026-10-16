@@ -886,7 +886,9 @@
                     iframe.maidrHostWidth = hostWidth;
                     iframe.style.width = maidrOutputWidth(iframe, keepsPadding);
                 }
-                if (widens && de.scrollWidth > iframe.contentWindow.innerWidth + 1) {
+                // Not while a dialog is open: MUI centres it in the frame,
+                // which is then as wide as the page shows.
+                if (fitted && widens && de.scrollWidth > iframe.contentWindow.innerWidth + 1) {
                     iframe.style.width = de.scrollWidth + 'px';
                 }
             }
