@@ -214,8 +214,7 @@
             if (open) {
                 var width = iframe.getBoundingClientRect().width;
                 var suspended = iframe.maidrSuspended = {
-                    frame: iframe.getAttribute('style'), held: [],
-                    kept: maidrKeepPlace(iframe)
+                    frame: iframe.getAttribute('style'), held: []
                 };
                 if (box && box.classList.contains('maidr-shiny-box')) {
                     suspended.held.push([box, box.getAttribute('style'), []]);
@@ -256,11 +255,13 @@
                 // scrolls to it.
                 suspended.back = function() { maidrSuspendBox(iframe); };
                 doc.addEventListener('focusin', suspended.back, true);
+                suspended.focus = maidrFocusInPlace(doc.defaultView);
             } else {
                 var was = iframe.maidrSuspended;
                 iframe.maidrSuspended = null;
                 if (was.gone) was.gone.disconnect();
                 if (doc) doc.removeEventListener('focusin', was.back, true);
+                was.focus();
                 for (var j = 0; j < was.held.length; j++) {
                     var el = was.held[j][0];
                     if (was.held[j][1] === null) el.removeAttribute('style');
@@ -273,62 +274,103 @@
                 else iframe.setAttribute('style', was.frame);
                 iframe.maidrDialogOpen = false;
                 if (doc) doc.documentElement.removeAttribute('data-maidr-suspended');
-                was.kept();
+                maidrBringIn(iframe);
             }
             return open;
         }
-        // Where the page, and every element round the frame, are scrolled
-        // as a dialog opens, and what puts them back there as it closes:
-        // at their top too, which showing the dialog scrolls a box at its
-        // top away from. Put back as the frame's layout is put back, and
-        // again for a second after, whenever anything scrolls: the
-        // browser, giving the chart the focus back, scrolls to what took
-        // it where that is out of view, smoothly on a Bootstrap page --
-        // a Plotly chart's line at its top, to the window's middle,
-        // 480-650px; a chart whose bottom was below the window, to its
-        // edge, 24-40px. The page is then where the reader left it, as it
-        // was when charts were not fitted and a dialog moved nothing. A
-        // chart drawn again, or taken away, under the dialog puts them
-        // back too: its output is as it was before the dialog opened. Not
-        // once the reader has scrolled, or the window changed size.
-        function maidrKeepPlace(iframe) {
-            var page = iframe.ownerDocument;
-            var win = page.defaultView;
-            var kept = [[page.scrollingElement, page.scrollingElement.scrollTop,
-                         page.scrollingElement.scrollLeft]];
-            for (var el = iframe.parentElement; el; el = el.parentElement) {
-                kept.push([el, el.scrollTop, el.scrollLeft]);
-            }
-            var moved = false;
-            var size = win.innerWidth + 'x' + win.innerHeight;
-            var events = ['wheel', 'touchmove', 'keydown', 'pointerdown'];
-            function move() { moved = true; }
-            events.forEach(function(type) { win.addEventListener(type, move, true); });
-            function put() {
-                if (moved || win.innerWidth + 'x' + win.innerHeight !== size) return;
-                for (var i = 0; i < kept.length; i++) {
-                    var to = kept[i];
-                    if (to[0].scrollTop !== to[1] || to[0].scrollLeft !== to[2]) {
-                        to[0].scrollTo({top: to[1], left: to[2], behavior: 'instant'});
+        // Focus given in the frame while a dialog is open, and until it has
+        // gone, moves nothing: maidr.js and MUI give the chart the focus
+        // back as the dialog closes, MUI once more as it takes the dialog
+        // away, and the browser scrolled the page to the element that took
+        // it where that was out of view, centring it -- a Plotly chart's,
+        // a line at its top, which showing the dialog had scrolled above
+        // the window: the chart 450px down, its highlight 18-45% shown.
+        // Returns what gives focus() its own way back once no dialog is
+        // left, or 2s after, whichever is first.
+        function maidrFocusInPlace(win) {
+            var held = win.maidrFocusHeld;
+            if (!held) {
+                held = win.maidrFocusHeld = {count: 0, own: []};
+                [win.HTMLElement, win.SVGElement].forEach(function(type) {
+                    var proto = type && type.prototype;
+                    if (!proto || !Object.prototype.hasOwnProperty.call(proto, 'focus')) {
+                        return;
                     }
+                    var focus = proto.focus;
+                    held.own.push([proto, focus]);
+                    proto.focus = function(options) {
+                        var still = {preventScroll: true};
+                        if (options && options.focusVisible !== undefined) {
+                            still.focusVisible = options.focusVisible;
+                        }
+                        return focus.call(this, still);
+                    };
+                });
+            }
+            held.count++;
+            var asked = false, gone = false, watch = null, timer = 0;
+            function letGo() {
+                if (gone) return;
+                gone = true;
+                if (watch) watch.disconnect();
+                win.clearTimeout(timer);
+                if (--held.count > 0) return;
+                for (var i = 0; i < held.own.length; i++) {
+                    held.own[i][0].focus = held.own[i][1];
                 }
+                win.maidrFocusHeld = null;
             }
             return function() {
-                put();
-                // The reader in the chart once it has the focus back.
-                var inner = iframe.contentWindow;
-                if (inner) {
-                    events.forEach(function(type) { inner.addEventListener(type, move, true); });
-                }
-                win.addEventListener('scroll', put, true);
-                win.setTimeout(function() {
-                    events.forEach(function(type) {
-                        win.removeEventListener(type, move, true);
-                        if (inner) inner.removeEventListener(type, move, true);
+                if (asked) return;
+                asked = true;
+                try {
+                    var doc = win.document;
+                    if (!doc.body || !doc.querySelector('.MuiModal-root')) return letGo();
+                    watch = new win.MutationObserver(function() {
+                        if (!doc.querySelector('.MuiModal-root')) letGo();
                     });
-                    win.removeEventListener('scroll', put, true);
-                }, 1000);
+                    watch.observe(doc.body, {childList: true, subtree: true});
+                    timer = win.setTimeout(letGo, 2000);
+                } catch (_) {
+                    letGo();
+                }
             };
+        }
+        // The chart, given the focus back as its dialog closes, its frame
+        // fitted to its box again, brought into view where none of its
+        // frame shows: in the window, or in a box round it that scrolls.
+        // The nearest way, below a header fixed at the window's top. Where
+        // any of it shows, nothing is scrolled: the page, and every box
+        // round the frame, are left where they are, and the browser does
+        // not scroll to the element given the focus (maidrFocusInPlace).
+        // Nothing is kept from as the dialog opened: a page put back to
+        // where it was then undid what had moved it since -- content above
+        // the chart that grew, a script, a reader's own scroll -- and left
+        // the chart hundreds of pixels from where it had been.
+        function maidrBringIn(iframe) {
+            var page = iframe.ownerDocument;
+            if (!iframe.isConnected || page.activeElement !== iframe) return;
+            var win = page.defaultView;
+            var frame = iframe.getBoundingClientRect();
+            var out = frame.bottom <= 0 || frame.top >= win.innerHeight
+                || frame.right <= 0 || frame.left >= win.innerWidth;
+            for (var el = iframe.parentElement; !out && el && el !== page.body
+                    && el !== page.documentElement; el = el.parentElement) {
+                if (el.scrollHeight <= el.clientHeight + 1
+                        && el.scrollWidth <= el.clientWidth + 1) continue;
+                var style = win.getComputedStyle(el);
+                if (style.overflowY === 'visible' && style.overflowX === 'visible') continue;
+                var box = el.getBoundingClientRect();
+                var top = box.top + el.clientTop;
+                var left = box.left + el.clientLeft;
+                out = frame.bottom <= top || frame.top >= top + el.clientHeight
+                    || frame.right <= left || frame.left >= left + el.clientWidth;
+            }
+            if (!out) return;
+            var margin = iframe.style.scrollMarginTop;
+            iframe.style.scrollMarginTop = maidrCover(iframe) + 'px';
+            iframe.scrollIntoView({block: 'nearest', inline: 'nearest', behavior: 'instant'});
+            iframe.style.scrollMarginTop = margin;
         }
         // A frame whose height flips between two as a scrollbar comes and
         // goes round it -- the page's, or a box's, coming as the frame grows

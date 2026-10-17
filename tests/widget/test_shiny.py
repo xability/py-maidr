@@ -472,11 +472,16 @@ def test_a_dialog_lays_the_frame_out_as_a_notebooks():
         "maidrDialogPlaces",
         "body.style.minHeight",
         "maxWidth = 'none'",
+        # Nothing of where the page was as a dialog opened is kept.
+        "maidrKeepPlace",
+        "was.kept",
+        "addEventListener('scroll'",
     ):
         assert gone not in script, gone
-    # The page is scrolled by a notebook's dialog code and a field of
-    # maidr's own, and nothing else.
-    assert script.count("scrollIntoView(") == 2
+    # The page is scrolled by a notebook's dialog code, a field of maidr's
+    # own, and a chart wholly out of view as its dialog closes, and nothing
+    # else.
+    assert script.count("scrollIntoView(") == 3
     # At once: a Shiny page scrolls smoothly, and the next measure stopped
     # a smooth scroll halfway.
     assert (
@@ -489,14 +494,20 @@ def test_a_dialog_lays_the_frame_out_as_a_notebooks():
     assert "iframe.style.scrollMarginTop = iframe.maidrCover + 'px';" in script
     assert "el.scrollTo({top: top, left: kept[i][2], behavior: 'instant'});" in script
     assert "el.scrollTop = top;" not in script
-    # The page, and every element round the frame, put back where they
-    # were as the dialog opened, as it closes and once the browser has
-    # scrolled to the chart given the focus back, unless the reader
-    # scrolled or the window changed size.
-    assert "kept: maidrKeepPlace(iframe)" in script
-    assert "was.kept();" in script
-    assert "                kept.push([el, el.scrollTop, el.scrollLeft]);\n" in script
-    assert "win.addEventListener('scroll', put, true);" in script
+    # As the dialog closes, the chart, given the focus back, is brought
+    # into view the nearest way where none of its frame shows, and nothing
+    # is scrolled where any of it does.
+    assert script.count("maidrBringIn(iframe);") == 1
+    assert (
+        "iframe.scrollIntoView({block: 'nearest', inline: 'nearest', "
+        "behavior: 'instant'});"
+    ) in script
+    assert "if (!out) return;" in script
+    # And the browser does not scroll to what MUI and maidr.js give the
+    # focus back to, until the dialog has gone.
+    assert "suspended.focus = maidrFocusInPlace(doc.defaultView);" in script
+    assert "was.focus();" in script
+    assert "var still = {preventScroll: true};" in script
     assert "doc.addEventListener('focusin', suspended.back, true);" in script
     assert "field.scrollIntoView({block: 'nearest', inline: 'nearest'});" in script
     # A chart drawn again under a dialog is left to Shiny.

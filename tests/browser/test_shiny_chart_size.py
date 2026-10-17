@@ -647,13 +647,13 @@ def test_closing_a_dialog_over_a_plotly_chart_taller_than_the_window_leaves_it_b
     """Help opens and closes over a Plotly chart the window cannot show whole.
 
     Help is scrolled into view as it opens, as a notebook's is, and kept to
-    the window's height in the frame's middle. As it closes the browser
-    brings back the element a Plotly chart takes the focus on, a line at
-    its top, scrolling to it where it is out of view: the page is put back
-    where it was before help opened, and so is the mark the reader had
-    highlighted. It had been scrolled 200-570px further, the mark off
-    screen; and, the reader having scrolled down the chart as they read
-    it, its top above the window, 480-650px back up, the mark 22% shown.
+    the window's height in the frame's middle, which scrolls the line a
+    Plotly chart takes the focus on, at its top, above the window. As help
+    closes, the chart is given the focus back, and the browser scrolled
+    the page to that line, centring it: the chart 450px down a 900px
+    window, 195px down a phone's, the mark the reader had highlighted 18-45%
+    shown, and none of it after the next key. Nothing scrolls as help
+    closes now: the page stays where help had it, and the mark is in view.
     """
     page = _open(browser, f"{shiny_size_app_url}/{case}/", *size)
     try:
@@ -669,6 +669,7 @@ def test_closing_a_dialog_over_a_plotly_chart_taller_than_the_window_leaves_it_b
         page.wait_for_timeout(1500)
         _settle(page)
         _assert_dialog_whole(page, "help open")
+        opened = page.evaluate(_LIT)
 
         page.keyboard.press("Escape")
         page.wait_for_timeout(1500)
@@ -676,11 +677,15 @@ def test_closing_a_dialog_over_a_plotly_chart_taller_than_the_window_leaves_it_b
         back = page.evaluate(_LIT)
         assert page.evaluate(_DIALOG) is None
         assert back["focused"], back
-        assert back["scrollY"] == pytest.approx(before["scrollY"], abs=1), (
-            before,
+        assert back["scrollY"] == pytest.approx(opened["scrollY"], abs=1), (
+            opened,
             back,
         )
-        assert back["litShown"] >= before["litShown"] - 0.01, (before, back)
+        assert back["litShown"] >= min(before["litShown"], 0.95), (before, back)
+        page.keyboard.press("ArrowRight")
+        page.wait_for_timeout(700)
+        moved = page.evaluate(_LIT)
+        assert moved["litShown"] >= 0.95, (before, back, moved)
         assert page.errors == []  # type: ignore[attr-defined]
     finally:
         page.close()
@@ -724,13 +729,22 @@ def test_closing_a_dialog_after_the_window_changed_size_shows_the_chart(
     focus, was left partly or wholly off screen: its frame's top at 324px
     of a 450px window zoomed to 200%, at 561px of an 800px one narrowed to
     390px, and at -902px on a longer page. An arrow key did not bring it
-    back. The page is not put back once the window has changed size; the
-    chart, its box its own height again, is in view as the dialog closes,
-    its top no more than a line above the window.
+    back. Nothing is put back now: the chart, its box its own height again,
+    is where help left it, in view, and so is the mark the reader had
+    highlighted.
     """
     page = _open(browser, f"{shiny_size_app_url}/tall_page/", *start)
     try:
-        _open_help_halfway_down(page)
+        page.evaluate(
+            "() => document.querySelector('#m iframe')"
+            ".scrollIntoView({block: 'center', behavior: 'instant'})"
+        )
+        page.wait_for_timeout(400)
+        _read(page, presses=2)
+        page.keyboard.press(_HELP)
+        page.wait_for_timeout(1500)
+        _settle(page)
+        assert page.evaluate(_DIALOG) is not None, "no dialog opened"
         page.set_viewport_size({"width": end[0], "height": end[1]})
         page.wait_for_timeout(1500)
         _settle(page)
@@ -739,8 +753,8 @@ def test_closing_a_dialog_after_the_window_changed_size_shows_the_chart(
         page.wait_for_timeout(1200)
         back = _settle(page)
         assert page.evaluate(_DIALOG) is None
-        frame = back["frame"]
-        assert frame["top"] >= -20 and frame["bottom"] <= end[1] + 1, (end, back)
+        lit = page.evaluate(_LIT)
+        assert lit["litShown"] is not None and lit["litShown"] >= 0.95, (end, lit)
         assert back["box"]["height"] == pytest.approx(300, abs=1), back
         focused = _chart_frame(page, "m").evaluate(
             "() => document.activeElement && document.activeElement.getAttribute('role')"
@@ -769,14 +783,16 @@ def test_a_chart_drawn_again_under_a_dialog_does_not_move_the_page(
 ):
     """The output is drawn again while help is open, as live data would.
 
-    The output goes back to its own height, and the page to where it was as
-    the dialog opened, at once, as it does when the dialog closes: it had
-    been put back, later, by the next frame in the output, from places kept
-    for it that never expired.
+    The output goes back to its own height at once, as it does when the
+    dialog closes, and nothing is put back: the page had been put back,
+    later, by the next frame in the output, from places kept for it that
+    never expired. The page moves only as the browser keeps what the window
+    shows in place round the output that changed height, and the chart is
+    in view.
     """
     page = _open(browser, f"{shiny_size_app_url}/tall_drawn_again/", width, 800)
     try:
-        opened = _open_help_halfway_down(page)
+        _open_help_halfway_down(page)
         _replaced(
             page,
             lambda: page.evaluate(
@@ -785,10 +801,6 @@ def test_a_chart_drawn_again_under_a_dialog_does_not_move_the_page(
         )
         page.wait_for_timeout(1200)
         back = _settle(page)
-        assert back["scrollY"] == pytest.approx(opened["scrollY"], abs=1), (
-            opened,
-            back,
-        )
         assert back["box"]["height"] == pytest.approx(300, abs=1), back
         assert back["out"]["height"] == pytest.approx(300, abs=1), back
         frame = back["frame"]
@@ -929,6 +941,38 @@ def _assert_dialog_whole(page, where: str) -> dict:
     return shown
 
 
+#: Every scroll position the page and the boxes round the chart's frame
+#: take from now on, frame by frame, but where one only went as far as it
+#: still can: the frame, fitted to its output again, is shorter than it is
+#: while a dialog is open, and a page scrolled to its end ends higher.
+_WATCH_CLOSE = r"""() => {
+  const frame = document.querySelector('#m iframe');
+  const scrollers = [document.scrollingElement];
+  for (let a = frame.parentElement; a && a !== document.body; a = a.parentElement) {
+    scrollers.push(a);
+  }
+  const at = scrollers.map(el => el.scrollTop);
+  window.maidrClose = {at: at.map(Math.round), moved: []};
+  const note = () => {
+    scrollers.forEach((el, i) => {
+      const end = el.scrollHeight - el.clientHeight;
+      const clamped = el.scrollTop < at[i] && el.scrollTop >= end - 1;
+      if (Math.abs(el.scrollTop - at[i]) > 1 && !clamped) {
+        window.maidrClose.moved.push([i, Math.round(el.scrollTop)]);
+      }
+    });
+    requestAnimationFrame(note);
+  };
+  note();
+}"""
+
+
+def _assert_nothing_scrolled(page, where: str) -> None:
+    """Neither the page nor a box round the frame moved since _WATCH_CLOSE."""
+    close = page.evaluate("() => window.maidrClose")
+    assert close["moved"] == [], (where, close)
+
+
 _HELP, _SETTINGS = "Control+/", "Control+,"
 
 
@@ -996,9 +1040,8 @@ def test_a_dialog_is_shown_whole_wherever_the_chart_is(
     view included, as before charts were fitted, below a navbar fixed at
     the window's top, which covered the top 24px of help's title. On
     closing it, the chart is fitted again, with its highlight in view, and
-    the focus back in it, and the page and the box are where the reader
-    left them: the page had been left 24-40px further down with the chart's
-    bottom below the window, and a box at its top 136px down.
+    the focus back in it, and nothing is scrolled: neither the page nor the
+    box moves from where help had them.
     """
     page = _open(browser, f"{shiny_size_app_url}/{case}/", *size)
     try:
@@ -1011,17 +1054,17 @@ def test_a_dialog_is_shown_whole_wherever_the_chart_is(
         own = _settle(page)
         page.evaluate(_PLACE, where)
         page.wait_for_timeout(500)
-        placed = page.evaluate(_SCROLLED)
         page.keyboard.press(key)
         page.wait_for_timeout(1500)
         _settle(page)
         _assert_dialog_whole(page, f"{key} open")
+        page.evaluate(_WATCH_CLOSE)
 
         page.keyboard.press("Escape")
         page.wait_for_timeout(1500)
         back = _settle(page)
         assert page.evaluate(_DIALOG) is None
-        assert page.evaluate(_SCROLLED) == pytest.approx(placed, abs=1), placed
+        _assert_nothing_scrolled(page, "as it closed")
         lit = page.evaluate(_LIT)
         assert lit["focused"], lit
         # A Bokeh plot's highlight is drawn on its canvas, not in the page.
@@ -1036,7 +1079,7 @@ def test_a_dialog_is_shown_whole_wherever_the_chart_is(
 @pytest.mark.parametrize(
     "size", [(1280, 500), (640, 450), (844, 390)], ids=["short", "zoom-200", "phone"]
 )
-def test_closing_a_dialog_leaves_the_page_where_the_reader_left_it(
+def test_closing_a_dialog_leaves_the_page_where_it_is(
     browser, shiny_size_app_url, size
 ):
     """A chart whose bottom is below the window, focused there, and read.
@@ -1044,8 +1087,8 @@ def test_closing_a_dialog_leaves_the_page_where_the_reader_left_it(
     Help opens, scrolled into view, and closes. The page went back to where
     it was, and the browser, giving the chart the focus back, then scrolled
     on to show the chart's bottom: 24-40px further down than the reader had
-    left it, which a dialog never moved before charts were fitted. It is
-    put back once more after that, for as long as nothing else moves it.
+    left it. Nothing scrolls as help closes now: the page stays where help
+    had it, the chart's highlight in view there.
     """
     page = _open(browser, f"{shiny_size_app_url}/tall_page/", *size)
     try:
@@ -1058,6 +1101,7 @@ def test_closing_a_dialog_leaves_the_page_where_the_reader_left_it(
         page.wait_for_timeout(1500)
         _settle(page)
         _assert_dialog_whole(page, "help open")
+        page.evaluate(_WATCH_CLOSE)
 
         page.keyboard.press("Escape")
         page.wait_for_timeout(1500)
@@ -1065,11 +1109,10 @@ def test_closing_a_dialog_leaves_the_page_where_the_reader_left_it(
         back = page.evaluate(_LIT)
         assert page.evaluate(_DIALOG) is None
         assert back["focused"], back
-        assert back["scrollY"] == pytest.approx(before["scrollY"], abs=1), (
-            before,
-            back,
-        )
-        assert back["litShown"] >= before["litShown"] - 0.01, (before, back)
+        _assert_nothing_scrolled(page, "as help closed")
+        # As much of it as help left in view: on a phone turned on its
+        # side the frame was taller than the window under help.
+        assert back["litShown"] >= min(before["litShown"], 0.95), (before, back)
         assert page.errors == []  # type: ignore[attr-defined]
     finally:
         page.close()
@@ -1083,7 +1126,8 @@ def test_help_over_a_plotly_chart_reached_with_tab_is_shown_whole(
 
     The browser shows as much of the chart as fits as the focus comes to
     it; help, centred in the frame, had its Close button below the window,
-    at 1280px and on a phone. Closing it leaves the page where it was.
+    at 1280px and on a phone. Closing it scrolls nothing, the highlight in
+    view.
     """
     page = _open(browser, f"{shiny_size_app_url}/tall_plotly_auto/", *size)
     try:
@@ -1105,13 +1149,14 @@ def test_help_over_a_plotly_chart_reached_with_tab_is_shown_whole(
         page.wait_for_timeout(1500)
         _settle(page)
         _assert_dialog_whole(page, "help open")
+        page.evaluate(_WATCH_CLOSE)
         page.keyboard.press("Escape")
         page.wait_for_timeout(1500)
         _settle(page)
-        # Where the reader was, the highlight as much in view as it was.
+        # Where help left the page, the highlight as much in view as it was.
         lit = page.evaluate(_LIT)
         assert lit["focused"], lit
-        assert lit["scrollY"] == pytest.approx(before["scrollY"], abs=1), (before, lit)
+        _assert_nothing_scrolled(page, "as help closed")
         assert lit["litShown"] >= before["litShown"] - 0.01, (before, lit)
         assert page.errors == []  # type: ignore[attr-defined]
     finally:
