@@ -35,12 +35,36 @@ pytestmark = pytest.mark.browser
 
 CHART = "[role=img], [role=application]"
 
-#: The default figure's chart as a notebook shows the plain figure: 6.4 by
-#: 4.8 inches at 100 dpi, cut to what is drawn.
-_OWN = (557, 463)
-
 #: The bars, in the order ArrowRight walks them.
 _FRUIT = ("Apples", "Bananas", "Cherries", "Dates", "Elderberries")
+
+
+def _own_size() -> tuple[float, float]:
+    """The app's default figure as a notebook shows the plain figure.
+
+    6.4 by 4.8 inches at 100 dpi, cut to what is drawn and padded by
+    ``savefig.pad_inches``: 557 by 463 pixels under matplotlib 3.11, 553 by
+    452 under 3.9, whose text is measured smaller. So it is measured here,
+    from the figure ``apps/shiny_size_app.py``'s ``_bars`` draws, rather
+    than written down.
+    """
+    import matplotlib as mpl
+    from matplotlib.backends.backend_agg import FigureCanvasAgg
+    from matplotlib.figure import Figure
+
+    fig = Figure()
+    FigureCanvasAgg(fig)
+    ax = fig.subplots()
+    ax.bar(_FRUIT, [3, 5, 2, 4, 6])
+    ax.set_title("Fruit sold")
+    ax.set_xlabel("Fruit")
+    ax.set_ylabel("Boxes sold")
+    box = fig.get_tightbbox()
+    pad = 2 * mpl.rcParams["savefig.pad_inches"]
+    return (float((box.width + pad) * fig.dpi), float((box.height + pad) * fig.dpi))
+
+
+_OWN = _own_size()
 
 #: Where everything about the output is measured, in page pixels.
 _GEOMETRY = r"""(oid) => {
