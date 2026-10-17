@@ -171,6 +171,13 @@ def _scroll_box(output):
     )
 
 
+def _alone_in_a_scroll_box(output):
+    """The output alone in a box of a fixed height that scrolls, its own bar."""
+    return ui.page_fluid(
+        ui.div(output, id="scroller", style="height: 300px; overflow-y: auto")
+    )
+
+
 def _fixed_navbar(output):
     """The tall page's card under a navbar fixed at the window's top."""
     words = "A paragraph of text that makes the page longer than the window."
@@ -234,6 +241,7 @@ CASES = {
     "page_end": (_page_end, output_maidr("m", height=300), {}, _bars),
     "page_end_plotly": (_page_end, output_maidr("m"), {}, _plotly),
     "scroll_box": (_scroll_box, output_maidr("m"), {}, _bars),
+    "alone_in_box": (_alone_in_a_scroll_box, output_maidr("m"), {}, _bars),
     "fixed_navbar": (_fixed_navbar, output_maidr("m", height=300), {}, _bars),
     "fixed_navbar_plotly": (_fixed_navbar, output_maidr("m"), {}, _plotly),
     "fs_card": (_card_full_screen, output_maidr("m"), {}, _bars),

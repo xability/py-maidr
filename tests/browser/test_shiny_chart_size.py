@@ -1163,6 +1163,166 @@ def test_help_over_a_plotly_chart_reached_with_tab_is_shown_whole(
         page.close()
 
 
+@pytest.mark.parametrize("how", ["wheel", "script"])
+def test_a_scroll_just_after_a_dialog_closes_is_kept(browser, shiny_size_app_url, how):
+    """The page is scrolled 300ms after help closes, by the reader or the app.
+
+    For a second after a dialog closed, the page was put back to where it
+    was as the dialog opened whenever something scrolled it that no wheel,
+    touch, key or pointer of the reader's had started: an app's own
+    ``window.scrollBy`` snapped back at once, and so would a link to an
+    anchor or a screen reader's cursor. Nothing about the page is kept as a
+    dialog opens now, so nothing is put back, and the reader's own wheel
+    is kept as it was.
+    """
+    page = _open(browser, f"{shiny_size_app_url}/tall_page/", 1280, 900)
+    try:
+        _open_help_halfway_down(page)
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(300)
+        closed = page.evaluate("() => window.scrollY")
+        if how == "wheel":
+            page.mouse.move(8, 450)
+            page.mouse.wheel(0, -250)
+        else:
+            page.evaluate("() => window.scrollBy({top: -250, behavior: 'instant'})")
+        page.wait_for_timeout(1500)
+        assert page.evaluate(_DIALOG) is None
+        scrolled = page.evaluate("() => window.scrollY")
+        slack = 50 if how == "wheel" else 1
+        assert scrolled == pytest.approx(closed - 250, abs=slack), (closed, scrolled)
+        assert page.errors == []  # type: ignore[attr-defined]
+    finally:
+        page.close()
+
+
+#: A block this tall put above the chart's card, or below it, as a live log,
+#: a chat or a table that grows would.
+_GROW = r"""([where, px]) => {
+  const block = document.createElement('div');
+  block.style.height = px + 'px';
+  const out = document.getElementById('m');
+  const card = out.closest('.card');
+  if (where === 'above') card.parentElement.insertBefore(block, card);
+  else if (where === 'inbox') out.after(block);
+  else document.body.appendChild(block);
+}"""
+
+
+@pytest.mark.parametrize("case", ["tall_page", "tall_plotly_auto"])
+def test_content_growing_above_the_chart_under_a_dialog_leaves_the_chart_be(
+    browser, shiny_size_app_url, case
+):
+    """600px are added above the chart's card while help is open over it.
+
+    The browser keeps what the window shows where it is as the page above it
+    grows. As help closed, the page was put back to the offset it had as
+    help opened: the chart 600px further down than it had been, its
+    highlight off screen. The chart stays where it was now, its highlight
+    in view.
+    """
+    page = _open(browser, f"{shiny_size_app_url}/{case}/", 1280, 900)
+    try:
+        # Room below the chart: a page that ends close below it ends higher
+        # once the frame is fitted again, and its end moves the chart.
+        page.evaluate(_GROW, ["below", 1500])
+        page.evaluate(
+            "() => document.querySelector('#m iframe')"
+            ".scrollIntoView({block: 'center', behavior: 'instant'})"
+        )
+        page.wait_for_timeout(400)
+        _read(page, presses=2)
+        page.keyboard.press(_HELP)
+        page.wait_for_timeout(1500)
+        _settle(page)
+        _assert_dialog_whole(page, "help open")
+        page.evaluate(_GROW, ["above", 600])
+        page.wait_for_timeout(600)
+        during = page.evaluate(_LIT)
+
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(1500)
+        _settle(page)
+        back = page.evaluate(_LIT)
+        assert page.evaluate(_DIALOG) is None
+        assert back["focused"], back
+        assert back["frameTop"] == pytest.approx(during["frameTop"], abs=2), (
+            during,
+            back,
+        )
+        assert back["litShown"] >= 0.95, (during, back)
+        assert page.errors == []  # type: ignore[attr-defined]
+    finally:
+        page.close()
+
+
+#: The chart's frame against the window and, where there is one, the box
+#: ``#scroller`` that scrolls round it: whether any of it shows, and how much
+#: of what could show does, the whole frame or as tall a part of it as the
+#: window and the box are.
+_FRAME_SHOWN = r"""() => {
+  const f = document.querySelector('#m iframe').getBoundingClientRect();
+  const box = document.getElementById('scroller');
+  const b = box ? box.getBoundingClientRect() : null;
+  const bounds = [[0, innerHeight]];
+  if (b) bounds.push([b.top + box.clientTop, b.top + box.clientTop + box.clientHeight]);
+  const top = Math.max(f.top, ...bounds.map(([t]) => t));
+  const bottom = Math.min(f.bottom, ...bounds.map(([, e]) => e));
+  const most = Math.min(f.height, ...bounds.map(([t, e]) => e - t));
+  return {any: bottom > top, share: Math.max(0, bottom - top) / most};
+}"""
+
+
+@pytest.mark.parametrize("case", ["tall_page", "scroll_box"])
+def test_a_chart_out_of_view_as_its_dialog_closes_is_brought_into_view(
+    browser, shiny_size_app_url, case
+):
+    """Help is open, and something scrolls the chart wholly out of view.
+
+    A block added below the chart, and the page, or the box that scrolls
+    round it, scrolled to its end, as a script or a reader would. As help
+    closes, the chart has the focus back and none of its frame shows: it
+    is scrolled into view, the nearest way, as much of it as the window,
+    and the box, can show.
+    """
+    page = _open(browser, f"{shiny_size_app_url}/{case}/", 1280, 900)
+    try:
+        page.evaluate(_PLACE, "centre")
+        page.wait_for_timeout(400)
+        _read(page, presses=2)
+        page.keyboard.press(_HELP)
+        page.wait_for_timeout(1500)
+        _settle(page)
+        _assert_dialog_whole(page, "help open")
+        if case == "scroll_box":
+            page.evaluate(_GROW, ["inbox", 1500])
+            page.evaluate(
+                "() => { const box = document.getElementById('scroller');"
+                " box.scrollTo({top: box.scrollHeight, behavior: 'instant'}); }"
+            )
+        else:
+            page.evaluate(_GROW, ["below", 2000])
+            page.evaluate(
+                "() => window.scrollTo({top: document.scrollingElement.scrollHeight,"
+                " behavior: 'instant'})"
+            )
+        page.wait_for_timeout(600)
+        assert not page.evaluate(_FRAME_SHOWN)["any"], "the chart is still in view"
+
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(1500)
+        _settle(page)
+        assert page.evaluate(_DIALOG) is None
+        shown = page.evaluate(_FRAME_SHOWN)
+        assert shown["share"] >= 0.99, shown
+        lit = page.evaluate(_LIT)
+        assert lit["focused"], lit
+        assert lit["litShown"] >= 0.95, lit
+        assert page.errors == []  # type: ignore[attr-defined]
+    finally:
+        page.close()
+
+
 def test_settings_has_the_width_it_had_before_charts_were_fitted(
     browser, shiny_size_app_url
 ):
@@ -2276,6 +2436,45 @@ def test_a_frame_at_rest_is_still_at_the_scrollbars_threshold(
             seen = page.evaluate(_GEOMETRY)
             assert _inside(seen["svg"], seen["frame"]), (spacer, seen)
         assert page.errors == []  # type: ignore[attr-defined]
+    finally:
+        page.close()
+
+
+def test_a_frame_alone_in_a_scroll_box_is_still_at_its_scrollbars_threshold(
+    classic_scrollbar_browser, shiny_size_app_url
+):
+    """Classic scrollbars, the chart alone in a box of a fixed height that scrolls.
+
+    The box's own scrollbar comes as the frame grows past the box, and
+    narrows the chart, which shrinks the frame back inside it, and the
+    scrollbar goes. The steady guard counts the box's scrollbar as it does
+    the page's: counting the page's alone, the frame was resized 240 times
+    in 4s with the box 292-300px tall. Its height is swept across that
+    threshold here.
+    """
+    page = classic_scrollbar_browser.new_page(viewport={"width": 390, "height": 844})
+    errors: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    try:
+        page.goto(f"{shiny_size_app_url}/alone_in_box/")
+        page.wait_for_selector("#m iframe", timeout=30_000)
+        page.frame_locator("#m iframe").locator(CHART).first.wait_for(
+            state="attached", timeout=30_000
+        )
+        _settle(page)
+        for height in range(280, 322, 2):
+            page.evaluate(
+                "(px) => document.getElementById('scroller').style.height = px + 'px'",
+                height,
+            )
+            page.wait_for_timeout(1500)
+            page.evaluate(_COUNT_RESIZES)
+            page.wait_for_timeout(1500)
+            resizes = page.evaluate("() => window.maidrResizes")
+            assert resizes == 0, (height, resizes)
+            seen = page.evaluate(_GEOMETRY)
+            assert _inside(seen["svg"], seen["frame"]), (height, seen)
+        assert errors == [], errors
     finally:
         page.close()
 
