@@ -523,13 +523,17 @@ _NOTEBOOK_JS = _OUTPUT_WIDTH_JS + _KEEP_SCROLL_JS + _NOT_LAID_OUT_JS + _DIALOG_R
 #: where that is less, a chart that takes its height from its container at
 #: the height it had, not drawn again nor made wider, and the frame as tall
 #: as the window below a header fixed or sticky at its top (``maidrCover``),
-#: or the box that scrolls it, and scrolled to its middle
-#: (``maidrDialogRoom``, ``maidrShowDialog``), so that the dialog is shown
-#: whole. As the dialog closes, or the frame leaves the page, all of it is
-#: given back. Nothing about the page or a box round the frame is kept as
-#: the dialog opens, and nothing is put back as it closes: the chart, given
-#: the focus back, is scrolled into view, the nearest way, only where none
-#: of its frame shows in the window or in a box round it that scrolls
+#: or the smallest box round it that scrolls or cuts what it holds, and
+#: scrolled to its middle (``maidrDialogRoom``, ``maidrShowDialog``), so
+#: that the dialog is shown whole; over a chart taller than that, the
+#: dialog is kept to a band that tall where the frame meets what the
+#: reader sees, scrolled into view by as little as that takes
+#: (``maidrPlaceDialog``). As the dialog closes, or the frame leaves the
+#: page, all of it is given back. Nothing about the page or a box round the
+#: frame is kept as the dialog opens, and nothing is put back as it closes:
+#: the chart, given the focus back, is scrolled into view, the nearest way,
+#: below a header fixed at the window's top, only where none of its frame
+#: shows in the window or in a box round it that cuts what it holds
 #: (``maidrBringIn``); where any of it shows, nothing is scrolled.
 #:
 #: A chart drawn again -- an input it reads moved, live data -- keeps its

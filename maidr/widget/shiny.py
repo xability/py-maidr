@@ -145,10 +145,13 @@ def output_maidr(
     other keeps its own height. While one of
     maidr's dialogs is open, none of this applies: the output and the box
     round the chart are set aside, and the chart's frame is laid out as a
-    notebook's is, as tall as the window, or the box that scrolls it, and
-    scrolled to its middle, so that the dialog is shown whole. Once the
-    dialog closes the chart is fitted again and the page left where it is,
-    unless none of the chart shows, which is then scrolled into view.
+    notebook's is, as tall as the window, or the box that scrolls it or
+    cuts what it holds, and scrolled to its middle, so that the dialog is
+    shown whole; over a chart taller than that, the dialog is put where
+    the chart meets the window, which scrolls only as far as it takes to
+    show it. Once the dialog closes the chart is fitted again and the page
+    left where it is, unless none of the chart shows, which is then
+    scrolled into view, below a header fixed at the window's top.
 
     The container keeps a box of its own once a chart is in it. Shiny's
     stylesheet makes a UI output a pass-through container as soon as it
