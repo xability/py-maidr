@@ -7,6 +7,7 @@ inside a session context -- without starting a server.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import re
 import sys
 import threading
@@ -17,6 +18,7 @@ from urllib.parse import unquote
 
 import matplotlib
 import pytest
+from packaging.version import Version
 
 matplotlib.use("Agg")
 
@@ -28,8 +30,16 @@ from shiny import module  # noqa: E402
 from shiny.render import ui as render_ui  # noqa: E402
 from shiny.render.renderer import Renderer  # noqa: E402
 
+import maidr  # noqa: E402
 from maidr.core.figure_manager import FigureManager  # noqa: E402
 from maidr.util.dependencies import maidr_js_version, read_bundled_js  # noqa: E402
+from maidr.util.iframe_utils import (  # noqa: E402
+    SHINY_FRAME_NAME,
+    _SHINY_BAND_CSS,
+    _shiny_frame_css,
+    _shiny_frame_version,
+    shiny_frame_script,
+)
 from maidr.util.locale_pack import get_locale_base_url  # noqa: E402
 from maidr.util.served_bundle import SERVED_BUNDLE_NAME  # noqa: E402
 from maidr.widget.shiny import output_maidr, render_maidr  # noqa: E402
@@ -116,6 +126,11 @@ def _clean_figures():
 # ---------------------------------------------------------------------------
 
 
+def carried_script(onload: str) -> str:
+    """The script a string frame's ``onload`` carries."""
+    return re.match(r"var f=this;(.*)maidrShinyFrame\(f,", onload, re.S).group(1)
+
+
 def test_render_maidr_subclasses_renderer_not_a_concrete_renderer():
     """The documented base is ``Renderer``, not another renderer."""
     assert Renderer in render_maidr.__mro__
@@ -155,16 +170,23 @@ def test_options_are_accepted(fake_session):
 
 
 def test_auto_output_ui_delegates_to_output_maidr(fake_session):
-    """Express mode places a container carrying the configured size."""
+    """Express mode places ``output_maidr``'s container.
+
+    The renderer's size is its chart's box's, not the container's, as
+    ``render.plot``'s is its image's; see
+    ``test_express_gives_the_box_the_renderers_size``.
+    """
 
     @render_maidr(width="42px", height="7em")
     def sized():
         return _bar_axes()
 
-    rendered = str(sized.auto_output_ui())
-    assert 'id="sized"' in rendered
-    assert "width: 42px" in rendered
-    assert "height: 7em" in rendered
+    container = sized.auto_output_ui()
+    assert 'id="sized"' in str(container)
+    assert (_style(container)["width"], _style(container)["height"]) == (
+        "100%",
+        "auto",
+    )
 
 
 def test_output_args_reaches_the_container(fake_session):
@@ -185,9 +207,9 @@ def test_output_args_reaches_the_container(fake_session):
 
     rendered = str(sized._render_auto_output_ui())
     assert "width: 50%" in rendered
-    # Unmentioned arguments still come from the decorator: `@output_args`
-    # overrides, it does not reset.
-    assert "height: 7em" in rendered
+    # The decorator's size is the chart's box's, not the output's.
+    assert "height: auto" in rendered
+    assert "7em" not in rendered
 
 
 def test_an_unknown_output_arg_names_the_ui_function(fake_session):
@@ -212,6 +234,596 @@ def test_output_maidr_applies_module_namespacing():
     """A module's output id is namespaced, so modules keep working."""
     with module.namespace_context("mod1"):
         assert 'id="mod1-my_plot"' in str(output_maidr("my_plot"))
+
+
+# ---------------------------------------------------------------------------
+# Size: the output keeps its box, and the chart's box takes the sizes
+# ---------------------------------------------------------------------------
+
+
+def _style(tag) -> dict[str, str]:
+    """A tag's inline style, as ``{property: value}``."""
+    style = str(tag.attrs.get("style", ""))
+    return {
+        part.split(":", 1)[0].strip(): part.split(":", 1)[1].strip()
+        for part in style.split(";")
+        if ":" in part
+    }
+
+
+def test_the_output_keeps_a_box_once_a_chart_is_in_it():
+    """Shiny's ``display: contents`` took the output's size with its box.
+
+    ``div:where(.shiny-html-output):has(>*) { display: contents }`` makes a
+    UI output a pass-through container as soon as it has children, so the
+    width and height it was given applied only while it was empty. A
+    ``display`` of its own, inline, wins over that rule. The output is a
+    column the chart's box fills, and may shrink below the chart's height.
+    """
+    style = _style(output_maidr("chart", width="400px", height="300px"))
+
+    assert style["display"] == "flex"
+    assert style["flex-direction"] == "column"
+    assert (style["width"], style["height"]) == ("400px", "300px")
+    assert style["min-height"] == "0"
+    assert style["max-width"] == "100%"
+
+
+@pytest.mark.parametrize(
+    ("given", "css"), [(500, "500px"), (300.5, "300.5px"), ("50vh", "50vh")]
+)
+def test_a_number_is_pixels_as_shiny_takes_it(given, css):
+    """``500`` was written as ``width: 500``, which CSS drops."""
+    style = _style(output_maidr("chart", width=given, height=given))
+
+    assert (style["width"], style["height"]) == (css, css)
+
+
+def test_a_size_of_the_wrong_type_fails_where_it_is_written():
+    with pytest.raises(TypeError, match="width"):
+        output_maidr("chart", width=[500])  # type: ignore[arg-type]
+    with pytest.raises(TypeError, match="height"):
+        render_maidr(height=True)  # type: ignore[arg-type]
+    with pytest.raises(TypeError, match="width"):
+        render_maidr(width=object())  # type: ignore[arg-type]
+
+
+def test_a_size_of_none_is_no_size_as_shiny_has_it(fake_session):
+    """``as_css_unit(None)`` is no size; it was a ``TypeError`` here."""
+    style = _style(output_maidr("chart", width=None, height=None))
+
+    assert "width" not in style and "height" not in style
+    assert style["display"] == "flex"
+
+    @render_maidr(width=None, height=None)
+    def chart():
+        return _bar_axes()
+
+    box = _box(_render(chart)["html"])
+    assert "width:" not in box and "height:" not in box
+
+
+def test_the_output_fills_a_fillable_container_by_default():
+    """As ``output_plot`` does; ``fill=False`` keeps it to its own height."""
+    filled = output_maidr("chart")
+    kept = output_maidr("chart", fill=False)
+
+    assert "html-fill-item" in filled.attrs["class"]
+    assert "html-fill-item" not in kept.attrs["class"]
+    # Either way a fillable container, for the chart's box to fill.
+    for tag in (filled, kept):
+        assert "html-fill-container" in tag.attrs["class"]
+
+
+def _box(html: str) -> str:
+    """The opening tag of the box the frame is fitted to."""
+    match = re.search(r'<div class="maidr-shiny-box[^"]*"[^>]*>', html)
+    assert match, "the frame is not in a box"
+    return unescape(match.group(0))
+
+
+def test_the_frame_is_in_a_box_that_fills_the_output(fake_session):
+    """The box the frame's script fits the chart to, and scrolls in."""
+
+    @render_maidr
+    def chart():
+        return _bar_axes()
+
+    html = _render(chart)["html"]
+    box = _box(html)
+
+    assert "html-fill-item" in box
+    assert "overflow: auto" in box
+    # No size of its own: it fills the output.
+    assert "width:" not in box and "height:" not in box
+    assert html.index(box[:30]) < html.index("<iframe")
+
+
+def test_render_maidrs_size_is_the_charts_box(fake_session):
+    """``@render_maidr(width=500, height=300)`` sized nothing outside Express.
+
+    It now sizes the box the chart is fitted to, as ``@render.plot``'s
+    sizes the image: at most the output's width, and a height that does
+    not grow to fill the output.
+    """
+
+    @render_maidr(width=500, height=300)
+    def chart():
+        return _bar_axes()
+
+    box = _box(_render(chart)["html"])
+
+    assert "width: 500px" in box
+    assert "max-width: 100%" in box
+    assert "height: 300px" in box
+    assert "flex: 0 0 auto" in box
+
+
+def test_express_gives_the_box_the_renderers_size(fake_session):
+    """Under Express too the renderer's size is the box's, the output's none.
+
+    Given to the output, a height made a fill output 300px of a card's
+    778, grown to the rest, and the chart centred in it, where
+    ``@render.plot(height=300)`` draws a 300px image at the top. Given to
+    both, a width of 50% would be a quarter. The output takes ``fill``.
+    """
+
+    @render_maidr(width="50%", height=300, fill=False)
+    def chart():
+        return _bar_axes()
+
+    container = chart.auto_output_ui()
+    style = _style(container)
+    box = _box(_render(chart)["html"])
+
+    assert (style["width"], style["height"]) == ("100%", "auto")
+    assert "html-fill-item" not in container.attrs["class"]
+    assert "width: 50%" in box and "height: 300px" in box
+    assert "html-fill-item" in chart.auto_output_ui(fill=True).attrs["class"]
+
+
+def test_the_frame_fits_its_box_in_a_shiny_session(fake_session):
+    """The chart is sized as a notebook shows the plain figure, and fitted."""
+
+    @render_maidr
+    def chart():
+        return _bar_axes()
+
+    payload = _render(chart)
+    html = unescape(payload["html"])
+    document = _iframe_document(fake_session, payload["html"])
+
+    assert "maidrShinyFrame(f,'matplotlib',{})" in html
+    assert SHINY_FRAME_NAME in [dep["name"] for dep in payload["deps"]]
+    assert 'class="maidr-frame-svg"' in document
+    assert document.startswith("<style>")
+
+
+def test_a_chart_drawn_again_does_not_scroll_the_page():
+    """The served script holds the output still; it never scrolls the page.
+
+    Shiny put the new frame in at 150px, the frame was measured at no
+    height and at 4000px, and the page was scrolled back by what the frame
+    had grown: a reader below a chart whose top was above the window lost
+    the chart and the control they were moving, with every redraw.
+    """
+    script = shiny_frame_script()
+
+    # Held as Shiny is about to draw the output again, and while each frame
+    # is measured; let go once a new frame has measured its chart.
+    assert "window.jQuery(document).on('shiny:value'" in script
+    assert "maidrHoldRedraw(event.target);" in script
+    # An element's alone, and never an error in Shiny's message loop: a
+    # value for an output not in the page is sent to the document.
+    assert "if (event.target && event.target.nodeType === 1) {" in script
+    assert "} catch (e) {}" in script
+    assert script.count("maidrHoldStill(iframe)") == 3  # defined, and 2 calls
+    assert script.count("maidrRedrawn(iframe);") == 2
+    # Only the frame's own box is scrolled back after a fitted measure; the
+    # page, as a notebook's, only while a dialog is open.
+    assert script.count("maidrKeepBoxScroll(iframe)") == 3
+
+
+def test_a_dialog_lays_the_frame_out_as_a_notebooks():
+    """While a dialog of maidr's is open, the frame is laid out as before.
+
+    Room, placement and scrolling of its own for a dialog in a fitted box
+    cut one dialog or another off, or moved the page as it closed; laying
+    the chart out at its own size, but keeping the box's and the output's
+    style, cut a dialog in the lower part of the window, narrowed it, and
+    moved the page at its end. While one is open, the box is a
+    pass-through container, the output has none of output_maidr's style
+    or fill classes (Shiny's own rule makes it a pass-through container
+    too), the frame has an iframe's style as it had then, and the frame
+    runs a notebook frame's lines, its dialog room included, at the height
+    it had until it is measured. Over a chart taller than the reader's
+    view, the dialog's band is where the frame meets what the reader sees,
+    not in the frame's middle; a box that cuts what it holds keeps the
+    room to its height. All of it comes back once the dialog has gone, or
+    once the frame has left the page.
+    """
+    script = shiny_frame_script()
+
+    assert script.count("let fitted = !maidrSuspendBox(iframe);") == 1
+    assert script.count("var fitted = !maidrSuspendBox(iframe);") == 1
+    assert "box.setAttribute('style', 'display: contents');" in script
+    assert "out.removeAttribute('style');" in script
+    assert "['html-fill-container', 'html-fill-item']" in script
+    assert (
+        "iframe.setAttribute('style', "
+        "'background-color: #fff; position: relative; border: none');"
+    ) in script
+    assert "if (!iframe.isConnected) maidrSuspendBox(iframe);" in script
+    # A chart that takes its frame's width is not drawn again wider.
+    assert "iframe.style.maxWidth = width + 'px';" in script
+    # At its height until it is measured, not an iframe's own 150px.
+    suspend = script.split("function maidrSuspendBox")[1].split("function ")[0]
+    assert "var height = iframe.getBoundingClientRect().height;" in suspend
+    assert "iframe.style.height = height + 'px';" in suspend
+    # A notebook frame's width, room and scrolling, as they are in one.
+    assert "let room = fitted ? 0 : maidrDialogRoom(iframeDocument, iframe);" in script
+    assert "var room = fitted ? 0 : maidrDialogRoom(doc, iframe);" in script
+    assert (
+        "iframe.style.maxWidth = Math.max(own + side, dialogOpen ? 664 : 0) + 'px';"
+    ) in script
+    assert script.count("maidrShowDialog(") == 3  # defined, and 2 calls
+    assert script.count("? maidrKeepBoxScroll(iframe) : maidrKeepScroll(iframe);") == 2
+    # Nothing of the branch's own placement, anchoring or held heights.
+    for gone in (
+        "maidrNoAnchor",
+        "overflowAnchor",
+        "maidrBoxDialogRoom",
+        "maidrHoldBox",
+        "maidrShown",
+        "--maidr-dialog-top",
+        "maidrPutBack",
+        "maidrDialogPlaces",
+        "body.style.minHeight",
+        "maxWidth = 'none'",
+        # Nothing of where the page was as a dialog opened is kept.
+        "maidrKeepPlace",
+        "was.kept",
+        "addEventListener('scroll'",
+    ):
+        assert gone not in script, gone
+    # scrollIntoView centres a frame no taller than the reader's view as a
+    # dialog opens, and shows a field of maidr's own, and nothing else; the
+    # rest is scrolled by as little as it takes (maidrScrollInto).
+    assert script.count("scrollIntoView(") == 2
+    assert script.count("function maidrScrollInto(") == 1
+    assert script.count("maidrScrollInto(") == 3
+    # At once: a Shiny page scrolls smoothly, and the next measure stopped
+    # a smooth scroll halfway.
+    assert (
+        "iframe.scrollIntoView(\n"
+        "                        {block: 'center', inline: 'nearest', behavior: 'instant'}"
+    ) in script
+    assert "win.scrollBy({top: y, left: x, behavior: 'instant'});" in script
+    # A dialog over a chart taller than the reader's view is put where the
+    # frame meets what they see, not in the frame's middle as a notebook's.
+    assert (
+        "maidrPlaceDialog(doc, iframe, room, opened && (!was || resized));"
+    ) in script
+    assert "root.style.setProperty('--maidr-dialog-at', at + 'px');" in script
+    show_dialog = script.split("function maidrShowDialog")[1].split("\n        }")[0]
+    assert "scrollIntoView" not in show_dialog and "--maidr-dialog" not in show_dialog
+    # A box that cuts what it holds, without scrolling, keeps the room too.
+    assert "var cuts = (y === 'hidden' || y === 'clip')" in script
+    # Below a header fixed or sticky at the window's top.
+    assert "iframe.maidrCover = scroller ? 0 : maidrCover(iframe);" in script
+    assert "height -= iframe.maidrCover;" in script
+    assert "iframe.style.scrollMarginTop = iframe.maidrCover + 'px';" in script
+    assert "el.scrollTo({top: top, left: kept[i][2], behavior: 'instant'});" in script
+    assert "el.scrollTop = top;" not in script
+    # As the dialog closes, the chart, given the focus back, is brought
+    # into view the nearest way where none of its frame shows, and nothing
+    # is scrolled where any of it does.
+    assert script.count("maidrBringIn(iframe);") == 1
+    # Below a header fixed at the window's top, counted by hand: as a scroll
+    # margin it was lost in the box round the frame.
+    assert "maidrScrollInto(iframe, frame, cover);" in script
+    assert "&& frame.right > seen.left && frame.left < seen.right) return;" in script
+    # And the browser does not scroll to what MUI and maidr.js give the
+    # focus back to, until the dialog has gone.
+    assert "suspended.focus = maidrFocusInPlace(doc.defaultView);" in script
+    assert "was.focus();" in script
+    assert "var still = {preventScroll: true};" in script
+    assert "doc.addEventListener('focusin', suspended.back, true);" in script
+    assert "field.scrollIntoView({block: 'nearest', inline: 'nearest'});" in script
+    # A chart drawn again under a dialog is left to Shiny.
+    assert "if (old[i].maidrSuspended) return;" in script
+
+
+def test_a_frame_holds_a_height_only_at_the_scrollbars_threshold():
+    """The two heights of a frame at the classic scrollbars' threshold.
+
+    Any height, then another, then the first again, at one window width
+    was taken for the threshold's flip, and the taller held until the
+    reader did something in the chart: after full screen and back, a
+    window made shorter and taller, and a Bokeh plot scaled both ways
+    drawn at 1256px, 450px, 1256px as it loads. It is held now only when
+    the box's width flips with it, by no more than the scrollbars that came
+    and went round it took, whatever their width (a 24px limit let a 25px
+    one resize the frame without end), the narrower giving the shorter
+    height, and let go at any other change.
+    """
+    script = shiny_frame_script()
+
+    assert script.count("height = maidrSteady(iframe, height);") == 2
+    assert "Math.abs(b.width - a.width) <= Math.abs(b.bars - a.bars) + 1" in script
+    assert "(b.width < a.width) === (b.bars > a.bars)" in script
+    assert "(b.width < a.width) === (b.height < a.height)" in script
+    assert "var size = win.innerWidth + 'x' + win.innerHeight;" in script
+    for gone in ("maidrSteadyReset", "iframe.maidrSteady"):
+        assert gone not in script, gone
+
+
+def test_the_frame_script_is_served_once_rather_than_sent(fake_session):
+    """The script that sizes the frame rides no flush; the app serves it.
+
+    It was 11 KB of every flush of every chart's output, most of what the
+    websocket carried for it. A frame's ``onload`` now names only its kind
+    and its options, and the script is a dependency Shiny loads once per
+    page, before it puts the frame in it.
+    """
+    from pathlib import Path
+
+    @render_maidr
+    def chart():
+        return _bar_axes()
+
+    payload = _render(chart)
+    onload = unescape(re.search(r'onload="([^"]*)"', payload["html"]).group(1))
+
+    assert len(onload) < 300, onload
+    # The flush brings the dependency, so the frame names no route to load
+    # the script from itself (``test_a_frame_made_into_a_string_...``).
+    assert "createElement" not in onload
+    # The frame and the focus restore: a fraction of the 16 KB that marks a
+    # chart's document riding the flush
+    # (``test_the_payload_references_the_chart_rather_than_carrying_it``).
+    assert len(payload["html"]) < 6_000, len(payload["html"])
+    assert "resizeIframe" not in onload
+    [sent] = [dep for dep in payload["deps"] if dep["name"] == SHINY_FRAME_NAME]
+    assert [script["src"].rsplit("/", 1)[-1] for script in sent["script"]] == [
+        "frame.js"
+    ]
+    [served] = [
+        dep for dep in fake_session.app.registered if dep.name == SHINY_FRAME_NAME
+    ]
+    source = Path(served.source_path_map()["source"]) / "frame.js"
+    assert source.read_text(encoding="utf-8") == shiny_frame_script()
+    # Versioned by its content, so a browser never keeps a stale copy.
+    digest = hashlib.sha256(source.read_bytes()).hexdigest()[:12]
+    assert str(served.version).endswith("+g" + digest), served.version
+    # A local label packaging keeps as written, whatever the digits.
+    assert str(Version(_shiny_frame_version())) == _shiny_frame_version()
+    assert str(Version("1.26.0+g012345678901")) == "1.26.0+g012345678901"
+
+
+@pytest.mark.parametrize("plotly", [False, True])
+def test_a_frame_made_into_a_string_carries_its_script(fake_session, plotly):
+    """``ui.HTML(str(maidr.render(fig)))`` in a ``render.ui``: no dependency.
+
+    ``str()`` drops a frame's dependency, which Shiny then neither loads
+    nor serves, and the frame, on a page with no other chart, stayed 150px
+    tall and cut the chart off. A frame made outside ``render_maidr``
+    carries the script, as frames did before it was served, so that it is
+    sized wherever it is shown: a later session, a file, another process.
+    """
+    if plotly:
+        go = pytest.importorskip("plotly.graph_objects")
+        figure = go.Figure(go.Bar(x=["a", "b"], y=[1, 2]))
+    else:
+        figure = _bar_axes()
+
+    html = str(maidr.render(figure))
+    onload = unescape(re.search(r'onload="([^"]*)"', html).group(1))
+
+    script = carried_script(onload)
+    assert "window.maidrShinyFrame=function(frame,kind,options)" in script
+    kind = "plotly" if plotly else "matplotlib"
+    # Its own kind's script alone.
+    assert f"kinds.{kind}=" in script.replace(" ", "")
+    other = "matplotlib" if plotly else "plotly"
+    assert f"kinds.{other}" not in script
+    assert re.search(rf"maidrShinyFrame\(f,'{kind}',\{{[^}}]*\}}\)", onload)
+    if plotly:
+        assert '"fillHeight":450' in onload
+    # Nothing to load, route to register or size to guess at.
+    for gone in (".src=", "maidrShinyFrameSrc", "++k>6"):
+        assert gone not in onload, gone
+    assert SHINY_FRAME_NAME not in html
+    assert not fake_session._dynamic_routes
+    assert not [
+        dep for dep in fake_session.app.registered if dep.name == SHINY_FRAME_NAME
+    ]
+
+
+def test_a_frame_made_in_express_s_page_carries_its_script():
+    """A string made as Shiny Express builds the page, outside a render.
+
+    Express runs the app's file with a stand-in session to build its page,
+    which has no app to register the dependency with and serves nothing:
+    the frame had no URL to load its script from, and stayed 150px tall.
+    It carries the script instead, in its ``onload``, compacted.
+    """
+    from shiny.express._stub_session import ExpressStubSession
+    from shiny.session import session_context
+
+    with session_context(ExpressStubSession()):  # type: ignore[arg-type]
+        html = str(maidr.render(_bar_axes()))
+    onload = unescape(re.search(r'onload="([^"]*)"', html).group(1))
+
+    assert ".src=" not in onload
+    assert "maidrShinyFrame(f,'matplotlib',{})" in onload
+    script = carried_script(onload)
+    assert "window.maidrShinyFrame=function(frame,kind,options)" in script
+    assert "\n//" not in script
+    assert len(onload) < len(shiny_frame_script()) * 0.4, len(onload)
+
+
+def test_a_shiny_frame_starts_with_the_rules_it_is_laid_out_by():
+    """Its document has the rules it is laid out by; its script adds the rest.
+
+    Focus rings, a dialog's band and a fitted chart's centring apply once
+    the frame's script runs, and travel in it, once per page, rather than
+    in every frame's document with every flush.
+    """
+    import json
+
+    first, later = _shiny_frame_css()
+    assert "html,body{margin:0;padding:0}" in first
+    assert ".maidr-frame-fill" in first and "svg.maidr-frame-svg{" in first
+    for rule in (":focus", "forced-colors", "data-maidr-dialog-room", "fit-box"):
+        assert rule not in first and rule in later, rule
+    # Where a Shiny frame's band is, after frame.css's own rule for it.
+    assert later.endswith(_SHINY_BAND_CSS)
+    assert "--maidr-dialog-at" in _SHINY_BAND_CSS
+    script = shiny_frame_script()
+    assert f"style.textContent = {json.dumps(later)};" in script
+    assert script.count("maidrFrameStyle(frame);") == 2
+
+
+#: What a frame made into a string carried for its sizing before charts were
+#: fitted to their outputs (3ac3a5db): its ``onload`` attribute, the script
+#: that sized it, as HTML writes it; its document had no stylesheet of its
+#: own. The same for every chart of a kind.
+_ONLOAD_BEFORE = {"matplotlib": 10_467, "plotly": 9_151}
+
+
+@pytest.mark.parametrize("plotly", [False, True])
+def test_a_string_frame_carries_its_script_compacted_as_plain_text(plotly):
+    """A string frame's script and stylesheet, against its old script alone.
+
+    The script it carried, its comments left out, was 22 KB of every flush,
+    20 KB more than before charts were fitted. It carries its own kind's
+    alone now, compacted, and its stylesheet compacted: 26-27 KB as HTML
+    writes it, 2.6-2.8 times what it carried then (``_ONLOAD_BEFORE``),
+    as plain text, which every browser runs. Packed, it was less than that,
+    but a browser that could not unpack it left the frame 150px tall, the
+    chart cut off
+    (``test_a_string_frame_is_sized_in_a_browser_that_cannot_unpack``).
+    """
+    from shiny.express._stub_session import ExpressStubSession
+    from shiny.session import session_context
+
+    if plotly:
+        go = pytest.importorskip("plotly.graph_objects")
+        figure = go.Figure(go.Bar(x=["a", "b"], y=[1, 2]))
+    else:
+        figure = _bar_axes()
+    with session_context(ExpressStubSession()):  # type: ignore[arg-type]
+        html = str(maidr.render(figure))
+    onload = re.search(r'onload="([^"]*)"', html).group(1)
+    style = re.search(r'srcdoc="(&lt;style&gt;.*?&lt;/style&gt;)', html).group(1)
+    kind = "plotly" if plotly else "matplotlib"
+    for gone in ("DecompressionStream", "atob(", "createElement('script')"):
+        assert gone not in onload, gone
+    assert len(onload) + len(style) <= 2.85 * _ONLOAD_BEFORE[kind], (
+        len(onload),
+        len(style),
+    )
+
+
+def test_a_plotly_figure_has_a_height_of_its_own_in_shiny(fake_session):
+    """Plotly's ``height: 100%`` was the frame's, which grew with maidr's text."""
+    go = pytest.importorskip("plotly.graph_objects")
+
+    def chart_of(fig):
+        @render_maidr
+        def chart():
+            return fig
+
+        return _iframe_document(fake_session, _render(chart)["html"])
+
+    plain = go.Figure(go.Bar(x=["a", "b"], y=[1, 2]))
+    assert "height:450px" in chart_of(plain).replace(" ", "")
+
+    tall = go.Figure(go.Bar(x=["a", "b"], y=[1, 2]), layout={"height": 700})
+    assert "height:700px" in chart_of(tall).replace(" ", "")
+
+
+def _frame_options(fake_session, value) -> dict:
+    """The options a chart's frame hands the served sizing script."""
+    import json
+
+    @render_maidr
+    def chart():
+        return value
+
+    onload = unescape(re.search(r'onload="([^"]*)"', _render(chart)["html"]).group(1))
+    return json.loads(
+        re.search(r"maidrShinyFrame\(f,'plotly',(\{.*?\})\)", onload).group(1)
+    )
+
+
+def test_a_plotly_figure_is_sized_by_its_box_only_when_plotly_would(fake_session):
+    """With no size of its own it fills the box; ``autosize=False`` is fixed.
+
+    plotly.js draws a figure whose layout turns ``autosize`` off at 700 by
+    450 pixels whatever its div is; taken for one that fills its container,
+    its frame never widened to it, and its right half was out of reach.
+    """
+    go = pytest.importorskip("plotly.graph_objects")
+    bar = go.Bar(x=["a", "b"], y=[1, 2])
+
+    assert _frame_options(fake_session, go.Figure(bar)) == {
+        "widens": False,
+        "fillHeight": 450,
+    }
+    fixed = go.Figure(bar, layout={"autosize": False})
+    assert _frame_options(fake_session, fixed) == {"widens": True}
+    tall = go.Figure(bar, layout={"height": 700})
+    assert _frame_options(fake_session, tall) == {"widens": False}
+
+
+@pytest.mark.parametrize(
+    ("mode", "fills"),
+    [
+        ("stretch_both", True),
+        ("stretch_height", True),
+        ("scale_both", True),
+        ("stretch_width", False),
+        ("fixed", False),
+    ],
+)
+def test_a_bokeh_plot_that_takes_its_containers_height_is_given_one(
+    fake_session, mode, fills
+):
+    """``stretch_both`` collapsed to a 51px frame with nothing drawn in it."""
+    bokeh_plotting = pytest.importorskip("bokeh.plotting")
+    plot = bokeh_plotting.figure(x_range=["a", "b"], sizing_mode=mode, title="Sales")
+    plot.vbar(x=["a", "b"], top=[1, 2], width=0.5)
+
+    options = _frame_options(fake_session, plot)
+    assert ("fillHeight" in options) is fills, options
+    if fills:
+        assert options["fillHeight"] == 450
+    # Scaled both ways, it keeps its shape within that height too: Bokeh
+    # sizes it by its container's width alone.
+    assert options.get("keepsShape", False) is (mode == "scale_both"), options
+
+
+@pytest.mark.parametrize(
+    ("height", "fills"), [("container", True), (300, False), (None, False)]
+)
+def test_an_altair_chart_as_tall_as_its_container_is_given_a_height(
+    fake_session, height, fills
+):
+    """``height="container"`` was drawn 0px tall: its container had none."""
+    alt = pytest.importorskip("altair")
+    pd = pytest.importorskip("pandas")
+    chart = (
+        alt.Chart(pd.DataFrame({"x": ["a", "b"], "y": [1, 2]}))
+        .mark_bar()
+        .encode(x="x", y="y")
+    )
+    if height is not None:
+        chart = chart.properties(height=height)
+
+    options = _frame_options(fake_session, chart)
+    assert options.get("fillHeight") == (450 if fills else None), options
 
 
 # ---------------------------------------------------------------------------
@@ -346,9 +958,9 @@ def test_each_cdn_mode_ships_the_source_it_promises(
     assert ("cdn.jsdelivr.net/npm/maidr" in loader) is expect_cdn
     assert _BUNDLE_HEAD not in document, "the bundle is still inlined"
     assert (_SERVED_JS in document) is expect_served
-    names = [dep["name"] for dep in payload["deps"]]
+    names = [dep["name"] for dep in _bundle_deps(payload)]
     assert names == ([SERVED_BUNDLE_NAME] if expect_served else []), names
-    assert [dep.name for dep in fake_session.app.registered] == names
+    assert [dep.name for dep in _registered_bundles(fake_session)] == names
 
 
 # ---------------------------------------------------------------------------
@@ -365,6 +977,21 @@ def _bars(n: int):
 
 def _src_of(html: str) -> str:
     return re.search(r'src="([^"]*)"', html).group(1)
+
+
+def _bundle_deps(payload: dict) -> list:
+    """The served bundle among a payload's dependencies.
+
+    Every chart frame also names the script Shiny's frames size themselves
+    with (``maidr-shiny-frame``), whatever ``use_cdn`` is; see
+    ``test_the_frame_script_is_served_once_rather_than_sent``.
+    """
+    return [dep for dep in payload["deps"] if dep["name"] == SERVED_BUNDLE_NAME]
+
+
+def _registered_bundles(session) -> list:
+    """The served bundle among what a session's app was asked to serve."""
+    return [dep for dep in session.app.registered if dep.name == SERVED_BUNDLE_NAME]
 
 
 def test_the_payload_references_the_chart_rather_than_carrying_it(fake_session):
@@ -684,7 +1311,7 @@ def test_a_session_that_registers_no_route_keeps_the_document_in_the_frame(
     assert chart._served == {}
     assert _BUNDLE_HEAD[:40] in unescape(html)
     assert _SERVED_JS not in html
-    assert payload["deps"] == []
+    assert _bundle_deps(payload) == []
 
 
 def test_a_render_that_is_not_a_frame_is_passed_through(fake_session, monkeypatch):
@@ -779,7 +1406,7 @@ def test_the_served_bundle_resolves_to_what_the_app_serves(
     document = _iframe_document(fake_session, payload["html"])
     loaded = urljoin(frame_url, _SERVED_SCRIPT.search(document).group(1))
 
-    [dep] = fake_session.app.registered
+    [dep] = _registered_bundles(fake_session)
     href = dep.source_path_map(lib_prefix=lib_prefix)["href"]
     assert loaded == urljoin(page, f"{href}/maidr.js"), (loaded, frame_url)
     assert loaded.startswith(page), "the URL climbed out of the app's prefix"
@@ -803,14 +1430,14 @@ def test_the_app_serves_what_the_runtime_asks_for_and_loads_nothing(fake_session
 
     payload = _render(chart)
 
-    [dep] = fake_session.app.registered
+    [dep] = _registered_bundles(fake_session)
     source = Path(dep.source_path_map()["source"])
     assert (source / "maidr.js").is_file()
     assert (source / "maidr-math.css").is_file()
     assert dep.all_files
     assert str(dep.version) == maidr_js_version()
 
-    [sent] = payload["deps"]
+    [sent] = _bundle_deps(payload)
     assert (sent["script"], sent["stylesheet"]) == ([], [])
 
 
@@ -837,7 +1464,7 @@ def test_a_missing_bundle_is_not_named(fake_session, monkeypatch):
     document = _iframe_document(fake_session, payload["html"])
 
     assert _SERVED_JS not in document
-    assert payload["deps"] == []
+    assert _bundle_deps(payload) == []
 
 
 @pytest.mark.parametrize("use_cdn", [False, "auto"])
@@ -871,15 +1498,16 @@ def test_plotly_and_bokeh_charts_name_the_served_bundle_too(fake_session, use_cd
         name = type(value).__module__
         assert _BUNDLE_HEAD not in document, f"{name} still inlines the bundle"
         assert _SERVED_JS in document, f"{name} does not name the served bundle"
-        assert [d["name"] for d in payload["deps"]] == [SERVED_BUNDLE_NAME]
+        assert [d["name"] for d in _bundle_deps(payload)] == [SERVED_BUNDLE_NAME]
 
 
-def test_an_altair_chart_registers_nothing(fake_session):
+def test_an_altair_chart_registers_no_served_bundle(fake_session):
     """Altair loads from the CDN whatever ``use_cdn`` says (#521).
 
     So it never names the served bundle, and nothing asks the app to serve
-    one. Pinned so that a later change to that adapter decides this
-    deliberately rather than by accident.
+    one; its frame's own ``maidr-shiny-frame`` is another matter. Pinned so
+    that a later change to that adapter decides this deliberately rather
+    than by accident.
     """
     alt = pytest.importorskip("altair")
     import pandas as pd
@@ -897,7 +1525,7 @@ def test_an_altair_chart_registers_nothing(fake_session):
 
     assert "maidrVegaLite" in document
     assert _SERVED_JS not in document
-    assert payload["deps"] == []
+    assert _bundle_deps(payload) == []
 
 
 def test_the_served_bundle_is_scoped_to_the_render(fake_session):

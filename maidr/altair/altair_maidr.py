@@ -51,7 +51,7 @@ from maidr.util.cdn import (
 from maidr.util.environment import Environment
 from maidr.util.iframe_utils import with_chart_title, wrap_in_iframe_plotly
 from maidr.util.inline_chart import in_quarto_render
-from maidr.util.notebook_figure import in_notebook_frame
+from maidr.util.notebook_figure import in_notebook_frame, in_shiny_frame
 from maidr.util.pyodide_display import show_in_page
 from maidr.util.quarto_cell import fig_alt as quarto_fig_alt
 
@@ -67,6 +67,11 @@ from maidr.util.quarto_cell import fig_alt as quarto_fig_alt
 _VEGA_CDN = "https://cdn.jsdelivr.net/npm/vega@5"
 _VEGA_LITE_CDN = "https://cdn.jsdelivr.net/npm/vega-lite@5"
 _VEGA_EMBED_CDN = "https://cdn.jsdelivr.net/npm/vega-embed@6"
+
+#: How tall a chart of ``height="container"`` is in a Shiny output with no
+#: height of its own, as a Plotly figure with none is
+#: (:data:`maidr.plotly.plotly_maidr.SHINY_DEFAULT_HEIGHT`).
+_SHINY_FILL_HEIGHT = 450
 
 
 def _spec_to_safe_json(spec: dict) -> str:
@@ -193,7 +198,10 @@ class AltairMaidr:
             # A Quarto cell's ``fig-alt`` names the frame.
             alt = quarto_fig_alt() if in_quarto_render(use_iframe) else None
             frame = self._wrap_in_iframe(
-                base_html, alt, in_notebook=in_notebook_frame(use_iframe)
+                base_html,
+                alt,
+                in_notebook=in_notebook_frame(use_iframe),
+                in_shiny=in_shiny_frame(use_iframe),
             )
             return with_chart_title(frame, title)
         return with_chart_title(base_html, title)
@@ -286,7 +294,12 @@ class AltairMaidr:
         return tags.div(*children)
 
     def _wrap_in_iframe(
-        self, inner: Tag, alt: str | None = None, *, in_notebook: bool = False
+        self,
+        inner: Tag,
+        alt: str | None = None,
+        *,
+        in_notebook: bool = False,
+        in_shiny: bool = False,
     ) -> Tag:
         """Wrap ``inner`` in an auto-resizing iframe (notebook / Shiny / Flask).
 
@@ -305,7 +318,12 @@ class AltairMaidr:
         cell the chart is drawn in, when there is one, names it instead.
 
         A chart whose width is its container's (``width="container"``) is
-        as wide as a notebook's frame; see :meth:`_fills_width`.
+        as wide as a notebook's or a Shiny app's frame; see
+        :meth:`_fills_width`. One whose height is its container's
+        (``height="container"``) is, in a Shiny app, as tall as a box with a
+        height of its own less a line for maidr's text, or
+        :data:`_SHINY_FILL_HEIGHT` in one with none; see
+        :meth:`_fills_height`.
         """
         return wrap_in_iframe_plotly(
             inner,
@@ -314,6 +332,10 @@ class AltairMaidr:
             in_notebook=in_notebook,
             keep_padding=True,
             fill_width=self._fills_width(),
+            in_shiny=in_shiny,
+            fill_height=(
+                _SHINY_FILL_HEIGHT if in_shiny and self._fills_height() else 0
+            ),
         )
 
     def _fills_width(self) -> bool:
@@ -324,6 +346,16 @@ class AltairMaidr:
         as what it holds, and the chart grew without end in it.
         """
         return self._spec.get("width") == "container"
+
+    def _fills_height(self) -> bool:
+        """Whether the chart takes the height of its container.
+
+        A Vega-Lite ``height`` of ``"container"``. Vega then reads the
+        height of the element it is embedded in, which in a Shiny app's
+        frame had none of its own: the chart was drawn 0px tall in a 16px
+        frame, and grew without end once maidr's text came.
+        """
+        return self._spec.get("height") == "container"
 
     def _spec_title(self) -> str:
         """

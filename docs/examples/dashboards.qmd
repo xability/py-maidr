@@ -56,18 +56,33 @@ def server(input, output, session):
 app = App(app_ui, server)
 ```
 
-The decorated function may return a matplotlib or seaborn artist, a Plotly
-`Figure`, or an Altair chart. Returning `None` leaves the output blank.
+The decorated function may return a matplotlib, seaborn or plotnine chart, a
+Plotly `Figure`, a Bokeh plot, or an Altair chart. Returning `None` leaves the
+output blank.
 
-`@render_maidr` accepts `width`, `height`, and `use_cdn`. Prefer `use_cdn`
-here over `maidr.set_use_cdn()`: the setter is process-wide state shared by
-every concurrent session, while the argument is scoped to one output.
+The chart takes the size of its output. `output_maidr(id, width="100%",
+height="auto", fill=True)` sizes the output (a CSS length, a number of pixels,
+or `None`); with a height of its own, or in a fillable container such as a
+`ui.card()`, the chart is fitted inside it and follows it into full screen.
+
+`@render_maidr` accepts `width`, `height`, `fill`, `use_cdn` and `hover_mode`.
+Its `width` and `height` size the box the chart is fitted to, at the top left
+of the output, as `@render.plot`'s size its image; a size left unset follows
+the output. `fill` is for Shiny Express, where the decorator places its own
+output. Prefer `use_cdn` here over `maidr.set_use_cdn()`: the setter is
+process-wide state shared by every concurrent session, while the argument is
+scoped to one output.
 
 ```python
-@render_maidr(width="600px", use_cdn=False)
+@render_maidr(height=400, use_cdn=False)
 def bars():
     ...
 ```
+
+The chart is drawn once, at its figure's size, and scaled to fit its box, so
+its text is scaled with it. To keep the text large in a small output, give the
+figure a size near the output's, such as `figsize=(5, 2.5)` for a 300px-tall
+one (a line below the chart is kept for maidr's text). See [Size and placement](../index.qmd#shiny-size-and-placement) for the rest.
 
 `use_cdn=False` is the setting for an air-gapped deployment. The chart is
 rendered in an iframe whose document is fetched from a session URL rather
@@ -86,7 +101,8 @@ moved to another control keeps their place.
 
 In Shiny Express there is no separate UI call: the decorated function places
 its own container, and `@output_args()` sizes it, exactly as it does for
-`@render.plot`.
+`@render.plot`; the decorator's own `width` and `height` size the chart's box
+inside it.
 
 ```python
 from shiny.express import output_args

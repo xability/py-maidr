@@ -10,8 +10,11 @@ the chart's own width, measures it again only when its width or its content
 changes, keeps the notebook where it is scrolled while it measures it, and
 makes room for maidr's dialogs.
 
-Elsewhere -- Shiny, Flask, a Pyodide page -- the frame is left as it was.
-What a browser makes of it is ``tests/browser/test_notebook_figure_size.py``.
+A Shiny app's frame fits its output the same way, without the padding a
+notebook keeps to an output's right, and fits the chart to a box with a height
+of its own (``tests/browser/test_shiny_chart_size.py``). Elsewhere -- Flask,
+a Pyodide page -- the frame is left as it was. What a browser makes of a
+notebook's is ``tests/browser/test_notebook_figure_size.py``.
 """
 
 from __future__ import annotations
@@ -31,7 +34,12 @@ from maidr.core.figure_manager import FigureManager  # noqa: E402
 from maidr.util.environment import Environment  # noqa: E402
 from maidr.util.iframe_utils import (  # noqa: E402
     FRAME_SVG_CLASS,
+    SHINY_FRAME_DIR,
+    SHINY_FRAME_FILE,
+    SHINY_FRAME_NAME,
     frame_style,
+    shiny_frame_dependency_sent,
+    shiny_frame_script,
     wrap_in_iframe_matplotlib,
     wrap_in_iframe_plotly,
 )
@@ -66,6 +74,11 @@ def css() -> dict[str, dict[str, str]]:
 # --- The stylesheet -------------------------------------------------------------
 
 
+def carried_script(onload: str) -> str:
+    """The script a string frame's ``onload`` carries."""
+    return re.match(r"var f=this;(.*)maidrShinyFrame\(f,", onload, re.S).group(1)
+
+
 def test_the_chart_starts_at_the_frames_edge(css):
     for selector in ("html", "body"):
         assert css[selector]["margin"] == "0"
@@ -86,6 +99,23 @@ def test_focus_rings_are_drawn_inside_the_frame(css):
     for rule in (chart, field):
         assert rule["outline-offset"].startswith("-")
         assert rule["outline"].startswith("3px solid")
+
+
+def test_a_plotly_charts_ring_is_drawn_inside_the_frame(css):
+    """maidr.js draws it 2px outside plotly's container, at the frame's edge.
+
+    Drawn over the chart inside the container instead, since an outline
+    inside it is painted under plotly's layers (``test_plotly_focus_ring``
+    in the browser tests reads it off the screen).
+    """
+    container = ".js-plotly-plot .svg-container:focus-within"
+    ring = css[f"{container}::after"]
+
+    assert css[container]["outline"] == "none !important"
+    assert ring["position"] == "absolute"
+    assert ring["inset"] == "0"
+    assert ring["border"] == "3px solid #1a5fb4"
+    assert ring["pointer-events"] == "none"
 
 
 def test_maidrs_fields_keep_to_the_frame(css):
@@ -134,8 +164,10 @@ def test_a_notebook_frame_fits_the_output_area():
     assert "let fitsOutput = true;" in script
     assert f"svg.{FRAME_SVG_CLASS}" in script
     # As wide as the output area, its end padding included, up to the
-    # chart's own width.
+    # chart's own width; never fitted to a box, which only Shiny's has.
     assert "iframe.style.width = maidrOutputWidth(iframe, false);" in script
+    assert "maidrBoxRoom" not in script
+    assert "maidrSuspendBox" not in script
     assert "'calc(100% + ' + pad + 'px)'" in script
     assert "iframe.style.marginRight = pad > 0 ? (-pad) + 'px' : '';" in script
     assert "iframe.style.maxWidth" in script
@@ -165,8 +197,10 @@ def test_a_frame_keeps_the_notebook_where_it_is_scrolled():
         wrap_in_iframe_plotly(tags.div("chart"), "Sales", in_notebook=True),
     ):
         script = _attribute(frame, "onload")
-        # Kept before the frame is measured, and put back once it is.
+        # Kept before the frame is measured, and put back once it is: every
+        # box round it, where a Shiny app's frame keeps its own box's alone.
         kept = script.index("fitsOutput ? maidrKeepScroll(iframe) : null;")
+        assert "maidrKeepBoxScroll" not in script
         measured = script.index("iframe.style.height = fitsOutput ? '0px' : 'auto';")
         restored = script.index("if (restoreScroll) restoreScroll();")
         assert kept < measured < restored
@@ -178,6 +212,35 @@ def test_a_notebook_frame_makes_room_for_maidrs_dialogs():
     assert "maidrDialogRoom(iframeDocument, iframe)" in script
     assert "maidrWatch(iframe.contentWindow.document, scheduleResize)" in script
     assert "iframe.scrollIntoView({block: 'center', inline: 'nearest'})" in script
+
+
+def test_a_notebook_frames_dialog_code_is_as_it_was():
+    """A notebook's and a Quarto page's frames keep their dialog code as it was.
+
+    Placing a dialog over a tall chart in the part of the frame the reader
+    sees, and scrolling that part into view, scrolled nothing -- the
+    dialog's container is fixed in MUI's modal layer -- and left the dialog
+    cut, its Close button below the window, where centring the frame had
+    shown it whole. Nothing of a Shiny app's frame is in theirs.
+    """
+    for frame in (
+        _frame(in_notebook=True),
+        wrap_in_iframe_plotly(tags.div("chart"), "Sales", in_notebook=True),
+    ):
+        script = _attribute(frame, "onload")
+        for gone in (
+            "maidrShown",
+            "--maidr-dialog-top",
+            "container.scrollIntoView",
+            "behavior: 'instant'",
+            "@S",
+            "@N",
+            "maidrHoldStill",
+            "maidrSuspendBox",
+        ):
+            assert gone not in script, gone
+        assert "if (opened && iframe.clientHeight > room) {" in script
+        assert "if (opened && (!was || resized)) {" in script
 
 
 def test_a_dialog_over_a_tall_chart_keeps_to_the_readers_view(css):
@@ -297,12 +360,138 @@ def test_a_notebook_render_is_framed_for_the_output_area(monkeypatch):
     assert "let fitsOutput = true;" in html
 
 
-@pytest.mark.parametrize("host", ["is_shiny", "is_flask"])
-def test_an_apps_frame_is_left_as_it_was(monkeypatch, host):
-    monkeypatch.setattr(Environment, host, staticmethod(lambda: True))
+def test_a_flask_apps_frame_is_left_as_it_was(monkeypatch):
+    monkeypatch.setattr(Environment, "is_flask", staticmethod(lambda: True))
 
     html = html_module.unescape(_render(_bar()))
 
     assert "let fitsOutput = false;" in html
     assert not re.search(rf'<svg[^>]*class="{FRAME_SVG_CLASS}"', html)
     assert 'srcdoc="&lt;style&gt;' not in _render(_bar())
+
+
+def test_a_shiny_apps_frame_fits_its_output(monkeypatch):
+    """Shiny's frame fits its output as a notebook's does, and its box too."""
+    monkeypatch.setattr(Environment, "is_shiny", staticmethod(lambda: True))
+
+    raw = _render(_bar())
+    html = html_module.unescape(raw)
+    script = shiny_frame_script()
+
+    assert 'srcdoc="&lt;style&gt;' in raw
+    assert re.search(rf'<svg[^>]*class="{FRAME_SVG_CLASS}"', html)
+    # Outside render_maidr's output, the frame carries the script that
+    # sizes it (test_a_shiny_frame_outside_render_maidr_carries_its_script).
+    assert "maidrShinyFrame(f,'matplotlib',{})" in html
+    assert "maidrShinyKinds" in html
+    # It fits the chart to its box unless a dialog of maidr's is open.
+    assert "let fitted = !maidrSuspendBox(iframe);" in script
+    # No padding to take back, as a notebook's output area has.
+    assert "iframe.style.width = maidrOutputWidth(iframe, true);" in script
+    assert "maidrWatchBox(iframe, scheduleResize);" in script
+    assert "display: block" in html
+
+
+def test_a_shiny_frame_fits_the_chart_to_a_box_with_a_height():
+    """Fitted as object-fit: contain fits an image, a line kept for the text."""
+    script = shiny_frame_script()
+
+    for part in (
+        "function maidrBoxRoom(iframe)",
+        "iframe.style.height = '4000px';",
+        "Math.abs(tall - short) >= 1",
+        "var scale = Math.min(width / w, Math.max(space, 96) / h);",
+        "var space = room - maidrTextRoom(doc, iframe, room, width);",
+        "root.setAttribute('data-maidr-fit-box', '');",
+    ):
+        assert part in script, part
+    # Fitted, the frame is as wide as the box; left to its own height, no
+    # wider than the chart.
+    assert "iframe.style.maxWidth = boxRoom > 0" in script
+    # Given a width alone, never wider than the frame: a scrollbar the box
+    # takes narrows it rather than cutting its edge off.
+    fit = script[script.index("function maidrFitChart(") :]
+    fit = fit[: fit.index("\n        }\n")]
+    assert "chart.style.maxWidth = '';" in fit
+    assert "maxWidth = 'none'" not in fit
+    assert "chart.style.height = (h * scale)" not in fit
+    # maidr's text is scrolled into the box; a chart that takes its height
+    # from its container is given the box's, less a line for the text.
+    for part in (
+        "maidrShowText(iframeDocument, iframe);",
+        "maidrShowText(doc, iframe);",
+        "maidrFillHeight(doc, boxRoom > 0",
+    ):
+        assert part in script, part
+    # A notebook's frame has none of it.
+    assert "function maidrBoxRoom" not in _attribute(_frame(in_notebook=True), "onload")
+
+
+def test_a_shiny_frame_names_the_served_script():
+    """render_maidr's frame rides no script: its onload names its kind alone."""
+    with shiny_frame_dependency_sent():
+        matplotlib = _frame(in_shiny=True)
+        plotly = wrap_in_iframe_plotly(
+            tags.div("chart"), "Sales", in_shiny=True, fill_width=True
+        )
+
+    for tag, call in (
+        (matplotlib, "maidrShinyFrame(f,'matplotlib',{})"),
+        (plotly, "maidrShinyFrame(f,'plotly',{\"widens\":false})"),
+    ):
+        onload = _attribute(tag, "onload")
+        assert call in onload, onload
+        assert len(onload) < 300
+        # It says so when the script never comes, rather than nothing.
+        assert "console.warn('maidr: maidr-shiny-frame did not load" in onload
+        assert "createElement" not in onload
+        [dependency] = tag.get_dependencies()
+        assert dependency.name == SHINY_FRAME_NAME
+    # Each kind reads the frame it was handed, not one found by its id.
+    script = shiny_frame_script()
+    assert "document.getElementById('iframe_" not in script
+    assert "var widens = options.widens;" in script
+    assert "window.maidrShinyFrame = function (frame, kind, options)" in script
+    # A notebook's frame still carries its own.
+    assert "function resizeIframe" in _attribute(_frame(in_notebook=True), "onload")
+    assert not _frame(in_notebook=True).get_dependencies()
+
+
+def test_a_shiny_frame_outside_render_maidr_carries_its_script():
+    """A frame made in a Shiny app any other way carries the served script.
+
+    ``maidr.render()`` returned from ``render.ui``, turned into a string,
+    kept for a later session or written to a file: the dependency could be
+    lost on the way, and the frame stayed 150px tall. It needs nothing
+    served, as every frame before the script was served.
+    """
+    for tag, call in (
+        (_frame(in_shiny=True), "maidrShinyFrame(f,'matplotlib',{})"),
+        (
+            wrap_in_iframe_plotly(
+                tags.div("chart"), "Sales", in_shiny=True, fill_height=450
+            ),
+            "maidrShinyFrame(f,'plotly',{\"widens\":true,\"fillHeight\":450})",
+        ),
+    ):
+        onload = _attribute(tag, "onload")
+        assert call in onload, onload[:300]
+        # Packed, unpacked by the browser and run as the onload itself is.
+        script = carried_script(onload)
+        assert "window.maidrShinyFrame=function(frame,kind,options)" in script
+        assert "\n//" not in script
+        # Without anything to load or guess at.
+        for gone in ("s.src=", "maidrShinyFrameSrc", "++k>6", ".src="):
+            assert gone not in onload, gone
+        assert not tag.get_dependencies()
+
+
+def test_the_served_frame_script_is_the_one_written_out():
+    """``maidr/assets/shiny/frame.js`` is :func:`shiny_frame_script`, written."""
+    written = (SHINY_FRAME_DIR / SHINY_FRAME_FILE).read_text(encoding="utf-8")
+
+    assert written == shiny_frame_script(), (
+        "maidr/assets/shiny/frame.js is out of date; write it again with "
+        "python -c 'from maidr.util.iframe_utils import "
+        "write_shiny_frame_script; write_shiny_frame_script()'"
+    )

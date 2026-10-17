@@ -74,6 +74,53 @@ def in_notebook_frame(use_iframe: bool) -> bool:
     )
 
 
+def in_shiny_frame(use_iframe: bool) -> bool:
+    """Whether a chart rendered now is shown in maidr's frame in a Shiny app.
+
+    That is a chart :class:`maidr.widget.shiny.render_maidr`, or ``render()``
+    called in any other Shiny output, makes while a session is active. Its
+    frame fits its output as a notebook's frame fits the output area (see
+    :func:`maidr.util.iframe_utils.wrap_in_iframe_matplotlib`), and the
+    chart is sized as a notebook shows the plain figure, with the inline
+    backend's defaults: no kernel there says otherwise.
+
+    A condition of its own rather than :func:`in_notebook_frame`'s: in a
+    Shiny server ``Environment.is_notebook()`` is False anyway, and a
+    notebook frame takes JupyterLab's padding back, which a Shiny page has
+    none of.
+
+    Parameters
+    ----------
+    use_iframe : bool
+        False for a document of its own (``save_html``).
+
+    Returns
+    -------
+    bool
+        True when the chart's frame goes into a Shiny page.
+    """
+    from maidr.util.environment import Environment
+    from maidr.util.inline_chart import in_standalone_document
+
+    return (
+        use_iframe
+        and not in_standalone_document()
+        and Environment.is_shiny()
+        and not Environment.is_flask()
+    )
+
+
+def plain_figure_defaults() -> tuple[str, dict[str, Any]]:
+    """The inline backend's format and ``savefig`` arguments when nothing is set.
+
+    Returns
+    -------
+    tuple of (str, dict)
+        ``("png", {"bbox_inches": "tight"})``, a fresh copy.
+    """
+    return _DEFAULT[0], dict(_DEFAULT[1])
+
+
 def _shell() -> Any:
     """The IPython shell, or None, without importing IPython to learn there is none."""
     if sys.modules.get("IPython") is None:

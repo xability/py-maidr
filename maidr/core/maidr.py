@@ -70,7 +70,12 @@ from maidr.util.inline_chart import (
     size_like_plain_figure,
 )
 from maidr.util.notebook_display import note_displayed
-from maidr.util.notebook_figure import in_notebook_frame, notebook_figure_format
+from maidr.util.notebook_figure import (
+    in_notebook_frame,
+    in_shiny_frame,
+    notebook_figure_format,
+    plain_figure_defaults,
+)
 from maidr.util.quarto_cell import fig_alt as quarto_fig_alt
 
 #: Layer classes a segmented bar layer on the same axes can supersede.
@@ -669,11 +674,13 @@ class Maidr:
         # rather than an iframe, which takes an SVG scoped to it (#895). The
         # schema has to be in the SVG there: a page holds many charts, and
         # the ``var maidr`` global can name only one. There, and in a
-        # notebook's frame, the chart is cut to what is drawn, as the plain
-        # figure is, and a figure's layout is kept as the plain figure's is;
-        # see ``settle_layout``.
+        # notebook's or a Shiny app's frame, the chart is cut to what is
+        # drawn, as the plain figure is, and a figure's layout is kept as the
+        # plain figure's is; see ``settle_layout``.
         in_page = data_in_svg and inline_applies(use_iframe)
-        in_frame = not in_page and in_notebook_frame(use_iframe)
+        in_frame = not in_page and (
+            in_notebook_frame(use_iframe) or in_shiny_frame(use_iframe)
+        )
         with figure_lock(self._fig), settling(keep_layout=in_page or in_frame):
             return self._build_html_tag(
                 use_iframe,
@@ -757,8 +764,16 @@ class Maidr:
         )
 
         # In a notebook's frame, the chart stands where the notebook would
-        # have shown the figure's image; see ``_plain_figure_shown_as``.
-        shown_as = self._plain_figure_shown_as() if in_frame else None
+        # have shown the figure's image; see ``_plain_figure_shown_as``. In a
+        # Shiny app's, it is that image with the inline backend's defaults,
+        # which no kernel there changes.
+        shown_as = None
+        if in_frame:
+            shown_as = (
+                plain_figure_defaults()
+                if in_shiny_frame(use_iframe)
+                else self._plain_figure_shown_as()
+            )
         with HighlightContextManager.set_maidr_elements(tagged_elements, selector_ids):
             svg = self._get_svg(
                 embed_data=data_in_svg, schema=schema, inline=inline, shown_as=shown_as
@@ -1715,6 +1730,7 @@ class Maidr:
                 chart_title,
                 alt,
                 in_notebook=in_notebook_frame(use_iframe),
+                in_shiny=in_shiny_frame(use_iframe),
             )
             if quarto_stash is not None:
                 # Ahead of the frame, which reads it once its document loads.
