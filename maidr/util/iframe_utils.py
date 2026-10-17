@@ -1466,7 +1466,7 @@ def _shiny_frame_inline(kind: str) -> str:
     """:func:`shiny_frame_script` as a frame of ``kind`` carries it.
 
     Its own kind's alone, compacted (:func:`maidr.util.compact.compact_js`):
-    about 21 KB, where the served script is 56 KB. Plain text, which every
+    about 24 KB, where the served script is 64 KB. Plain text, which every
     browser runs, as a frame's ``onload`` always carried its script: packed,
     it was smaller, but a browser that could not unpack it (before Safari
     16.4, Firefox 113 or Chrome 103) left the frame 150px tall, its chart
