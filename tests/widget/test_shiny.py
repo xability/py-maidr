@@ -478,16 +478,19 @@ def test_a_dialog_lays_the_frame_out_as_a_notebooks():
         "addEventListener('scroll'",
     ):
         assert gone not in script, gone
-    # The page is scrolled by a notebook's dialog code, a field of maidr's
-    # own, and a chart wholly out of view as its dialog closes, and nothing
-    # else.
-    assert script.count("scrollIntoView(") == 3
+    # The page is scrolled by a notebook's dialog code and a field of
+    # maidr's own with scrollIntoView, and nothing else; a chart wholly out
+    # of view as its dialog closes by as little as it takes (maidrScrollInto).
+    assert script.count("scrollIntoView(") == 2
+    assert script.count("function maidrScrollInto(") == 1
+    assert script.count("maidrScrollInto(") == 2
     # At once: a Shiny page scrolls smoothly, and the next measure stopped
     # a smooth scroll halfway.
     assert (
         "iframe.scrollIntoView(\n"
         "                    {block: 'center', inline: 'nearest', behavior: 'instant'}"
     ) in script
+    assert "win.scrollBy({top: y, left: x, behavior: 'instant'});" in script
     # Below a header fixed or sticky at the window's top.
     assert "iframe.maidrCover = scroller ? 0 : maidrCover(iframe);" in script
     assert "height -= iframe.maidrCover;" in script
@@ -498,11 +501,10 @@ def test_a_dialog_lays_the_frame_out_as_a_notebooks():
     # into view the nearest way where none of its frame shows, and nothing
     # is scrolled where any of it does.
     assert script.count("maidrBringIn(iframe);") == 1
-    assert (
-        "iframe.scrollIntoView({block: 'nearest', inline: 'nearest', "
-        "behavior: 'instant'});"
-    ) in script
-    assert "if (!out) return;" in script
+    # Below a header fixed at the window's top, counted by hand: as a scroll
+    # margin it was lost in the box round the frame.
+    assert "maidrScrollInto(iframe, frame, cover);" in script
+    assert "&& frame.right > seen.left && frame.left < seen.right) return;" in script
     # And the browser does not scroll to what MUI and maidr.js give the
     # focus back to, until the dialog has gone.
     assert "suspended.focus = maidrFocusInPlace(doc.defaultView);" in script
@@ -675,8 +677,8 @@ def test_a_string_frame_carries_its_script_compacted_as_plain_text(plotly):
 
     The script it carried, its comments left out, was 22 KB of every flush,
     20 KB more than before charts were fitted. It carries its own kind's
-    alone now, compacted, and its stylesheet compacted: 22-24 KB as HTML
-    writes it, 2.3-2.5 times what it carried then (``_ONLOAD_BEFORE``),
+    alone now, compacted, and its stylesheet compacted: 25-26 KB as HTML
+    writes it, 2.5-2.7 times what it carried then (``_ONLOAD_BEFORE``),
     as plain text, which every browser runs. Packed, it was less than that,
     but a browser that could not unpack it left the frame 150px tall, the
     chart cut off
@@ -697,7 +699,7 @@ def test_a_string_frame_carries_its_script_compacted_as_plain_text(plotly):
     kind = "plotly" if plotly else "matplotlib"
     for gone in ("DecompressionStream", "atob(", "createElement('script')"):
         assert gone not in onload, gone
-    assert len(onload) + len(style) <= 2.6 * _ONLOAD_BEFORE[kind], (
+    assert len(onload) + len(style) <= 2.75 * _ONLOAD_BEFORE[kind], (
         len(onload),
         len(style),
     )

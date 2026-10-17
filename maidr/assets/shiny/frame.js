@@ -336,41 +336,94 @@
                 }
             };
         }
-        // The chart, given the focus back as its dialog closes, its frame
-        // fitted to its box again, brought into view where none of its
-        // frame shows: in the window, or in a box round it that scrolls.
-        // The nearest way, below a header fixed at the window's top. Where
-        // any of it shows, nothing is scrolled: the page, and every box
-        // round the frame, are left where they are, and the browser does
-        // not scroll to the element given the focus (maidrFocusInPlace).
-        // Nothing is kept from as the dialog opened: a page put back to
-        // where it was then undid what had moved it since -- content above
-        // the chart that grew, a script, a reader's own scroll -- and left
-        // the chart hundreds of pixels from where it had been.
-        function maidrBringIn(iframe) {
+        // The part of the window a reader sees the frame in: below a header
+        // fixed at the window's top (cover), and inside every box round the
+        // frame that cuts what it holds, whether it scrolls or not.
+        function maidrSeen(iframe, cover) {
             var page = iframe.ownerDocument;
-            if (!iframe.isConnected || page.activeElement !== iframe) return;
             var win = page.defaultView;
-            var frame = iframe.getBoundingClientRect();
-            var out = frame.bottom <= 0 || frame.top >= win.innerHeight
-                || frame.right <= 0 || frame.left >= win.innerWidth;
-            for (var el = iframe.parentElement; !out && el && el !== page.body
+            var seen = {top: cover, bottom: win.innerHeight, left: 0, right: win.innerWidth};
+            for (var el = iframe.parentElement; el && el !== page.body
                     && el !== page.documentElement; el = el.parentElement) {
-                if (el.scrollHeight <= el.clientHeight + 1
-                        && el.scrollWidth <= el.clientWidth + 1) continue;
                 var style = win.getComputedStyle(el);
-                if (style.overflowY === 'visible' && style.overflowX === 'visible') continue;
+                if (style.display === 'contents') continue;
                 var box = el.getBoundingClientRect();
                 var top = box.top + el.clientTop;
                 var left = box.left + el.clientLeft;
-                out = frame.bottom <= top || frame.top >= top + el.clientHeight
-                    || frame.right <= left || frame.left >= left + el.clientWidth;
+                if (style.overflowY !== 'visible') {
+                    seen.top = Math.max(seen.top, top);
+                    seen.bottom = Math.min(seen.bottom, top + el.clientHeight);
+                }
+                if (style.overflowX !== 'visible') {
+                    seen.left = Math.max(seen.left, left);
+                    seen.right = Math.min(seen.right, left + el.clientWidth);
+                }
             }
-            if (!out) return;
-            var margin = iframe.style.scrollMarginTop;
-            iframe.style.scrollMarginTop = maidrCover(iframe) + 'px';
-            iframe.scrollIntoView({block: 'nearest', inline: 'nearest', behavior: 'instant'});
-            iframe.style.scrollMarginTop = margin;
+            return seen;
+        }
+        // How far to scroll to show from start to end where from to to
+        // shows: by as little as that takes, scrollIntoView's nearest way.
+        function maidrNearest(start, end, from, to) {
+            return start < from ? (end > to ? 0 : Math.max(start - from, end - to))
+                : end > to ? Math.min(end - to, start - from) : 0;
+        }
+        // rect, a part of the window, scrolled into view the nearest way:
+        // in each box round the frame that scrolls, innermost first, and
+        // then in the window, below a header fixed at its top (cover).
+        // scrollIntoView with the header as the frame's scroll margin lost
+        // the margin in the box round the frame, which scrolls and is the
+        // frame's own size: a chart brought into view had its top 56px
+        // under a fixed navbar.
+        function maidrScrollInto(iframe, rect, cover) {
+            var page = iframe.ownerDocument;
+            var win = page.defaultView;
+            var r = {top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right};
+            for (var el = iframe.parentElement; el && el !== page.body
+                    && el !== page.documentElement; el = el.parentElement) {
+                var style = win.getComputedStyle(el);
+                if (style.display === 'contents') continue;
+                var box = el.getBoundingClientRect();
+                var top = box.top + el.clientTop;
+                var left = box.left + el.clientLeft;
+                var y = el.scrollTop;
+                var x = el.scrollLeft;
+                el.scrollTo({
+                    top: y + (style.overflowY === 'visible' ? 0
+                        : maidrNearest(r.top, r.bottom, top, top + el.clientHeight)),
+                    left: x + (style.overflowX === 'visible' ? 0
+                        : maidrNearest(r.left, r.right, left, left + el.clientWidth)),
+                    behavior: 'instant'
+                });
+                y = el.scrollTop - y;
+                x = el.scrollLeft - x;
+                r.top -= y;
+                r.bottom -= y;
+                r.left -= x;
+                r.right -= x;
+            }
+            y = maidrNearest(r.top, r.bottom, cover, win.innerHeight);
+            x = maidrNearest(r.left, r.right, 0, win.innerWidth);
+            if (y || x) win.scrollBy({top: y, left: x, behavior: 'instant'});
+        }
+        // The chart, given the focus back as its dialog closes, its frame
+        // fitted to its box again, brought into view where none of its
+        // frame shows (maidrSeen): the nearest way, below a header fixed
+        // at the window's top. Where any of it shows, nothing is scrolled:
+        // the page, and every box round the frame, are left where they
+        // are, and the browser does not scroll to the element given the
+        // focus (maidrFocusInPlace). Nothing is kept from as the dialog
+        // opened: a page put back to where it was then undid what had
+        // moved it since -- content above the chart that grew, a script, a
+        // reader's own scroll -- and left the chart hundreds of pixels from
+        // where it had been.
+        function maidrBringIn(iframe) {
+            if (!iframe.isConnected || iframe.ownerDocument.activeElement !== iframe) return;
+            var frame = iframe.getBoundingClientRect();
+            var cover = maidrCover(iframe);
+            var seen = maidrSeen(iframe, cover);
+            if (frame.bottom > seen.top && frame.top < seen.bottom
+                    && frame.right > seen.left && frame.left < seen.right) return;
+            maidrScrollInto(iframe, frame, cover);
         }
         // A frame whose height flips between two as a scrollbar comes and
         // goes round it -- the page's, or a box's, coming as the frame grows
