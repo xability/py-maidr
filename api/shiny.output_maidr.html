@@ -241,7 +241,7 @@ cookieconsent.run({
 <meta name="DC.format" content="text/html">
 <meta name="DC.language" content="en">
 <meta name="DC.rights" content="GPL-3.0-or-later">
-<meta name="DC.date" content="2026-10-16">
+<meta name="DC.date" content="2026-10-17">
 </head>
 
 <body class="nav-fixed quarto-light">
@@ -429,7 +429,7 @@ cookieconsent.run({
 
 <section id="maidr.widget.shiny.output_maidr" class="level1">
 <h1>shiny.output_maidr</h1>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>widget.shiny.output_maidr(<span class="bu">id</span>, <span class="op">*</span>, width<span class="op">=</span><span class="st">'100%'</span>, height<span class="op">=</span><span class="st">'auto'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1" data-code-line-numbers=""><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>widget.shiny.output_maidr(<span class="bu">id</span>, <span class="op">*</span>, width<span class="op">=</span><span class="st">'100%'</span>, height<span class="op">=</span><span class="st">'auto'</span>, fill<span class="op">=</span><span class="va">True</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Create a container for a :class:<code>render_maidr</code> output.</p>
 <section id="parameters" class="level2 doc-section doc-section-parameters">
 <h2 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h2>
@@ -451,15 +451,21 @@ cookieconsent.run({
 </tr>
 <tr class="even">
 <td>width</td>
-<td><a href="https://docs.python.org/3/builtins/stdtypes.html#str">str</a></td>
-<td>CSS width of the container.</td>
+<td>(<a href="https://docs.python.org/3/builtins/stdtypes.html#str">str</a>, <a href="https://docs.python.org/3/builtins/functions.html#float">float</a> or None)</td>
+<td>CSS width of the container; a number is pixels, <code>None</code> none. Never wider than the container it is placed in.</td>
 <td><code>"100%"</code></td>
 </tr>
 <tr class="odd">
 <td>height</td>
-<td><a href="https://docs.python.org/3/builtins/stdtypes.html#str">str</a></td>
-<td>CSS height of the container.</td>
+<td>(<a href="https://docs.python.org/3/builtins/stdtypes.html#str">str</a>, <a href="https://docs.python.org/3/builtins/functions.html#float">float</a> or None)</td>
+<td>CSS height of the container; a number is pixels, <code>None</code> none, which is <code>"auto"</code>. With <code>"auto"</code> the output is as tall as the chart, which is as wide as the output up to its own width and shrinks with a narrower one, keeping its shape. With a height of its own, the chart is fitted inside it.</td>
 <td><code>"auto"</code></td>
+</tr>
+<tr class="even">
+<td>fill</td>
+<td><a href="https://docs.python.org/3/builtins/functions.html#bool">bool</a></td>
+<td>Whether the output grows and shrinks to fill a fillable container – a :func:<code>shiny.ui.card</code>, :func:<code>shiny.ui.page_fillable</code> – as :func:<code>shiny.ui.output_plot</code> does by default; the chart is then fitted to the space it is given, and follows it when the card is taken full screen or the window resized.</td>
+<td><code>True</code></td>
 </tr>
 </tbody>
 </table>
@@ -490,6 +496,8 @@ cookieconsent.run({
 </section>
 <section id="notes" class="level2 doc-section doc-section-notes">
 <h2 class="doc-section doc-section-notes anchored" data-anchor-id="notes">Notes</h2>
+<p>A matplotlib, seaborn or plotnine chart is fitted to an output with a height of its own as <code>object-fit: contain</code> fits an image: scaled, up or down, to the largest size that fits keeping its shape, and centred, with a line kept below it for maidr’s text. The output scrolls to what does not fit – the braille and review fields, a long text – rather than cutting it off. Unlike :func:<code>shiny.render.plot</code>, the figure is not drawn again at the output’s size: the chart drawn once is scaled, so its text grows and shrinks with it; a figure sized near the output keeps its text near its own size. A Plotly, Bokeh or Altair chart is as wide as the output, or its own fixed width, which the output then scrolls to. A Plotly figure with no height of its own, a Bokeh plot stretched or scaled to its container’s height, and an Altair chart of <code>height="container"</code> are as tall as an output with a height of its own less the line for maidr’s text, and 450px in one with none; any other keeps its own height. While one of maidr’s dialogs is open, none of this applies: the output and the box round the chart are set aside, and the chart’s frame is laid out as a notebook’s is, as tall as the window, or the box that scrolls it or cuts what it holds, and scrolled to its middle, so that the dialog is shown whole; over a chart taller than that, the dialog is put where the chart meets the window, which scrolls only as far as it takes to show it. Once the dialog closes the chart is fitted again and the page left where it is, unless none of the chart shows, which is then scrolled into view, below a header fixed at the window’s top.</p>
+<p>The container keeps a box of its own once a chart is in it. Shiny’s stylesheet makes a UI output a pass-through container as soon as it has children (<code>display: contents</code>), which took its width and height away with its box; the container’s own <code>display</code> overrides that.</p>
 <p>No :class:<code>htmltools.HTMLDependency</code> is attached here, which is the one place this deviates from Shiny’s packaged-component recipe. Whether a chart needs the bundled <code>maidr.js</code> is a per-render decision – <code>use_cdn</code> chooses between the CDN and the bundled copy – so the dependency that serves it rides on the rendered value, where Shiny’s <code>_process_ui</code> registers it, and only when the chart names it (see :meth:<code>render_maidr._bundle_for</code>). Attaching it to the container instead would register the bundle with every app even when every chart on it loads from the CDN.</p>
 </section>
 <section id="examples" class="level2 doc-section doc-section-examples">

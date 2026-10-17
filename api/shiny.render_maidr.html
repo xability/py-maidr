@@ -241,7 +241,7 @@ cookieconsent.run({
 <meta name="DC.format" content="text/html">
 <meta name="DC.language" content="en">
 <meta name="DC.rights" content="GPL-3.0-or-later">
-<meta name="DC.date" content="2026-10-16">
+<meta name="DC.date" content="2026-10-17">
 </head>
 
 <body class="nav-fixed quarto-light">
@@ -440,9 +440,10 @@ cookieconsent.run({
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span></span>
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    width<span class="op">=</span><span class="st">'100%'</span></span>
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    height<span class="op">=</span><span class="st">'auto'</span></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    use_cdn<span class="op">=</span><span class="va">None</span></span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    hover_mode<span class="op">=</span><span class="va">None</span></span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    fill<span class="op">=</span><span class="va">True</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    use_cdn<span class="op">=</span><span class="va">None</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    hover_mode<span class="op">=</span><span class="va">None</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Render a plot as an accessible MAIDR chart in a Shiny app.</p>
 <p>Decorate a function that returns a plot, and pair it with :func:<code>output_maidr</code> in the UI. The chart is sonified, navigable by keyboard, and readable as braille and text.</p>
 <section id="parameters" class="level2 doc-section doc-section-parameters">
@@ -465,23 +466,29 @@ cookieconsent.run({
 </tr>
 <tr class="even">
 <td>width</td>
-<td><a href="https://docs.python.org/3/builtins/stdtypes.html#str">str</a></td>
-<td>CSS width of the output container.</td>
+<td>(<a href="https://docs.python.org/3/builtins/stdtypes.html#str">str</a>, <a href="https://docs.python.org/3/builtins/functions.html#float">float</a> or None)</td>
+<td>CSS width of the box the chart is fitted to, at the top left of its output, as :func:<code>shiny.render.plot</code>’s width is the image’s; a number is pixels. Never wider than the output. <code>"100%"</code> or <code>None</code> leaves the box the output’s width.</td>
 <td><code>"100%"</code></td>
 </tr>
 <tr class="odd">
 <td>height</td>
-<td><a href="https://docs.python.org/3/builtins/stdtypes.html#str">str</a></td>
-<td>CSS height of the output container.</td>
+<td>(<a href="https://docs.python.org/3/builtins/stdtypes.html#str">str</a>, <a href="https://docs.python.org/3/builtins/functions.html#float">float</a> or None)</td>
+<td>CSS height of that box, likewise: <code>@render_maidr(height=300)</code> gives a 300 pixel box at the top of the output, as <code>@render.plot(height=300)</code> gives a 300 pixel image, in a fillable card too. <code>"auto"</code> or <code>None</code> leaves the box the output’s height: the chart’s own, or the output’s when it has one.</td>
 <td><code>"auto"</code></td>
 </tr>
 <tr class="even">
+<td>fill</td>
+<td><a href="https://docs.python.org/3/builtins/functions.html#bool">bool</a></td>
+<td>Under Shiny Express, whether the output Express places fills a fillable container; see :func:<code>output_maidr</code>. An app that places :func:<code>output_maidr</code> itself gives it there.</td>
+<td><code>True</code></td>
+</tr>
+<tr class="odd">
 <td>use_cdn</td>
 <td>bool, {"auto"}, or None</td>
 <td>Where the chart loads <code>maidr.js</code> from – see :func:<code>maidr.render</code>. <code>None</code> defers to the process-wide default. Prefer this argument over :func:<code>maidr.set_use_cdn</code> in a Shiny app: the setter is process-wide state shared by every concurrent session, while this is scoped to one output. The bundled copy – what <code>False</code> loads, and what <code>"auto"</code> falls back to offline – is served by the app itself, once per app and version, rather than carried inside every chart.</td>
 <td><code>None</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>hover_mode</td>
 <td>('pointermove', 'click', 'off')</td>
 <td>The chart’s starting value for the reader’s Hover Mode setting; see :func:<code>maidr.render</code>. <code>None</code> leaves maidr.js’s default.</td>
@@ -513,6 +520,7 @@ cookieconsent.run({
 <h2 class="doc-section doc-section-notes anchored" data-anchor-id="notes">Notes</h2>
 <p>The decorated function may return a matplotlib or seaborn artist, a Plotly <code>Figure</code>, a Bokeh figure or layout, or an Altair chart. Returning <code>None</code> renders nothing, which is the documented way to leave an output blank.</p>
 <p>Any pyplot figure the function opens is closed once the chart has been rendered; see :func:<code>_close_new_figures</code>.</p>
+<p>The chart is drawn once, at its figure’s size, and scaled to its box (see :func:<code>output_maidr</code>), so <code>@render_maidr(width=500, height=300)</code> gives a 500 by 300 pixel box, like <code>@render.plot(width=500, height=300)</code>, with the chart fitted inside it rather than drawn again at that size. Under Shiny Express as in an app that places :func:<code>output_maidr</code> itself: the output Express places takes only <code>fill</code> from the renderer, and sizes from <code>@output_args</code>.</p>
 </section>
 <section id="examples" class="level2 doc-section doc-section-examples">
 <h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
