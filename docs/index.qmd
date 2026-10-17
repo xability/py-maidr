@@ -1280,13 +1280,19 @@ navbar), or a container of a height of its own that scrolls — and as wide
 as the dialog where the chart is narrower, and it is scrolled to the middle
 of that part, so that the dialog is shown whole: opening a dialog can
 scroll the page. A chart taller than that keeps its height, and the dialog
-keeps to the part you see. When the dialog closes, the page, and every
-container round the chart, go back to where they were as the dialog
-opened, even where the chart, given the focus back, is not all in view,
-unless you scrolled the page or the window changed size meanwhile; and
-the chart is fitted to its output again. A chart drawn again, or an output
-emptied, while the dialog is open is fitted to its output, and the page
-put back, the same way.
+keeps to the part you see. Nothing about where the page is scrolled is
+remembered as the dialog opens.
+
+**When the dialog closes**, the chart is fitted to its output again and
+has the focus back, and the page is left where it is: it is not scrolled
+back to where it was before the dialog opened, nor to the element of the
+chart given the focus, so that whatever scrolled the page while the dialog
+was open — you, the app, content above the chart that grew — is kept. One
+case is scrolled: when none of the chart shows, in the window or in the
+container that scrolls round it, the chart is scrolled into view, the
+nearest way, below a header fixed at the window's top. A chart drawn again,
+or an output emptied, while the dialog is open is fitted to its output the
+same way, and nothing is scrolled.
 
 **When a chart is drawn again** — an input it reads changed, or new data
 came in — its output keeps the height it had until the new chart is in, and
