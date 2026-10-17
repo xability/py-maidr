@@ -609,15 +609,23 @@ def test_closing_a_dialog_halfway_down_a_long_page_leaves_the_chart_in_view(
 
 
 #: The page's scroll position, the frame's top, and the highlighted mark's
-#: top in the window and the share of it on screen.
+#: top in the window and the share of it on screen: in the window, and in
+#: the box ``#scroller`` round the chart where there is one.
 _LIT = r"""() => {
   const frame = document.querySelector('#m iframe');
   const f = frame.getBoundingClientRect();
   const lit = frame.contentDocument.querySelector('[id^=maidr-highlight]');
   const r = lit && lit.getBoundingClientRect();
   const top = r && r.top + f.top, bottom = r && r.bottom + f.top;
+  let from = 0, to = innerHeight;
+  const box = document.getElementById('scroller');
+  if (box) {
+    const b = box.getBoundingClientRect().top + box.clientTop;
+    from = Math.max(from, b);
+    to = Math.min(to, b + box.clientHeight);
+  }
   const shown = r && r.height
-    ? Math.max(0, Math.min(bottom, innerHeight) - Math.max(top, 0)) / r.height : null;
+    ? Math.max(0, Math.min(bottom, to) - Math.max(top, from)) / r.height : null;
   return {scrollY: window.scrollY, frameTop: f.top, litTop: top, litShown: shown,
           focused: document.activeElement === frame};
 }"""
@@ -653,7 +661,9 @@ def test_closing_a_dialog_over_a_plotly_chart_taller_than_the_window_leaves_it_b
     the page to that line, centring it: the chart 450px down a 900px
     window, 195px down a phone's, the mark the reader had highlighted 18-45%
     shown, and none of it after the next key. Nothing scrolls as help
-    closes now: the page stays where help had it, and the mark is in view.
+    closes now: the page stays where help had it, and the mark is in view,
+    and so is the next, as much as it is without help (a bar taller than
+    what the window shows of the chart is not shown whole either way).
     """
     page = _open(browser, f"{shiny_size_app_url}/{case}/", *size)
     try:
@@ -663,6 +673,12 @@ def test_closing_a_dialog_over_a_plotly_chart_taller_than_the_window_leaves_it_b
         if scrolled is not None:
             page.evaluate(_FRAME_TOP_AT, scrolled)
             page.wait_for_timeout(600)
+        # How much of the next mark the next key shows without help.
+        page.keyboard.press("ArrowRight")
+        page.wait_for_timeout(700)
+        ahead = page.evaluate(_LIT)
+        page.keyboard.press("ArrowLeft")
+        page.wait_for_timeout(700)
         before = page.evaluate(_LIT)
         assert before["litShown"] is not None and before["litShown"] > 0, before
         page.keyboard.press("Control+/")
@@ -682,6 +698,77 @@ def test_closing_a_dialog_over_a_plotly_chart_taller_than_the_window_leaves_it_b
             back,
         )
         assert back["litShown"] >= min(before["litShown"], 0.95), (before, back)
+        page.keyboard.press("ArrowRight")
+        page.wait_for_timeout(700)
+        moved = page.evaluate(_LIT)
+        assert moved["litShown"] >= min(ahead["litShown"], 0.95) - 0.05, (
+            ahead,
+            back,
+            moved,
+        )
+        assert page.errors == []  # type: ignore[attr-defined]
+    finally:
+        page.close()
+
+
+#: The page scrolled so that the highlighted mark's middle is this far down
+#: the window, as a share of its height.
+_LIT_AT = r"""(at) => {
+  const frame = document.querySelector('#m iframe');
+  const r = frame.contentDocument.querySelector('[id^=maidr-highlight]')
+    .getBoundingClientRect();
+  window.scrollBy({top: frame.getBoundingClientRect().top + r.top + r.height / 2
+    - at * innerHeight, behavior: 'instant'});
+}"""
+
+
+@pytest.mark.parametrize(
+    ("size", "presses", "at"),
+    [
+        ((1366, 650), 3, 0.15),
+        ((640, 450), 3, 0.5),
+        ((844, 390), 3, 0.85),
+        ((1280, 900), 18, 0.5),
+    ],
+    ids=["laptop-upper", "zoom-200-middle", "phone-turned-lower", "wide-top-bars"],
+)
+def test_help_over_a_matplotlib_chart_taller_than_the_window_keeps_the_highlight(
+    browser, shiny_size_app_url, size, presses, at
+):
+    """A reader reads bars on their side, 14 inches tall, and asks for help.
+
+    The dialog, kept to a band as tall as the window, was put in the frame's
+    middle, and the page scrolled to show it there, wherever the reader
+    was; nothing scrolls the page back as help closes, and the mark they had
+    highlighted, above or below that middle, was off screen: 0% shown as
+    help closed at 1366x650, at 640x450 and on a phone turned on its side,
+    and, at 1280x900, reading the top bars, 27% after the next key. The
+    band is put where the frame meets the window now, shown whole, and the
+    mark stays in view.
+    """
+    page = _open(browser, f"{shiny_size_app_url}/tall_mpl/", *size)
+    try:
+        page.evaluate(_PLACE, "centre")
+        page.wait_for_timeout(300)
+        _read(page, presses=presses)
+        page.evaluate(_LIT_AT, at)
+        page.wait_for_timeout(600)
+        before = page.evaluate(_LIT)
+        assert before["litShown"] == pytest.approx(1, abs=0.01), before
+        page.keyboard.press(_HELP)
+        page.wait_for_timeout(1500)
+        _settle(page)
+        _assert_dialog_whole(page, "help open")
+        page.evaluate(_WATCH_CLOSE)
+
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(1500)
+        _settle(page)
+        back = page.evaluate(_LIT)
+        assert page.evaluate(_DIALOG) is None
+        assert back["focused"], back
+        _assert_nothing_scrolled(page, "as help closed")
+        assert back["litShown"] >= 0.95, (before, back)
         page.keyboard.press("ArrowRight")
         page.wait_for_timeout(700)
         moved = page.evaluate(_LIT)
@@ -850,8 +937,9 @@ def test_a_chart_emptied_under_a_dialog_lets_its_output_go(
 
 
 #: How much of maidr's open dialog, and of its Close button, is on screen:
-#: cut by the frame, every container of it that clips, and the window, both
-#: ways. With the dialog's width, and its text shown and in all.
+#: cut by what clips it in the frame -- the paper, which scrolls, for the
+#: Close button -- the frame, every container of it that clips, and the
+#: window, both ways. With the dialog's width, and its text shown and in all.
 _DIALOG_SHOWN = r"""() => {
   const frame = document.querySelector('#m iframe');
   const doc = frame.contentDocument;
@@ -866,6 +954,21 @@ _DIALOG_SHOWN = r"""() => {
     let bottom = Math.min(r.bottom + f.top, f.bottom, innerHeight);
     let left = Math.max(r.left + f.left, f.left, 0);
     let right = Math.min(r.right + f.left, f.right, innerWidth);
+    // Inside the dialog, which is fixed in the frame: what holds it does
+    // not clip it.
+    for (let a = el.parentElement; a && !a.classList.contains('MuiModal-root');
+         a = a.parentElement) {
+      const s = doc.defaultView.getComputedStyle(a);
+      const ar = a.getBoundingClientRect();
+      if (s.overflowY !== 'visible') {
+        top = Math.max(top, ar.top + a.clientTop + f.top);
+        bottom = Math.min(bottom, ar.top + a.clientTop + a.clientHeight + f.top);
+      }
+      if (s.overflowX !== 'visible') {
+        left = Math.max(left, ar.left + a.clientLeft + f.left);
+        right = Math.min(right, ar.left + a.clientLeft + a.clientWidth + f.left);
+      }
+    }
     for (let a = frame.parentElement; a && a !== document.body; a = a.parentElement) {
       const s = getComputedStyle(a);
       if (s.display === 'contents') continue;
@@ -1256,15 +1359,16 @@ def test_content_growing_above_the_chart_under_a_dialog_leaves_the_chart_be(
         page.close()
 
 
-#: The chart's frame against the window and, where there is one, the box
-#: ``#scroller`` that scrolls round it: whether any of it shows, and how much
-#: of what could show does, the whole frame or as tall a part of it as the
-#: window and the box are.
+#: The chart's frame against the window, below a navbar fixed at its top,
+#: and, where there is one, the box ``#scroller`` that scrolls round it:
+#: whether any of it shows, and how much of what could show does, the whole
+#: frame or as tall a part of it as the window and the box are.
 _FRAME_SHOWN = r"""() => {
   const f = document.querySelector('#m iframe').getBoundingClientRect();
   const box = document.getElementById('scroller');
   const b = box ? box.getBoundingClientRect() : null;
-  const bounds = [[0, innerHeight]];
+  const bar = document.querySelector('.navbar.fixed-top');
+  const bounds = [[bar ? bar.getBoundingClientRect().bottom : 0, innerHeight]];
   if (b) bounds.push([b.top + box.clientTop, b.top + box.clientTop + box.clientHeight]);
   const top = Math.max(f.top, ...bounds.map(([t]) => t));
   const bottom = Math.min(f.bottom, ...bounds.map(([, e]) => e));
@@ -1273,7 +1377,7 @@ _FRAME_SHOWN = r"""() => {
 }"""
 
 
-@pytest.mark.parametrize("case", ["tall_page", "scroll_box"])
+@pytest.mark.parametrize("case", ["tall_page", "scroll_box", "fixed_navbar"])
 def test_a_chart_out_of_view_as_its_dialog_closes_is_brought_into_view(
     browser, shiny_size_app_url, case
 ):
@@ -1283,7 +1387,8 @@ def test_a_chart_out_of_view_as_its_dialog_closes_is_brought_into_view(
     round it, scrolled to its end, as a script or a reader would. As help
     closes, the chart has the focus back and none of its frame shows: it
     is scrolled into view, the nearest way, as much of it as the window,
-    and the box, can show.
+    and the box, can show, below a navbar fixed at the window's top, which
+    the chart's top 56px had been brought in under.
     """
     page = _open(browser, f"{shiny_size_app_url}/{case}/", 1280, 900)
     try:
@@ -1318,6 +1423,47 @@ def test_a_chart_out_of_view_as_its_dialog_closes_is_brought_into_view(
         lit = page.evaluate(_LIT)
         assert lit["focused"], lit
         assert lit["litShown"] >= 0.95, lit
+        assert page.errors == []  # type: ignore[attr-defined]
+    finally:
+        page.close()
+
+
+@pytest.mark.parametrize("size", [(1280, 900), (390, 844)], ids=["1280", "phone"])
+def test_help_in_a_box_that_cuts_what_it_holds_is_shown_whole(
+    browser, shiny_size_app_url, size
+):
+    """The chart in a 400px box that holds more than it shows, and cannot scroll.
+
+    Its frame was made as tall as the window under help, and the box,
+    which only counted as one to fit if it scrolled, was scrolled to show
+    the frame's middle: help 48% shown, its Close button none of it, and
+    the box left there as help closed, the reader's highlight 2% shown,
+    where no scrolling of theirs could bring it back. The room is the
+    box's now, and help is shown whole in it.
+    """
+    page = _open(browser, f"{shiny_size_app_url}/cut_box/", *size)
+    try:
+        page.evaluate(_PLACE, "centre")
+        page.wait_for_timeout(400)
+        _read(page, presses=2)
+        before = page.evaluate(_LIT)
+        assert before["litShown"] >= 0.95, before
+        page.keyboard.press(_HELP)
+        page.wait_for_timeout(1500)
+        _settle(page)
+        _assert_dialog_whole(page, "help open")
+
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(1500)
+        _settle(page)
+        back = page.evaluate(_LIT)
+        assert page.evaluate(_DIALOG) is None
+        assert back["focused"], back
+        assert back["litShown"] >= 0.95, (before, back)
+        page.keyboard.press("ArrowRight")
+        page.wait_for_timeout(700)
+        moved = page.evaluate(_LIT)
+        assert moved["litShown"] >= 0.95, (before, back, moved)
         assert page.errors == []  # type: ignore[attr-defined]
     finally:
         page.close()

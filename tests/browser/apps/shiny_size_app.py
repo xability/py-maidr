@@ -46,6 +46,14 @@ def _bars(figsize=None):
     return ax
 
 
+def _tall_bars():
+    """Twenty bars on their side, 14 inches tall: taller than any window."""
+    fig, ax = plt.subplots(figsize=(6, 14))
+    ax.barh([f"Item {i:02d}" for i in range(20)], list(range(1, 21)), color="#4878a8")
+    ax.set_title("Items")
+    return ax
+
+
 def _plotly(height=None):
     import plotly.graph_objects as go
 
@@ -178,6 +186,23 @@ def _alone_in_a_scroll_box(output):
     )
 
 
+def _cut_box(output):
+    """The output in a box of a fixed height that cuts what it holds, and
+    does not scroll: a reader cannot scroll it, a script moves it."""
+    words = "A paragraph of text that makes the page longer than the window."
+    return ui.page_fluid(
+        ui.h4("Before the box"),
+        ui.div(
+            ui.div(style="height: 600px"),
+            output,
+            ui.div(style="height: 600px"),
+            id="scroller",
+            style="height: 400px; overflow: hidden; border: 1px solid #ccc",
+        ),
+        *[ui.p(words) for _ in range(20)],
+    )
+
+
 def _fixed_navbar(output):
     """The tall page's card under a navbar fixed at the window's top."""
     words = "A paragraph of text that makes the page longer than the window."
@@ -245,6 +270,8 @@ CASES = {
     "fixed_navbar": (_fixed_navbar, output_maidr("m", height=300), {}, _bars),
     "fixed_navbar_plotly": (_fixed_navbar, output_maidr("m"), {}, _plotly),
     "fs_card": (_card_full_screen, output_maidr("m"), {}, _bars),
+    "tall_mpl": (_tall_page, output_maidr("m"), {}, _tall_bars),
+    "cut_box": (_cut_box, output_maidr("m", height=300), {}, _bars),
 }
 
 
