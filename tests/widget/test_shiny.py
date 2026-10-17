@@ -35,6 +35,7 @@ from maidr.core.figure_manager import FigureManager  # noqa: E402
 from maidr.util.dependencies import maidr_js_version, read_bundled_js  # noqa: E402
 from maidr.util.iframe_utils import (  # noqa: E402
     SHINY_FRAME_NAME,
+    _SHINY_BAND_CSS,
     _shiny_frame_css,
     _shiny_frame_version,
     shiny_frame_script,
@@ -434,9 +435,11 @@ def test_a_dialog_lays_the_frame_out_as_a_notebooks():
     pass-through container, the output has none of output_maidr's style
     or fill classes (Shiny's own rule makes it a pass-through container
     too), the frame has an iframe's style as it had then, and the frame
-    runs a notebook frame's lines, its dialog room and scrolling included.
-    All of it comes back once the dialog has gone, or once the frame has
-    left the page.
+    runs a notebook frame's lines, its dialog room included, at the height
+    it had until it is measured. Over a chart taller than the reader's
+    view, the dialog's band is where the frame meets what the reader sees,
+    not in the frame's middle. All of it comes back once the dialog has
+    gone, or once the frame has left the page.
     """
     script = shiny_frame_script()
 
@@ -452,6 +455,8 @@ def test_a_dialog_lays_the_frame_out_as_a_notebooks():
     assert "if (!iframe.isConnected) maidrSuspendBox(iframe);" in script
     # A chart that takes its frame's width is not drawn again wider.
     assert "iframe.style.maxWidth = width + 'px';" in script
+    # At its height until it is measured, not an iframe's own 150px.
+    assert "iframe.style.height = height + 'px';" in script
     # A notebook frame's width, room and scrolling, as they are in one.
     assert "let room = fitted ? 0 : maidrDialogRoom(iframeDocument, iframe);" in script
     assert "var room = fitted ? 0 : maidrDialogRoom(doc, iframe);" in script
@@ -478,19 +483,27 @@ def test_a_dialog_lays_the_frame_out_as_a_notebooks():
         "addEventListener('scroll'",
     ):
         assert gone not in script, gone
-    # The page is scrolled by a notebook's dialog code and a field of
-    # maidr's own with scrollIntoView, and nothing else; a chart wholly out
-    # of view as its dialog closes by as little as it takes (maidrScrollInto).
+    # scrollIntoView centres a frame no taller than the reader's view as a
+    # dialog opens, and shows a field of maidr's own, and nothing else; the
+    # rest is scrolled by as little as it takes (maidrScrollInto).
     assert script.count("scrollIntoView(") == 2
     assert script.count("function maidrScrollInto(") == 1
-    assert script.count("maidrScrollInto(") == 2
+    assert script.count("maidrScrollInto(") == 3
     # At once: a Shiny page scrolls smoothly, and the next measure stopped
     # a smooth scroll halfway.
     assert (
         "iframe.scrollIntoView(\n"
-        "                    {block: 'center', inline: 'nearest', behavior: 'instant'}"
+        "                        {block: 'center', inline: 'nearest', behavior: 'instant'}"
     ) in script
     assert "win.scrollBy({top: y, left: x, behavior: 'instant'});" in script
+    # A dialog over a chart taller than the reader's view is put where the
+    # frame meets what they see, not in the frame's middle as a notebook's.
+    assert (
+        "maidrPlaceDialog(doc, iframe, room, opened && (!was || resized));"
+    ) in script
+    assert "root.style.setProperty('--maidr-dialog-at', at + 'px');" in script
+    show_dialog = script.split("function maidrShowDialog")[1].split("\n        }")[0]
+    assert "scrollIntoView" not in show_dialog and "--maidr-dialog" not in show_dialog
     # Below a header fixed or sticky at the window's top.
     assert "iframe.maidrCover = scroller ? 0 : maidrCover(iframe);" in script
     assert "height -= iframe.maidrCover;" in script
@@ -659,6 +672,9 @@ def test_a_shiny_frame_starts_with_the_rules_it_is_laid_out_by():
     assert ".maidr-frame-fill" in first and "svg.maidr-frame-svg{" in first
     for rule in (":focus", "forced-colors", "data-maidr-dialog-room", "fit-box"):
         assert rule not in first and rule in later, rule
+    # Where a Shiny frame's band is, after frame.css's own rule for it.
+    assert later.endswith(_SHINY_BAND_CSS)
+    assert "--maidr-dialog-at" in _SHINY_BAND_CSS
     script = shiny_frame_script()
     assert f"style.textContent = {json.dumps(later)};" in script
     assert script.count("maidrFrameStyle(frame);") == 2
@@ -677,8 +693,8 @@ def test_a_string_frame_carries_its_script_compacted_as_plain_text(plotly):
 
     The script it carried, its comments left out, was 22 KB of every flush,
     20 KB more than before charts were fitted. It carries its own kind's
-    alone now, compacted, and its stylesheet compacted: 25-26 KB as HTML
-    writes it, 2.5-2.7 times what it carried then (``_ONLOAD_BEFORE``),
+    alone now, compacted, and its stylesheet compacted: 26-27 KB as HTML
+    writes it, 2.6-2.8 times what it carried then (``_ONLOAD_BEFORE``),
     as plain text, which every browser runs. Packed, it was less than that,
     but a browser that could not unpack it left the frame 150px tall, the
     chart cut off
@@ -699,7 +715,7 @@ def test_a_string_frame_carries_its_script_compacted_as_plain_text(plotly):
     kind = "plotly" if plotly else "matplotlib"
     for gone in ("DecompressionStream", "atob(", "createElement('script')"):
         assert gone not in onload, gone
-    assert len(onload) + len(style) <= 2.75 * _ONLOAD_BEFORE[kind], (
+    assert len(onload) + len(style) <= 2.85 * _ONLOAD_BEFORE[kind], (
         len(onload),
         len(style),
     )

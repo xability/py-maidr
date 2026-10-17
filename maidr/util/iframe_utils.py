@@ -231,16 +231,26 @@ def frame_style() -> str:
 _LATER_RULES = re.compile(r":focus|forced-colors|data-maidr-dialog-room|data-maidr-fit-box")
 
 
+#: Where a Shiny frame's script puts a dialog's band over a chart taller than
+#: the reader's view: where the frame meets the part of the window they see
+#: (``maidrPlaceDialog``), not in the frame's middle, as a notebook's is.
+_SHINY_BAND_CSS = (
+    "html[data-maidr-dialog-room] .MuiDialog-container"
+    "{margin-top:var(--maidr-dialog-at) !important}"
+)
+
+
 @lru_cache(maxsize=1)
 def _shiny_frame_css() -> tuple:
     """``frame.css`` compacted, as rules a Shiny frame's document starts with
-    and rules its script adds (:data:`_LATER_RULES`)."""
+    and rules its script adds (:data:`_LATER_RULES`), and where its band is
+    (:data:`_SHINY_BAND_CSS`)."""
     from maidr.util.inline_chart import _asset
 
     blocks = css_blocks(compact_css(_asset("frame.css")))
     later = [block for block in blocks if _LATER_RULES.search(block)]
     first = [block for block in blocks if block not in later]
-    return "".join(first), "".join(later)
+    return "".join(first), "".join(later) + _SHINY_BAND_CSS
 
 
 def _frame_style(in_shiny: bool) -> str:
@@ -596,6 +606,7 @@ _BOX_JS = """
             iframe.maidrHostWidth = undefined;
             if (open) {
                 var width = iframe.getBoundingClientRect().width;
+                var height = iframe.getBoundingClientRect().height;
                 var suspended = iframe.maidrSuspended = {
                     frame: iframe.getAttribute('style'), held: []
                 };
@@ -612,6 +623,12 @@ _BOX_JS = """
                     }
                 }
                 iframe.setAttribute('style', 'FRAME_STYLE');
+                // At the height it had until it is measured: at an iframe's
+                // own 150px, a chart's frame whose top was more than that
+                // above the window was wholly above it, and the scroll
+                // positions kept while it is measured (maidrKeepScroll) moved
+                // the page down by all it grew back, 1025px of a tall chart.
+                iframe.style.height = height + 'px';
                 var chart = doc.querySelector('svg.FRAME_SVG_CLASS');
                 if (chart) {
                     chart.style.width = '';
@@ -807,6 +824,47 @@ _BOX_JS = """
             if (frame.bottom > seen.top && frame.top < seen.bottom
                     && frame.right > seen.left && frame.left < seen.right) return;
             maidrScrollInto(iframe, frame, cover);
+        }
+        // Where a dialog of maidr's is put in its frame, laid out as a
+        // notebook's (maidrShowDialog). Over a chart taller than the
+        // reader's view, it is kept to a band that tall (frame.css) where
+        // the frame meets the part of the window they see (maidrSeen), at
+        // --maidr-dialog-at, scrolled into view by as little as that takes
+        // where the frame's top or bottom is in that part. In the frame's
+        // middle, as a notebook's band is, it scrolled the page to the
+        // chart's middle, and left it there as it closed: the mark the
+        // reader had highlighted, above or below that, was off screen,
+        // after the next key too. Over a chart no taller, the frame is
+        // centred in the reader's view, as a notebook's is, below a header
+        // fixed at the window's top. Placed as the dialog opens, and again
+        // as the frame changes size; nothing about the page is kept.
+        function maidrPlaceDialog(doc, iframe, room, place) {
+            var root = doc.documentElement;
+            if (!(room > 0 && iframe.clientHeight > room)) {
+                if (root.hasAttribute('data-maidr-dialog-room')) {
+                    root.style.removeProperty('--maidr-dialog-room');
+                    root.style.removeProperty('--maidr-dialog-at');
+                    root.removeAttribute('data-maidr-dialog-room');
+                }
+                if (room > 0 && place) {
+                    iframe.style.scrollMarginTop = iframe.maidrCover + 'px';
+                    iframe.scrollIntoView(
+                        {block: 'center', inline: 'nearest', behavior: 'instant'}
+                    );
+                }
+                return;
+            }
+            root.style.setProperty('--maidr-dialog-room', room + 'px');
+            root.setAttribute('data-maidr-dialog-room', '');
+            if (!place && root.style.getPropertyValue('--maidr-dialog-at')) return;
+            var frame = iframe.getBoundingClientRect();
+            var at = maidrSeen(iframe, iframe.maidrCover).top - frame.top;
+            at = Math.round(Math.max(0, Math.min(at, iframe.clientHeight - room)));
+            root.style.setProperty('--maidr-dialog-at', at + 'px');
+            maidrScrollInto(iframe, {
+                top: frame.top + at, bottom: frame.top + at + room,
+                left: frame.left, right: frame.right
+            }, iframe.maidrCover);
         }
         // A frame whose height flips between two as a scrollbar comes and
         // goes round it -- the page's, or a box's, coming as the frame grows
@@ -1223,20 +1281,22 @@ def shiny_frame_script(kinds: tuple = ("matplotlib", "plotly")) -> str:
     # window shows below it (maidrCover), and the frame is scrolled to
     # below it (its scroll margin).
     dialog_room = _replace_once(
-        _replace_once(
-            _DIALOG_ROOM_JS,
-            """            if (scroller) {
+        _DIALOG_ROOM_JS,
+        """            if (scroller) {
                 height = Math.min(height, scroller.clientHeight);""",
-            """            iframe.maidrCover = scroller ? 0 : maidrCover(iframe);
+        """            iframe.maidrCover = scroller ? 0 : maidrCover(iframe);
             height -= iframe.maidrCover;
             if (scroller) {
                 height = Math.min(height, scroller.clientHeight);""",
-        ),
-        """                iframe.scrollIntoView({block: 'center', inline: 'nearest'});""",
-        """                iframe.style.scrollMarginTop = iframe.maidrCover + 'px';
-                iframe.scrollIntoView(
-                    {block: 'center', inline: 'nearest', behavior: 'instant'}
-                );""",
+    )
+    # Where the dialog is put, and the frame scrolled to show it: see
+    # maidrPlaceDialog in _BOX_JS. The page scrolls at once there.
+    start = dialog_room.index("            // Over a chart taller than the reader's view")
+    end = dialog_room.index("            }\n", dialog_room.index("if (opened && (!was"))
+    dialog_room = _replace_once(
+        dialog_room,
+        dialog_room[start : end + len("            }\n")],
+        "            maidrPlaceDialog(doc, iframe, room, opened && (!was || resized));\n",
     )
     helpers = (
         _OUTPUT_WIDTH_JS

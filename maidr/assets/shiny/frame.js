@@ -102,24 +102,7 @@
             var opened = room > 0;
             var was = iframe.maidrDialogOpen;
             iframe.maidrDialogOpen = opened;
-            // Over a chart taller than the reader's view, the dialog is kept
-            // to a band of that height in the middle of the frame (frame.css).
-            var root = doc.documentElement;
-            if (opened && iframe.clientHeight > room) {
-                root.style.setProperty('--maidr-dialog-room', room + 'px');
-                root.setAttribute('data-maidr-dialog-room', '');
-            } else if (root.hasAttribute('data-maidr-dialog-room')) {
-                root.style.removeProperty('--maidr-dialog-room');
-                root.removeAttribute('data-maidr-dialog-room');
-            }
-            if (opened && (!was || resized)) {
-                // The dialog is centred in the frame: centring the frame in
-                // the reader's view shows it whole.
-                iframe.style.scrollMarginTop = iframe.maidrCover + 'px';
-                iframe.scrollIntoView(
-                    {block: 'center', inline: 'nearest', behavior: 'instant'}
-                );
-            }
+            maidrPlaceDialog(doc, iframe, room, opened && (!was || resized));
         }
 
         function maidrWatch(doc, onChange) {
@@ -213,6 +196,7 @@
             iframe.maidrHostWidth = undefined;
             if (open) {
                 var width = iframe.getBoundingClientRect().width;
+                var height = iframe.getBoundingClientRect().height;
                 var suspended = iframe.maidrSuspended = {
                     frame: iframe.getAttribute('style'), held: []
                 };
@@ -229,6 +213,12 @@
                     }
                 }
                 iframe.setAttribute('style', 'background-color: #fff; position: relative; border: none');
+                // At the height it had until it is measured: at an iframe's
+                // own 150px, a chart's frame whose top was more than that
+                // above the window was wholly above it, and the scroll
+                // positions kept while it is measured (maidrKeepScroll) moved
+                // the page down by all it grew back, 1025px of a tall chart.
+                iframe.style.height = height + 'px';
                 var chart = doc.querySelector('svg.maidr-frame-svg');
                 if (chart) {
                     chart.style.width = '';
@@ -424,6 +414,47 @@
             if (frame.bottom > seen.top && frame.top < seen.bottom
                     && frame.right > seen.left && frame.left < seen.right) return;
             maidrScrollInto(iframe, frame, cover);
+        }
+        // Where a dialog of maidr's is put in its frame, laid out as a
+        // notebook's (maidrShowDialog). Over a chart taller than the
+        // reader's view, it is kept to a band that tall (frame.css) where
+        // the frame meets the part of the window they see (maidrSeen), at
+        // --maidr-dialog-at, scrolled into view by as little as that takes
+        // where the frame's top or bottom is in that part. In the frame's
+        // middle, as a notebook's band is, it scrolled the page to the
+        // chart's middle, and left it there as it closed: the mark the
+        // reader had highlighted, above or below that, was off screen,
+        // after the next key too. Over a chart no taller, the frame is
+        // centred in the reader's view, as a notebook's is, below a header
+        // fixed at the window's top. Placed as the dialog opens, and again
+        // as the frame changes size; nothing about the page is kept.
+        function maidrPlaceDialog(doc, iframe, room, place) {
+            var root = doc.documentElement;
+            if (!(room > 0 && iframe.clientHeight > room)) {
+                if (root.hasAttribute('data-maidr-dialog-room')) {
+                    root.style.removeProperty('--maidr-dialog-room');
+                    root.style.removeProperty('--maidr-dialog-at');
+                    root.removeAttribute('data-maidr-dialog-room');
+                }
+                if (room > 0 && place) {
+                    iframe.style.scrollMarginTop = iframe.maidrCover + 'px';
+                    iframe.scrollIntoView(
+                        {block: 'center', inline: 'nearest', behavior: 'instant'}
+                    );
+                }
+                return;
+            }
+            root.style.setProperty('--maidr-dialog-room', room + 'px');
+            root.setAttribute('data-maidr-dialog-room', '');
+            if (!place && root.style.getPropertyValue('--maidr-dialog-at')) return;
+            var frame = iframe.getBoundingClientRect();
+            var at = maidrSeen(iframe, iframe.maidrCover).top - frame.top;
+            at = Math.round(Math.max(0, Math.min(at, iframe.clientHeight - room)));
+            root.style.setProperty('--maidr-dialog-at', at + 'px');
+            maidrScrollInto(iframe, {
+                top: frame.top + at, bottom: frame.top + at + room,
+                left: frame.left, right: frame.right
+            }, iframe.maidrCover);
         }
         // A frame whose height flips between two as a scrollbar comes and
         // goes round it -- the page's, or a box's, coming as the frame grows
@@ -759,7 +790,7 @@
         if (!doc || doc.getElementById('maidr-frame-style')) return;
         var style = doc.createElement('style');
         style.id = 'maidr-frame-style';
-        style.textContent = "html[data-maidr-fit-box] figure[id^=maidr-figure-]>div[tabindex]{margin-left:auto;margin-right:auto}figure[id^=maidr-figure]>div[tabindex=\"0\"]:focus{outline:3px solid #1a5fb4 !important;outline-offset:-3px !important}figure[id^=maidr-figure]>div[tabindex=\"0\"]:focus svg.maidr-frame-svg{outline:2px solid #ffffff !important;outline-offset:-5px !important}.js-plotly-plot .svg-container:focus-within{outline:none !important}.js-plotly-plot .svg-container:focus-within::after{content:\"\";position:absolute;inset:0;border:3px solid #1a5fb4;pointer-events:none;z-index:1000}figure[id^=maidr-figure]>div[tabindex=\"0\"]:focus [id^=maidr-bokeh-][id$=-plot]::after{content:\"\";position:absolute;inset:0;border:3px solid #1a5fb4;pointer-events:none;z-index:1000}figure[id^=maidr-figure]>div[tabindex=\"0\"]:focus:has([id^=maidr-bokeh-][id$=-plot]){outline:none !important}textarea:focus,input:focus,select:focus,button:focus-visible,a:focus-visible,[role=button]:focus-visible{outline:3px solid #1a5fb4 !important;outline-offset:-3px !important}@media (forced-colors:active){figure[id^=maidr-figure]>div[tabindex=\"0\"]:focus,textarea:focus,input:focus,select:focus,button:focus-visible,a:focus-visible,[role=button]:focus-visible{outline-color:Highlight !important}figure[id^=maidr-figure]>div[tabindex=\"0\"]:focus svg.maidr-frame-svg{outline:none !important}.js-plotly-plot .svg-container:focus-within::after,figure[id^=maidr-figure]>div[tabindex=\"0\"]:focus [id^=maidr-bokeh-][id$=-plot]::after{border-color:Highlight}}html[data-maidr-dialog-room] .MuiDialog-container{height:var(--maidr-dialog-room) !important;margin-top:calc((100vh - var(--maidr-dialog-room)) / 2) !important}html[data-maidr-dialog-room] .MuiDialog-paper{max-height:calc(var(--maidr-dialog-room) - 64px) !important}";
+        style.textContent = "html[data-maidr-fit-box] figure[id^=maidr-figure-]>div[tabindex]{margin-left:auto;margin-right:auto}figure[id^=maidr-figure]>div[tabindex=\"0\"]:focus{outline:3px solid #1a5fb4 !important;outline-offset:-3px !important}figure[id^=maidr-figure]>div[tabindex=\"0\"]:focus svg.maidr-frame-svg{outline:2px solid #ffffff !important;outline-offset:-5px !important}.js-plotly-plot .svg-container:focus-within{outline:none !important}.js-plotly-plot .svg-container:focus-within::after{content:\"\";position:absolute;inset:0;border:3px solid #1a5fb4;pointer-events:none;z-index:1000}figure[id^=maidr-figure]>div[tabindex=\"0\"]:focus [id^=maidr-bokeh-][id$=-plot]::after{content:\"\";position:absolute;inset:0;border:3px solid #1a5fb4;pointer-events:none;z-index:1000}figure[id^=maidr-figure]>div[tabindex=\"0\"]:focus:has([id^=maidr-bokeh-][id$=-plot]){outline:none !important}textarea:focus,input:focus,select:focus,button:focus-visible,a:focus-visible,[role=button]:focus-visible{outline:3px solid #1a5fb4 !important;outline-offset:-3px !important}@media (forced-colors:active){figure[id^=maidr-figure]>div[tabindex=\"0\"]:focus,textarea:focus,input:focus,select:focus,button:focus-visible,a:focus-visible,[role=button]:focus-visible{outline-color:Highlight !important}figure[id^=maidr-figure]>div[tabindex=\"0\"]:focus svg.maidr-frame-svg{outline:none !important}.js-plotly-plot .svg-container:focus-within::after,figure[id^=maidr-figure]>div[tabindex=\"0\"]:focus [id^=maidr-bokeh-][id$=-plot]::after{border-color:Highlight}}html[data-maidr-dialog-room] .MuiDialog-container{height:var(--maidr-dialog-room) !important;margin-top:calc((100vh - var(--maidr-dialog-room)) / 2) !important}html[data-maidr-dialog-room] .MuiDialog-paper{max-height:calc(var(--maidr-dialog-room) - 64px) !important}html[data-maidr-dialog-room] .MuiDialog-container{margin-top:var(--maidr-dialog-at) !important}";
         (doc.head || doc.documentElement).appendChild(style);
     }
     function matplotlibFrame(frame, options) {
