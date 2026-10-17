@@ -16,7 +16,9 @@ between the points and the smooth curve, so the trend can be heard on its own
 and then checked against the scatter.
 
 `SCATTER` and `SMOOTH` are in the **stable** set: see
-[Plot Type Stability](../stability.qmd).
+[Plot Type Stability](../stability.qmd). The volcano and Manhattan plots at
+the end of the page are scatters declared as such, `VOLCANO` and `MANHATTAN`,
+which are **experimental**.
 
 ## Setup
 
@@ -98,6 +100,89 @@ ax.set_ylabel("Y values")
 # Add number formatters for better screen reader output
 ax.xaxis.set_major_formatter("{x:.1f}")
 ax.yaxis.set_major_formatter("{x:.2f}")
+
+plt.show() #<<
+```
+
+## Volcano Plot [experimental]
+
+A volcano plot is a scatter read through a threshold, and nothing in the
+drawing says where the threshold is, so it is declared: `maidr.volcano()`
+takes the scatter, the significance cutoff on y and, optionally, the
+effect-size cutoff on the magnitude of x, with a name for each point. The
+chart then opens with how many points clear both cutoffs and which, announces
+each point's name, and adds a rotor mode (Alt+Shift+Up) that walks only the
+points that clear them.
+
+```{python}
+#| fig-alt: Volcano plot of log2 fold change against -log10 p for 200 genes
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+import maidr #<<
+
+rng = np.random.default_rng(7)
+genes = [f"GENE{i:03d}" for i in range(200)]
+fold_change = rng.normal(0, 0.8, 200)
+minus_log10_p = np.abs(fold_change) * rng.uniform(0.5, 2.5, 200)
+
+fig, ax = plt.subplots()
+points = ax.scatter(fold_change, minus_log10_p, s=12)
+ax.axhline(1.3, linestyle="--", color="grey")
+ax.axvline(-1, linestyle=":", color="grey")
+ax.axvline(1, linestyle=":", color="grey")
+ax.set_title("Differential expression")
+ax.set_xlabel("Log2 fold change")
+ax.set_ylabel("-log10 p")
+
+# p < 0.05 and at least a two-fold change, either way
+maidr.volcano(points, significance=1.3, effect=1.0, labels=genes) #<<
+
+plt.show() #<<
+```
+
+## Manhattan Plot [experimental]
+
+A Manhattan plot is declared the same way with `maidr.manhattan()`, which
+also takes each point's chromosome. It has no effect cutoff, because x is a
+position on the genome rather than a size. Drawing one scatter per chromosome,
+as here, is the usual way to alternate their colors; pass them all, and the
+names and chromosomes in the same order.
+
+```{python}
+#| fig-alt: Manhattan plot of -log10 p along four chromosomes
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+import maidr #<<
+
+rng = np.random.default_rng(11)
+fig, ax = plt.subplots(figsize=(8, 4))
+drawn, snps, chromosomes, centers = [], [], [], []
+start = 0
+for number in range(1, 5):
+    position = start + np.sort(rng.uniform(0, 100, 40))
+    minus_log10_p = rng.exponential(1.2, 40)
+    if number == 2:
+        minus_log10_p[17] = 9.4  # one genome-wide hit
+    color = "tab:blue" if number % 2 else "tab:grey"
+    drawn.append(ax.scatter(position, minus_log10_p, s=10, color=color))
+    snps += [f"rs{number}{i:03d}" for i in range(40)]
+    chromosomes += [f"chr{number}"] * 40
+    centers.append(start + 50)
+    start += 100
+
+ax.axhline(7.3, linestyle="--", color="grey")
+ax.set_xticks(centers, [f"chr{n}" for n in range(1, 5)])
+ax.set_title("Genome-wide association")
+ax.set_xlabel("Genomic position")
+ax.set_ylabel("-log10 p")
+
+maidr.manhattan( #<<
+    drawn, significance=7.3, labels=snps, groups=chromosomes #<<
+) #<<
 
 plt.show() #<<
 ```

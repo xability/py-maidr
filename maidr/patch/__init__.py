@@ -24,6 +24,7 @@ from . import (  # noqa: E402, F401
     boxenplot,
     boxplot,
     clear,
+    clustermap,
     colorbar,
     contour,
     correlogram,
@@ -55,6 +56,7 @@ from . import (  # noqa: E402, F401
     seaborn_probe,
     roc,
     pr_curve,
+    survival,
     network_graph,
     wordcloud,
 )

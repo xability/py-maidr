@@ -90,6 +90,8 @@ website:
             href: examples/roc.qmd
           - text: "Precision-Recall Curves [experimental]"
             href: examples/pr-curve.qmd
+          - text: "Kaplan-Meier Survival Curves [experimental]"
+            href: examples/survival.qmd
           - text: "Directed Graphs [experimental]"
             href: examples/network-graph.qmd
           - text: "---"
@@ -159,6 +161,8 @@ website:
               href: examples/roc.qmd
             - text: "Precision-Recall Curves [experimental]"
               href: examples/pr-curve.qmd
+            - text: "Kaplan-Meier Survival Curves [experimental]"
+              href: examples/survival.qmd
             - text: "Directed Graphs [experimental]"
               href: examples/network-graph.qmd
         - examples/dashboards.qmd
@@ -263,7 +267,7 @@ format:
                 "programmingLanguage": "Python",
                 "runtimePlatform": "Python",
                 "softwareRequirements": ["Python >= 3.9", "matplotlib"],
-                "softwareVersion": "1.26.0",
+                "softwareVersion": "1.27.0",
                 "operatingSystem": "Cross-platform",
                 "keywords": ["accessibility", "data visualization", "sonification", "braille", "blind", "low vision", "matplotlib", "seaborn", "plotly", "bokeh", "plotnine", "altair"],
                 "sameAs": [
@@ -380,6 +384,15 @@ quartodoc:
         - tensorboard.load_embeddings
         - tensorboard.Embedding
         - read_tensorboard_graph
+    - title: Drawing a Kaplan-Meier survival curve
+      desc: >
+        Draw a survival curve from its times, probabilities, censoring times
+        and confidence band with `maidr.plot_survival()`, read as a survival
+        curve rather than as a step plot. lifelines'
+        `KaplanMeierFitter.plot_survival_function()` is read the same way.
+        Experimental.
+      contents:
+        - plot_survival
     - title: Drawing the training curves and graph of a Keras model
       desc: >
         Draw what `model.fit` returns with `maidr.keras.plot_history()` and a
@@ -425,10 +438,14 @@ quartodoc:
         - mlflow.load_mlflow_metrics
     - title: Registering and releasing figures
       desc: >
-        Mark a bar container as a stacked bar plot with `maidr.stacked()`, and
-        release the figures maidr tracks with `maidr.close()`.
+        Mark a bar container as a stacked bar plot with `maidr.stacked()`,
+        declare a scatter a volcano or a Manhattan plot with `maidr.volcano()`
+        or `maidr.manhattan()` (experimental), and release the figures maidr
+        tracks with `maidr.close()`.
       contents:
         - stacked
+        - volcano
+        - manhattan
         - close
     - title: Switching the matplotlib backend
       desc: >

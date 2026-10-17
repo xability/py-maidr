@@ -302,6 +302,48 @@ class FigureManager:
         return maidr
 
     @classmethod
+    def replace_plots(cls, maidr: Maidr, old: list[MaidrPlot], new: MaidrPlot) -> None:
+        """
+        Put one layer where several registered ones were.
+
+        For a declaration that reads a chart its patches already registered
+        as something else -- :func:`maidr.volcano` turning the scatter layers
+        of a set of points into one volcano layer. The new layer takes the
+        place, and the selector id, of the first old one, so it keeps that
+        layer's position among the figure's layers; the rest are dropped with
+        their ids, keeping ``plots`` and ``selector_ids`` index-aligned (see
+        :meth:`_append` for what misaligning them costs). With nothing to
+        replace, the layer is appended.
+
+        Parameters
+        ----------
+        maidr : Maidr
+            The figure's Maidr, which holds every layer in ``old``.
+        old : list of MaidrPlot
+            The layers ``new`` replaces.
+        new : MaidrPlot
+            The layer that replaces them.
+        """
+        with cls._lock:
+            doomed = {id(plot) for plot in old}
+            kept_plots: list[MaidrPlot] = []
+            kept_ids: list[str] = []
+            placed = False
+            for plot, selector_id in zip(maidr.plots, maidr.selector_ids):
+                if id(plot) not in doomed:
+                    kept_plots.append(plot)
+                    kept_ids.append(selector_id)
+                elif not placed:
+                    kept_plots.append(new)
+                    kept_ids.append(selector_id)
+                    placed = True
+            if not placed:
+                kept_plots.append(new)
+                kept_ids.append(Maidr._unique_id())
+            maidr.plots[:] = kept_plots
+            maidr.selector_ids[:] = kept_ids
+
+    @classmethod
     def _append(cls, maidr: Maidr, plot: MaidrPlot) -> None:
         # The two appends do not. `plots` and `selector_ids` are separate
         # lists held index-aligned -- `Maidr._flatten_maidr` and

@@ -107,6 +107,15 @@ class PlotType(str, Enum):
     #: chart is drawn to show reached the audio not at all. See
     #: `docs/stability.qmd` -- experimental.
     RUG = "rug"
+    #: A Kaplan-Meier curve: the share still free of the event at each time,
+    #: dropping in steps as events occur. A distinct type from :attr:`STEP`
+    #: for the two facts the figure is read for: which times are censored --
+    #: a subject who left without the event, where the curve does not step --
+    #: and the median survival, which maidr.js states. Registered by
+    #: `maidr.plot_survival` and by lifelines'
+    #: `KaplanMeierFitter.plot_survival_function`. See `docs/stability.qmd` --
+    #: experimental.
+    SURVIVAL = "survival"
     SCATTER = "point"
     STACKED = "stacked_bar"
     NORMALIZED = "stacked_normalized_bar"
@@ -144,6 +153,11 @@ class PlotType(str, Enum):
     TREEMAP = "treemap"
     SUNBURST = "sunburst"
     ICICLE = "icicle"
+    #: The same hierarchy again, drawn as nodes joined by links rather than as
+    #: areas -- the reading maidr.js gives a dendrogram, whose clusters nest
+    #: and whose leaves have no size. Emitted for the row and column trees of
+    #: `seaborn.clustermap`. See `docs/stability.qmd` -- experimental.
+    TREE = "tree"
     #: One measure against a dial, with the range it sits in and -- when the
     #: chart draws one -- the target it is measured against. The one type
     #: here whose payload is a single point rather than a list of them.
@@ -172,6 +186,15 @@ class PlotType(str, Enum):
     #: and written down nowhere, so a term and its number is the whole of what
     #: it encodes. See `docs/stability.qmd` -- experimental.
     WORD_CLOUD = "word_cloud"
+    #: A scatter read through a declared significance threshold: effect size
+    #: against significance for a volcano, genomic position against it for a
+    #: Manhattan. Each point carries the name of what it is -- a gene, a SNP
+    #: -- and, on a Manhattan, the chromosome it sits on, which is what these
+    #: charts are read for. Never inferred from a drawing: a scatter is
+    #: declared one with `maidr.volcano` or `maidr.manhattan`, which take the
+    #: threshold explicitly. See `docs/stability.qmd` -- experimental.
+    VOLCANO = "volcano"
+    MANHATTAN = "manhattan"
 
     @property
     def display_name(self) -> str:
@@ -212,6 +235,7 @@ _DISPLAY_NAMES = {
     PlotType.POLAR_AREA: "polar area",
     PlotType.PR_CURVE: "PR curve",
     PlotType.ROC: "ROC curve",
+    PlotType.SURVIVAL: "survival curve",
     PlotType.VIOLIN_BOX: "violin",
     PlotType.VIOLIN_KDE: "violin",
     PlotType.WORD_CLOUD: "word cloud",

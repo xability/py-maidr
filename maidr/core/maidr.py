@@ -115,7 +115,11 @@ _SEGMENTED_BAR_PLOTS = (GroupedBarPlot,)
 #: family is deliberately NOT here: ``bar.ts`` reads an array as one selector
 #: per point, which is the shape ``BarsHistPlot``, ``LollipopPlot`` and the
 #: plotly bar emit on purpose when document order is not data order.
-_SINGLE_SELECTOR_TYPES = frozenset({PlotType.SCATTER})
+#: ``volcano`` and ``manhattan`` are built on the same trace and read their
+#: selector the same way (``volcano.ts`` extends ``ScatterTrace``).
+_SINGLE_SELECTOR_TYPES = frozenset(
+    {PlotType.SCATTER, PlotType.VOLCANO, PlotType.MANHATTAN}
+)
 
 
 def _quarto_stash(use_cdn: bool | Literal["auto"]) -> str | None:

@@ -6,7 +6,7 @@ maidr (pronounced "mader") patches matplotlib, seaborn and Plotly at import time
 
 **Stable**: bar, stacked bar, dodged bar, count, histogram, KDE, line, multi-line, step, pie, box, violin, heatmap, scatter, smooth/regression, candlestick, multi-layer, multi-panel, and facet plots.
 
-**Experimental**: boxen [experimental], hexbin [experimental], contour [experimental], error bar [experimental], point [experimental], lollipop [experimental], area [experimental], stacked area [experimental], Gantt [experimental], word cloud [experimental], ROC curve [experimental]. These may change without a deprecation period; see [Plot Type Stability](https://py.maidr.ai/stability.html).
+**Experimental**: boxen [experimental], hexbin [experimental], contour [experimental], error bar [experimental], point [experimental], lollipop [experimental], area [experimental], stacked area [experimental], Gantt [experimental], word cloud [experimental], ROC curve [experimental], volcano [experimental], Manhattan [experimental], survival curve [experimental], clustermap dendrogram tree [experimental]. These may change without a deprecation period; see [Plot Type Stability](https://py.maidr.ai/stability.html).
 
 ## Docs
 - [Documentation Home](https://py.maidr.ai/): Installation, quick start, related projects and how to cite
@@ -32,7 +32,7 @@ maidr (pronounced "mader") patches matplotlib, seaborn and Plotly at import time
 - [MLflow Examples](https://py.maidr.ai/examples-mlflow.html): the training curves of MLflow runs, read by `maidr.read_mlflow_metrics(runs)` from any tracking server, and an accessible chart stored in a run, where the MLflow UI shows it, by `maidr.log_mlflow_chart(chart, "charts/loss.html")` (MLflow support is experimental)
 - [Altair Examples](https://py.maidr.ai/examples-altair.html): Altair (Vega-Lite) accessible chart examples
 - [Plot Type Stability](https://py.maidr.ai/stability.html): Which plot types are stable and which are experimental
-- [API Reference](https://py.maidr.ai/api/): show, render, save_html, stacked, close, set_backend, set_use_cdn, init_notebook, read_wandb_history, read_mlflow_metrics, log_mlflow_chart, Shiny, Streamlit and Gradio widgets
+- [API Reference](https://py.maidr.ai/api/): show, render, save_html, stacked, close, set_backend, set_use_cdn, init_notebook, read_wandb_history, read_mlflow_metrics, log_mlflow_chart, plot_survival, Shiny, Streamlit and Gradio widgets
 
 ## Experimental plot families
 These may change without a deprecation period; see [Plot Type Stability](https://py.maidr.ai/stability.html).
@@ -40,6 +40,7 @@ These may change without a deprecation period; see [Plot Type Stability](https:/
 - [Area [experimental], Error Bar [experimental], Point [experimental] and Lollipop Plots [experimental]](https://py.maidr.ai/examples/area-errorbar-point-lollipop.html)
 - [ROC Curves [experimental]](https://py.maidr.ai/examples/roc.html): scikit-learn `RocCurveDisplay`
 - [Precision-Recall Curves [experimental]](https://py.maidr.ai/examples/pr-curve.html): scikit-learn `PrecisionRecallDisplay`
+- [Kaplan-Meier Survival Curves [experimental]](https://py.maidr.ai/examples/survival.html): `maidr.plot_survival()` and lifelines `KaplanMeierFitter.plot_survival_function()`
 - [Directed Graphs [experimental]](https://py.maidr.ai/examples/network-graph.html): networkx `nx.draw()` / `nx.draw_networkx()` of a `DiGraph`
 
 ## Optional
