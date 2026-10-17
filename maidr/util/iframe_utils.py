@@ -1275,13 +1275,31 @@ def shiny_frame_script(kinds: tuple = ("matplotlib", "plotly")) -> str:
                     }""",
     )
     assert keep_scroll != _KEEP_SCROLL_JS
+    # A box round the frame that cuts what it holds without scrolling
+    # (overflow hidden or clip) is one the dialog's room is kept to as well,
+    # and of all those boxes, the smallest sets it: the frame made as tall
+    # as the window in a 400px overflow: hidden box had help cut in half,
+    # and the box, scrolled to show it, left the reader's highlight where
+    # they could not scroll back to it.
+    dialog_room = _replace_once(
+        _DIALOG_ROOM_JS,
+        """                if ((y === 'auto' || y === 'scroll' || y === 'overlay')
+                        && el.scrollHeight > el.clientHeight + 1) {
+                    scroller = el;""",
+        """                var cuts = (y === 'hidden' || y === 'clip')
+                    && el.parentElement && el !== el.ownerDocument.body;
+                if ((y === 'auto' || y === 'scroll' || y === 'overlay' || cuts)
+                        && el.scrollHeight > el.clientHeight + 1
+                        && (!scroller || el.clientHeight < scroller.clientHeight)) {
+                    scroller = el;""",
+    )
     # A Shiny page's header fixed at the window's top (a navbar of
     # position="fixed-top") or sticky there covers what is scrolled under
     # it, the top of the dialog among them: the dialog's room is what the
     # window shows below it (maidrCover), and the frame is scrolled to
     # below it (its scroll margin).
     dialog_room = _replace_once(
-        _DIALOG_ROOM_JS,
+        dialog_room,
         """            if (scroller) {
                 height = Math.min(height, scroller.clientHeight);""",
         """            iframe.maidrCover = scroller ? 0 : maidrCover(iframe);

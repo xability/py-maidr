@@ -84,8 +84,11 @@
             var scroller = null;
             for (var el = iframe.parentElement; el; el = el.parentElement) {
                 var y = win.getComputedStyle(el).overflowY;
-                if ((y === 'auto' || y === 'scroll' || y === 'overlay')
-                        && el.scrollHeight > el.clientHeight + 1) {
+                var cuts = (y === 'hidden' || y === 'clip')
+                    && el.parentElement && el !== el.ownerDocument.body;
+                if ((y === 'auto' || y === 'scroll' || y === 'overlay' || cuts)
+                        && el.scrollHeight > el.clientHeight + 1
+                        && (!scroller || el.clientHeight < scroller.clientHeight)) {
                     scroller = el;
                 }
             }

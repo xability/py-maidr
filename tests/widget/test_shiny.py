@@ -438,8 +438,9 @@ def test_a_dialog_lays_the_frame_out_as_a_notebooks():
     runs a notebook frame's lines, its dialog room included, at the height
     it had until it is measured. Over a chart taller than the reader's
     view, the dialog's band is where the frame meets what the reader sees,
-    not in the frame's middle. All of it comes back once the dialog has
-    gone, or once the frame has left the page.
+    not in the frame's middle; a box that cuts what it holds keeps the
+    room to its height. All of it comes back once the dialog has gone, or
+    once the frame has left the page.
     """
     script = shiny_frame_script()
 
@@ -504,6 +505,8 @@ def test_a_dialog_lays_the_frame_out_as_a_notebooks():
     assert "root.style.setProperty('--maidr-dialog-at', at + 'px');" in script
     show_dialog = script.split("function maidrShowDialog")[1].split("\n        }")[0]
     assert "scrollIntoView" not in show_dialog and "--maidr-dialog" not in show_dialog
+    # A box that cuts what it holds, without scrolling, keeps the room too.
+    assert "var cuts = (y === 'hidden' || y === 'clip')" in script
     # Below a header fixed or sticky at the window's top.
     assert "iframe.maidrCover = scroller ? 0 : maidrCover(iframe);" in script
     assert "height -= iframe.maidrCover;" in script
