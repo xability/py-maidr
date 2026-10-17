@@ -457,7 +457,9 @@ def test_a_dialog_lays_the_frame_out_as_a_notebooks():
     # A chart that takes its frame's width is not drawn again wider.
     assert "iframe.style.maxWidth = width + 'px';" in script
     # At its height until it is measured, not an iframe's own 150px.
-    assert "iframe.style.height = height + 'px';" in script
+    suspend = script.split("function maidrSuspendBox")[1].split("function ")[0]
+    assert "var height = iframe.getBoundingClientRect().height;" in suspend
+    assert "iframe.style.height = height + 'px';" in suspend
     # A notebook frame's width, room and scrolling, as they are in one.
     assert "let room = fitted ? 0 : maidrDialogRoom(iframeDocument, iframe);" in script
     assert "var room = fitted ? 0 : maidrDialogRoom(doc, iframe);" in script

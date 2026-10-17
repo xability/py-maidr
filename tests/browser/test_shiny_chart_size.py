@@ -723,17 +723,17 @@ _LIT_AT = r"""(at) => {
 
 
 @pytest.mark.parametrize(
-    ("size", "presses", "at"),
+    ("size", "presses", "at", "still"),
     [
-        ((1366, 650), 3, 0.15),
-        ((640, 450), 3, 0.5),
-        ((844, 390), 3, 0.85),
-        ((1280, 900), 18, 0.5),
+        ((1366, 650), 3, 0.15, False),
+        ((640, 450), 3, 0.5, True),
+        ((844, 390), 3, 0.85, True),
+        ((1280, 900), 18, 0.5, False),
     ],
     ids=["laptop-upper", "zoom-200-middle", "phone-turned-lower", "wide-top-bars"],
 )
 def test_help_over_a_matplotlib_chart_taller_than_the_window_keeps_the_highlight(
-    browser, shiny_size_app_url, size, presses, at
+    browser, shiny_size_app_url, size, presses, at, still
 ):
     """A reader reads bars on their side, 14 inches tall, and asks for help.
 
@@ -744,7 +744,10 @@ def test_help_over_a_matplotlib_chart_taller_than_the_window_keeps_the_highlight
     help closed at 1366x650, at 640x450 and on a phone turned on its side,
     and, at 1280x900, reading the top bars, 27% after the next key. The
     band is put where the frame meets the window now, shown whole, and the
-    mark stays in view.
+    mark stays in view; where the chart's top and bottom are both out of
+    the window, nothing scrolls as help opens either. The frame, given an
+    iframe's 150px for a moment as help opened, had seemed wholly above
+    the window, and the page was moved down by all it grew back.
     """
     page = _open(browser, f"{shiny_size_app_url}/tall_mpl/", *size)
     try:
@@ -759,6 +762,12 @@ def test_help_over_a_matplotlib_chart_taller_than_the_window_keeps_the_highlight
         page.wait_for_timeout(1500)
         _settle(page)
         _assert_dialog_whole(page, "help open")
+        if still:
+            opened = page.evaluate(_LIT)
+            assert opened["scrollY"] == pytest.approx(before["scrollY"], abs=1), (
+                before,
+                opened,
+            )
         page.evaluate(_WATCH_CLOSE)
 
         page.keyboard.press("Escape")
