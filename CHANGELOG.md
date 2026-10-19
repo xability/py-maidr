@@ -1,6 +1,37 @@
 # CHANGELOG
 
 
+## v1.28.0 (2026-10-19)
+
+### Bug Fixes
+
+- **box**: Follow the visual vertical order of horizontal boxplots
+  ([#912](https://github.com/xability/py-maidr/pull/912),
+  [`8b33e80`](https://github.com/xability/py-maidr/commit/8b33e80a710a1ff4bd1587bb509a68f2d2cf6ba8))
+
+### Features
+
+- **heatmap**: Highlight clustermap dendrogram nodes
+  ([#920](https://github.com/xability/py-maidr/pull/920),
+  [`afe2dd7`](https://github.com/xability/py-maidr/commit/afe2dd7abac93e72df1bfd959e9f02d6e4bf9b33))
+
+- **heatmap**: Read seaborn clustermap dendrograms as trees
+  ([#918](https://github.com/xability/py-maidr/pull/918),
+  [`4fba5b7`](https://github.com/xability/py-maidr/commit/4fba5b7bfbd3a411236ed66bcff8a8509f900793))
+
+- **shiny**: Give a chart the size its output or renderer is given
+  ([#921](https://github.com/xability/py-maidr/pull/921),
+  [`09ebcdb`](https://github.com/xability/py-maidr/commit/09ebcdb09bd544d2a5c5fd8e8f4a8d30a868c784))
+
+- **survival**: Emit maidr.js survival layers for kaplan-meier curves
+  ([#917](https://github.com/xability/py-maidr/pull/917),
+  [`114cc1d`](https://github.com/xability/py-maidr/commit/114cc1db896cf3774471d958d60dc9218a18d82f))
+
+- **volcano**: Declare a scatter a volcano or a manhattan plot
+  ([#916](https://github.com/xability/py-maidr/pull/916),
+  [`2e17251`](https://github.com/xability/py-maidr/commit/2e172515126d4da2775a2e9ac29b4eddd96c6785))
+
+
 ## v1.27.0 (2026-10-14)
 
 ### Bug Fixes
