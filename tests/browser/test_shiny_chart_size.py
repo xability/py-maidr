@@ -104,7 +104,10 @@ _GEOMETRY = r"""(oid) => {
 #: bars are the chart's ``g[maidr]`` groups, left to right; the highlight is
 #: drawn inside the one it lights.
 _READING = r"""() => {
-  const alert = document.querySelector('#maidr-text-container [role=alert], [role=alert]');
+  // The announcement: the element in maidr.js's live region, or, from the
+  // releases before it had one, the role=alert element it was put in.
+  const alert = document.querySelector('[id^=maidr-announcement-] > *')
+    || document.querySelector('#maidr-text-container [role=alert], [role=alert]');
   const lit = document.querySelector('[id^=maidr-highlight]');
   const box = e => { const r = e.getBoundingClientRect();
                      return [r.left, r.top, r.right, r.bottom]; };

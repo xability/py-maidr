@@ -1,4 +1,4 @@
-"""Every announcement reaches the reader in a freshly inserted alert (#235).
+"""Every announcement reaches the reader in a freshly inserted element (#235).
 
 A screen reader user in Firefox on Windows arrowed through a chart and heard
 nothing, and pressing ``t`` to toggle text mode was silent too, while the
@@ -27,20 +27,32 @@ element: navigation text in xability/maidr#530 (3.50.1), notifications such
 as the ``t`` toggle in xability/maidr#629 (3.72.0), and arrow navigation
 again after 3.72.0 dropped it, in xability/maidr#633 (3.72.1).
 
-This pins that pattern in the bundle py-maidr ships, through two of the ways
-py-maidr puts the bundle on a page: a saved document, and a notebook frame
-that evaluates the bundle from a string. It is deliberately stricter than
-Firefox: a node added to an alert that is already there would also raise
-the event, but the test holds the bundle to the one shape upstream settled
-on -- a new alert per announcement -- rather than to every shape Gecko
+An alert costs something of its own, though: NVDA speaks an alert's role
+before its text, so a reader moving through a chart heard "alert" on every
+key. Later releases (xability/maidr#1435) keep a new element per
+announcement but add it to a live region instead: one
+``aria-live="assertive"`` region, ``[id^=maidr-announcement-]``, which
+``maidr.js`` renders with the chart, before the reader reaches it. Firefox
+takes an explicit ``aria-live`` as written on every platform --
+``nsAccUtils::SetLiveContainerAttributes`` falls back on the value a role
+implies only when the attribute is absent -- and an element inserted into a
+live region raises the events NVDA and JAWS speak a live region from.
+
+This pins those two shapes in the bundle py-maidr ships, through two of the
+ways py-maidr puts the bundle on a page: a saved document, and a notebook
+frame that evaluates the bundle from a string. It is deliberately stricter
+than Firefox: a node added to an alert that is already there would also
+raise the event, but the test holds the bundle to the shapes upstream
+settled on -- a new alert per announcement, or a new element per
+announcement in the announcement region -- rather than to every shape Gecko
 happens to accept.
 
 It runs in Chromium only, which is enough: what is asserted is the DOM each
 browser builds its accessibility tree from, not the tree itself. It cannot
 show that a screen reader speaks -- only that each announcement arrives in
-the form Firefox needs in order to raise the event a screen reader speaks
-from. A bundle update that goes back to rewriting an existing alert fails
-here, naming the key that did it.
+a form for which Firefox raises the event a screen reader speaks from. A
+bundle update that goes back to rewriting an announcement already on the
+page fails here, naming the key that did it.
 """
 
 from __future__ import annotations
@@ -76,27 +88,42 @@ _SETTLE_MS = 700
 #: The role of whatever holds focus in the chart's document.
 _FOCUSED_ROLE = "() => document.activeElement?.getAttribute('role') ?? null"
 
-#: Records how each announcement reached a `role="alert"` element: `new`
-#: when the alert element itself was inserted (with its text already in
-#: it), `rewritten` when a text node inside an existing alert changed, and
-#: `added` when a node was put into an existing alert.
-_RECORD_ALERTS = """() => {
-  window.__maidrAlerts = [];
-  const inAlert = (node) => {
+#: The live region ``maidr.js`` announces into, from the releases that have
+#: one; earlier ones put each announcement in a ``role="alert"`` of its own.
+_REGION = "[id^=maidr-announcement-]"
+
+#: Records how each announcement reached the page: `new` when an element
+#: arrived with its text already in it -- a ``role="alert"`` element, or an
+#: element put straight into the announcement region -- `rewritten` when
+#: text already in an alert or the region changed, or bare text was put
+#: into the region, and `added` when a node was put into an alert, or into
+#: an announcement already in the region.
+_RECORD_ANNOUNCEMENTS = (
+    """() => {
+  const region = '%s';
+  window.__maidrAnnouncements = [];
+  const holder = (node) => {
     const el = node.nodeType === 1 ? node : node.parentElement;
-    return Boolean(el && el.closest('[role=alert]'));
+    return el && el.closest('[role=alert], ' + region);
   };
   new MutationObserver((records) => {
     for (const r of records) {
       if (r.type === 'characterData') {
-        if (inAlert(r.target)) {
-          window.__maidrAlerts.push({kind: 'rewritten', text: r.target.data});
+        if (holder(r.target)) {
+          window.__maidrAnnouncements.push({kind: 'rewritten', text: r.target.data});
         }
         continue;
       }
-      if (inAlert(r.target)) {
+      if (r.target.nodeType === 1 && r.target.matches(region)) {
         for (const node of r.addedNodes) {
-          window.__maidrAlerts.push({kind: 'added', text: node.textContent});
+          window.__maidrAnnouncements.push({
+            kind: node.nodeType === 1 ? 'new' : 'rewritten', text: node.textContent});
+        }
+        continue;
+      }
+      if (holder(r.target)) {
+        for (const node of r.addedNodes) {
+          window.__maidrAnnouncements.push({kind: 'added', text: node.textContent});
         }
         continue;
       }
@@ -105,12 +132,14 @@ _RECORD_ALERTS = """() => {
         const alerts = node.matches('[role=alert]')
           ? [node] : [...node.querySelectorAll('[role=alert]')];
         for (const alert of alerts) {
-          window.__maidrAlerts.push({kind: 'new', text: alert.textContent});
+          window.__maidrAnnouncements.push({kind: 'new', text: alert.textContent});
         }
       }
     }
   }).observe(document.body, {childList: true, subtree: true, characterData: true});
 }"""
+    % _REGION
+)
 
 #: Bars a, b, c of heights 1, 3, 2: distinct values, so each stop's
 #: announcement says which bar it is.
@@ -207,14 +236,14 @@ def _point(i: int) -> re.Pattern:
 
 def _press(page: Page, chart: Frame, key: str) -> list[dict]:
     """
-    Press ``key`` and report how the announcements it made reached an alert.
+    Press ``key`` and report how the announcements it made reached the page.
 
     Parameters
     ----------
     page : playwright.sync_api.Page
         The page receiving the key.
     chart : playwright.sync_api.Frame
-        The chart's document, where ``_RECORD_ALERTS`` is installed.
+        The chart's document, where ``_RECORD_ANNOUNCEMENTS`` is installed.
     key : str
         The key to press.
 
@@ -224,17 +253,17 @@ def _press(page: Page, chart: Frame, key: str) -> list[dict]:
         One ``{"kind": "new" | "rewritten" | "added", "text": ...}`` per
         change.
     """
-    chart.evaluate("() => { window.__maidrAlerts.length = 0; }")
+    chart.evaluate("() => { window.__maidrAnnouncements.length = 0; }")
     page.keyboard.press(key)
     page.wait_for_timeout(_SETTLE_MS)
-    return chart.evaluate("() => window.__maidrAlerts")
+    return chart.evaluate("() => window.__maidrAnnouncements")
 
 
 @pytest.mark.parametrize("build", [_saved, _notebook], ids=["save_html", "notebook"])
-def test_every_announcement_arrives_in_a_new_alert(
+def test_every_announcement_arrives_in_a_new_element(
     browser: Browser, tmp_path: Path, build: Callable[[Path], str]
 ) -> None:
-    """Arrows, ``t`` and a same-text repeat each insert a new alert."""
+    """Arrows, ``t`` and a same-text repeat each insert a new element."""
     # English, so the text-mode message can be recognised by its words.
     context = browser.new_context(locale="en-US")
     page = context.new_page()
@@ -251,7 +280,7 @@ def test_every_announcement_arrives_in_a_new_alert(
         page.wait_for_timeout(_SETTLE_MS)
         focused = chart.evaluate(_FOCUSED_ROLE)
         assert focused == "application", f"Tab did not reach the chart: {focused}"
-        chart.evaluate(_RECORD_ALERTS)
+        chart.evaluate(_RECORD_ANNOUNCEMENTS)
 
         steps = [
             ("ArrowRight", _point(0)),
@@ -270,20 +299,23 @@ def test_every_announcement_arrives_in_a_new_alert(
             for change in arrived:
                 by_kind[change["kind"]].append(change["text"])
             assert not by_kind["rewritten"], (
-                f"{key}: the announcement rewrote the text of an existing "
-                f"role=alert ({by_kind['rewritten']}). Firefox on Windows "
-                "raises no alert event for that, so NVDA and JAWS stay "
-                "silent -- see this module's docstring (#235)."
+                f"{key}: the announcement rewrote text already on the page "
+                f"({by_kind['rewritten']}). Firefox on Windows raises no "
+                "alert event for an alert rewritten in place, and a live "
+                "region rewritten to the same words has not changed at all, "
+                "so NVDA and JAWS stay silent -- see this module's docstring "
+                "(#235)."
             )
             assert not by_kind["added"], (
                 f"{key}: the announcement was put into an existing role=alert "
-                f"({by_kind['added']}) rather than a new one, which is not "
-                "the pattern this pins -- see this module's docstring."
+                f"or announcement ({by_kind['added']}) rather than a new one, "
+                "which is not the pattern this pins -- see this module's "
+                "docstring."
             )
             new = by_kind["new"]
             assert any(expected.search(text) for text in new), (
-                f"{key}: no new role=alert element matched "
-                f"{expected.pattern!r}; new alerts: {new}"
+                f"{key}: no new announcement element matched "
+                f"{expected.pattern!r}; new elements: {new}"
             )
         assert not errors, errors
     finally:
