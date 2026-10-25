@@ -783,8 +783,8 @@ class PlotlyPlot(ABC):
         xaxis = self._layout.get(self._xaxis_name, {})
         yaxis = self._layout.get(self._yaxis_name, {})
 
-        x_label = title_text(xaxis.get("title"))
-        y_label = title_text(yaxis.get("title"))
+        x_label = axis_title(self._layout, self._xaxis_name)
+        y_label = axis_title(self._layout, self._yaxis_name)
 
         format_config = self._extract_format(xaxis, yaxis) or {}
 
@@ -1067,6 +1067,84 @@ def title_text(title: Any) -> str:
     if isinstance(title, dict):
         title = title.get("text")
     return plain_text(title) if title else ""
+
+
+#: An axis id as ``matches`` names one: ``x``, ``y2``, ``x10``.
+_AXIS_ID = re.compile(r"^([xy])(\d*)$")
+
+
+def shared_axes(layout: dict, axis_name: str) -> list[dict]:
+    """
+    Return a cartesian axis, then each axis its ``matches`` leads to.
+
+    ``make_subplots(shared_xaxes=True)`` and ``shared_yaxes=True`` share an
+    axis by pointing each panel's own at one other through ``matches``: the
+    panels then draw on the same scale, and plotly hides the tick labels of
+    every axis but the one they match, which is where the author puts the
+    title. A panel's own axis is untitled, so it read as ``X`` or ``Y`` where
+    the reader of the chart takes it from the axis it is drawn against.
+
+    Parameters
+    ----------
+    layout : dict
+        The figure's layout.
+    axis_name : str
+        The layout key of the axis to start from, e.g. ``"xaxis2"``.
+
+    Returns
+    -------
+    list of dict
+        The axis itself, then the axis it matches, and so on, each once.
+        Empty when the layout has no such axis.
+    """
+    chain: list[dict] = []
+    seen: set[str] = set()
+    name: str | None = axis_name
+    while name is not None and name not in seen:
+        seen.add(name)
+        axis = layout.get(name)
+        if not isinstance(axis, dict):
+            break
+        chain.append(axis)
+        name = _axis_key(axis.get("matches"))
+    return chain
+
+
+def _axis_key(axis_id: Any) -> str | None:
+    """The layout key an axis id names, ``"x3"`` -> ``"xaxis3"``, or None."""
+    match = _AXIS_ID.match(axis_id) if isinstance(axis_id, str) else None
+    if match is None:
+        return None
+    letter, number = match.groups()
+    return f"{letter}axis{number}"
+
+
+def axis_title(layout: dict, axis_name: str) -> str:
+    """
+    Return the title a reader should hear for a cartesian axis.
+
+    The axis's own title when it has one, which is the title plotly draws
+    beside it; otherwise the title of the axis it ``matches`` -- see
+    :func:`shared_axes`.
+
+    Parameters
+    ----------
+    layout : dict
+        The figure's layout.
+    axis_name : str
+        The layout key of the axis, e.g. ``"yaxis2"``.
+
+    Returns
+    -------
+    str
+        The title's words, or an empty string when no axis in the chain has
+        one.
+    """
+    for axis in shared_axes(layout, axis_name):
+        text = title_text(axis.get("title"))
+        if text:
+            return text
+    return ""
 
 
 def colorbar_title(trace: dict) -> str:
