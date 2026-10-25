@@ -1147,6 +1147,71 @@ def axis_title(layout: dict, axis_name: str) -> str:
     return ""
 
 
+def tick_names(layout: dict, axis_name: str) -> dict[float, str]:
+    """
+    Return the names a cartesian axis draws at its ticks, by position.
+
+    ``tickvals`` with ``ticktext`` is how a plotly figure names the levels a
+    numeric axis encodes: a hypnogram codes its sleep stages ``0`` to ``4``
+    and draws them as ``N3`` to ``Awake``. Plotly draws the names only in
+    tick mode ``"array"``, which is the mode an axis given ``tickvals`` takes
+    unless it asks for another. An axis that names no ticks of its own is
+    read through the one it ``matches`` -- see :func:`shared_axes` -- since
+    plotly hides a shared panel's tick labels in favor of that axis's.
+
+    A text that is a number written out (``"3"``, ``"1,000"``) is left out,
+    the rule the matplotlib step reader applies: it names no level, and the
+    reader already hears the number. A text with nothing to say is left out
+    too.
+
+    Parameters
+    ----------
+    layout : dict
+        The figure's layout.
+    axis_name : str
+        The layout key of the axis, e.g. ``"yaxis2"``.
+
+    Returns
+    -------
+    dict of float to str
+        ``{tick position: name}``, empty when the axis names no ticks.
+    """
+    for axis in shared_axes(layout, axis_name):
+        names = _named_ticks(axis)
+        if names:
+            return names
+    return {}
+
+
+def _named_ticks(axis: dict) -> dict[float, str]:
+    """One axis's own ``{tick position: name}``; see :func:`tick_names`."""
+    values = as_list(axis.get("tickvals"))
+    if axis.get("tickmode") not in (None, "array") or not values:
+        return {}
+
+    names: dict[float, str] = {}
+    for value, text in zip(values, as_list(axis.get("ticktext"))):
+        name = plain_text(text)
+        if not name or _is_numeral(name):
+            continue
+        try:
+            position = float(value)
+        except (TypeError, ValueError):
+            continue
+        if math.isfinite(position):
+            names[position] = name
+    return names
+
+
+def _is_numeral(text: str) -> bool:
+    """Whether a tick text is a number written out, as ``"1,000"`` or ``"−2"``."""
+    try:
+        float(text.replace(",", "").replace("−", "-"))
+    except ValueError:
+        return False
+    return True
+
+
 def colorbar_title(trace: dict) -> str:
     """The title the author gave the color bar, or an empty string.
 

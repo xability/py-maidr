@@ -981,6 +981,20 @@ def test_plotly_declared_fan_is_the_5th_25th_median_75th_and_95th(
         assert values == sorted(values)
 
 
+def test_plotly_step_points_carry_the_stage_names(gallery: _Gallery) -> None:
+    """examples-plotly.qmd: "name the codes with the y axis's ``tickvals``
+    and ``ticktext``. maidr attaches the names to each point and announces
+    'REM' instead of '3'."
+    """
+    (points,) = gallery.shown("examples-plotly.qmd", "Step Plot").layer(
+        PlotType.STEP
+    )[MaidrKey.DATA]
+
+    assert {point[MaidrKey.LABEL] for point in points if point[MaidrKey.Y] == 3} == {
+        "REM"
+    }
+
+
 def test_plotly_facet_panels_read_the_titles_they_share(gallery: _Gallery) -> None:
     """examples-plotly.qmd: "A panel whose own axis is untitled is read with
     the title of the axis it shares (its ``matches``), so every panel below

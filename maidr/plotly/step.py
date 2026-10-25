@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
-from maidr.plotly.plotly_plot import PlotlyPlot
+from maidr.plotly.plotly_plot import PlotlyPlot, tick_names
 from maidr.plotly.step_shape import shared_step_direction
 
 
@@ -98,7 +98,8 @@ class PlotlyStepPlot(PlotlyPlot):
 
     def render(self) -> dict:
         """
-        Build the base layer schema, then add the step convention.
+        Build the base layer schema, then add the step convention and the
+        names of the levels.
 
         Returns
         -------
@@ -106,6 +107,8 @@ class PlotlyStepPlot(PlotlyPlot):
             The MAIDR layer schema, carrying ``stepDirection`` only when the
             traces authored a shape MAIDR has a name for. ``vhv`` reports none,
             so such a layer binds as a step without claiming a convention.
+            Every point whose ``y`` sits on a named y tick carries the name as
+            its ``label``.
         """
         schema = super().render()
 
@@ -118,7 +121,44 @@ class PlotlyStepPlot(PlotlyPlot):
         if direction is not None:
             schema[MaidrKey.STEP_DIRECTION] = direction
 
+        self._attach_level_names(schema[MaidrKey.DATA])
+
         return schema
+
+    def _attach_level_names(self, data: list[list[dict]]) -> None:
+        """
+        Name each point's level from the y axis's named ticks.
+
+        A hypnogram codes its stages as numbers so they can drive the pitch,
+        the braille and the range, and names them with ``tickvals`` and
+        ``ticktext``. Only the codes were read, so a reader heard "Sleep stage
+        is 4" where the chart says Awake. Each point whose ``y`` sits on a
+        named tick now carries the name as ``label``, which the core announces
+        in place of the number while ``y`` keeps driving everything else --
+        what the matplotlib ``StepPlot`` does from named y ticks. A point
+        between named ticks, and every point of an axis that names none, is
+        left as it was.
+
+        Parameters
+        ----------
+        data : list of list of dict
+            The layer's series, as :meth:`_extract_plot_data` returns them.
+            Changed in place.
+        """
+        levels = tick_names(self._layout, self._yaxis_name)
+        if not levels:
+            return
+
+        # The plain strings, as `_line_series_with_positions` keys the points.
+        ky, label = MaidrKey.Y.value, MaidrKey.LABEL.value
+        for series in data:
+            for point in series:
+                try:
+                    name = levels.get(float(point.get(ky)))
+                except (TypeError, ValueError):
+                    continue
+                if name:
+                    point[label] = name
 
     def _extract_plot_data(self) -> list[list[dict]]:
         """
