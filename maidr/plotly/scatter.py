@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
-from maidr.plotly.plotly_plot import PlotlyPlot, as_list, paired_axes
+from maidr.plotly.plotly_plot import PlotlyPlot, as_list, paired_axes, title_text
 from maidr.plotly.step_shape import renders_through_webgl
 
 
@@ -98,10 +98,7 @@ class PlotlyScatterPlot(PlotlyPlot):
     @staticmethod
     def _get_axis_label(axis: dict, default: str) -> str:
         """Extract axis label from Plotly axis config."""
-        title = axis.get("title", "")
-        if isinstance(title, dict):
-            title = title.get("text", "")
-        return str(title) if title else default
+        return title_text(axis.get("title")) or default
 
     @staticmethod
     def _get_axis_range(axis: dict, data: list) -> tuple[float | None, float | None]:

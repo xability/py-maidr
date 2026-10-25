@@ -37,6 +37,32 @@ _NATIVE_TYPES = frozenset({float, int, str, bool, type(None)})
 #: a listener, where ``2024-01-01T12:00`` is a time.
 _DATE_UNITS = ("D", "m", "s", "ms", "us", "ns")
 
+#: How plotly.js reads the markup in a label (``svg_text_utils`` in the
+#: bundle the installed package ships): a newline is a space, the text splits
+#: around every ``<...>``, and each piece is a tag only when this pattern finds
+#: one in it.
+_NEWLINES = re.compile(r"\r\n?|\n")
+_SPLIT_TAGS = re.compile(r"(<[^<>]*>)")
+_ONE_TAG = re.compile(r"<(/?)([^ >]*)(\s+(.*))?>", re.IGNORECASE)
+
+#: The tags plotly draws as styling rather than as text. ``br`` breaks the
+#: line; any other tag is drawn as it is written.
+_STYLED_TAGS = frozenset({"sup", "sub", "s", "u", "b", "i", "a", "span", "em"})
+
+#: The entities plotly converts: these eight by name, and any number. Any
+#: other name, and ``&#X41;`` with a capital X, are drawn as written.
+_ENTITY = re.compile(r"&(#\d+|#x[\da-fA-F]+|[a-z]+);")
+_ENTITIES = {
+    "mu": "μ",
+    "amp": "&",
+    "lt": "<",
+    "gt": ">",
+    "nbsp": "\xa0",
+    "times": "\xd7",
+    "plusmn": "\xb1",
+    "deg": "\xb0",
+}
+
 
 class PlotlyPlot(ABC):
     """
@@ -673,10 +699,7 @@ class PlotlyPlot(ABC):
         if subplot_title:
             return subplot_title
 
-        title = self._layout.get("title", "")
-        if isinstance(title, dict):
-            return title.get("text", "")
-        return str(title) if title else ""
+        return title_text(self._layout.get("title"))
 
     def _title_anchor(self) -> tuple[float, float]:
         """Return the point on the page a subplot title annotation sits at.
@@ -722,7 +745,7 @@ class PlotlyPlot(ABC):
             ann_x = ann.get("x", 0)
             # Subplot title annotations sit just above the y-domain top
             if abs(ann_y - y_top) < 0.05 and abs(ann_x - x_mid) < 0.1:
-                text = ann.get("text", "")
+                text = plain_text(ann.get("text"))
                 if text:
                     return text
         return None
@@ -760,23 +783,18 @@ class PlotlyPlot(ABC):
         xaxis = self._layout.get(self._xaxis_name, {})
         yaxis = self._layout.get(self._yaxis_name, {})
 
-        x_label = xaxis.get("title", "")
-        if isinstance(x_label, dict):
-            x_label = x_label.get("text", "")
-
-        y_label = yaxis.get("title", "")
-        if isinstance(y_label, dict):
-            y_label = y_label.get("text", "")
+        x_label = title_text(xaxis.get("title"))
+        y_label = title_text(yaxis.get("title"))
 
         format_config = self._extract_format(xaxis, yaxis) or {}
 
         return {
             MaidrKey.X: self._axis_config(
-                label=str(x_label) if x_label else "X",
+                label=x_label or "X",
                 format=format_config.get("x"),
             ),
             MaidrKey.Y: self._axis_config(
-                label=str(y_label) if y_label else "Y",
+                label=y_label or "Y",
                 format=format_config.get("y"),
             ),
         }
@@ -976,6 +994,81 @@ def subplot_css_prefix(xaxis_name: str, yaxis_name: str) -> str:
     return f".subplot.{x_ref}{y_ref} "
 
 
+def plain_text(text: Any) -> str:
+    """
+    Return a plotly label as the words plotly draws for it.
+
+    A title, axis title, annotation or tick label may carry a little HTML:
+    ``<br>`` breaks the line, ``<b>``, ``<i>``, ``<em>``, ``<sup>``,
+    ``<sub>``, ``<s>``, ``<u>``, ``<span>`` and ``<a>`` style the words
+    between them, and an entity such as ``&amp;`` stands for a character.
+    Plotly draws the words, not the markup, but the markup was handed to the
+    reader as it was written: a figure titled
+    ``"Hypnogram<br>Sleep stage across one night"`` was announced with the
+    ``<br>`` in it, in the chart's name, its description and its title key.
+
+    The label is read by plotly.js's own rules (``svg_text_utils``), measured
+    in Chromium: a newline is a space; ``<br>``, ``<BR>`` and ``<br />`` end
+    a line, and so become a space here; a styling tag is dropped; any other
+    tag -- ``<br/>`` among them, which plotly does not recognize -- is drawn
+    as written, and so is kept; and the entities plotly converts are
+    converted, while the ones it draws as written are kept. Runs of
+    whitespace are then collapsed, since a listener hears none of them.
+
+    Parameters
+    ----------
+    text : Any
+        The label as the figure holds it.
+
+    Returns
+    -------
+    str
+        The words plotly draws, or an empty string when there are none.
+    """
+    if text is None:
+        return ""
+    drawn = []
+    for part in _SPLIT_TAGS.split(_NEWLINES.sub(" ", str(text))):
+        tag = _ONE_TAG.search(part)
+        name = tag.group(2).lower() if tag else None
+        if name == "br":
+            drawn.append(" ")
+        elif name not in _STYLED_TAGS:
+            drawn.append(_ENTITY.sub(_converted_entity, part))
+    return " ".join("".join(drawn).split())
+
+
+def _converted_entity(match: re.Match) -> str:
+    """One entity as plotly draws it: its character, or as written."""
+    code = match.group(1)
+    if not code.startswith("#"):
+        return _ENTITIES.get(code, match.group(0))
+    number = int(code[2:], 16) if code[1] == "x" else int(code[1:])
+    return chr(number) if number <= 0x10FFFF else match.group(0)
+
+
+def title_text(title: Any) -> str:
+    """
+    Return the words of a plotly ``title``, however it is given.
+
+    Plotly accepts a title as a string or as a ``{"text": ...}`` block, and
+    either may carry the markup :func:`plain_text` removes.
+
+    Parameters
+    ----------
+    title : Any
+        A ``title`` from a layout, an axis, a color bar or a trace.
+
+    Returns
+    -------
+    str
+        The title's words, or an empty string when it has none.
+    """
+    if isinstance(title, dict):
+        title = title.get("text")
+    return plain_text(title) if title else ""
+
+
 def colorbar_title(trace: dict) -> str:
     """The title the author gave the color bar, or an empty string.
 
@@ -988,10 +1081,7 @@ def colorbar_title(trace: dict) -> str:
     colorbar = trace.get("colorbar")
     if not isinstance(colorbar, dict):
         return ""
-    title = colorbar.get("title", "")
-    if isinstance(title, dict):
-        title = title.get("text", "")
-    return str(title) if title else ""
+    return title_text(colorbar.get("title"))
 
 
 def as_list(value: Any) -> list:

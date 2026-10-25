@@ -5,7 +5,7 @@ from typing import Any
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
-from maidr.plotly.plotly_plot import PlotlyPlot, as_list, domain_interval
+from maidr.plotly.plotly_plot import PlotlyPlot, as_list, domain_interval, title_text
 
 
 def _as_degrees(value: Any) -> float:
@@ -467,7 +467,4 @@ def _as_number(value: Any) -> float | None:
 
 def _axis_title(axis: dict, default: str) -> str:
     """Return a plotly axis dict's title text, or ``default`` when unset."""
-    title = axis.get("title", "")
-    if isinstance(title, dict):
-        title = title.get("text", "")
-    return str(title) if title else default
+    return title_text(axis.get("title")) or default
