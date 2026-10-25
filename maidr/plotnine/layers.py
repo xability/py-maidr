@@ -36,6 +36,7 @@ from matplotlib.lines import Line2D
 from maidr.core.context_manager import ContextManager
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot.maidr_plot import MaidrPlot
+from maidr.survival import keep_every_vertex
 from maidr.util.named_pr_curve import named_pr_curve
 
 #: Prefix of the columns that carry an aesthetic's value from before its scale
@@ -684,9 +685,12 @@ def _series_layer(
     """A line-like layer: one series per drawn group.
 
     A path of constant colour and width is one ``Line2D`` per group, and each
-    series is highlighted through it. A path whose colour or width varies
-    along it is one ``LineCollection`` of segments for every group; it is
-    read all the same, without a highlight, since no element is one series.
+    series is highlighted through it: maidr.js puts the highlight of a
+    series' i-th point on the path's i-th vertex, so the line is drawn with
+    every vertex it was given (:func:`~maidr.survival.keep_every_vertex`).
+    A path whose colour or width varies along it is one ``LineCollection``
+    of segments for every group; it is read all the same, without a
+    highlight, since no element is one series.
     """
     series, selectors = [], []
     highlight = True
@@ -695,6 +699,10 @@ def _series_layer(
         for _, data in group.data.groupby("group", sort=True):
             series.append(data)
             if len(lines) == 1 and group.data["group"].nunique() == 1:
+                # matplotlib drops the vertices it can merge from a path of
+                # 128 or more as it draws it, which leaves maidr.js fewer
+                # vertices than points to pair them with.
+                keep_every_vertex(lines[0])
                 selectors.append(f"g[id='{_gid(lines[0])}'] path")
             else:
                 highlight = False
@@ -720,14 +728,14 @@ def _series_layer(
             points.append(point)
         rows.append(points)
 
+    extra: dict = {}
     if plot_type == PlotType.LINE and _names_pr_curve(context, rows):
         plot_type = PlotType.PR_CURVE
-        # From low recall up, the higher precision first where a recall
-        # repeats: the order `PrCurvePlot` and the TensorBoard reader give.
-        rows = [
-            sorted(points, key=lambda p: (p[MaidrKey.X], -p[MaidrKey.Y]))
-            for points in rows
-        ]
+        rows, drawn = _from_low_recall_up(rows)
+        if drawn is None:
+            highlight = False
+        elif drawn == "reverse" and highlight:
+            extra[MaidrKey.DOM_MAPPING] = {"pointOrder": "reverse"}
 
     z = _series_label(context, groups) if named else None
     return PlotnineLayer(
@@ -738,7 +746,50 @@ def _series_layer(
         axes=context.axes(z),
         data=rows,
         selectors=selectors if highlight else None,
+        extra=extra,
     )
+
+
+def _from_low_recall_up(
+    rows: list[list[dict]],
+) -> tuple[list[list[dict]], str | None]:
+    """
+    Each precision-recall curve read from low recall up, along its path.
+
+    A curve is walked the way it is drawn, from whichever end has the low
+    recall: ``geom_line`` draws one from low recall up, and ``geom_path`` in
+    the order of its rows, which for ``precision_recall_curve`` is from high
+    recall down. Walked so, a recall that repeats is read in the order the
+    line passes through its points, and each point keeps the vertex that
+    drew it, which is where maidr.js puts its highlight.
+
+    Parameters
+    ----------
+    rows : list of list of dict
+        Each curve's points, in the order they are drawn.
+
+    Returns
+    -------
+    tuple
+        The curves, and how they are drawn against that reading: ``"data"``
+        when every one runs from low recall up, ``"reverse"`` when every one
+        runs from high recall down -- maidr.js's ``domMapping.pointOrder``,
+        by which it pairs the vertices back up -- or None when no one order
+        fits them all: a path that turns back on its recall, or curves drawn
+        both ways. Each curve is then sorted, the higher precision first
+        where a recall repeats (the order ``PrCurvePlot`` and the TensorBoard
+        reader give), and is to be read without a highlight, since its
+        vertices are in no order maidr.js can pair with that reading.
+    """
+    recalls = [np.diff([point[MaidrKey.X] for point in points]) for points in rows]
+    if all((steps >= 0).all() for steps in recalls):
+        return rows, "data"
+    if all((steps <= 0).all() for steps in recalls):
+        return [points[::-1] for points in rows], "reverse"
+    return [
+        sorted(points, key=lambda p: (p[MaidrKey.X], -p[MaidrKey.Y]))
+        for points in rows
+    ], None
 
 
 def _names_pr_curve(context: _Context, rows: list[list[dict]]) -> bool:
