@@ -13,7 +13,9 @@ The layer is the ``directed_graph`` one ``maidr.keras.plot_model`` emits,
 one node per row of the node renderer's source, in source order. Bokeh draws
 to a canvas, so the highlight answers maidr.js's ``onNavigate``, which
 reports the node being read as its index into the layer's ``data``
-(``pointIndices``), and the page selects that node's row.
+(``pointIndices``), and the page rings the node where the graph's layout
+draws it -- or, when the layout does not say where every node is, selects
+that node's row.
 """
 
 from __future__ import annotations
@@ -98,6 +100,44 @@ def read_graph(renderer: Any) -> tuple[list[dict], list[list]] | None:
             node["attributes"] = scalars
         declared.append(node)
     return declared, [[renderer.node_renderer.id, row] for row in range(len(ids))]
+
+
+def node_anchors(renderer: Any) -> list[list[float]] | None:
+    """
+    Where each node of a graph renderer is drawn, in source order.
+
+    ``from_networkx`` places the nodes with a ``StaticLayoutProvider``, whose
+    ``graph_layout`` maps each node of the ``index`` column to its ``(x, y)``
+    in data units; BokehJS draws the node markers there.
+
+    Parameters
+    ----------
+    renderer : bokeh.models.GraphRenderer
+        A renderer :func:`read_graph` reads.
+
+    Returns
+    -------
+    list of list of float or None
+        ``[x, y]`` per row of the node renderer's source, or None when the
+        layout is not a static one or leaves a node without a finite place.
+    """
+    layout = getattr(getattr(renderer, "layout_provider", None), "graph_layout", None)
+    source = getattr(renderer.node_renderer, "data_source", None)
+    if layout is None or source is None:
+        return None
+    anchors = []
+    for node in source.data.get("index", []):
+        place = layout.get(node)
+        if place is None or len(place) != 2:
+            return None
+        try:
+            x, y = float(place[0]), float(place[1])
+        except (TypeError, ValueError):
+            return None
+        if not (math.isfinite(x) and math.isfinite(y)):
+            return None
+        anchors.append([x, y])
+    return anchors
 
 
 def _plain(value: Any) -> str | int | float | bool | None:

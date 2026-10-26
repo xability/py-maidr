@@ -3,9 +3,10 @@
 ``from_networkx`` turns a networkx graph into a ``GraphRenderer``, which
 ``PlotReader`` skipped with a warning. One made from a directed graph is now
 a ``directed_graph`` layer: one node per row of the node source, each naming
-the nodes whose edges arrive at it, highlighted by selecting that row. The
-renderer keeps no trace of direction, so the patch on ``from_networkx``
-records which graphs were directed, and an undirected one is still skipped.
+the nodes whose edges arrive at it, highlighted by a ring where the layout
+draws it. The renderer keeps no trace of direction, so the patch on
+``from_networkx`` records which graphs were directed, and an undirected one
+is still skipped.
 """
 
 from __future__ import annotations
@@ -58,14 +59,32 @@ def test_each_node_names_what_feeds_it_and_its_scalar_data():
     assert "attributes" not in nodes["load"]
 
 
-def test_each_node_is_highlighted_by_its_row_of_the_node_source():
+def test_each_node_is_ringed_where_the_layout_draws_it():
     renderer, (layer,) = read(pipeline())
+    layout = renderer.layout_provider.graph_layout
+    nodes = renderer.node_renderer.data_source.data["index"]
+
+    # Selecting a node's row only faded the other small markers a little;
+    # the cursor a line's point gets is drawn round the node instead.
+    assert layer.highlight == {
+        "kind": "cursor",
+        "points": [[float(layout[node][0]), float(layout[node][1])] for node in nodes],
+    }
+    assert layer.renderers == [renderer.node_renderer]
+
+
+def test_a_node_the_layout_does_not_place_is_selected_instead():
+    graph = pipeline()
+    p = figure()
+    with pytest.warns(UserWarning, match="Node keys"):
+        renderer = from_networkx(graph, {"load": (0, 0), "clean": (1, 0)})
+    p.renderers.append(renderer)
+    (layer,) = PlotReader(p).layers()
 
     assert layer.highlight == {
         "kind": "points",
         "points": [[renderer.node_renderer.id, row] for row in range(5)],
     }
-    assert layer.renderers == [renderer.node_renderer]
 
 
 def test_an_undirected_graph_is_still_skipped():
