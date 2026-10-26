@@ -337,6 +337,8 @@ def _matrix(hparams: list[_Column], metrics: list[_Column]) -> Figure:
             if pairs:
                 xs, ys = zip(*pairs)
                 if hparam.ticks is not None:
+                    # `_column` keeps a categorical value as its position in
+                    # `ticks`; drawn by name, it lands on that position again.
                     xs = tuple(hparam.ticks[int(x)] for x in xs)
                 ax.scatter(xs, ys, color=_LINES, s=24)
             ax.set_xlabel(hparam.short, fontsize=8)
