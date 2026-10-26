@@ -111,6 +111,21 @@ def test_numbers_written_out_and_blanks_name_no_level():
     }
 
 
+def test_a_word_float_would_read_is_still_a_name():
+    # `float` takes "NaN" and "Infinity"; a tick named so is named so.
+    points = _points(
+        _hypnogram(tickvals=[0, 1, 2, 3, 4], ticktext=["NaN", "Infinity", "1e3", "−2", ".5"])
+    )
+
+    assert {p["y"]: p.get("label") for p in points} == {
+        0: "NaN",
+        1: "Infinity",
+        2: None,
+        3: None,
+        4: None,
+    }
+
+
 def test_a_name_is_read_without_its_markup():
     points = _points(
         _hypnogram(tickvals=[3], ticktext=["<b>REM</b><br>sleep"])

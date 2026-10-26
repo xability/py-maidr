@@ -1169,9 +1169,9 @@ def tick_names(layout: dict, axis_name: str) -> dict[float, str]:
     plotly hides a shared panel's tick labels in favor of that axis's.
 
     A text that is a number written out (``"3"``, ``"1,000"``) is left out,
-    the rule the matplotlib step reader applies: it names no level, and the
-    reader already hears the number. A text with nothing to say is left out
-    too.
+    as the matplotlib step reader leaves one out: it names no level, and the
+    reader already hears the number. A word that ``float`` would also read,
+    such as ``"NaN"``, is kept. A text with nothing to say is left out too.
 
     Parameters
     ----------
@@ -1212,13 +1212,16 @@ def _named_ticks(axis: dict) -> dict[float, str]:
     return names
 
 
+#: A number written out: a sign (``−`` included), digits with or without
+#: thousands separators, a decimal part, an exponent. Not ``float``'s own
+#: rule, which would also take ``"NaN"``, ``"Infinity"`` and ``"1_000"`` --
+#: words a tick may well be named.
+_NUMERAL = re.compile(r"[-+−]?(\d[\d,]*(\.\d*)?|\.\d+)([eE][-+]?\d+)?")
+
+
 def _is_numeral(text: str) -> bool:
     """Whether a tick text is a number written out, as ``"1,000"`` or ``"−2"``."""
-    try:
-        float(text.replace(",", "").replace("−", "-"))
-    except ValueError:
-        return False
-    return True
+    return _NUMERAL.fullmatch(text) is not None
 
 
 def colorbar_title(trace: dict) -> str:

@@ -139,6 +139,10 @@ class PlotlyStepPlot(PlotlyPlot):
         between named ticks, and every point of an axis that names none, is
         left as it was.
 
+        Only the y axis is read. A plotly staircase is a scatter trace, which
+        has no orientation: it holds its y values and steps along x, and
+        ``label`` names the level a ``y`` encodes.
+
         Parameters
         ----------
         data : list of list of dict
