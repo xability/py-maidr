@@ -2,8 +2,11 @@
 
 A horizontal layer's boxes were emitted bottom first, the order plotly draws
 them up the page; maidr.js expects them top first and reverses them, so the
-reader started on the top box and Up moved down. These drive the shipped
-bundle over a saved page and hold Up to moving the outline up the page.
+reader started on the top box and Up moved down. And every statistic named
+the one path plotly draws a whole box as, so Minimum, 25%, 50%, 75% and
+Maximum all outlined the whole box. These drive the shipped bundle over a
+saved page, hold Up to moving the outline up the page, and hold each
+statistic's outline to a line where plotly draws that value.
 
 plotly.js is linked from ``cdn.plot.ly``; the page is handed the copy the
 installed ``plotly`` package ships instead, so nothing here needs a network.
@@ -37,6 +40,35 @@ _OUTLINED = """() => [...document.querySelectorAll("svg [data-maidr-owned]")]
     const r = e.getBoundingClientRect();
     return {x: r.x, y: r.y, width: r.width, height: r.height};
   })"""
+
+#: Where plotly draws a value of one axis, on screen: the plot area's offset
+#: in the svg and the axis's own linear mapping, as plotly places marks.
+_SCREEN_VALUE = """([letter, value]) => {
+  const svg = document.querySelector("svg[maidr]");
+  const gd = svg.closest(".js-plotly-plot")
+    || document.querySelector(".js-plotly-plot");
+  const axis = gd._fullLayout[letter + "axis"];
+  const box = svg.getBoundingClientRect();
+  return (letter === "x" ? box.x : box.y) + axis._offset + axis.l2p(value);
+}"""
+
+#: The boxes the payload describes, as the page holds it.
+_BOXES = """() => JSON.parse(document.querySelector("svg[maidr]")
+  .getAttribute("maidr")).subplots[0][0].layers[0].data"""
+
+#: How far, in CSS pixels, an outline may sit from its value. Plotly keeps a
+#: median at least a pixel inside the box, so it is not drawn exactly there.
+_TOLERANCE_PX = 1.5
+
+#: The sections of a box a reader steps through, by what they are announced
+#: as, and the statistic each reads.
+_SECTIONS = {
+    "Minimum": "min",
+    "25%": "q1",
+    "50%": "q2",
+    "75%": "q3",
+    "Maximum": "max",
+}
 
 GROUPS = ["Group 1", "Group 2", "Group 3"]
 
@@ -126,6 +158,41 @@ def test_up_walks_horizontal_boxes_up_the_page(browser, tmp_path):
         spoken = _step(page, "ArrowDown")
         assert _group(spoken) == "Group 2", spoken
         assert _centre_y(_outline(page)) == pytest.approx(middle, abs=0.5)
+        assert not errors, errors
+    finally:
+        page.close()
+
+
+@pytest.mark.parametrize("orientation", ["v", "h"])
+def test_each_statistic_outlines_its_own_mark(browser, tmp_path, orientation):
+    page, errors = _open(browser, _boxes(tmp_path, orientation))
+    # The value axis, and the outline's extent across it, which for a line
+    # drawn across the box is its stroke alone. A box's statistics run along
+    # the value axis, so they are stepped through with Up on a vertical box
+    # and with Right on a horizontal one.
+    letter, across = ("y", "height") if orientation == "v" else ("x", "width")
+    key = "ArrowUp" if orientation == "v" else "ArrowRight"
+    try:
+        boxes = {box["z"]: box for box in page.evaluate(_BOXES)}
+        seen: dict[str, float] = {}
+        for _ in range(8):
+            spoken = _step(page, key)
+            section = next((s for s in _SECTIONS if f"{s} " in spoken), None)
+            if section is None:
+                continue
+            statistic = _SECTIONS[section]
+            outline = _outline(page)
+            centre = outline[letter] + outline[across] / 2
+            want = page.evaluate(
+                _SCREEN_VALUE, [letter, boxes[_group(spoken)][statistic]]
+            )
+            assert outline[across] < 8, (spoken, outline)
+            assert centre == pytest.approx(want, abs=_TOLERANCE_PX), (spoken, outline)
+            seen[statistic] = centre
+
+        assert set(seen) == set(_SECTIONS.values()), seen
+        # Five marks, at five places: the outline moved at every step.
+        assert len({round(centre) for centre in seen.values()}) == 5, seen
         assert not errors, errors
     finally:
         page.close()

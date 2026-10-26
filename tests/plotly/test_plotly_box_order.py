@@ -40,7 +40,9 @@ def _names(layer: dict) -> list[str]:
 
 def _drawn_box(selector: dict) -> tuple[int, int]:
     """The trace group and the box within it that a box's selector names."""
-    found = re.search(r"g:nth-child\((\d+)\) > :nth-child\((\d+) of path\.box\)", selector["q2"])
+    found = re.search(
+        r'g:nth-child\((\d+)\) > \[data-maidr-box-part="(\d+) q2"\]', selector["q2"]
+    )
     assert found, selector["q2"]
     return int(found.group(1)), int(found.group(2))
 

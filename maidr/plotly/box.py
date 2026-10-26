@@ -13,6 +13,136 @@ from maidr.plotly.violin_stats import QUANTILE_METHOD
 
 _logger = logging.getLogger(__name__)
 
+#: Draws each box's parts again as hidden elements of their own, for the box
+#: selectors to name. Run in the page by the init script, after plotly has
+#: drawn and before the payload is attached; see :func:`_build_box_selector`.
+#:
+#: Plotly draws a box -- median, body, both whiskers and both caps -- as the
+#: subpaths of one ``path.box``, in that order (``plotBoxAndWhiskers`` in
+#: plotly.js): ``M`` starts each, the body is the one closed with ``Z`` and
+#: takes its notches as ``L`` segments, the whisker to the lower fence comes
+#: before the one to the upper fence, and so do the caps. A trace drawn
+#: ``whiskerwidth=0`` has no caps, one drawn ``showwhiskers=False`` neither
+#: whiskers nor caps.
+#:
+#: Each part is a hidden sibling of its box carrying ``data-maidr-box-part``:
+#: the box's position among its trace's ``path.box`` elements, a space, and
+#: the statistic it marks. ``iq`` is the body; ``q1`` and ``q3`` are the
+#: body's two edges across the box, ``q2`` the median, and ``min`` and
+#: ``max`` the caps, or the whiskers where no caps are drawn. A box drawn in
+#: no shape this knows gets a copy of the whole path for every statistic,
+#: which is the highlight every statistic had before.
+SPLIT_BOXES_JS = r"""
+    function maidrSplitBoxes(svg) {
+        // Scoped as the selectors are: a range slider's copy of the plot
+        // holds a box layer too, and no selector names it.
+        var groups = svg.querySelectorAll('.subplot .boxlayer > g');
+        for (var g = 0; g < groups.length; g++) {
+            var index = 0;
+            var children = Array.prototype.slice.call(groups[g].children);
+            for (var c = 0; c < children.length; c++) {
+                var box = children[c];
+                if (box.tagName.toLowerCase() === 'path'
+                        && box.classList.contains('box')) {
+                    index += 1;
+                    maidrSplitBox(box, index);
+                }
+            }
+        }
+    }
+
+    function maidrNumbers(text) {
+        return (text.match(/-?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?/g) || [])
+            .map(Number);
+    }
+
+    // One subpath drawn as a single straight segment, `M x,y H x2` or
+    // `M x,y V y2`: its ends and the command that drew it.
+    function maidrSegment(subpath) {
+        var found = /^M([^HV]*)([HV])([^HV]*)$/.exec(subpath);
+        if (!found) return null;
+        var start = maidrNumbers(found[1]);
+        var to = maidrNumbers(found[3]);
+        if (start.length !== 2 || to.length !== 1) return null;
+        var end = found[2] === 'H' ? [to[0], start[1]] : [start[0], to[0]];
+        return {command: found[2], ends: [start[0], start[1], end[0], end[1]]};
+    }
+
+    // The segments a closed subpath draws with one command, in order.
+    function maidrSegmentsBy(subpath, command) {
+        var out = [];
+        var x = 0, y = 0, startX = 0, startY = 0;
+        var parts = subpath.match(/[MHVLZ][^MHVLZ]*/g) || [];
+        for (var i = 0; i < parts.length; i++) {
+            var n = maidrNumbers(parts[i].slice(1));
+            switch (parts[i].charAt(0)) {
+                case 'M': x = startX = n[0]; y = startY = n[1]; break;
+                case 'L': x = n[0]; y = n[1]; break;
+                case 'H':
+                    if (command === 'H') out.push([x, y, n[0], y]);
+                    x = n[0];
+                    break;
+                case 'V':
+                    if (command === 'V') out.push([x, y, x, n[0]]);
+                    y = n[0];
+                    break;
+                default: x = startX; y = startY;
+            }
+        }
+        return out;
+    }
+
+    // The parts of one box by the statistic each marks, or null when the
+    // path is not in a shape plotly draws a box in.
+    function maidrBoxParts(d) {
+        if (!/^(?:[MHVLZ][-+\d.,eE\s]*)+$/.test(d)) return null;
+        var subpaths = d.match(/M[^M]*/g) || [];
+        if ([2, 4, 6].indexOf(subpaths.length) < 0) return null;
+        var median = maidrSegment(subpaths[0]);
+        if (!median || !/Z\s*$/.test(subpaths[1])) return null;
+        // The median runs across the box, and so do the body's two edges.
+        var edges = maidrSegmentsBy(subpaths[1], median.command);
+        if (edges.length !== 2) return null;
+        var parts = {iq: subpaths[1], q1: edges[0], q2: median.ends, q3: edges[1]};
+        if (subpaths.length > 2) {
+            var low = maidrSegment(subpaths[subpaths.length - 2]);
+            var high = maidrSegment(subpaths[subpaths.length - 1]);
+            if (!low || !high) return null;
+            parts.min = low.ends;
+            parts.max = high.ends;
+        }
+        return parts;
+    }
+
+    function maidrSplitBox(box, index) {
+        var svgNS = 'http://www.w3.org/2000/svg';
+        var d = box.getAttribute('d') || '';
+        var parts = maidrBoxParts(d);
+        var names = ['iq', 'min', 'q1', 'q2', 'q3', 'max'];
+        var after = box;
+        for (var i = 0; i < names.length; i++) {
+            var shape = parts ? parts[names[i]] : d;
+            if (shape === undefined) continue;
+            var part;
+            if (typeof shape === 'string') {
+                part = document.createElementNS(svgNS, 'path');
+                part.setAttribute('d', shape);
+            } else {
+                part = document.createElementNS(svgNS, 'line');
+                part.setAttribute('x1', shape[0]);
+                part.setAttribute('y1', shape[1]);
+                part.setAttribute('x2', shape[2]);
+                part.setAttribute('y2', shape[3]);
+            }
+            part.setAttribute('style', box.getAttribute('style') || '');
+            part.setAttribute('visibility', 'hidden');
+            part.setAttribute('data-maidr-box-part', index + ' ' + names[i]);
+            after.insertAdjacentElement('afterend', part);
+            after = part;
+        }
+    }
+"""
+
 
 def _build_box_selector(
     prefix: str,
@@ -47,6 +177,17 @@ def _build_box_selector(
     CSS ``:nth-child(An+B of S)`` to address each group separately, the
     same technique matplotlib uses.
 
+    Every other statistic names its own part of the box. Plotly draws the
+    whole box as one ``path.box``, and naming that for all of them -- which
+    this did -- outlined the whole box at Minimum, 25%, 50%, 75% and Maximum
+    alike, so the outline never showed which statistic was being read. The
+    init script draws each part again, hidden, beside the box (see
+    :data:`SPLIT_BOXES_JS`), and these name them by the box's position among
+    its trace's boxes and the statistic: the caps, or the whiskers where none
+    are drawn, for the minimum and maximum, the body's two edges for the
+    quartiles, the median line for the median. ``iq`` names the body, which
+    maidr.js joins the caps to when it draws the box's shape.
+
     Parameters
     ----------
     prefix : str
@@ -61,8 +202,10 @@ def _build_box_selector(
         How many outliers fall below and above the whiskers.
     """
     group_sel = f"{prefix}.boxlayer > g:nth-child({group})"
-    box_sel = f"{group_sel} > :nth-child({box} of path.box)"
     base = f"{group_sel} > :nth-child({box} of g.points)"
+
+    def part(statistic: str) -> str:
+        return f'{group_sel} > [data-maidr-box-part="{box} {statistic}"]'
 
     if lower_count > 0:
         lower_sel = [
@@ -80,12 +223,12 @@ def _build_box_selector(
 
     return {
         "lowerOutliers": lower_sel,
-        "min": box_sel,
-        "max": box_sel,
-        "q2": box_sel,
-        "iq": box_sel,
-        "q1": box_sel,
-        "q3": box_sel,
+        "min": part("min"),
+        "max": part("max"),
+        "q2": part("q2"),
+        "iq": part("iq"),
+        "q1": part("q1"),
+        "q3": part("q3"),
         "upperOutliers": upper_sel,
     }
 
