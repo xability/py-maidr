@@ -15,16 +15,26 @@ reading the text plotly put in the page.
 
 from __future__ import annotations
 
+import re
+from pathlib import Path
+
 import pytest
 
-pytest.importorskip("plotly")
+plotly = pytest.importorskip("plotly")
 
 import plotly.graph_objects as go  # noqa: E402
 from plotly.subplots import make_subplots  # noqa: E402
 
 from maidr.core.enum.maidr_key import MaidrKey  # noqa: E402
 from maidr.plotly.plotly_maidr import PlotlyMaidr  # noqa: E402
-from maidr.plotly.plotly_plot import plain_text  # noqa: E402
+from maidr.plotly.plotly_plot import (  # noqa: E402
+    _ENTITIES,
+    _ENTITY,
+    _ONE_TAG,
+    _SPLIT_TAGS,
+    _STYLED_TAGS,
+    plain_text,
+)
 
 #: A label as written, and the words plotly drew for it. Where plotly draws
 #: markup as written -- ``<br/>``, an unknown tag, an entity it does not
@@ -65,6 +75,52 @@ def _label(layer: dict, axis: MaidrKey) -> str:
 @pytest.mark.parametrize(("written", "drawn"), DRAWN)
 def test_a_label_reads_as_plotly_draws_it(written, drawn):
     assert plain_text(written) == drawn
+
+
+class TestTheRulesStillMatchPlotlyJs:
+    """
+    Guard the rules ``plain_text`` copies from plotly.js.
+
+    They are transcribed from ``svg_text_utils`` in the plotly.js bundle the
+    installed package ships, and nothing in Python enforces them: a release
+    that styled another tag or converted another entity would leave labels
+    read the old way with every other test passing. These read the bundle
+    back.
+
+    **If one fails, look for a change of spelling first.** They match the
+    minified text, so a minifier that writes the same object differently
+    fails them without the rule having moved.
+    """
+
+    @staticmethod
+    def _bundle() -> str:
+        bundle = Path(plotly.__file__).parent / "package_data" / "plotly.min.js"
+        return bundle.read_text(encoding="utf-8")
+
+    @staticmethod
+    def _keys(found: re.Match | None) -> set[str]:
+        assert found is not None, "the object is no longer in the bundle"
+        return set(re.findall(r"(\w+):\"", found.group(0)))
+
+    def test_the_tags_plotly_styles_are_the_ones_dropped(self):
+        styles = re.search(
+            r'\{sup:"font-size:70%",sub:"font-size:70%",[^{}]*\}', self._bundle()
+        )
+
+        assert self._keys(styles) == set(_STYLED_TAGS)
+
+    def test_the_entities_plotly_converts_are_the_ones_converted(self):
+        bundle = self._bundle()
+        names = re.search(r'\{mu:"[^"]*",amp:"&",[^{}]*\}', bundle)
+
+        assert self._keys(names) == set(_ENTITIES)
+        assert _ENTITY.pattern in bundle
+
+    def test_a_label_is_still_split_into_tags_the_same_way(self):
+        bundle = self._bundle()
+
+        assert f"/{_SPLIT_TAGS.pattern}/" in bundle
+        assert f"/{_ONE_TAG.pattern}/i" in bundle.replace("<(\\/?)", "<(/?)")
 
 
 class TestTitles:
