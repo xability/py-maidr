@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 import uuid
-from typing import TYPE_CHECKING, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 from matplotlib.axes import Axes
 
 from maidr.core.enum import PlotType
@@ -12,6 +12,8 @@ from maidr.exception import ExtractionError
 
 if TYPE_CHECKING:
     import pandas as pd
+    from matplotlib.lines import Line2D
+    from matplotlib.patches import Rectangle
 
     from maidr.util.datetime_conversion import DatetimeConverter
 
@@ -59,10 +61,11 @@ class CandlestickPlot(MaidrPlot):
             "_maidr_datetime_converter", None
         )
         # `original_flavor`'s candles: one body and one wick each, in quote
-        # order, as `(bodies, wicks)`.
-        self._maidr_candle_artists: Optional[tuple] = kwargs.get(
-            "_maidr_candle_artists", None
-        )
+        # order, as `(bodies, wicks)` -- the reverse of the `(lines, patches)`
+        # that `_candlestick` returns.
+        self._maidr_candle_artists: Optional[
+            Tuple[List[Rectangle], List[Line2D]]
+        ] = kwargs.get("_maidr_candle_artists", None)
 
         # Positions in the frame of the rows whose candles were emitted, set by
         # `_extract_from_dataframe` and read by `_get_selector` (#749).
