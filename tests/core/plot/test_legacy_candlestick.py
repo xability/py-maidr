@@ -100,6 +100,15 @@ def test_a_quote_may_go_on_past_its_prices():
     assert _prices(layer) == EXPECTED
 
 
+def test_quotes_given_as_a_generator_are_read():
+    # `_candlestick` iterates the quotes as it draws; a generator read after
+    # that would be spent, and the chart would get no candles.
+    quotes = (tuple(quote) for quote in _ohlc())
+    _, _, layer, _ = _candles(lambda ax: candlestick_ohlc(ax, quotes, width=0.6))
+
+    assert _prices(layer) == EXPECTED
+
+
 def test_candlestick_ochl_reads_its_own_column_order():
     # Each quote is (time, open, close, high, low) here; read as ohlc it
     # would announce every close as a high.

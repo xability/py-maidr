@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from typing import TYPE_CHECKING, Any, Callable, Dict, Tuple
 
 import numpy as np
@@ -50,6 +51,14 @@ def candlestick(
     tuple of (list, list)
         The lines and patches ``_candlestick`` drew, unchanged.
     """
+    # Read once and handed on as a list, as `network_graph` hands on its node
+    # and edge lists: quotes given as a generator would be spent by the draw
+    # and reach the reading below empty.
+    if len(args) >= 2 and isinstance(args[1], Iterator):
+        args = (args[0], list(args[1]), *args[2:])
+    elif isinstance(kwargs.get("quotes"), Iterator):
+        kwargs = {**kwargs, "quotes": list(kwargs["quotes"])}
+
     with ContextManager.set_internal_context():
         drawn = _draw_quietly(wrapped, args, kwargs)
 
