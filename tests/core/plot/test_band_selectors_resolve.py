@@ -4,9 +4,15 @@ matplotlib writes a collection of one filled path with an edge colour through
 its single-path shortcut: the path goes into the group's ``<defs>``, offset by
 the height of the figure, and a ``<use>`` draws it. A stackplot or
 ``fill_between`` band under a seaborn theme or with ``edgecolor=`` is such a
-collection. Its selector, ``g[id=...] path``, named the template, which draws
-nothing, so an area layer's markers went into ``<defs>``, at 0,0, and never
-drew (py-gallery-files#1).
+collection, and so are a seaborn KDE fill and a violin body. Selectors of the
+form ``g[id=...] path`` named the template, which draws nothing:
+
+- an area layer's markers went into ``<defs>``, at 0,0, and never drew
+  (py-gallery-files#1);
+- a filled KDE named the template outright (``> defs > path``), with the same
+  result;
+- a violin named the template and the ``<use>`` both, and only worked because
+  maidr.js prefers a ``<use>``.
 
 An area layer needs more than the drawn element: maidr.js reads its points
 from the vertices of the ``<path>`` named -- the first one per point, out
@@ -38,8 +44,8 @@ matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt  # noqa: E402
 from lxml import etree  # noqa: E402
-from matplotlib.dates import date2num  # noqa: E402
 from lxml.cssselect import CSSSelector  # noqa: E402
+from matplotlib.dates import date2num  # noqa: E402
 
 import maidr  # noqa: E402
 from maidr.core.figure_manager import FigureManager  # noqa: E402
@@ -232,3 +238,56 @@ def test_a_band_of_another_shape_is_left_as_drawn():
     group = r'<g id="%s"[^>]*>\s*<path d="([^"]+)"' % band.get_gid()
     drawn = re.search(group, plain.getvalue()).group(1)
     assert re.search(group, rendered).group(1).split() == drawn.split()
+
+
+#: Filled KDEs and violin bodies, keyed by a readable name.
+FILLS = {
+    "sns.kdeplot fill": lambda ax: _sns().kdeplot(_sample(0), fill=True, ax=ax),
+    "sns.kdeplot fill, no edge": lambda ax: _sns().kdeplot(
+        _sample(0), fill=True, linewidth=0, ax=ax
+    ),
+    "sns.kdeplot fill hue": lambda ax: _sns().kdeplot(
+        data=_frame(), x="v", hue="g", fill=True, ax=ax
+    ),
+    "sns.violinplot": lambda ax: _sns().violinplot(
+        data=_frame(), x="g", y="v", ax=ax
+    ),
+    "sns.violinplot horizontal": lambda ax: _sns().violinplot(
+        data=_frame(), x="v", y="g", ax=ax
+    ),
+    "ax.violinplot": lambda ax: ax.violinplot([_sample(0), _sample(1)]),
+}
+
+
+def _sns():
+    return pytest.importorskip("seaborn")
+
+
+def _sample(seed: int) -> np.ndarray:
+    return np.random.default_rng(seed).normal(seed, 1, 150)
+
+
+def _frame():
+    import pandas as pd
+
+    return pd.DataFrame(
+        {"v": np.r_[_sample(0), _sample(1)], "g": ["a"] * 150 + ["b"] * 150}
+    )
+
+
+@pytest.mark.parametrize("chart", list(FILLS))
+def test_each_fill_selector_names_the_drawn_fill(chart):
+    _, _, plots, root = _render(FILLS[chart])
+    layers = [
+        plot.schema
+        for plot in plots
+        if plot.schema["type"] in ("smooth", "violin_kde")
+    ]
+    assert layers
+
+    for layer in layers:
+        for selector in layer["selectors"]:
+            found = CSSSelector(selector)(root)
+            assert len(found) == 1, f"{selector!r} matched {len(found)} elements"
+            assert found[0].tag in ("path", "use")
+            assert not _in_defs(found[0]), "the selector named a template in <defs>"
