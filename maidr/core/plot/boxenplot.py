@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import uuid
 import warnings
 from typing import Sequence
 
@@ -114,14 +115,13 @@ class BoxenPlot(MaidrPlot):
     def __init__(self, ax: Axes, **kwargs) -> None:
         super().__init__(ax, PlotType.BOXEN)
 
-        # No selector, because the grammar has no shape for one. A box plot
-        # highlights through ``BoxSelector``, which names an element per
-        # summary value -- ``min``, ``iq``, ``q2``, ``max`` and the two
-        # outlier lists. A boxen's ladder has no fixed depth, so there is no
-        # fixed set of names to fill in, and the core declares no boxen
-        # counterpart. Emitting a selector list against a shape the frontend
-        # does not read would attach an outline to nothing.
-        self._support_highlighting = False
+        # The gid of each ladder read, in the order the distributions are
+        # emitted. maidr.js reads a boxen's selectors as one element per
+        # distribution and outlines it for every rung of that distribution
+        # (docs/SCHEMA.md, "Selectors" by layer type); a ladder is drawn as
+        # one `PatchCollection`, whose group holds every box of it. Filled in
+        # during extraction, which runs before the selector is asked for.
+        self._ladder_gids: list[str] = []
 
         # Filled in during extraction, from the median segment of the first
         # ladder read. Vertical is the right default: it is what the core
@@ -166,6 +166,22 @@ class BoxenPlot(MaidrPlot):
         schema = super().render()
         schema[MaidrKey.ORIENTATION] = self._orientation
         return schema
+
+    def _get_selector(self) -> list[str]:
+        """
+        One selector per distribution, naming the group of its ladder.
+
+        maidr.js outlines the distribution being read through every box of
+        its ladder, whichever rung the reader is on. Without a selector
+        nothing was outlined on any step.
+
+        Returns
+        -------
+        list of str
+            ``g[id='<gid>']`` for each ladder, in the order the distributions
+            are emitted.
+        """
+        return [f"g[id='{gid}']" for gid in self._ladder_gids]
 
     def _extract_axes_data(self) -> dict:
         """
@@ -695,7 +711,7 @@ class BoxenPlot(MaidrPlot):
                 levels[0][MaidrKey.LO.value],
                 levels[0][MaidrKey.HI.value],
             )
-            read.append((center, vertical, median, levels, lower, upper))
+            read.append((center, vertical, median, levels, lower, upper, ladder))
 
         # Read once for the layer rather than once per ladder: the ticks and
         # the legend belong to the axes, not to any one ladder, and asking
@@ -707,7 +723,15 @@ class BoxenPlot(MaidrPlot):
         hue_levels = self._hue_levels()
 
         points = []
-        for center, _vertical, median, levels, lower, upper in read:
+        self._ladder_gids = []
+        for center, _vertical, median, levels, lower, upper, ladder in read:
+            # Assigned here rather than relied upon: a gid is otherwise only
+            # stamped at draw time, and the schema is built first.
+            if ladder.get_gid() is None:
+                ladder.set_gid(f"maidr-{uuid.uuid4()}")
+            self._ladder_gids.append(ladder.get_gid())
+            self._elements.append(ladder)
+
             point = {
                 MaidrKey.Z.value: self._category_of(center, offsets, ticks, hue_levels),
                 MaidrKey.MEDIAN.value: median,
