@@ -85,6 +85,17 @@ class ContourPlot(MaidrPlot):
         levels = np.asarray(self._contour_set.levels, dtype=float)
         paths = self._contour_set.get_paths()
 
+        # Every point is a vertex of its level's path, and maidr.js puts the
+        # highlight of a series' i-th point on that path's i-th vertex. But
+        # matplotlib drops the vertices it can merge from an open path of 128
+        # or more as it draws it -- an inline `clabel` opens every ring it
+        # labels -- so the gallery's outer levels were written with 136 of
+        # 202, 114 of 153 and 98 of 132 vertices, and their highlight stuck
+        # on the first point or crossed the ring. Set here, at render, as
+        # `clabel` replaces the paths after the `contour` call.
+        for path in paths:
+            path.should_simplify = False
+
         self._series_levels = []
         data: list[list[dict]] = []
         # Looked up once rather than per vertex: an enum's `.value` is a
