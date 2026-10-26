@@ -9,7 +9,13 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.patches import Patch
 
-from maidr.excel.draw.common import draw_grid, legend_place, name_axis, plain_axes
+from maidr.excel.draw.common import (
+    draw_grid,
+    legend_place,
+    name_axis,
+    plain_axes,
+    value_name,
+)
 from maidr.excel.formats import number_formatter
 from maidr.excel.spec import ChartSpec, Group
 
@@ -127,7 +133,14 @@ def draw_box(fig: Figure, group: Group, spec: ChartSpec, where: str) -> Axes:
     ax.set_xlim(-0.6, len(categories) - 0.4)
     x, y = group.x_axis, group.y_axis
     name_axis(ax.xaxis, x.label if x else None, "Category", bool(x and x.title))
-    name_axis(ax.yaxis, y.label if y else None, "Value", bool(y and y.title))
+    # An untitled value axis is read by the name of its only series, as the
+    # other charts read theirs, rather than as "Value".
+    name_axis(
+        ax.yaxis,
+        (y.label if y else None) or value_name(spec, group),
+        "Value",
+        bool(y and y.title),
+    )
     formatter = number_formatter(y.number_format) if y else None
     if formatter is not None:
         ax.yaxis.set_major_formatter(formatter)

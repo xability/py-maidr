@@ -686,6 +686,25 @@ def test_a_box_and_whisker_reads_a_box_per_category(tmp_path):
     assert (second["z"], second["q2"], second["upperOutliers"]) == ("B", 11, [30])
 
 
+def test_a_box_and_whisker_names_its_value_axis_after_its_one_series(tmp_path):
+    groups = ["A"] * 5 + ["B"] * 4
+    rows = [["Group", "Score"]] + [[g, v] for g, v in zip(groups, VALUES)]
+    part = _part(
+        "boxWhisker",
+        _dimension("strDim", "cat", "Sales!$A$2:$A$10", [groups]),
+        _dimension("numDim", "val", "Sales!$B$2:$B$10", [VALUES]),
+    ).replace("<cx:v>North</cx:v>", "<cx:v>Score</cx:v>")
+
+    (chart,) = _read(_excel_2016(tmp_path, part, rows))
+    (layer,) = _layers(chart)
+
+    # The value axis has no title, so it is read by the series' name, as a
+    # histogram of the same cells is; the name is not drawn, as Excel draws
+    # none.
+    assert layer["axes"]["y"]["label"] == "Score"
+    assert not chart.figure.axes[0].yaxis.label.get_visible()
+
+
 def test_an_excel_2016_chart_reads_its_cells_through_the_names_it_uses(tmp_path):
     part = _sales_part("funnel", [120, 150, 90, 175])
     part = re.sub(r"<cx:lvl .*?</cx:lvl>", "", part)
