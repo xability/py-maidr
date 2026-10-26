@@ -36,6 +36,7 @@ from maidr.util.legend_names import (  # noqa: F401
     legend_of,
     names_for as _names_for,
     names_for_panel as _names_for_panel,
+    own_label,
 )
 from maidr.util.svg_utils import unique_lines_by_xy
 
@@ -237,6 +238,36 @@ def deferred_names(resolve, count: int) -> list:
     return [at(index) for index in range(count)]
 
 
+def _or_own_label(name, ax: Axes, artist):
+    """
+    A curve's legend name, or its own label when the legend shows it.
+
+    The name the colour match gives the curves of one call wins. It gives
+    none to a call that drew one curve, which is how a chart of several
+    ``kdeplot(data, label=...)`` calls is drawn: the label each was given
+    names it then (:func:`~maidr.util.legend_names.own_label`).
+
+    Parameters
+    ----------
+    name : callable
+        The deferred colour-match name, from :func:`deferred_names`.
+    ax : Axes
+        The axes drawn on, for its legend.
+    artist : Artist
+        The curve or band, whose label is read.
+
+    Returns
+    -------
+    callable
+        A zero-argument callable, resolved at render as ``name`` is.
+    """
+
+    def resolve():
+        return name() or own_label(ax, artist)
+
+    return resolve
+
+
 def _register_smooth(
     ax: Axes | None,
     instance,
@@ -302,7 +333,11 @@ def _register_smooth(
                 lambda *a, **k: ax,
                 instance,
                 args,
-                dict(kwargs, regression_line=kde_line, **{GROUP_NAME: name}),
+                dict(
+                    kwargs,
+                    regression_line=kde_line,
+                    **{GROUP_NAME: _or_own_label(name, ax, kde_line)},
+                ),
             )
         # The PolyCollection bands this call drew, each read as its boundary
         fills = [
@@ -332,7 +367,7 @@ def _register_smooth(
                         regression_line=kde_line,
                         poly_gid=gid,
                         is_polycollection=True,
-                        **{GROUP_NAME: fill_name},
+                        **{GROUP_NAME: _or_own_label(fill_name, ax, poly)},
                     ),
                 )
 

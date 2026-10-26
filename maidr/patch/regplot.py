@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import uuid
+from functools import partial
 from typing import Any
 
 import numpy as np
@@ -23,7 +24,7 @@ from maidr.patch.common import (
     prospective_axes,
     wrap_seaborn,
 )
-from maidr.util.legend_names import name_for
+from maidr.util.legend_names import name_for, own_label
 
 
 def _is_interval_bar(line: Line2D) -> bool:
@@ -392,13 +393,19 @@ def patched_plot(wrapped, instance, args, kwargs):
                 if line.get_gid() is None:
                     new_gid = f"maidr-{uuid.uuid4()}"
                     line.set_gid(new_gid)
-                # Register as a smooth layer
+                # Register as a smooth layer, named by its own label where
+                # the legend shows it beside others -- read at render, once
+                # the legend exists.
                 common(
                     PlotType.SMOOTH,
                     lambda *a, **k: instance,
                     instance,
                     args,
-                    dict(kwargs, regression_line=line),
+                    dict(
+                        kwargs,
+                        regression_line=line,
+                        **{GROUP_NAME: partial(own_label, instance, line)},
+                    ),
                 )
 
     return lines
