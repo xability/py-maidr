@@ -162,7 +162,8 @@ def test_matplotlib_box_selector_names_its_own_violin(
     )
     if inverted:
         ax.invert_yaxis()
-    box = _layers(fig)[PlotType.VIOLIN_BOX]
+    layers = _layers(fig)
+    box = layers[PlotType.VIOLIN_BOX]
 
     names = [row["z"] for row in box["data"]]
     expected = ["Group 1", "Group 2", "Group 3"]
@@ -170,6 +171,8 @@ def test_matplotlib_box_selector_names_its_own_violin(
     # is bottom first, so listed top first by reversing; an inverted y axis
     # draws them top first already.
     assert names == (expected[::-1] if reversed_ else expected)
+    # The density layer lists the same violins in the same order.
+    assert [rows[0]["x"] for rows in layers[PlotType.VIOLIN_KDE]["data"]] == names
     for row, selector in zip(box["data"], box["selectors"]):
         nth = f":nth-child({row['z'].split()[-1]})"
         for part in ("min", "q2", "max"):
