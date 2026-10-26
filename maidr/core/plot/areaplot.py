@@ -1,15 +1,25 @@
 from __future__ import annotations
 
+import re
 import uuid
 from typing import Any, Sequence
 
 import numpy as np
 from matplotlib.axes import Axes
+from matplotlib.collections import Collection
+from matplotlib.path import Path
 
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
 from maidr.core.plot.lineplot import _X, _Y, _Z, _has_position, _reading
 from maidr.exception import ExtractionError
+
+#: One command letter or one number of the path data matplotlib writes.
+_PATH_TOKEN = re.compile(r"[A-Za-z]|[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?")
+
+#: The attribute a ``<use>`` names its template by. matplotlib writes the
+#: XLink spelling.
+_HREF = "{http://www.w3.org/1999/xlink}href"
 
 
 class AreaPlot(MaidrPlot):
@@ -45,6 +55,9 @@ class AreaPlot(MaidrPlot):
         ``x`` is the shared position array, ``series`` the per-series values in
         drawing order, ``labels`` their names when the caller supplied any, and
         ``collections`` the drawn artists. The patch resolves all four.
+        ``samples_on_second_bound`` says which bound of each band's
+        ``fill_between`` polygon its samples lie on -- see
+        :meth:`finish_svg`.
 
     See Also
     --------
@@ -63,6 +76,14 @@ class AreaPlot(MaidrPlot):
         # numbers still go into the fields the trace reads them from -- see
         # `render` for why the titles move instead of the data.
         self._transposed = bool(kwargs.pop("transposed", False))
+        # `fill_between(x, y1, y2)` draws its band out along `y1` and back
+        # along `y2`. A `fill_between(x, y1)` area has its samples on `y1`;
+        # `stackplot` draws band i as `fill_between(x, stack[i-1], stack[i])`,
+        # so its samples -- the band's top, the running total -- are on the
+        # second bound. Only `finish_svg` reads this.
+        self._samples_on_second_bound = bool(
+            kwargs.pop("samples_on_second_bound", False)
+        )
 
     def render(self) -> dict:
         """
@@ -277,12 +298,126 @@ class AreaPlot(MaidrPlot):
         Only reached when every series was tagged: extraction clears the flag
         otherwise, so this never has to describe a partial list.
 
+        The band's own ``<path>``, a child of its group. The descendant form
+        this was, ``g[id=...] path``, also matched a template matplotlib
+        writes into the group's ``<defs>`` -- for a band with an edge colour
+        the only ``<path>`` there, which draws nothing; see
+        :meth:`finish_svg`, which leaves every band drawn as that child.
+
         Returns
         -------
         list of str
             One selector per band.
         """
-        return [f"g[id='{element.get_gid()}'] path" for element in self._elements]
+        return [f"g[id='{element.get_gid()}'] > path" for element in self._elements]
+
+    def finish_svg(self, tree: Any) -> None:
+        """
+        Write each band as one path that starts along its samples.
+
+        maidr.js reads an area series from the vertices of the ``<path>`` its
+        selector names: the samples first, from the first position on, and
+        then the way back, which it drops. matplotlib writes a band neither
+        way.
+
+        A band with an edge colour -- a seaborn theme's white edge, an Excel
+        chart's, any ``edgecolor=`` -- is drawn through matplotlib's
+        single-path shortcut, ``draw_markers``: the polygon goes into the
+        group's ``<defs>``, offset by the height of the figure, and a
+        ``<use>`` draws it. The only ``<path>`` in the group was that
+        template, so the selector named it, maidr.js put its markers beside
+        it inside ``<defs>``, and the reader got no highlight at all: the
+        marker never drew, at 0,0 (py-gallery-files#1).
+
+        A band drawn as a plain ``<path>`` was read from the wrong vertices.
+        ``fill_between`` starts its polygon at a corner on its second bound,
+        walks the first bound out and the second back. A ``stackplot`` band's
+        samples, its top, are on that second bound, so the highlight walked
+        its lower edge instead; a ``fill_between(x, y)`` area's are on the
+        first, one vertex in, so every highlight sat one sample behind the
+        announced one, the first on the baseline.
+
+        So each band whose polygon is that construction, one vertex per
+        position on each bound, is rewritten as one plain ``<path>``: the
+        same vertices and the same style, starting at the first sample and
+        running along the samples first. The shape drawn does not change --
+        a closed polygon starting elsewhere, or run the other way round, fills
+        and strokes the same -- and a band that is anything else is left as
+        matplotlib wrote it.
+
+        Parameters
+        ----------
+        tree : lxml.etree._Element
+            The rendered SVG, modified in place.
+        """
+        for band in self._elements:
+            order = self._sample_order(band)
+            if order is not None:
+                _rewrite_band(tree, str(band.get_gid()), order)
+
+    def _sample_order(self, band: Any) -> list[int] | None:
+        """
+        The order to visit a band's vertices in to walk its samples first.
+
+        Worked out on the band's own path, whose vertices matplotlib writes
+        one for one, the closing one as ``z``. ``fill_between`` builds it as
+        ``[c0, A_0 .. A_n-1, c1, B_n-1 .. B_0]``: ``A`` the first bound, ``B``
+        the second, and the corners ``c0 = B_0`` and ``c1 = B_n-1``. Read
+        only when every one of those holds and both bounds sit at this
+        layer's positions, one vertex each.
+
+        Parameters
+        ----------
+        band : Any
+            One of the layer's drawn artists.
+
+        Returns
+        -------
+        list of int or None
+            The vertex indices in the order to write them, or ``None`` when
+            the band is not a polygon of that shape.
+        """
+        if not isinstance(band, Collection):
+            return None
+        paths = band.get_paths()
+        if len(paths) != 1 or paths[0].codes is None:
+            return None
+        codes = paths[0].codes
+        if (
+            codes[0] != Path.MOVETO
+            or codes[-1] != Path.CLOSEPOLY
+            or np.any(codes[1:-1] != Path.LINETO)
+        ):
+            return None
+        # The closing vertex is written as `z`, not as a point.
+        points = np.asarray(paths[0].vertices, dtype=float)[:-1]
+        count = len(points)
+        n, odd = divmod(count - 2, 2)
+        if odd or n < 2:
+            return None
+
+        convert = self.ax.convert_yunits if self._transposed else self.ax.convert_xunits
+        try:
+            positions = np.asarray(convert(self._x), dtype=float)
+        except (TypeError, ValueError):
+            return None
+        axis = 1 if self._transposed else 0
+        out = points[1 : n + 1, axis]
+        back = points[count - 1 : n + 1 : -1, axis]
+        if not (
+            positions.shape == (n,)
+            and np.array_equal(points[0], points[count - 1])
+            and np.array_equal(points[n + 1], points[n + 2])
+            and np.array_equal(out, positions)
+            and np.array_equal(back, positions)
+        ):
+            return None
+
+        if self._samples_on_second_bound:
+            # B_0 .. B_n-1, c1, A_n-1 .. A_0, c0: the whole polygon backwards.
+            return list(range(count - 1, -1, -1))
+        # A_0 .. A_n-1, c1, B_n-1 .. B_0, c0: the corner moved to the end.
+        return [*range(1, count), 0]
 
     @staticmethod
     def _scalar(value: Any) -> Any:
@@ -332,3 +467,174 @@ class AreaPlot(MaidrPlot):
             The layer type to emit.
         """
         return PlotType.STACKED_AREA if len(series) > 1 else PlotType.AREA
+
+
+def _rewrite_band(tree: Any, gid: str, order: list[int]) -> None:
+    """
+    Write one band as a single ``<path>``, its vertices in ``order``.
+
+    matplotlib writes the band's group in one of two forms. A plain ``<path>``
+    child gets its ``d`` rewritten. A ``<use>`` of a template is replaced by
+    the ``<path>`` it draws -- the template's vertices moved by the use's
+    offset, the use's style, the clip of the ``<g>`` it sat in -- in the
+    place of that ``<g>``, so the band's group reads as matplotlib's plain
+    form does; the template goes once nothing else uses it. Anything else is
+    left as it was.
+
+    Parameters
+    ----------
+    tree : lxml.etree._Element
+        The rendered SVG, modified in place.
+    gid : str
+        The band's gid, which matplotlib writes as its group's ``id``.
+    order : list of int
+        The band's vertex indices, in the order to write them.
+    """
+    groups = tree.xpath("//*[local-name()='g'][@id=$gid]", gid=gid)
+    if len(groups) != 1:
+        # A gid two artists share (#753), or a band that drew nothing.
+        return
+    group = groups[0]
+    children = [child for child in group if isinstance(child.tag, str)]
+
+    paths = [child for child in children if _local_name(child) == "path"]
+    if paths:
+        vertices = _polygon(paths[0].get("d", "")) if len(paths) == 1 else None
+        if vertices is not None and len(vertices) == len(order):
+            paths[0].set("d", _polygon_data([vertices[i] for i in order]))
+        return
+
+    wrappers = [child for child in children if _local_name(child) == "g"]
+    if len(wrappers) != 1:
+        return
+    wrapper = wrappers[0]
+    inside = [child for child in wrapper if isinstance(child.tag, str)]
+    if len(inside) != 1 or _local_name(inside[0]) != "use":
+        return
+    use = inside[0]
+    reference = use.get(_HREF) or use.get("href") or ""
+    templates = (
+        tree.xpath("//*[local-name()='path'][@id=$id]", id=reference[1:])
+        if reference.startswith("#")
+        else []
+    )
+    if len(templates) != 1:
+        return
+    vertices = _polygon(templates[0].get("d", ""))
+    try:
+        dx, dy = float(use.get("x", 0)), float(use.get("y", 0))
+    except ValueError:
+        return
+    if vertices is None or len(vertices) != len(order):
+        return
+
+    path = group.makeelement(templates[0].tag, {})
+    moved = [(vertices[i][0] + dx, vertices[i][1] + dy) for i in order]
+    path.set("d", _polygon_data(moved))
+    if wrapper.get("clip-path") is not None:
+        path.set("clip-path", wrapper.get("clip-path"))
+    if use.get("style") is not None:
+        path.set("style", use.get("style"))
+    path.tail = wrapper.tail
+    wrapper.addprevious(path)
+    group.remove(wrapper)
+
+    # matplotlib writes one template for every collection drawn with the same
+    # shape and style, so another band may still use this one.
+    used = tree.xpath(
+        "//*[local-name()='use'][@*[local-name()='href']=$ref]", ref=reference
+    )
+    if not used:
+        template = templates[0]
+        holder = template.getparent()
+        holder.remove(template)
+        if _local_name(holder) == "defs" and len(holder) == 0:
+            holder.getparent().remove(holder)
+
+
+def _local_name(element: Any) -> str:
+    """
+    An SVG element's tag without its namespace.
+
+    Parameters
+    ----------
+    element : lxml.etree._Element
+        The element.
+
+    Returns
+    -------
+    str
+        Its local name, such as ``"path"``.
+    """
+    return str(element.tag).rsplit("}", 1)[-1]
+
+
+def _polygon(data: str) -> list[tuple[float, float]] | None:
+    """
+    The vertices of path data that draws one closed polygon of straight lines.
+
+    The form matplotlib writes for a polygon's path: ``M x y``, then
+    ``L x y`` for each further vertex, then ``z``.
+
+    Parameters
+    ----------
+    data : str
+        A ``d`` attribute.
+
+    Returns
+    -------
+    list of tuple or None
+        The vertices in order, or ``None`` for path data of any other form.
+    """
+    tokens = _PATH_TOKEN.findall(data)
+    if len(tokens) < 4 or tokens[0] != "M" or tokens[-1] not in ("z", "Z"):
+        return None
+    vertices = []
+    for start in range(0, len(tokens) - 1, 3):
+        command, *coordinates = tokens[start : start + 3]
+        if command != ("M" if start == 0 else "L") or len(coordinates) != 2:
+            return None
+        try:
+            vertices.append((float(coordinates[0]), float(coordinates[1])))
+        except ValueError:
+            return None
+    return vertices
+
+
+def _polygon_data(vertices: list[tuple[float, float]]) -> str:
+    """
+    Path data drawing a closed polygon through the given vertices.
+
+    Parameters
+    ----------
+    vertices : list of tuple
+        The vertices, in drawing order.
+
+    Returns
+    -------
+    str
+        ``M x y L x y ... z``, each number as matplotlib writes it.
+    """
+    commands = [
+        f"{'M' if index == 0 else 'L'} {_number(x)} {_number(y)}"
+        for index, (x, y) in enumerate(vertices)
+    ]
+    return " ".join([*commands, "z"])
+
+
+def _number(value: float) -> str:
+    """
+    One coordinate, written as matplotlib's SVG backend writes it.
+
+    Parameters
+    ----------
+    value : float
+        The coordinate.
+
+    Returns
+    -------
+    str
+        Six decimals at most, with trailing zeros dropped.
+    """
+    text = f"{value:f}".rstrip("0").rstrip(".")
+    return "0" if text in ("", "-0") else text
