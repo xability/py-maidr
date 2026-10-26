@@ -1,83 +1,139 @@
-import wrapt
-from typing import Any, Callable, Dict, Tuple
-from matplotlib.patches import Rectangle
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Callable, Dict, Tuple
+
 import numpy as np
+import wrapt
 
 from maidr.core.context_manager import ContextManager
 from maidr.core.enum.plot_type import PlotType
 from maidr.core.figure_manager import FigureManager
-from maidr.patch.common import _draw_quietly
+from maidr.patch.common import _argument, _draw_quietly
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 
 def candlestick(
-    wrapped: Callable[..., list[Rectangle]],
+    wrapped: Callable[..., Tuple[list, list]],
     instance: Any,
     args: Tuple[Any, ...],
     kwargs: Dict[str, Any],
-) -> list[Rectangle]:
+) -> Tuple[list, list]:
     """
-    Patch function for candlestick plots.
+    Register a chart drawn by ``mplfinance.original_flavor``'s candlesticks.
 
-    This function patches the candlestick plotting function to extract
-    candlestick data and create MAIDR plot instances for visualization.
+    ``candlestick_ohlc`` and ``candlestick_ochl`` both draw through
+    ``_candlestick``, one ``Line2D`` wick and one ``Rectangle`` body per quote,
+    in the order the quotes are given. The quotes are read into the frame the
+    ``mpf.plot`` path reads -- open, high, low and close on a date index -- so
+    the candles are labeled, skipped and announced the same way, and each
+    candle's own wick and body are handed over to be outlined.
+
+    The layer this registered before carried the prices as a dict of lists,
+    which ``CandlestickPlot`` reads only as a frame, and no artists: it held
+    no candles at all, and every key on it was silent (py-example-a#5).
 
     Parameters
     ----------
-    wrapped : Callable[..., list[Rectangle]]
-        The original candlestick function to be wrapped.
+    wrapped : Callable
+        ``mplfinance.original_flavor._candlestick``.
     instance : Any
-        The instance of the class where the function is being patched.
-    args : Tuple[Any, ...]
-        Positional arguments passed to the original function.
-    kwargs : Dict[str, Any]
-        Keyword arguments passed to the original function.
+        Unused: the function is not a method.
+    args : tuple
+        Positional arguments passed to it.
+    kwargs : dict
+        Keyword arguments passed to it.
 
     Returns
     -------
-    list[Rectangle]
-        The list of Rectangle objects returned by the original candlestick function.
-
-    Notes
-    -----
-    This wrapper function is used by the wrapt library to patch the mplfinance
-    candlestick function. It creates MAIDR plot instances for candlestick charts
-    while preserving the original functionality.
+    tuple of (list, list)
+        The lines and patches ``_candlestick`` drew, unchanged.
     """
     with ContextManager.set_internal_context():
-        # Patch the plotting function.
-        plot = _draw_quietly(wrapped, args, kwargs)
+        drawn = _draw_quietly(wrapped, args, kwargs)
 
-    original_data = None
-    date_nums = None
-    if len(args) >= 2:
-        try:
-            quotes = args[1]
-            if quotes is not None:
-                arr = np.asarray(quotes)
-                if arr.ndim == 2 and arr.shape[1] >= 5 and arr.size > 0:
-                    date_nums = arr[:, 0].tolist()
-                    original_data = {
-                        "Open": arr[:, 1].tolist(),
-                        "High": arr[:, 2].tolist(),
-                        "Low": arr[:, 3].tolist(),
-                        "Close": arr[:, 4].tolist(),
-                    }
-        except Exception:
-            pass
+    ax = FigureManager.get_axes(_argument("ax", wrapped, args, kwargs))
+    try:
+        wicks, bodies = (list(artists) for artists in drawn)
+    except (TypeError, ValueError):
+        return drawn
+    frame = _quotes_frame(
+        _argument("quotes", wrapped, args, kwargs),
+        ochl=bool(_argument("ochl", wrapped, args, kwargs, default=True)),
+    )
+    # One wick and one body per quote, or nothing to pair a candle with.
+    if ax is None or frame is None or not len(frame) == len(wicks) == len(bodies):
+        return drawn
 
-    axes = []
-    for ax in plot:
-        axes.append(FigureManager.get_axes(ax))
+    # Imported here, as `CandlestickPlot` imports pandas: mplfinance has
+    # loaded it by now, and `import maidr` should not.
+    from maidr.util.datetime_conversion import create_datetime_converter
 
-    extra_kwargs: Dict[str, Any] = {}
-    if original_data is not None:
-        extra_kwargs["_maidr_original_data"] = original_data
-    if date_nums is not None:
-        extra_kwargs["_maidr_date_nums"] = date_nums
+    FigureManager.create_maidr(
+        [ax],
+        PlotType.CANDLESTICK,
+        _maidr_original_data=frame,
+        _maidr_datetime_converter=create_datetime_converter(frame),
+        _maidr_candle_artists=(bodies, wicks),
+    )
+    return drawn
 
-    FigureManager.create_maidr(axes, PlotType.CANDLESTICK, **extra_kwargs)
 
-    return plot
+def _quotes_frame(quotes: Any, ochl: bool) -> pd.DataFrame | None:
+    """
+    The quotes as a frame of prices on a date index.
+
+    ``_candlestick`` reads each quote as ``(time, open, close, high, low)``
+    with ``ochl=True`` -- its default, and ``candlestick_ochl``'s -- and as
+    ``(time, open, high, low, close)`` otherwise, which is what
+    ``candlestick_ohlc`` passes. The time is a matplotlib date number; it is
+    read back as the date the axis draws, in the zone matplotlib's
+    ``timezone`` setting gives, and kept without the zone, as the
+    ``mpf.plot`` path keeps a frame's index. A quote whose time is not a
+    number has no date to be read at, so its prices are left out as a gap's
+    are.
+
+    Parameters
+    ----------
+    quotes : Any
+        The quotes the caller passed.
+    ochl : bool
+        Whether each quote is ordered open, close, high, low.
+
+    Returns
+    -------
+    pandas.DataFrame or None
+        One row per quote, in order, with ``Open``, ``High``, ``Low`` and
+        ``Close`` columns; ``None`` when the quotes do not each begin with
+        five numbers.
+    """
+    import matplotlib.dates as mdates
+    import pandas as pd
+
+    # The first five fields of each quote, which is all `_candlestick` reads:
+    # a quote may go on with a volume or anything else.
+    try:
+        table = np.asarray([tuple(quote)[:5] for quote in quotes], dtype=float)
+    except (TypeError, ValueError):
+        return None
+    if table.ndim != 2 or table.shape[1] != 5 or len(table) == 0:
+        return None
+
+    names = ("Open", "High", "Low", "Close")
+    order = ("Open", "Close", "High", "Low") if ochl else names
+    prices = {name: table[:, column] for column, name in enumerate(order, start=1)}
+    frame = pd.DataFrame({name: prices[name] for name in names})
+
+    times = table[:, 0]
+    dated = np.isfinite(times)
+    stamps = [pd.NaT] * len(times)
+    for row, stamp in zip(np.flatnonzero(dated), mdates.num2date(times[dated])):
+        stamps[row] = stamp
+    index = pd.DatetimeIndex(stamps)
+    frame.index = index.tz_localize(None) if index.tz is not None else index
+    frame.loc[~dated, :] = np.nan
+    return frame
 
 
 # Applied once `mplfinance.original_flavor` is imported rather than importing it
