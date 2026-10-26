@@ -144,8 +144,14 @@ def test_seaborn_kde_selector_names_its_own_violin(orient: str) -> None:
         )
 
 
-@pytest.mark.parametrize("vert", [True, False])
-def test_matplotlib_box_selector_names_its_own_violin(vert: bool) -> None:
+@pytest.mark.parametrize(
+    ("vert", "inverted", "reversed_"),
+    [(True, False, False), (False, False, True), (False, True, False)],
+    ids=["vertical", "horizontal", "horizontal, y inverted"],
+)
+def test_matplotlib_box_selector_names_its_own_violin(
+    vert: bool, inverted: bool, reversed_: bool
+) -> None:
     """Row ``Group j`` is outlined on segment *j* of each LineCollection."""
     fig, ax = plt.subplots()
     frame = _frame()
@@ -154,13 +160,16 @@ def test_matplotlib_box_selector_names_its_own_violin(vert: bool) -> None:
         vert=vert,
         showmedians=True,
     )
+    if inverted:
+        ax.invert_yaxis()
     box = _layers(fig)[PlotType.VIOLIN_BOX]
 
     names = [row["z"] for row in box["data"]]
     expected = ["Group 1", "Group 2", "Group 3"]
-    # Drawn at ascending positions: bottom first across the page, so listed
-    # top first by reversing.
-    assert names == (expected if vert else expected[::-1])
+    # Drawn at ascending positions: across the page on a normal y axis that
+    # is bottom first, so listed top first by reversing; an inverted y axis
+    # draws them top first already.
+    assert names == (expected[::-1] if reversed_ else expected)
     for row, selector in zip(box["data"], box["selectors"]):
         nth = f":nth-child({row['z'].split()[-1]})"
         for part in ("min", "q2", "max"):
