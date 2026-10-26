@@ -1,6 +1,27 @@
 # CHANGELOG
 
 
+## v1.28.1 (2026-10-26)
+
+### Bug Fixes
+
+- **plotnine**: Outline each line point at its own vertex
+  ([#924](https://github.com/xability/py-maidr/pull/924),
+  [`ddbfe80`](https://github.com/xability/py-maidr/commit/ddbfe8087f7aff160db75ebf787d2a4e0f8b8ea1))
+
+### Documentation
+
+- Fold example code under a show-the-code toggle
+  ([#923](https://github.com/xability/py-maidr/pull/923),
+  [`0aca034`](https://github.com/xability/py-maidr/commit/0aca0348e4c8dd1149e0283715cb29afe0805a24))
+
+### Testing
+
+- **browser**: Accept announcements in maidr.js's live region
+  ([#922](https://github.com/xability/py-maidr/pull/922),
+  [`a8ea839`](https://github.com/xability/py-maidr/commit/a8ea839d0f8188bd6d334e7388dcd9cba08f77da))
+
+
 ## v1.28.0 (2026-10-19)
 
 ### Bug Fixes
