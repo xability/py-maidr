@@ -7,6 +7,7 @@ and converting them to MAIDR-compatible format configurations.
 
 from __future__ import annotations
 
+import functools
 import json
 import math
 import re
@@ -669,6 +670,26 @@ class FormatConfigBuilder:
         return None
 
     @staticmethod
+    def _names_fixed_ticks(func: Any) -> bool:
+        """
+        Whether a ``FuncFormatter``'s function is matplotlib's tick-label lookup.
+
+        Parameters
+        ----------
+        func : callable
+            The formatter's function.
+
+        Returns
+        -------
+        bool
+            True for the ``functools.partial`` of ``Axis._format_with_dict``
+            that ``Axis.set_ticklabels`` installs on fixed ticks.
+        """
+        return isinstance(func, functools.partial) and (
+            getattr(func.func, "__name__", "") == "_format_with_dict"
+        )
+
+    @staticmethod
     def _parse_func_formatter(formatter: FuncFormatter) -> Optional[FormatConfig]:
         """
         Attempt to parse a FuncFormatter by examining the function.
@@ -679,6 +700,17 @@ class FormatConfigBuilder:
         """
         func = getattr(formatter, "func", None)
         if func is None:
+            return None
+
+        # `set_xticks(positions, labels)` and `set_xticklabels` on fixed ticks
+        # install a lookup of each tick's label, which names the ticks and
+        # formats no other value: matplotlib's own `_format_with_dict` answers
+        # "" off a tick. Read as an unknown function, it set the axis format
+        # to `String(value)`, so a Manhattan plot whose ticks name the
+        # chromosomes announced every position with all its digits
+        # ("2.8689008371944547"). No format leaves the numbers to maidr.js's
+        # default, as on an axis whose ticks are not named.
+        if FormatConfigBuilder._names_fixed_ticks(func):
             return None
 
         # Try to get function source or docstring for hints
