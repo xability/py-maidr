@@ -54,6 +54,38 @@ class GanttPlot(MaidrPlot):
         self._collections: list[Collection] = list(kwargs.pop("collections", ()) or ())
         super().__init__(ax, PlotType.GANTT)
 
+    def render(self) -> dict:
+        """
+        Emit the layer, carrying which way its bars run.
+
+        maidr.js falls back to vertical when ``orientation`` is absent, and
+        reads a vertical gantt as bars standing on the x axis: the lane named
+        by the x axis's label, the interval by the y axis's. ``broken_barh``
+        lays its bars along x and its lanes up y, so without it the gallery's
+        schedule was announced "Week is Design, Phase is 0 through 3" and
+        called a vertical gantt. Declared horizontal, it is "Phase is Design,
+        Week is 0 through 3".
+
+        Returns
+        -------
+        dict
+            The base schema with ``orientation`` merged in.
+        """
+        schema = super().render()
+        schema[MaidrKey.ORIENTATION] = self._orientation()
+        return schema
+
+    def _orientation(self) -> str:
+        """
+        Which way the bars run, in maidr.js's terms.
+
+        Returns
+        -------
+        str
+            ``"horz"``: ``broken_barh`` always draws its bars along x.
+        """
+        return "horz"
+
     def add_lane(self, collection: Collection) -> None:
         """
         Take another ``broken_barh`` call on the same axes as another lane.

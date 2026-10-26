@@ -142,7 +142,8 @@ def vlines(wrapped, instance, args, kwargs) -> LineCollection:
 
     The same chart with the axes exchanged: the lanes run along x and the
     intervals down y. `GanttTrace` navigates lanes and intervals rather than
-    x and y, so the two need no orientation to tell them apart -- only which
-    axis the lanes were laid out on, which is what `SpanPlot` is told.
+    x and y, but names each by an axis's label, which it picks by the
+    layer's orientation: `SpanPlot` is told which axis the lanes were laid
+    out on, and declares ``vert`` here and ``horz`` for ``hlines``.
     """
     return _spans(wrapped, instance, args, kwargs, along_x=False)

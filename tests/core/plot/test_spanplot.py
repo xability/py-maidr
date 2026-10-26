@@ -83,12 +83,16 @@ def test_horizontal_lines_read_as_the_schedule_they_draw():
     assert schema["type"] == "gantt"
     assert schema["data"]["lanes"] == [1.0, 2.0, 3.0]
     assert _spans(schema) == [[(0.0, 5.0)], [(2.0, 7.0)], [(4.0, 6.0)]]
+    # Spans along x with the lanes up y. Without it maidr.js reads a vertical
+    # gantt, and names each lane by the x axis's label and each span by the
+    # y axis's.
+    assert schema["orientation"] == "horz"
 
 
 def test_vertical_lines_read_the_same_way_with_the_axes_exchanged():
     # The lanes run along x and the intervals down y. `GanttTrace` navigates
-    # lanes and intervals rather than x and y, so the two need no orientation
-    # to tell them apart -- only which axis the lanes were laid out on.
+    # lanes and intervals rather than x and y, but names them by the axis
+    # labels the orientation picks.
     fig, ax = plt.subplots()
     ax.vlines([1, 2, 3], [0, 2, 4], [5, 7, 6])
 
@@ -96,6 +100,7 @@ def test_vertical_lines_read_the_same_way_with_the_axes_exchanged():
     assert schema["type"] == "gantt"
     assert schema["data"]["lanes"] == [1.0, 2.0, 3.0]
     assert _spans(schema) == [[(0.0, 5.0)], [(2.0, 7.0)], [(4.0, 6.0)]]
+    assert schema["orientation"] == "vert"
 
 
 def test_a_lane_is_named_by_the_tick_the_author_put_inside_it():
