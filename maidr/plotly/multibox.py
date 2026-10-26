@@ -14,6 +14,7 @@ from maidr.plotly.box import (
     _precomputed_box,
     _precomputed_labels,
     _trace_is_horizontal,
+    order_box_rows,
 )
 from maidr.plotly.plotly_plot import PlotlyPlot, as_list
 
@@ -99,8 +100,12 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
 
     def render(self) -> dict:
         schema = super().render()
-        schema[MaidrKey.ORIENTATION] = (
-            "horz" if self._is_horizontal() else "vert"
+        horizontal = self._is_horizontal()
+        schema[MaidrKey.ORIENTATION] = "horz" if horizontal else "vert"
+        order_box_rows(
+            schema,
+            horizontal=horizontal,
+            y_reversed=self._axis_runs_backwards(self._yaxis_name),
         )
         return schema
 

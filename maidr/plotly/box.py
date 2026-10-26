@@ -90,6 +90,39 @@ def _build_box_selector(
     }
 
 
+def order_box_rows(schema: dict, *, horizontal: bool, y_reversed: bool) -> None:
+    """
+    Put a horizontal layer's boxes in the order maidr.js reads them: top first.
+
+    maidr.js reverses the boxes of a horizontal layer, so that the reader
+    starts on the bottom box and Up moves up the page, and expects them top
+    to bottom for that. Plotly draws a horizontal layer's boxes from the
+    bottom up in the order the traces list them, and that order was emitted
+    as it was: the reader started on the top box, and Up moved down the
+    page to the box below. matplotlib's reader reverses the rows for the
+    same reason (``BoxPlot._order_box_rows``).
+
+    A y axis that runs backwards already draws the first box at the top, so
+    it is left alone. The data and the selectors are reversed together, so
+    each box keeps its own marks.
+
+    Parameters
+    ----------
+    schema : dict
+        The layer schema, with ``data`` and, when there are any, ``selectors``
+        in the order the traces list the boxes. Changed in place.
+    horizontal : bool
+        Whether the boxes lie on their side.
+    y_reversed : bool
+        Whether the y axis runs from its high end to its low one.
+    """
+    if not horizontal or y_reversed:
+        return
+    schema[MaidrKey.DATA] = list(reversed(schema[MaidrKey.DATA]))
+    if MaidrKey.SELECTOR in schema:
+        schema[MaidrKey.SELECTOR] = list(reversed(schema[MaidrKey.SELECTOR]))
+
+
 def _has_precomputed_stats(trace: dict) -> bool:
     """Return whether *trace* carries its quartiles rather than its samples.
 
@@ -385,8 +418,12 @@ class PlotlyBoxPlot(PlotlyPlot):
 
     def render(self) -> dict:
         schema = super().render()
-        schema[MaidrKey.ORIENTATION] = (
-            "horz" if self._is_horizontal() else "vert"
+        horizontal = self._is_horizontal()
+        schema[MaidrKey.ORIENTATION] = "horz" if horizontal else "vert"
+        order_box_rows(
+            schema,
+            horizontal=horizontal,
+            y_reversed=self._axis_runs_backwards(self._yaxis_name),
         )
         return schema
 
