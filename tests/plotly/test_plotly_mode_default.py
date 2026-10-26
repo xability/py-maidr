@@ -170,8 +170,9 @@ class TestScatterglSharesTheRule:
     def test_a_long_gl_trace_is_a_connected_line(self):
         assert is_connected_line_trace(_trace(25, type="scattergl")) is True
 
-    def test_a_short_gl_trace_is_not(self):
-        assert is_connected_line_trace(_trace(5, type="scattergl")) is False
+    def test_a_short_gl_trace_is_one_too(self):
+        # "lines+markers": joined, with a marker on each sample.
+        assert is_connected_line_trace(_trace(5, type="scattergl")) is True
 
 
 class TestModelessClassification:
@@ -180,8 +181,10 @@ class TestModelessClassification:
     def test_a_long_modeless_trace_is_a_connected_line(self):
         assert is_connected_line_trace(_trace(25)) is True
 
-    def test_a_short_modeless_trace_is_not(self):
-        assert is_connected_line_trace(_trace(5)) is False
+    def test_a_short_modeless_trace_is_one_too(self):
+        # Plotly's default below twenty points is "lines+markers", which
+        # joins the samples as "lines" does and marks each of them.
+        assert is_connected_line_trace(_trace(5)) is True
 
     def test_an_explicit_mode_still_wins_over_the_default(self):
         # A 25-point trace defaults to "lines", but an explicit markers mode
@@ -212,20 +215,36 @@ class TestTheExportedLayer:
         # The bug: this announced as loose points while plotly drew a line.
         assert self._types(25) == [PlotType.LINE]
 
-    def test_a_short_modeless_chart_stays_a_scatter(self):
-        # Unchanged, and deliberately so: plotly draws markers here, and an
+    def test_a_short_modeless_chart_is_a_line_too(self):
+        # Plotly draws it as a line with a marker on each sample, and an
         # explicit "lines+markers" is classified the same way.
-        assert self._types(6) == [PlotType.SCATTER]
+        assert self._types(6) == [PlotType.LINE]
+
+    def test_markers_alone_are_a_scatter(self):
+        assert self._types(6, mode="markers") == [PlotType.SCATTER]
+        assert self._types(25, mode="markers") == [PlotType.SCATTER]
+
+    def test_a_line_drawn_with_markers_is_a_line_named_by_its_path(self):
+        # The gallery's facet panels, "Line Plot 1".."3": plotly joins the
+        # points and marks each one. Read as a scatter they were announced as
+        # scatter plots with a correlation and no braille line.
+        fig = go.Figure()
+        fig.add_scatter(x=[0, 1, 2, 3, 4], y=[3, 9, 7, 6, 1], mode="lines+markers")
+        (layer,) = _layers(fig)
+
+        assert layer[MaidrKey.TYPE] == PlotType.LINE
+        assert layer[MaidrKey.SELECTOR] == [
+            ".subplot.xy .scatterlayer > .trace.scatter:nth-child(1) path.js-line"
+        ]
 
     def test_a_stacked_modeless_chart_is_connected_at_any_size(self):
-        # `stackgroup` makes plotly connect the samples whatever the mode
-        # default would have been, so six points is a band rather than the
-        # loose markers a mode-less six-point scatter gets. This asserted
-        # `LINE` until #392 taught the adapter that a stacked trace is a
-        # filled area -- a stricter reading of the same figure, and the
-        # property being guarded here is unchanged: not `SCATTER`.
+        # `stackgroup` makes plotly connect the samples and fill under them,
+        # so six points is a band, where the same six unstacked are a line.
+        # This asserted `LINE` until #392 taught the adapter that a stacked
+        # trace is a filled area -- a stricter reading of the same figure,
+        # and the property being guarded here is unchanged: not `SCATTER`.
         assert self._types(6, stackgroup="one") == [PlotType.AREA]
-        assert self._types(6) == [PlotType.SCATTER]
+        assert self._types(6) == [PlotType.LINE]
 
     def test_the_rescued_line_gets_a_scoped_selector(self):
         # Reclassifying is only half the job -- the layer has to carry a

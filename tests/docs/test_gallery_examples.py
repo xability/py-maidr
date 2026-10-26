@@ -190,7 +190,7 @@ EXPECTED_LAYERS: dict[str, dict[str, list[Figure]]] = {
         "Multipanel Plot (Line + Bar + Scatter)": [["line", "bar", "point"]],
         "Facet Bar Plot (2x2 Grid)": [["bar", "bar", "bar", "bar"]],
         "Facet Combined Plot (Line + Bar)": [
-            ["point", "bar", "point", "bar", "point", "bar"]
+            ["line", "bar", "line", "bar", "line", "bar"]
         ],
         # Declared in each trace's `meta.maidr`, as maidr.js reads plotly.
         "Precision-Recall Curve [experimental]": [["pr_curve"]],

@@ -37,20 +37,23 @@ class TestPlotlyPlotFactory:
         assert isinstance(plot, PlotlyLinePlot)
         assert plot.type == PlotType.LINE
 
-    def test_scatter_lines_markers_is_scatter(self):
+    def test_scatter_lines_markers_is_a_line(self):
+        # Plotly joins the samples and marks each one: a line with markers.
         trace = {
             "type": "scatter",
             "mode": "lines+markers",
-            "x": [1],
-            "y": [2],
+            "x": [1, 2, 3],
+            "y": [2, 1, 3],
         }
         plot = PlotlyPlotFactory.create(trace, {})
-        assert isinstance(plot, PlotlyScatterPlot)
+        assert isinstance(plot, PlotlyLinePlot)
+        assert plot.type == PlotType.LINE
 
-    def test_scatter_default_mode_is_markers(self):
-        trace = {"type": "scatter", "x": [1], "y": [2]}
+    def test_scatter_default_mode_joins_the_samples(self):
+        # No `mode` is plotly's default, "lines+markers" below twenty points.
+        trace = {"type": "scatter", "x": [1, 2, 3], "y": [2, 1, 3]}
         plot = PlotlyPlotFactory.create(trace, {})
-        assert isinstance(plot, PlotlyScatterPlot)
+        assert isinstance(plot, PlotlyLinePlot)
 
     def test_box_trace(self):
         trace = {"type": "box", "y": [1, 2, 3]}

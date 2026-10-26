@@ -205,6 +205,14 @@ def is_connected_line_trace(trace: dict) -> bool:
     Spelling it out twice is what previously let the two tests drift apart and
     produce a trace that was a line but had no selector position.
 
+    A mode that draws markers as well as lines is a line. Plotly still joins
+    the samples, in the order the trace lists them, and draws a marker on
+    each; read as a scatter, a line chart with markers was announced as a
+    scatter plot with a correlation, lost its braille line, and had Up and
+    Down sort its points by value. maidr.js's own plotly adapter reads it as
+    a line, as py-maidr's polar reader does an outline drawn with markers,
+    and as matplotlib's ``plot("o-")`` is.
+
     Parameters
     ----------
     trace : dict
@@ -221,21 +229,13 @@ def is_connected_line_trace(trace: dict) -> bool:
 
     mode = trace.get("mode")
     if mode is None:
-        # A declared stepping shape settles it on its own: plotly draws the
-        # risers whatever the resolved mode turns out to be, so the data is
-        # piecewise constant either way. Checked before the default so a
-        # short staircase -- where the default adds markers -- still binds as
-        # a step rather than as loose points.
-        if is_step_trace(trace):
-            return True
-
-        # Otherwise stand in plotly's own default, because ``to_dict()``
-        # omits ``mode`` rather than recording it. Reading absent-as-markers
-        # described a chart plotly draws as a connected line as scattered
-        # points, losing the connectivity of the data entirely.
+        # Stand in plotly's own default, because ``to_dict()`` omits ``mode``
+        # rather than recording it. Reading absent-as-markers described a
+        # chart plotly draws as a connected line as scattered points, losing
+        # the connectivity of the data entirely.
         mode = default_mode(trace)
 
-    return "lines" in mode and "markers" not in mode
+    return "lines" in mode
 
 
 def is_step_shape(shape: str | None) -> bool:
