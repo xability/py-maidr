@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
 from maidr.plotly.plotly_plot import PlotlyPlot, tick_names
@@ -158,7 +160,7 @@ class PlotlyStepPlot(PlotlyPlot):
         for series in data:
             for point in series:
                 try:
-                    name = levels.get(float(point.get(ky)))
+                    name = _level_at(levels, float(point.get(ky)))
                 except (TypeError, ValueError):
                     continue
                 if name:
@@ -181,3 +183,28 @@ class PlotlyStepPlot(PlotlyPlot):
         """
         series, _ = self._drawn_line_series(self._traces, self._scatter_positions)
         return series
+
+
+def _level_at(levels: dict[float, str], value: float) -> str | None:
+    """
+    Return the name of the tick a value sits on, or None.
+
+    Matched by closeness rather than by equality, so a value computed as
+    ``0.1 + 0.2`` sits on a tick placed at ``0.3``, as it does on the chart.
+
+    Parameters
+    ----------
+    levels : dict of float to str
+        ``{tick position: name}``, as :func:`tick_names` returns it.
+    value : float
+        A point's ``y``.
+
+    Returns
+    -------
+    str or None
+        The tick's name, or None when the value is on no named tick.
+    """
+    for position, name in levels.items():
+        if math.isclose(value, position, rel_tol=1e-9, abs_tol=1e-12):
+            return name
+    return None

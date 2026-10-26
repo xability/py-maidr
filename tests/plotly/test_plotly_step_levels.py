@@ -114,7 +114,10 @@ def test_numbers_written_out_and_blanks_name_no_level():
 def test_a_word_float_would_read_is_still_a_name():
     # `float` takes "NaN" and "Infinity"; a tick named so is named so.
     points = _points(
-        _hypnogram(tickvals=[0, 1, 2, 3, 4], ticktext=["NaN", "Infinity", "1e3", "−2", ".5"])
+        _hypnogram(
+            tickvals=[0, 1, 2, 3, 4],
+            ticktext=["NaN", "Infinity", "1e3", "\u22122", ".5"],
+        )
     )
 
     assert {p["y"]: p.get("label") for p in points} == {
@@ -124,6 +127,16 @@ def test_a_word_float_would_read_is_still_a_name():
         3: None,
         4: None,
     }
+
+
+def test_a_computed_value_on_a_named_tick_takes_its_name():
+    # 0.1 + 0.2 is 0.30000000000000004, drawn on the tick at 0.3.
+    fig = go.Figure(
+        go.Scatter(x=[0, 1], y=[0.1 + 0.2, 0.6], mode="lines", line_shape="hv")
+    )
+    fig.update_layout(yaxis={"tickvals": [0.3, 0.6], "ticktext": ["Low", "High"]})
+
+    assert [p.get("label") for p in _points(fig)] == ["Low", "High"]
 
 
 def test_a_name_is_read_without_its_markup():
