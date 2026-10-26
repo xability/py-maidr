@@ -1,5 +1,5 @@
 """
-Generated titles for the panels of a seaborn grid.
+Generated titles for the panels of a seaborn grid, or of a grid maidr draws.
 
 A layer's title is the axes title (``MaidrPlot._schema``), and it is what the
 core reads back when a reader arrows across a multi-panel figure's lobby:
@@ -9,7 +9,9 @@ core reads back when a reader arrows across a multi-panel figure's lobby:
 seaborn's ``PairGrid`` and ``JointGrid`` set no titles on their cells -- they
 label the grid's outer edge with axis labels instead -- so every panel of a
 pairplot announced as ``Subplot N`` and nothing more, on a chart whose whole
-purpose is that its panels are comparable (#660).
+purpose is that its panels are comparable (#660). The scatter matrix of a
+TensorBoard hyperparameter sweep (``maidr.tensorboard.hparams``) is drawn
+the same way and names its cells here too.
 
 **The panel's identity is declared, not inferred.** ``PairGrid`` knows its
 ``x_vars``, ``y_vars`` and ``diag_vars``; ``JointGrid`` names its three axes
@@ -77,8 +79,9 @@ def panel_title(ax: Axes) -> str:
     Returns
     -------
     str
-        The title generated for this panel, or ``""`` when it is not a
-        seaborn grid panel -- every ordinary chart, which is unaffected.
+        The title generated for this panel, or ``""`` when it is not the
+        panel of a grid named here -- every ordinary chart, which is
+        unaffected.
     """
     try:
         return _TITLES.get(ax, "")

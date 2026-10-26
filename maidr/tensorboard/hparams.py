@@ -36,6 +36,7 @@ from maidr.tensorboard.events import (
 )
 from maidr.tensorboard.logdir import TensorBoardChart
 from maidr.util.caller_warning import warn_at_caller
+from maidr.util.panel_title import remember_panel_title
 
 __all__ = ["Session", "load_hparams", "read_tensorboard_hparams"]
 
@@ -163,7 +164,8 @@ def read_tensorboard_hparams(logdir: str | os.PathLike) -> list[TensorBoardChart
     sorted order, and the axis says which position is which, such as
     ``optimizer (0 adam, 1 sgd)``. The scatter matrix puts such a
     hyperparameter on a category axis in the same order, so each session is
-    read by its value, such as ``optimizer is sgd``.
+    read by its value, such as ``optimizer is sgd``; each of its cells is
+    named for what it plots, such as ``accuracy vs optimizer``.
 
     Examples
     --------
@@ -312,7 +314,9 @@ def _matrix(hparams: list[_Column], metrics: list[_Column]) -> Figure:
     A hyperparameter whose values are strings or bools is drawn on a category
     axis, its values in the sorted order that places them on the parallel
     coordinates, so each point is read by the value its tick shows rather
-    than by its position.
+    than by its position. Each cell is named for what it plots, as
+    ``"accuracy vs optimizer"``; the name is read out, not drawn, so the
+    matrix keeps the dashboard's layout of labels on its edges.
     """
     rows, cols = max(len(metrics), 1), max(len(hparams), 1)
     fig = Figure(figsize=(min(14.0, 2.8 * cols + 0.8), min(14.0, 2.4 * rows + 0.6)))
@@ -338,6 +342,7 @@ def _matrix(hparams: list[_Column], metrics: list[_Column]) -> Figure:
             ax.set_xlabel(hparam.short, fontsize=8)
             ax.set_ylabel(metric.name, fontsize=8)
             ax.tick_params(labelsize=7)
+            remember_panel_title(ax, f"{metric.short} vs {hparam.short}")
     fig.suptitle("Each hyperparameter against each metric")
     fig.tight_layout()
     return fig

@@ -113,6 +113,21 @@ def test_the_scatter_matrix_names_each_categorical_value():
     assert all("xLabel" not in p for p in learning_rate["layers"][0]["data"])
 
 
+def test_each_cell_of_the_scatter_matrix_is_named_for_what_it_plots():
+    _, matrix = read_tensorboard_hparams(SWEEP)
+    titles = [
+        [cell["layers"][0]["title"] for cell in row]
+        for row in _schema(matrix)["subplots"]
+    ]
+    hparams = ["learning_rate", "optimizer", "units", "dropout"]
+    assert titles == [
+        [f"{metric} vs {hparam}" for hparam in hparams]
+        for metric in ["accuracy", "validation/loss"]
+    ]
+    # The names are read, not drawn: the cells keep TensorBoard's layout.
+    assert all(not ax.get_title() for ax in matrix.figure.axes)
+
+
 def test_without_an_experiment_every_scalar_of_a_session_is_a_metric(tmp_path):
     import shutil
 
