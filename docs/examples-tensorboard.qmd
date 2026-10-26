@@ -171,7 +171,9 @@ maidr.show(top_operations)
 plugin's `hp.hparams_config` and `hp.hparams`, as the HParams dashboard shows
 it, and returns two charts. The second is its scatter plot matrix: a row per
 metric and a column per hyperparameter, one point per training session.
-Page Up and Page Down move between the cells. The example reads
+Each cell is a subplot: press <kbd>Enter</kbd> to go into one,
+<kbd>Escape</kbd> to come back out, and the arrow keys between them, in the
+directions they are laid out on the page. The example reads
 `tensorboard-hparams/`, four sessions of a sweep over the learning rate,
 optimizer, units and dropout, measuring accuracy and validation loss.
 

@@ -33,10 +33,12 @@ disk, with no Keras installed.
 
 One chart per metric, the loss first, each with a *training* and a
 *validation* line along the epochs, counted from 1 as Keras counts them. The
-left and right arrow keys move along the epochs, up and down move to the other
-line, and Page Up and Page Down move between the charts. A metric logged
-without a validation value, such as the learning rate, is one line named for
-itself.
+charts are subplots of one figure, one above the other: press
+<kbd>Enter</kbd> to go into one, <kbd>Escape</kbd> to come back out, and the
+up and down arrow keys between them. Inside a chart the left and right arrow
+keys move along the epochs, and up and down move to the other line. A metric
+logged without a validation value, such as the learning rate, is one line
+named for itself.
 
 ```{python}
 #| warning: false
