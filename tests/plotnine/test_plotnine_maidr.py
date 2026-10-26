@@ -91,6 +91,25 @@ def _centre(path) -> tuple[float, float]:
     return float(xy[:, 0].mean()), float(xy[:, 1].mean())
 
 
+def _miss(path, xs, ys) -> float:
+    """
+    How far a path's vertices are from the points ``(xs, ys)``, in order.
+
+    maidr.js puts the highlight of a line's i-th point on its path's i-th
+    vertex. On linear axes the vertices of a path drawn through the points
+    are their affine image, one each, in the same order; this is the largest
+    distance, in SVG units, of a vertex from the best such image.
+    """
+    vertices = _points_of(path)
+    assert len(vertices) == len(xs), "the path has not a vertex for every point"
+    worst = 0.0
+    for values, drawn in ((xs, vertices[:, 0]), (ys, vertices[:, 1])):
+        design = np.column_stack([np.asarray(values, dtype=float), np.ones(len(drawn))])
+        fit = np.linalg.lstsq(design, drawn, rcond=None)[0]
+        worst = max(worst, float(np.abs(design @ fit - drawn).max()))
+    return worst
+
+
 def _warnings_of(plot) -> list[str]:
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
@@ -434,6 +453,38 @@ def test_a_smooth_carries_its_band_and_leaves_a_line_beside_it_alone():
     assert len(_points_of(_one(root, selector))) == len(smooth["data"][0])
 
 
+#: Two hundred months of a smooth series: matplotlib merges most of the
+#: vertices of a path this long and this smooth as it draws it.
+MONTHLY = pd.DataFrame(
+    {
+        "month": pd.date_range("2000-01-01", periods=200, freq="MS"),
+        "v": 50 + 10 * np.sin(np.linspace(0, 6, 200)),
+    }
+)
+
+
+def test_a_long_line_has_a_vertex_at_each_point_it_announces():
+    schema, root = _read(ggplot(MONTHLY, aes("month", "v")) + geom_line())
+    layer = _only(schema)
+    (points,) = layer["data"]
+    (selector,) = layer["selectors"]
+
+    assert [p["x"] for p in points[:2]] == ["2000-01-01", "2000-02-01"]
+    days = (pd.to_datetime([p["x"] for p in points]) - MONTHLY["month"][0]).days
+    assert _miss(_one(root, selector), days, [p["y"] for p in points]) < 0.01
+
+
+def test_a_long_smooth_has_a_vertex_at_each_point_it_announces():
+    plot = ggplot(XY, aes("x", "y")) + geom_smooth(method="lm", se=False, n=200)
+    schema, root = _read(plot)
+    (points,) = _only(schema)["data"]
+    (selector,) = _only(schema)["selectors"]
+
+    assert len(points) == 200
+    xs, ys = [p["x"] for p in points], [p["y"] for p in points]
+    assert _miss(_one(root, selector), xs, ys) < 0.01
+
+
 # --------------------------------------------------------------------------
 # Precision-recall curves
 # --------------------------------------------------------------------------
@@ -481,6 +532,104 @@ def test_a_line_per_classifier_is_a_named_curve_each():
     assert [{p["z"] for p in curve} for curve in layer["data"]] == [{"a"}, {"b"}]
     assert layer["data"][1][0] == {"x": 0.0, "y": 0.5, "z": "b"}
     assert [len(_points_of(_one(root, s))) for s in layer["selectors"]] == [5, 5]
+
+
+def _from_high_recall_down(n: int = 300) -> pd.DataFrame:
+    """
+    A curve as ``precision_recall_curve`` answers it, too long to draw whole.
+
+    One point per threshold, from high recall down, the recall repeating
+    wherever the threshold passes a negative; 300 points, so matplotlib
+    would merge vertices of the path as it draws it.
+    """
+    rng = np.random.default_rng(0)
+    positive = rng.random(n) < 0.3
+    ranked = positive[np.argsort(-(positive + rng.normal(0, 1, n)))]
+    tp, fp = np.cumsum(ranked), np.cumsum(~ranked)
+    curve = pd.DataFrame({"recall": tp / tp[-1], "precision": tp / (tp + fp)})
+    return curve.iloc[::-1].reset_index(drop=True)
+
+
+def test_a_curve_drawn_from_high_recall_down_is_paired_from_its_last_vertex():
+    frame = _from_high_recall_down()
+    schema, root = _read(ggplot(frame, aes("recall", "precision")) + geom_path())
+    layer = _only(schema)
+    (points,) = layer["data"]
+    (selector,) = layer["selectors"]
+
+    recall = [p["x"] for p in points]
+    assert len(recall) == len(frame) and recall == sorted(recall)
+    # The first point read is the last vertex drawn, and maidr.js is told so.
+    assert layer["domMapping"] == {"pointOrder": "reverse"}
+    drawn = points[::-1]
+    xs, ys = [p["x"] for p in drawn], [p["y"] for p in drawn]
+    assert _miss(_one(root, selector), xs, ys) < 0.01
+
+
+def test_curves_all_drawn_from_high_recall_down_are_each_paired_from_the_end():
+    frame = pd.concat(
+        [
+            _from_high_recall_down(300).assign(model="a"),
+            _from_high_recall_down(200).assign(model="b"),
+        ]
+    )
+    plot = ggplot(frame, aes("recall", "precision", color="model")) + geom_path()
+    schema, root = _read(plot)
+    layer = _only(schema)
+
+    assert layer["domMapping"] == {"pointOrder": "reverse"}
+    assert [len(points) for points in layer["data"]] == [300, 200]
+    for points, selector in zip(layer["data"], layer["selectors"]):
+        drawn = points[::-1]
+        xs, ys = [p["x"] for p in drawn], [p["y"] for p in drawn]
+        assert _miss(_one(root, selector), xs, ys) < 0.01
+
+
+def test_a_curve_drawn_from_low_recall_up_is_read_as_its_line_passes_each_point():
+    schema, root = _read(ggplot(PR, aes("recall", "precision")) + geom_line())
+    layer = _only(schema)
+    (points,) = layer["data"]
+    (selector,) = layer["selectors"]
+
+    # geom_line orders the rows by recall alone, so at 0.5 the line rises
+    # from 0.7 to 0.9 before it goes on.
+    assert [(p["x"], p["y"]) for p in points] == [
+        (0.0, 1.0),
+        (0.5, 0.7),
+        (0.5, 0.9),
+        (0.8, 0.6),
+        (1.0, 0.4),
+    ]
+    assert "domMapping" not in layer
+    xs, ys = [p["x"] for p in points], [p["y"] for p in points]
+    assert _miss(_one(root, selector), xs, ys) < 0.01
+
+
+@pytest.mark.parametrize(
+    "frame",
+    [
+        # Rows in no order of recall: the path turns back on itself.
+        PR.iloc[[2, 0, 4, 1, 3]].assign(model="a"),
+        # One curve drawn from high recall down, the other from low recall up.
+        pd.concat([PR.assign(model="a"), PR.iloc[::-1].assign(model="b")]),
+    ],
+    ids=["turns-back", "both-ways"],
+)
+def test_curves_no_one_drawing_order_fits_are_read_sorted_without_a_highlight(frame):
+    plot = ggplot(frame, aes("recall", "precision", color="model")) + geom_path()
+    layer = _only(_read(plot)[0])
+
+    assert layer["type"] == "pr_curve"
+    for points in layer["data"]:
+        assert [(p["x"], p["y"]) for p in points] == [
+            (0.0, 1.0),
+            (0.5, 0.9),
+            (0.5, 0.7),
+            (0.8, 0.6),
+            (1.0, 0.4),
+        ]
+    assert "selectors" not in layer
+    assert "domMapping" not in layer
 
 
 @pytest.mark.parametrize(
