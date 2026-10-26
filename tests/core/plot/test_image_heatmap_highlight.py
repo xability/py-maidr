@@ -11,7 +11,8 @@ pixels -- so those attributes do not give its box; ``HeatPlot.finish_svg``
 restates them so they do, drawing the same picture in the same place.
 
 A grid whose cells the overlay would not land on -- ``origin="lower"``, an
-inverted axis, a view cut short of the image -- keeps no highlight, as before.
+inverted axis, a view cut short of the image, an image written in a form
+``finish_svg`` does not know -- keeps no highlight, as before.
 The outline itself is measured in a browser by
 ``tests/browser/test_image_heatmap_highlight.py``.
 """
@@ -168,3 +169,28 @@ def test_a_grid_the_overlay_would_misplace_keeps_no_highlight(chart):
     assert "selectors" not in layer
     # Not named, so not restated: the image is written as matplotlib wrote it.
     assert image.get_gid() is None
+
+
+@pytest.mark.parametrize(
+    "transform",
+    ["rotate(90)", "matrix(0 1 -1 0 5 6)", "scale(2 -1) translate(0 -20)"],
+)
+def test_an_image_in_another_form_loses_its_id_not_its_place(transform):
+    # matplotlib writes an image in one of two forms. In any other, the
+    # attributes maidr.js reads would not be the image's box, and the outline
+    # would land on cells the image does not draw there; the image stays
+    # where it is but goes unnamed, so its cells are announced without one.
+    figure, _, image, _, _, _ = _render(lambda ax: ax.imshow(GRID))
+    (plot,) = FigureManager.get_maidr(figure)._plots
+    tree = etree.fromstring(
+        '<svg xmlns="http://www.w3.org/2000/svg"><g><image/></g></svg>'
+    )
+    (drawn,) = tree.xpath("//*[local-name()='image']")
+    written = {"x": "1", "y": "2", "width": "30", "height": "20"}
+    for name, value in {**written, "transform": transform}.items():
+        drawn.set(name, value)
+    drawn.set("id", image.get_gid())
+
+    plot.finish_svg(tree)
+
+    assert dict(drawn.attrib) == {**written, "transform": transform}

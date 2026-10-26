@@ -135,7 +135,11 @@ class HeatPlot(
         The image is restated, not changed: the same picture at the same place,
         its ``x``, ``y``, ``width`` and ``height`` now its box on the page and
         its ``transform`` only the flip about that box's middle the picture
-        needs. An image written in any other form is left as it was.
+        needs. An image written in any other form is left as it was but for
+        its ``id``, which it loses: its attributes would not be its box, and
+        maidr.js would outline cells it did not draw there. Without the id the
+        selector names nothing, and the cells are announced without an
+        outline, as they were before the image was named.
 
         Parameters
         ----------
@@ -148,8 +152,8 @@ class HeatPlot(
             drawn = tree.xpath(
                 "//*[local-name()='image'][@id=$gid]", gid=str(element.get_gid())
             )
-            if len(drawn) == 1:
-                _place_upright(drawn[0])
+            if len(drawn) == 1 and not _place_upright(drawn[0]):
+                del drawn[0].attrib["id"]
 
     def _cells_overlay_image(self, sm: ScalarMappable | None) -> bool:
         """
@@ -567,7 +571,7 @@ class HeatPlot(
         return value if math.isfinite(value) else None
 
 
-def _place_upright(image: Any) -> None:
+def _place_upright(image: Any) -> bool:
     """
     Restate an ``<image>`` matplotlib wrote so its attributes are its box.
 
@@ -593,6 +597,11 @@ def _place_upright(image: Any) -> None:
     ----------
     image : lxml.etree._Element
         The ``<image>`` element, modified in place.
+
+    Returns
+    -------
+    bool
+        True when the image was restated; False when it was in neither form.
     """
     transform = image.get("transform", "")
     numbers = [float(number) for number in _NUMBER.findall(transform)]
@@ -600,28 +609,28 @@ def _place_upright(image: Any) -> None:
         width = float(image.get("width"))
         height = float(image.get("height"))
     except (TypeError, ValueError):
-        return
+        return False
 
     if transform.startswith("scale(") and len(numbers) == 4:
         sx, sy, tx, ty = numbers
         if (sx, sy, tx) != (1.0, -1.0, 0.0) or not math.isclose(ty, -height):
-            return
+            return False
         try:
             x = float(image.get("x", 0))
             y = -float(image.get("y", 0))
         except ValueError:
-            return
+            return False
         flips = (False, True)
     elif transform.startswith("matrix(") and len(numbers) == 6:
         a, b, c, d, e, f = numbers
         if b != 0 or c != 0 or a == 0 or d == 0:
-            return
+            return False
         x, y = min(e, e + a * width), min(f, f + d * height)
         width, height = abs(a) * width, abs(d) * height
         flips = (a < 0, d < 0)
         image.set("preserveAspectRatio", "none")
     else:
-        return
+        return False
 
     image.set("x", _number(x))
     image.set("y", _number(y))
@@ -635,6 +644,7 @@ def _place_upright(image: Any) -> None:
         image.set("transform", f"matrix({sx} 0 0 {sy} {_number(tx)} {_number(ty)})")
     else:
         del image.attrib["transform"]
+    return True
 
 
 def _number(value: float) -> str:
