@@ -109,6 +109,36 @@ def test_quotes_given_as_a_generator_are_read():
     assert _prices(layer) == EXPECTED
 
 
+def test_quotes_given_by_keyword_as_a_generator_are_read():
+    # Both public functions pass the quotes by position; `_candlestick`, the
+    # function the patch wraps, takes them by keyword as well. Looked up on
+    # the module at call time, as the public functions look it up: the name
+    # imported before `import maidr` is the unwrapped function.
+    import mplfinance.original_flavor as original_flavor
+
+    quotes = (tuple(quote) for quote in _ohlc())
+    _, _, layer, _ = _candles(
+        lambda ax: original_flavor._candlestick(
+            ax, quotes=quotes, width=0.6, ochl=False
+        )
+    )
+
+    assert _prices(layer) == EXPECTED
+
+
+def test_no_quotes_register_no_layer():
+    # Nothing is drawn, so there is no candle for a layer to hold. The call
+    # used to raise an AttributeError, from looking for the axes of the empty
+    # list of artists it drew.
+    figure, ax = plt.subplots()
+    candlestick_ohlc(ax, [], width=0.6)
+
+    registered = FigureManager.figs.get(figure)
+    assert registered is None or not [
+        plot for plot in registered._plots if plot.type == PlotType.CANDLESTICK
+    ]
+
+
 def test_candlestick_ochl_reads_its_own_column_order():
     # Each quote is (time, open, close, high, low) here; read as ohlc it
     # would announce every close as a high.
