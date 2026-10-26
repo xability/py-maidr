@@ -89,6 +89,30 @@ def test_the_scatter_matrix_is_a_row_per_metric_and_a_column_per_hyperparameter(
     assert sorted(point["x"] for point in cell["data"]) == [8, 16, 32, 32]
 
 
+def test_the_scatter_matrix_names_each_categorical_value():
+    _, matrix = read_tensorboard_hparams(SWEEP)
+    learning_rate, optimizer, _, dropout = _schema(matrix)["subplots"][0]
+    optimizer = optimizer["layers"][0]
+    dropout = dropout["layers"][0]
+    # Each session's value is read as the cell's tick shows it, at the
+    # position the parallel coordinates give it ("optimizer (0 adam, 1 sgd)").
+    assert optimizer["axes"]["x"]["label"] == "optimizer"
+    assert [(p["x"], p["xLabel"]) for p in optimizer["data"]] == [
+        (1, "sgd"),
+        (0, "adam"),
+        (0, "adam"),
+        (1, "sgd"),
+    ]
+    assert [(p["x"], p["xLabel"]) for p in dropout["data"]] == [
+        (1, "True"),
+        (0, "False"),
+        (1, "True"),
+        (0, "False"),
+    ]
+    # A numeric hyperparameter is read as its numbers.
+    assert all("xLabel" not in p for p in learning_rate["layers"][0]["data"])
+
+
 def test_without_an_experiment_every_scalar_of_a_session_is_a_metric(tmp_path):
     import shutil
 

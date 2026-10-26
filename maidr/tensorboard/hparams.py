@@ -20,6 +20,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
+import numpy as np
 from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
 
@@ -160,7 +161,9 @@ def read_tensorboard_hparams(logdir: str | os.PathLike) -> list[TensorBoardChart
     as it is drawn. A hyperparameter whose values are strings or bools is
     placed by the position of its value among the values the sweep tried, in
     sorted order, and the axis says which position is which, such as
-    ``optimizer (0 adam, 1 sgd)``.
+    ``optimizer (0 adam, 1 sgd)``. The scatter matrix puts such a
+    hyperparameter on a category axis in the same order, so each session is
+    read by its value, such as ``optimizer is sgd``.
 
     Examples
     --------
@@ -303,13 +306,25 @@ def _parallel(names: tuple[str, ...], columns: list[_Column]) -> Figure:
 
 
 def _matrix(hparams: list[_Column], metrics: list[_Column]) -> Figure:
-    """Draw each hyperparameter against each metric, a row per metric."""
+    """
+    Draw each hyperparameter against each metric, a row per metric.
+
+    A hyperparameter whose values are strings or bools is drawn on a category
+    axis, its values in the sorted order that places them on the parallel
+    coordinates, so each point is read by the value its tick shows rather
+    than by its position.
+    """
     rows, cols = max(len(metrics), 1), max(len(hparams), 1)
     fig = Figure(figsize=(min(14.0, 2.8 * cols + 0.8), min(14.0, 2.4 * rows + 0.6)))
     grid = fig.subplots(rows, cols, squeeze=False)
     for r, metric in enumerate(metrics):
         for c, hparam in enumerate(hparams):
             ax = grid[r][c]
+            if hparam.ticks is not None:
+                # Seeded before anything is drawn, so the values take the
+                # positions the parallel coordinates name, not the order the
+                # sessions first used them in.
+                ax.xaxis.update_units(np.asarray(hparam.ticks))
             pairs = [
                 (x, y)
                 for x, y in zip(hparam.values, metric.values)
@@ -317,9 +332,9 @@ def _matrix(hparams: list[_Column], metrics: list[_Column]) -> Figure:
             ]
             if pairs:
                 xs, ys = zip(*pairs)
+                if hparam.ticks is not None:
+                    xs = tuple(hparam.ticks[int(x)] for x in xs)
                 ax.scatter(xs, ys, color=_LINES, s=24)
-            if hparam.ticks is not None:
-                ax.set_xticks(range(len(hparam.ticks)), hparam.ticks)
             ax.set_xlabel(hparam.short, fontsize=8)
             ax.set_ylabel(metric.name, fontsize=8)
             ax.tick_params(labelsize=7)
