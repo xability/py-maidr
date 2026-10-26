@@ -566,6 +566,25 @@ def test_a_curve_drawn_from_high_recall_down_is_paired_from_its_last_vertex():
     assert _miss(_one(root, selector), xs, ys) < 0.01
 
 
+def test_curves_all_drawn_from_high_recall_down_are_each_paired_from_the_end():
+    frame = pd.concat(
+        [
+            _from_high_recall_down(300).assign(model="a"),
+            _from_high_recall_down(200).assign(model="b"),
+        ]
+    )
+    plot = ggplot(frame, aes("recall", "precision", color="model")) + geom_path()
+    schema, root = _read(plot)
+    layer = _only(schema)
+
+    assert layer["domMapping"] == {"pointOrder": "reverse"}
+    assert [len(points) for points in layer["data"]] == [300, 200]
+    for points, selector in zip(layer["data"], layer["selectors"]):
+        drawn = points[::-1]
+        xs, ys = [p["x"] for p in drawn], [p["y"] for p in drawn]
+        assert _miss(_one(root, selector), xs, ys) < 0.01
+
+
 def test_a_curve_drawn_from_low_recall_up_is_read_as_its_line_passes_each_point():
     schema, root = _read(ggplot(PR, aes("recall", "precision")) + geom_line())
     layer = _only(schema)
