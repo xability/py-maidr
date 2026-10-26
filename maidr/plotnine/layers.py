@@ -26,7 +26,7 @@ import types
 import uuid
 from dataclasses import dataclass
 from numbers import Real
-from typing import Any, Callable
+from typing import Any, Callable, Literal
 
 import numpy as np
 from matplotlib.axes import Axes
@@ -752,7 +752,7 @@ def _series_layer(
 
 def _from_low_recall_up(
     rows: list[list[dict]],
-) -> tuple[list[list[dict]], str | None]:
+) -> tuple[list[list[dict]], Literal["data", "reverse"] | None]:
     """
     Each precision-recall curve read from low recall up, along its path.
 
