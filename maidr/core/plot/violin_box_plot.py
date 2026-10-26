@@ -235,10 +235,18 @@ class ViolinBoxPlot(MaidrPlot):
         Each ``LineCollection`` renders as ``<g id="gid"> <path/>... </g>``
         with one ``<path>`` per violin segment.  Use ``:nth-child(i)`` to
         select the *i*-th violin's element.
+
+        ``iq`` is left empty. maidr.js outlines the 25% and 75% stops at the
+        two ends of the element named there, and ``Axes.violinplot`` draws
+        nothing that spans the quartiles: its bar, ``cbars``, runs from the
+        minimum to the maximum. Named as ``iq``, it put the 25% outline on
+        the minimum's cap and the 75% outline on the maximum's (878 drawn
+        at 326, 4,679 at 18,806 on the gallery's Ideal violin). Unnamed,
+        those two stops are announced without an outline, as nothing marks
+        them on the chart.
         """
         cmins_gid = self._mpl_gids.get("cmins", "")
         cmaxes_gid = self._mpl_gids.get("cmaxes", "")
-        cbars_gid = self._mpl_gids.get("cbars", "")
         cmedians_gid = self._mpl_gids.get("cmedians", "")
         cmeans_gid = self._mpl_gids.get("cmeans", "")
 
@@ -250,11 +258,7 @@ class ViolinBoxPlot(MaidrPlot):
                 MaidrKey.MIN.value: (
                     f"g[id='{cmins_gid}'] > path:nth-child({nth})" if cmins_gid else ""
                 ),
-                # cbars is the vertical whisker bar (min→max), not the IQ range.
-                # Matplotlib violinplot has no IQ-range visual element.
-                MaidrKey.IQ.value: (
-                    f"g[id='{cbars_gid}'] > path:nth-child({nth})" if cbars_gid else ""
-                ),
+                MaidrKey.IQ.value: "",
                 MaidrKey.Q2.value: (
                     f"g[id='{cmedians_gid}'] > path:nth-child({nth})"
                     if cmedians_gid

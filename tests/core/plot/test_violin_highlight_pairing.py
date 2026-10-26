@@ -14,6 +14,10 @@ listed top first. Two things went wrong on the way there:
   whose inverted category axis draws the first one at the top. Seaborn's
   violins were listed bottom first, so the reader started on the top violin
   and Up moved down the page.
+
+The matplotlib box layer also named its min-to-max bar as the box's
+interquartile element, from whose two ends maidr.js draws the 25% and 75%
+outlines, so those landed on the minimum's and maximum's caps.
 """
 
 from __future__ import annotations
@@ -162,3 +166,16 @@ def test_matplotlib_box_selector_names_its_own_violin(vert: bool) -> None:
         for part in ("min", "q2", "max"):
             assert selector[part].endswith(nth), (row["z"], part, selector[part])
 
+
+def test_matplotlib_quartiles_are_not_outlined_on_the_extrema_bar() -> None:
+    """Nothing matplotlib draws spans the quartiles, so ``iq`` names nothing.
+
+    Named as the min-to-max bar, it put the 25% outline on the minimum's cap
+    and the 75% outline on the maximum's.
+    """
+    fig, ax = plt.subplots()
+    ax.violinplot([[1, 2, 3, 4, 9], [2, 3, 4, 5, 6]], showmeans=True)
+    box = _layers(fig)[PlotType.VIOLIN_BOX]
+
+    assert [selector["iq"] for selector in box["selectors"]] == ["", ""]
+    assert all(selector["min"] and selector["max"] for selector in box["selectors"])
