@@ -40,6 +40,9 @@ DRAWN = [
     ("a  <span style='color:red'>red</span>   b", "a red b"),
     ("x &lt;5 &gt; &deg;", "x <5 > °"),
     ('<a href="https://example.com">site</a>', "site"),
+    # Plotly draws these as characters that show nothing, so nothing is read.
+    ("a&#0;b", "ab"),
+    ("a&#xD800;b", "ab"),
     ("<br>", ""),
     ("", ""),
     (None, ""),
@@ -93,6 +96,20 @@ class TestTitles:
         fig.update_layout(title="<br>")
 
         assert "title" not in _schema(fig)
+
+    def test_a_surrogate_entity_still_saves(self, tmp_path, monkeypatch):
+        # Read as the lone surrogate plotly draws for it, the title could not
+        # be written to the page: `save_html` raised UnicodeEncodeError.
+        import maidr
+
+        monkeypatch.setenv("MAIDR_CDN_VERSION", "latest")
+        fig = go.Figure(go.Bar(x=["a", "b"], y=[1, 2]))
+        fig.update_layout(title="Rate &#xD800;today")
+
+        page = tmp_path / "surrogate.html"
+        maidr.save_html(fig, file=str(page), use_cdn=True)
+
+        assert "Rate today" in page.read_text(encoding="utf-8")
 
     def test_each_subplot_title_loses_its_markup(self):
         fig = make_subplots(

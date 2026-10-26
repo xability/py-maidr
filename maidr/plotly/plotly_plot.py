@@ -1039,11 +1039,20 @@ def plain_text(text: Any) -> str:
 
 
 def _converted_entity(match: re.Match) -> str:
-    """One entity as plotly draws it: its character, or as written."""
+    """
+    One entity as plotly draws it: its character, or as written.
+
+    ``&#0;`` and a surrogate such as ``&#xD800;`` are dropped. Plotly draws
+    them as characters that show nothing (measured in Chromium), so there is
+    nothing to hear; and a lone surrogate cannot be written to a page at all,
+    so keeping it made ``save_html`` raise ``UnicodeEncodeError``.
+    """
     code = match.group(1)
     if not code.startswith("#"):
         return _ENTITIES.get(code, match.group(0))
     number = int(code[2:], 16) if code[1] == "x" else int(code[1:])
+    if number == 0 or 0xD800 <= number <= 0xDFFF:
+        return ""
     return chr(number) if number <= 0x10FFFF else match.group(0)
 
 
