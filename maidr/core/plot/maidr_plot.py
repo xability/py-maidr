@@ -14,6 +14,47 @@ from maidr.util.mixin import FormatExtractorMixin
 import uuid
 
 
+def twin_title(ax: Axes) -> str:
+    """
+    The title another axes twinned with ``ax`` carries, or the empty string.
+
+    ``ax.twinx()`` and ``ax.twiny()`` draw a second axes over the first, and
+    the two read as one chart with one title: the layers of both land in one
+    subplot. A title set on either is drawn over both, so a layer on the
+    untitled one took no title, and the chart was named "Chart with 2
+    layers" while it shows "Multilayer Plot Example": ``plt.title()`` after
+    ``twinx()`` titles the twin, and the bars drawn before it sat on the
+    untitled axes.
+
+    Twins are read from ``Axes._twinned_axes``, matplotlib's own record of
+    them, rather than from shared axes: ``sharex=True`` subplots share an
+    axis too and are separate charts with titles of their own.
+
+    Parameters
+    ----------
+    ax : Axes
+        The axes a layer was drawn on.
+
+    Returns
+    -------
+    str
+        The first non-empty title among the axes twinned with ``ax``, in the
+        figure's order of axes, or ``""``.
+    """
+    twins = getattr(type(ax), "_twinned_axes", None)
+    figure = ax.get_figure()
+    if twins is None or figure is None:
+        return ""
+    try:
+        siblings = set(twins.get_siblings(ax))
+    except Exception:  # noqa: BLE001 -- a private record; absence is no title
+        return ""
+    for other in figure.axes:
+        if other is not ax and other in siblings and other.get_title():
+            return other.get_title()
+    return ""
+
+
 #: Key a patch passes a layer's group name under.
 #:
 #: A chart that draws one layer per group -- a hue-split histogram, one KDE
@@ -161,9 +202,12 @@ class MaidrPlot(ABC, FormatExtractorMixin):
         maidr_schema = {
             MaidrKey.ID: str(uuid.uuid4()),
             MaidrKey.TYPE: self.type,
-            # The caller's own title wins; the generated one names a panel
-            # of a seaborn grid, which seaborn leaves untitled (#660).
-            MaidrKey.TITLE: self.ax.get_title() or panel_title(self.ax),
+            # The caller's own title wins; then a twin's, as the two draw one
+            # chart; the generated one names a panel of a seaborn grid, which
+            # seaborn leaves untitled (#660).
+            MaidrKey.TITLE: self.ax.get_title()
+            or twin_title(self.ax)
+            or panel_title(self.ax),
             MaidrKey.AXES: axes_data,
             MaidrKey.DATA: self._extract_plot_data(),
         }
