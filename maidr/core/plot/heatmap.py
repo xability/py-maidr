@@ -451,7 +451,8 @@ class HeatPlot(
             # One `<image>` for the whole grid, which maidr.js divides into
             # cells itself -- see `finish_svg`. Named by its gid, which
             # matplotlib writes as the image's `id`; assigned here because the
-            # schema is built before the draw.
+            # schema is built before the draw. A gid the caller set is kept,
+            # and named instead.
             if sm.get_gid() is None:
                 sm.set_gid(f"maidr-{uuid.uuid4()}")
             self._elements.append(sm)

@@ -171,6 +171,16 @@ def test_a_grid_the_overlay_would_misplace_keeps_no_highlight(chart):
     assert image.get_gid() is None
 
 
+def test_a_gid_the_caller_set_is_kept_and_named():
+    _, _, image, layer, rendered, _ = _render(
+        lambda ax: ax.imshow(GRID, gid="heat-grid")
+    )
+
+    assert image.get_gid() == "heat-grid"
+    found = CSSSelector(layer["selectors"])(rendered)
+    assert [element.get("id") for element in found] == ["heat-grid"]
+
+
 @pytest.mark.parametrize(
     "transform",
     ["rotate(90)", "matrix(0 1 -1 0 5 6)", "scale(2 -1) translate(0 -20)"],
