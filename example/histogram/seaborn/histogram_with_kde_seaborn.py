@@ -35,8 +35,9 @@ ax.set_ylabel("Density")
 ax.legend(title="Legend")
 
 # Add number formatters for better screen reader output
-# X-axis: values with one decimal
-ax.xaxis.set_major_formatter("{x:.1f}")
+# X-axis: two decimals, so neighbouring bin edges and KDE points read
+# apart; one decimal reads points 0.035 apart alike
+ax.xaxis.set_major_formatter("{x:.2f}")
 # Y-axis: density values with three decimals
 ax.yaxis.set_major_formatter("{x:.3f}")
 

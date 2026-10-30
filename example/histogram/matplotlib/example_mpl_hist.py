@@ -17,8 +17,9 @@ ax.set_xlabel("Petal Length (cm)")
 ax.set_ylabel("Frequency")
 
 # Add number formatters for better screen reader output
-# X-axis: measurements in cm with one decimal
-ax.xaxis.set_major_formatter("{x:.1f}")
+# X-axis: the 20 bins are 0.295 cm wide, so three decimals print every bin
+# edge as drawn (1.295, 1.590, ...); one would read 1.295 as 1.3
+ax.xaxis.set_major_formatter("{x:.3f}")
 # Y-axis: frequency counts as integers
 ax.yaxis.set_major_formatter("{x:.0f}")
 
