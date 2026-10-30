@@ -227,6 +227,54 @@ def name_for(ax: Axes, color) -> str | None:
     return None
 
 
+def own_label(ax: Axes, artist) -> str | None:
+    """
+    An artist's own label, when the legend shows it beside other entries.
+
+    The colour match above names the curves one call drew against each
+    other, and declines a call that drew one. But a chart is often several
+    such calls, each given its name directly::
+
+        sns.kdeplot(data1, label="Group 1 KDE", ax=ax)
+        sns.kdeplot(data2, label="Group 2 KDE", ax=ax)
+        ax.legend()
+
+    Each curve then carries the label the legend prints for it, which names
+    it exactly, with no colour to compare. Three such curves were three
+    layers announced identically.
+
+    Declined, as the colour match declines, where the name would not tell
+    the artist apart from anything: a label matplotlib made up (one starting
+    with ``_``), a legend that does not show it, a legend that shows it
+    twice, and a legend of one entry -- a name on the chart's only named
+    thing reads as though there were another to tell it from.
+
+    Parameters
+    ----------
+    ax : Axes
+        The axes drawn on, for its legend.
+    artist : Artist
+        The curve or band.
+
+    Returns
+    -------
+    str or None
+        The label, or ``None``.
+    """
+    label = artist.get_label()
+    if not isinstance(label, str) or not label or label.startswith("_"):
+        return None
+
+    legend = legend_of(ax)
+    if legend is None:
+        return None
+
+    texts = [text.get_text() for text in legend.get_texts()]
+    if len(texts) < 2 or texts.count(label) != 1:
+        return None
+    return label
+
+
 def _match_swatches(colors: list, swatches: list, key) -> dict | None:
     """
     Map each swatch that a drawn artist shares a color with to its name.
