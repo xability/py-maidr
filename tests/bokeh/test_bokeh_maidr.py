@@ -365,7 +365,6 @@ class TestHighlightMap:
         assert layer["type"] == "candlestick"
         assert highlight[layer["id"]]["kind"] == "select"
 
-
     def test_markers_on_a_line_from_one_source_get_a_cursor(self):
         # Selecting the row would draw the line with its nonselection glyph,
         # which fades it away; the markers are pointed at instead.
