@@ -5,6 +5,7 @@ from matplotlib.container import BarContainer
 
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
+from maidr.core.plot.errorbar import ErrorBarPlot
 from maidr.core.plot.maidr_plot import group_name_of
 from maidr.exception import ExtractionError
 from maidr.util.mixin import ContainerExtractorMixin, DictMergerMixin
@@ -14,23 +15,6 @@ from maidr.util.mixin import ContainerExtractorMixin, DictMergerMixin
 #: way.
 DRAWN_BARS = "_maidr_bars"
 
-
-
-def _without_float_noise(value: float) -> float:
-    """
-    A bin edge or centre without its trailing floating-point artifact.
-
-    Parameters
-    ----------
-    value : float
-        A position computed from a drawn bar.
-
-    Returns
-    -------
-    float
-        The same position to twelve significant figures.
-    """
-    return float(f"{value:.12g}")
 
 
 class HistPlot(MaidrPlot, ContainerExtractorMixin, DictMergerMixin):
@@ -162,13 +146,14 @@ class HistPlot(MaidrPlot, ContainerExtractorMixin, DictMergerMixin):
         iris petal lengths, 3.95 for one and 3.9499999999999997 for the next.
         Rounded to one decimal those read 4.0 and 3.9, so two neighbouring
         bins were announced as overlapping ("3.7 through 4.0", then "3.9
-        through 4.2"). Each is given to twelve significant figures, as
-        ``ErrorBarPlot._without_float_noise`` gives a derived bound, so a
-        shared edge is one number.
+        through 4.2"). Each edge is given to twelve significant figures by
+        ``ErrorBarPlot._without_float_noise``, which rounds the derived bounds
+        of error bars and point plots, so a shared edge is one number; the
+        centre is the midpoint of the two edges as emitted.
         """
-        end = _without_float_noise(bin_start + bin_size)
-        middle = _without_float_noise(bin_start + bin_size / 2)
-        bin_start = _without_float_noise(bin_start)
+        end = ErrorBarPlot._without_float_noise(bin_start + bin_size)
+        bin_start = ErrorBarPlot._without_float_noise(bin_start)
+        middle = (bin_start + end) / 2
         if orientation == "horz":
             return {
                 MaidrKey.X.value: count,
