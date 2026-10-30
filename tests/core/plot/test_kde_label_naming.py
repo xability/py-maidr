@@ -70,6 +70,28 @@ def test_plotted_kde_curves_are_named_by_their_labels() -> None:
     assert _names(fig) == LABELS
 
 
+def test_filled_curves_drawn_a_call_each_are_named_by_their_labels() -> None:
+    """``fill=True`` draws bands, which carry the label as a curve does."""
+    fig, ax = plt.subplots()
+    for data, label in zip(_samples(), LABELS):
+        sns.kdeplot(data, label=label, fill=True, ax=ax)
+    ax.legend(title="Group")
+
+    assert _names(fig) == LABELS
+
+
+def test_a_fitted_line_beside_the_points_is_named_by_its_label() -> None:
+    """Any curve the line patch reads as fitted, not only a KDE, is named."""
+    rng = np.random.default_rng(2)
+    x = np.linspace(0, 10, 40)
+    fig, ax = plt.subplots()
+    ax.scatter(x, 2 * x + rng.normal(0, 1, 40), label="Observations")
+    ax.plot(x, 2 * x, label="Linear fit")
+    ax.legend()
+
+    assert _names(fig) == ["Linear fit"]
+
+
 def test_the_only_curve_of_a_legend_is_left_unnamed() -> None:
     """A name on the chart's only named thing implies another to tell apart."""
     fig, ax = plt.subplots()
