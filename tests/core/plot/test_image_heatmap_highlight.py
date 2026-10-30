@@ -11,8 +11,10 @@ pixels -- so those attributes do not give its box; ``HeatPlot.finish_svg``
 restates them so they do, drawing the same picture in the same place.
 
 A grid whose cells the overlay would not land on -- ``origin="lower"``, an
-inverted axis, a view cut short of the image, an image written in a form
-``finish_svg`` does not know -- keeps no highlight, as before.
+inverted axis, a view cut short of the image -- keeps no highlight, as
+before, and so does an image not written with its id where the selector
+could find it: one in a form ``finish_svg`` does not know, or one merged
+with a second image on the same axes.
 The outline itself is measured in a browser by
 ``tests/browser/test_image_heatmap_highlight.py``.
 """
@@ -100,6 +102,12 @@ def _image(root, gid: str):
     return image
 
 
+def _with_colorbar(ax):
+    image = ax.imshow(GRID)
+    ax.figure.colorbar(image, ax=ax)
+    return image
+
+
 DRAWN = {
     "imshow": lambda ax: ax.imshow(GRID),
     "imshow interpolation none": lambda ax: ax.imshow(GRID, interpolation="none"),
@@ -107,6 +115,8 @@ DRAWN = {
     "imshow aspect auto": lambda ax: ax.imshow(GRID, aspect="auto"),
     "matshow": lambda ax: ax.matshow(GRID),
     "imshow zoomed out": lambda ax: (ax.imshow(GRID), ax.set_xlim(-2, 6))[0],
+    # The colorbar is drawn on axes of its own.
+    "imshow with a colorbar": _with_colorbar,
 }
 
 
@@ -169,6 +179,24 @@ def test_a_grid_the_overlay_would_misplace_keeps_no_highlight(chart):
     assert "selectors" not in layer
     # Not named, so not restated: the image is written as matplotlib wrote it.
     assert image.get_gid() is None
+
+
+def test_two_images_on_one_axes_keep_no_highlight():
+    # Writing an SVG, matplotlib merges them into one picture that carries
+    # neither id, so a selector naming either image would name nothing.
+    figure, ax = plt.subplots()
+    images = [
+        ax.imshow(GRID, extent=(0, 4, 0, 3)),
+        ax.imshow(GRID, extent=(5, 9, 0, 3)),
+    ]
+    ax.set_xlim(0, 9)
+    ax.set_ylim(0, 3)
+    maidr.render(figure)._repr_html_()
+
+    layers = [plot.schema for plot in FigureManager.get_maidr(figure)._plots]
+    assert len(layers) == 2
+    assert not [layer for layer in layers if "selectors" in layer]
+    assert [image.get_gid() for image in images] == [None, None]
 
 
 def test_a_gid_the_caller_set_is_kept_and_named():

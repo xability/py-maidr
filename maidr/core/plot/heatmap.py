@@ -167,7 +167,10 @@ class HeatPlot(
         part cut off by the axes limits is not in the picture matplotlib
         writes -- and when its first row is at the top and its first column
         at the left: ``origin="lower"``, or an inverted axis, turns the grid
-        over, and the outline would land on the mirrored cell.
+        over, and the outline would land on the mirrored cell. It must also be
+        the axes' only image: writing an SVG, matplotlib can merge the images
+        of one axes into a single picture (``image.composite_image``), which
+        carries none of their ids, and the selector would name nothing.
 
         Parameters
         ----------
@@ -180,6 +183,9 @@ class HeatPlot(
             True when the image's cells can be outlined.
         """
         if type(sm) is not AxesImage or sm.get_transform() is not self.ax.transData:
+            return False
+        # Written on its own, with its id: see above.
+        if len(self.ax.get_images()) > 1:
             return False
         left, right, bottom, top = (float(edge) for edge in sm.get_extent())
 
