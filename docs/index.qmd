@@ -261,7 +261,7 @@ same entry point, since both produce the same figure object.
 
 * A density curve over a histogram reads as two layers: the histogram, and the curve as an ordinary line. Plotly has no KDE trace type, so unlike `sns.kdeplot()` there is nothing here for the adapter to recognize as a density estimate — compute the curve yourself, as the gallery's example does.
 
-* Single line plot and multi-line plot (`go.Scatter` with `mode="lines"`, `px.line`) having one x (numerical) and one y (numerical) axis.
+* Single line plot and multi-line plot (`go.Scatter` with `mode="lines"` or `mode="lines+markers"`, `px.line`) having one x (numerical) and one y (numerical) axis. A line drawn with a marker on each point is still read as a line.
 
 * Step plot, recognized from Plotly's `line_shape` (`"hv"`, `"vh"`, `"hvh"`, `"vhv"`), with named y tick labels announced as level names.
 

@@ -89,8 +89,14 @@ class TestStepShapeClassification:
 
         assert isinstance(PlotlyPlotFactory.create(trace, {}), PlotlyLinePlot)
 
-    def test_markers_mode_is_still_a_scatter(self):
+    def test_a_staircase_drawn_with_markers_is_still_a_step(self):
+        # Plotly draws the risers and puts a marker on each sample.
         trace = dict(_step_trace("hv"), mode="lines+markers")
+
+        assert isinstance(PlotlyPlotFactory.create(trace, {}), PlotlyStepPlot)
+
+    def test_markers_alone_are_still_a_scatter(self):
+        trace = dict(_step_trace("hv"), mode="markers")
 
         assert not isinstance(PlotlyPlotFactory.create(trace, {}), PlotlyStepPlot)
 
@@ -263,9 +269,8 @@ class TestAModelessStaircaseStillBinds:
     staircase to a scatter layer — announced as loose points, with the
     piecewise-constant reading lost.
 
-    A declared stepping shape is decisive on its own, checked before the mode
-    default is resolved at all: plotly draws the risers whatever the mode
-    turns out to be. Traces with no shape go on to
+    Either default joins the samples, so a declared stepping shape binds as
+    a step at any length. Traces with no shape go on to
     ``tests/plotly/test_plotly_mode_default.py``, which covers how an absent
     mode resolves.
     """
@@ -285,20 +290,19 @@ class TestAModelessStaircaseStillBinds:
 
     def test_a_modeless_trace_without_a_shape_is_not_a_step(self):
         # No shape, so nothing here claims the data is piecewise constant.
-        # This six-point trace lands on SCATTER because plotly's own default
-        # adds markers below 20 points -- not because an absent mode reads as
-        # markers-only. See test_plotly_mode_default.py for that boundary.
-        assert self._one_layer()[MaidrKey.TYPE] == PlotType.SCATTER
+        # Plotly's default for six points is "lines+markers", a line with a
+        # marker on each sample. See test_plotly_mode_default.py.
+        assert self._one_layer()[MaidrKey.TYPE] == PlotType.LINE
 
     def test_an_explicit_markers_mode_still_wins(self):
         layer = self._one_layer(mode="markers", line={"shape": "hv"})
 
         assert layer[MaidrKey.TYPE] == PlotType.SCATTER
 
-    def test_an_explicit_lines_markers_mode_is_unchanged(self):
+    def test_an_explicit_lines_markers_mode_binds_as_step(self):
         layer = self._one_layer(mode="lines+markers", line={"shape": "hv"})
 
-        assert layer[MaidrKey.TYPE] == PlotType.SCATTER
+        assert layer[MaidrKey.TYPE] == PlotType.STEP
 
 
 class TestStepDoesNotDisturbLines:

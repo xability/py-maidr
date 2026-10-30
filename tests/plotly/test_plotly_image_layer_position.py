@@ -181,6 +181,16 @@ class TestWhatDoesNotShareTheLayer:
         assert layers[-1]["selectors"] == _image_selector(1)
 
 
+def _markers() -> go.Scatter:
+    """A scatter of loose markers, which the same loop as an image builds.
+
+    `mode` is spelled out: two points with none are drawn "lines+markers",
+    which is a line, and a line is built in a block of its own ahead of that
+    loop.
+    """
+    return go.Scatter(x=[1, 2], y=[1, 2], mode="markers")
+
+
 class TestTheLayersStayInTheOrderTheyWereDeclared:
     def test_an_image_does_not_move_ahead_of_what_precedes_it(self) -> None:
         """Reading order is what a reader walks, so it follows the figure.
@@ -192,7 +202,7 @@ class TestTheLayersStayInTheOrderTheyWereDeclared:
         every trace declared before them.
         """
         layers = _layers(
-            go.Figure([go.Scatter(x=[1, 2], y=[1, 2]), go.Heatmap(z=FIRST)])
+            go.Figure([_markers(), go.Heatmap(z=FIRST)])
         )
 
         assert [layer["type"] for layer in layers] == [
@@ -202,7 +212,7 @@ class TestTheLayersStayInTheOrderTheyWereDeclared:
 
     def test_a_histogram2d_does_not_either(self) -> None:
         layers = _layers(
-            go.Figure([go.Scatter(x=[1, 2], y=[1, 2]), go.Histogram2d(**SAMPLES)])
+            go.Figure([_markers(), go.Histogram2d(**SAMPLES)])
         )
 
         assert [layer["type"] for layer in layers] == [
