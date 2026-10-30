@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import math
-from typing import TYPE_CHECKING, Dict, List, Optional, Union
+import uuid
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 from matplotlib.axes import Axes
 
 from maidr.core.enum import PlotType
@@ -11,6 +12,8 @@ from maidr.exception import ExtractionError
 
 if TYPE_CHECKING:
     import pandas as pd
+    from matplotlib.lines import Line2D
+    from matplotlib.patches import Rectangle
 
     from maidr.util.datetime_conversion import DatetimeConverter
 
@@ -23,6 +26,12 @@ class CandlestickPlot(MaidrPlot):
     with no transformation of the prices. Each date is labeled in the chart's
     ``datetime_format`` when it was drawn with one, and otherwise as the date
     alone when the index records no time of day.
+
+    ``mpf.plot`` draws the candles as two collections, its wicks and its
+    bodies; ``mplfinance.original_flavor`` draws one ``Line2D`` wick and one
+    ``Rectangle`` body per candle, which its patch hands over as
+    ``_maidr_candle_artists``, the bodies first, with the quotes as the same
+    frame.
     """
 
     def __init__(self, axes: list[Axes], **kwargs) -> None:
@@ -51,6 +60,12 @@ class CandlestickPlot(MaidrPlot):
         self._maidr_datetime_converter: Optional[DatetimeConverter] = kwargs.get(
             "_maidr_datetime_converter", None
         )
+        # `original_flavor`'s candles: one body and one wick each, in quote
+        # order, as `(bodies, wicks)` -- the reverse of the `(lines, patches)`
+        # that `_candlestick` returns.
+        self._maidr_candle_artists: Optional[
+            Tuple[List[Rectangle], List[Line2D]]
+        ] = kwargs.get("_maidr_candle_artists", None)
 
         # Positions in the frame of the rows whose candles were emitted, set by
         # `_extract_from_dataframe` and read by `_get_selector` (#749).
@@ -97,16 +112,26 @@ class CandlestickPlot(MaidrPlot):
             # than rebound, so `self._elements` stays the list `render()`
             # cleared rather than becoming a different one.
             self._elements.extend([body_collection, wick_collection])
+        elif self._maidr_candle_artists is not None:
+            # Each candle's own body and wick are named by their gids, which
+            # matplotlib writes as their groups' ids; assigned here because
+            # the schema is built before the draw.
+            bodies, wicks = self._maidr_candle_artists
+            for artist in (*bodies, *wicks):
+                if artist.get_gid() is None:
+                    artist.set_gid(f"maidr-{uuid.uuid4()}")
+        else:
+            return []
 
-            # Imported here rather than at module level, so that `import maidr`
-            # does not load pandas; mplfinance has loaded it by now anyway.
-            import pandas as pd
+        # Imported here rather than at module level, so that `import maidr`
+        # does not load pandas; mplfinance has loaded it by now anyway.
+        import pandas as pd
 
-            # Extract data directly from DataFrame
-            if self._maidr_original_data is not None and isinstance(
-                self._maidr_original_data, pd.DataFrame
-            ):
-                return self._extract_from_dataframe(self._maidr_original_data)
+        # Extract data directly from DataFrame
+        if self._maidr_original_data is not None and isinstance(
+            self._maidr_original_data, pd.DataFrame
+        ):
+            return self._extract_from_dataframe(self._maidr_original_data)
 
         return []
 
@@ -311,6 +336,23 @@ class CandlestickPlot(MaidrPlot):
                 "wickHigh": f"{wick}:nth-child(n+{N + 1})",
             }
             return selectors
+
+        # `original_flavor`: a body and a wick per quote, so each emitted
+        # candle names its own pair, in the order the candles are emitted. A
+        # wick there is one line from low to high, which the core reads as
+        # both the high and the low.
+        if self._maidr_candle_artists is not None and self._drawn_rows is not None:
+            bodies, wicks = self._maidr_candle_artists
+            return {
+                "body": [
+                    f"g[id='{bodies[row].get_gid()}'] > path"
+                    for row in self._drawn_rows
+                ],
+                "wick": [
+                    f"g[id='{wicks[row].get_gid()}'] > path"
+                    for row in self._drawn_rows
+                ],
+            }
 
         # Legacy path
         legacy_selectors = {}
