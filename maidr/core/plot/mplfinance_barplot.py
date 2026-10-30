@@ -154,12 +154,6 @@ class MplfinanceBarPlot(
         labels through the mplfinance-specific ``_extract_axes_data``.
         """
         base_schema = super().render()
-        # The axes' own title, or none: a layer's title names the chart. This
-        # used to fall back to "Volume Bar Plot", which maidr.js took for the
-        # chart's title over the figure's own -- see `CandlestickPlot.render`.
-        base_schema[MaidrKey.TITLE] = str(
-            base_schema.get(MaidrKey.TITLE, "") or ""
-        ).strip()
 
         previous_axes = base_schema.get(MaidrKey.AXES, {}) or {}
         axes_data = self._extract_axes_data()

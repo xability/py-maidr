@@ -146,9 +146,11 @@ class TestAnUntitledAxesGivesAnUntitledLayer:
         fig, axlist = mpf.plot(_prices(), type="candle", returnfig=True)
         axlist[0].set_title("   ")
 
-        # Otherwise the chart would be announced as a run of spaces, and the
-        # frame named "   , accessible chart".
-        assert _layer_titles(fig) == [""]
+        # The layer carries the axes' title as written, as every layer type
+        # does, and neither reader takes a blank one for a name: the frame is
+        # not named "   , accessible chart", and maidr.js's `isAuthoredTitle`
+        # does not announce the chart as a run of spaces.
+        assert chart_title_of(_schema(fig)) == ""
 
 
 class TestTheFigureLevelSpellingIsUnchanged:

@@ -334,16 +334,6 @@ class CandlestickPlot(MaidrPlot):
         sibling of ``x``/``y``.
         """
         base_schema = super().render()
-        # The axes' own title, or none: a layer's title names the chart. This
-        # used to fall back to "Candlestick Chart", which maidr.js takes for a
-        # title the author wrote and announces ahead of the figure's own --
-        # and `mpf.plot(title=...)` writes the chart's title on the figure, so
-        # every titled mplfinance chart was announced as "Candlestick Chart".
-        # Without a layer title maidr.js reads the figure's. A title of spaces
-        # is no title either (#464).
-        base_schema[MaidrKey.TITLE] = str(
-            base_schema.get(MaidrKey.TITLE, "") or ""
-        ).strip()
 
         # Preserve per-axis format (nested inside each AxisConfig) while
         # refreshing labels through _extract_axes_data().

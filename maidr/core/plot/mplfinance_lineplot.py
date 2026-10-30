@@ -199,14 +199,6 @@ class MplfinanceLinePlot(MaidrPlot, LineExtractorMixin):
         labels through ``_extract_axes_data``.
         """
         base_schema = super().render()
-        # The axes' own title, or none: a layer's title names the chart. This
-        # used to fall back to "Moving Average Line Plot", which maidr.js took
-        # for the chart's title over the figure's own -- see
-        # `CandlestickPlot.render`. The averages are told apart by their
-        # series names ("Moving Average 3 days"), not by the title.
-        base_schema[MaidrKey.TITLE] = str(
-            base_schema.get(MaidrKey.TITLE, "") or ""
-        ).strip()
 
         previous_axes = base_schema.get(MaidrKey.AXES, {}) or {}
         axes_data = self._extract_axes_data()
