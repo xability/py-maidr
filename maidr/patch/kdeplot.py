@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from functools import partial
 from typing import Any
 
 import numpy as np
@@ -238,14 +239,16 @@ def deferred_names(resolve, count: int) -> list:
     return [at(index) for index in range(count)]
 
 
-def _or_own_label(name, ax: Axes, artist):
+def _name_or_own_label(name, ax: Axes, artist):
     """
     A curve's legend name, or its own label when the legend shows it.
 
     The name the colour match gives the curves of one call wins. It gives
     none to a call that drew one curve, which is how a chart of several
     ``kdeplot(data, label=...)`` calls is drawn: the label each was given
-    names it then (:func:`~maidr.util.legend_names.own_label`).
+    names it then (:func:`~maidr.util.legend_names.own_label`). Handed to the
+    layer through ``functools.partial``, so it is resolved at render, as
+    ``name`` is.
 
     Parameters
     ----------
@@ -258,14 +261,10 @@ def _or_own_label(name, ax: Axes, artist):
 
     Returns
     -------
-    callable
-        A zero-argument callable, resolved at render as ``name`` is.
+    str or None
+        The name, or ``None``.
     """
-
-    def resolve():
-        return name() or own_label(ax, artist)
-
-    return resolve
+    return name() or own_label(ax, artist)
 
 
 def _register_smooth(
@@ -336,7 +335,7 @@ def _register_smooth(
                 dict(
                     kwargs,
                     regression_line=kde_line,
-                    **{GROUP_NAME: _or_own_label(name, ax, kde_line)},
+                    **{GROUP_NAME: partial(_name_or_own_label, name, ax, kde_line)},
                 ),
             )
         # The PolyCollection bands this call drew, each read as its boundary
@@ -367,7 +366,11 @@ def _register_smooth(
                         regression_line=kde_line,
                         poly_gid=gid,
                         is_polycollection=True,
-                        **{GROUP_NAME: _or_own_label(fill_name, ax, poly)},
+                        **{
+                            GROUP_NAME: partial(
+                                _name_or_own_label, fill_name, ax, poly
+                            )
+                        },
                     ),
                 )
 
