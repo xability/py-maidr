@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import logging
 import math
+import re
+import uuid
+from typing import Any
 
 import numpy as np
 import numpy.ma as ma
@@ -24,6 +27,9 @@ _logger = logging.getLogger(__name__)
 #: Key the patch passes the artist its own call drew under. Named like
 #: ``scatterplot.DRAWN_POINTS`` and read the same way.
 DRAWN_GRID = "_maidr_grid"
+
+#: One number in an SVG ``transform`` attribute.
+_NUMBER = re.compile(r"[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?")
 
 
 class HeatPlot(
@@ -94,6 +100,117 @@ class HeatPlot(
         axes_data = super()._extract_axes_data()
         axes_data[MaidrKey.Z] = self._axis_config(label=self._z_label)
         return axes_data
+
+    def _get_selector(self) -> str:
+        """
+        Name the image a grid was drawn as, or every cell of a mesh.
+
+        Returns
+        -------
+        str
+            ``image[id=...]`` for an image, which maidr.js reads as one
+            ``<image>`` to divide into cells; otherwise the mesh's cell paths.
+        """
+        for element in self._elements:
+            if isinstance(element, AxesImage):
+                return f"image[id='{element.get_gid()}']"
+        return super()._get_selector()
+
+    def finish_svg(self, tree: Any) -> None:
+        """
+        Give the grid's ``<image>`` its place on the page in its own attributes.
+
+        maidr.js highlights a heatmap drawn as one ``<image>`` by laying a
+        rectangle over each cell, worked out from the image's ``x``, ``y``,
+        ``width`` and ``height`` in the coordinates of the group it sits in,
+        with the first row of ``data.points`` along the top. matplotlib places
+        an image with its ``transform``, so those attributes are not its box.
+        Read as written, the default image's grid is laid out higher than the
+        picture by twice its distance from the top of the page -- measured on
+        a 7 x 7 grid, the outline for the bottom row straddled the fifth and
+        sixth -- and an image drawn with ``interpolation="none"`` gives no
+        ``x`` or ``y`` and its size in pixels, so each outline was one pixel
+        square in the page's corner.
+
+        The image is restated, not changed: the same picture at the same place,
+        its ``x``, ``y``, ``width`` and ``height`` now its box on the page and
+        its ``transform`` only the flip about that box's middle the picture
+        needs. An image written in any other form is left as it was but for
+        its ``id``, which it loses: its attributes would not be its box, and
+        maidr.js would outline cells it did not draw there. Without the id the
+        selector names nothing, and the cells are announced without an
+        outline, as they were before the image was named. An image whose
+        axes no longer pass :meth:`_cells_overlay_image` as drawn loses its
+        id too: the schema is built once, at the first render, and a view
+        zoomed in since cuts the picture that the overlay would divide into
+        the whole grid.
+
+        Parameters
+        ----------
+        tree : lxml.etree._Element
+            The rendered SVG, modified in place.
+        """
+        for element in self._elements:
+            if not isinstance(element, AxesImage):
+                continue
+            drawn = tree.xpath(
+                "//*[local-name()='image'][@id=$gid]", gid=str(element.get_gid())
+            )
+            if len(drawn) != 1:
+                continue
+            if not (self._cells_overlay_image(element) and _place_upright(drawn[0])):
+                del drawn[0].attrib["id"]
+
+    def _cells_overlay_image(self, sm: ScalarMappable | None) -> bool:
+        """
+        Whether maidr.js can find this image's cells by dividing it evenly.
+
+        It lays ``data.points[r][c]`` over the ``r``-th band from the top and
+        the ``c``-th from the left of the image as drawn. That pairs each cell
+        with its own value only when the image has evenly sized cells (an
+        ``AxesImage``, not one of its subclasses with cells of their own
+        sizes), is drawn in the axes' data coordinates and drawn whole -- a
+        part cut off by the axes limits is not in the picture matplotlib
+        writes -- and when its first row is at the top and its first column
+        at the left: ``origin="lower"``, or an inverted axis, turns the grid
+        over, and the outline would land on the mirrored cell. It must also be
+        the axes' only image: writing an SVG, matplotlib can merge the images
+        of one axes into a single picture (``image.composite_image``), which
+        carries none of their ids, and the selector would name nothing.
+
+        Parameters
+        ----------
+        sm : ScalarMappable or None
+            The artist that drew the grid.
+
+        Returns
+        -------
+        bool
+            True when the image's cells can be outlined.
+        """
+        if type(sm) is not AxesImage or sm.get_transform() is not self.ax.transData:
+            return False
+        # Written on its own, with its id: see above.
+        if len(self.ax.get_images()) > 1:
+            return False
+        left, right, bottom, top = (float(edge) for edge in sm.get_extent())
+
+        # Drawn whole: the extent inside the view limits.
+        for low, high, (start, end) in (
+            (min(left, right), max(left, right), sorted(self.ax.get_xlim())),
+            (min(bottom, top), max(bottom, top), sorted(self.ax.get_ylim())),
+        ):
+            slack = 1e-9 * max(abs(end - start), 1.0)
+            if low < start - slack or high > end + slack:
+                return False
+
+        # The first row is at `top` for `origin="upper"`, at `bottom` otherwise
+        # -- `get_extent()` names its ends in that fixed order however the
+        # image is drawn (see `_cell_centers`).
+        first, last = (top, bottom) if sm.origin == "upper" else (bottom, top)
+        (x0, y0), (x1, y1) = self.ax.transData.transform([(left, first), (right, last)])
+        # Display y grows upwards.
+        return bool(x0 < x1 and y0 > y1)
 
     def _extract_plot_data(self) -> dict:
         # The artist this layer was registered for, not whichever one a search
@@ -342,6 +459,15 @@ class HeatPlot(
 
             # Tag the elements for highlighting
             self._elements.append(sm)
+        elif self._cells_overlay_image(sm):
+            # One `<image>` for the whole grid, which maidr.js divides into
+            # cells itself -- see `finish_svg`. Named by its gid, which
+            # matplotlib writes as the image's `id`; assigned here because the
+            # schema is built before the draw. A gid the caller set is kept,
+            # and named instead.
+            if sm.get_gid() is None:
+                sm.set_gid(f"maidr-{uuid.uuid4()}")
+            self._elements.append(sm)
         else:
             self._support_highlighting = False
 
@@ -456,3 +582,97 @@ class HeatPlot(
             The value, or ``None`` for a cell without one.
         """
         return value if math.isfinite(value) else None
+
+
+def _place_upright(image: Any) -> bool:
+    """
+    Restate an ``<image>`` matplotlib wrote so its attributes are its box.
+
+    matplotlib places an image with its ``transform``, in one of two forms
+    (``RendererSVG.draw_image``):
+
+    - resampled, the default: ``transform="scale(1 -1) translate(0 -h)"``
+      with ``x``, ``y``, ``width`` and ``height``. The picture is drawn upside
+      down and flipped into place, so ``y`` is measured in the flipped frame:
+      the box's top is at ``-y``.
+    - unsampled, for ``interpolation="none"``: ``transform="matrix(a 0 0 d e
+      f)"`` with the picture's own ``width`` and ``height`` in pixels and no
+      ``x`` or ``y``. The box runs from ``e`` to ``e + a * width`` across and
+      from ``f`` to ``f + d * height`` down, either way round.
+
+    Either becomes ``x``, ``y``, ``width`` and ``height`` giving the box, and
+    a ``transform`` holding only the flip about the box's middle the picture
+    needs, if any, so every point of it lands where it did. The unsampled
+    form also takes ``preserveAspectRatio="none"``, since its picture is
+    stretched into a box of another shape. Anything else is left as it was.
+
+    Parameters
+    ----------
+    image : lxml.etree._Element
+        The ``<image>`` element, modified in place.
+
+    Returns
+    -------
+    bool
+        True when the image was restated; False when it was in neither form.
+    """
+    transform = image.get("transform", "")
+    numbers = [float(number) for number in _NUMBER.findall(transform)]
+    try:
+        width = float(image.get("width"))
+        height = float(image.get("height"))
+    except (TypeError, ValueError):
+        return False
+
+    if transform.startswith("scale(") and len(numbers) == 4:
+        sx, sy, tx, ty = numbers
+        if (sx, sy, tx) != (1.0, -1.0, 0.0) or not math.isclose(ty, -height):
+            return False
+        try:
+            x = float(image.get("x", 0))
+            y = -float(image.get("y", 0))
+        except ValueError:
+            return False
+        flips = (False, True)
+    elif transform.startswith("matrix(") and len(numbers) == 6:
+        a, b, c, d, e, f = numbers
+        if b != 0 or c != 0 or a == 0 or d == 0:
+            return False
+        x, y = min(e, e + a * width), min(f, f + d * height)
+        width, height = abs(a) * width, abs(d) * height
+        flips = (a < 0, d < 0)
+        image.set("preserveAspectRatio", "none")
+    else:
+        return False
+
+    image.set("x", _number(x))
+    image.set("y", _number(y))
+    image.set("width", _number(width))
+    image.set("height", _number(height))
+    if any(flips):
+        # A flip about the box's middle takes a point at u across the box to
+        # 2 * x + width - u, and likewise down it.
+        sx, tx = (-1, 2 * x + width) if flips[0] else (1, 0.0)
+        sy, ty = (-1, 2 * y + height) if flips[1] else (1, 0.0)
+        image.set("transform", f"matrix({sx} 0 0 {sy} {_number(tx)} {_number(ty)})")
+    else:
+        del image.attrib["transform"]
+    return True
+
+
+def _number(value: float) -> str:
+    """
+    One coordinate, written as matplotlib's SVG backend writes it.
+
+    Parameters
+    ----------
+    value : float
+        The coordinate.
+
+    Returns
+    -------
+    str
+        Six decimals at most, with trailing zeros dropped.
+    """
+    text = f"{value:f}".rstrip("0").rstrip(".")
+    return "0" if text in ("", "-0") else text
