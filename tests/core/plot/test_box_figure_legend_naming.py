@@ -99,7 +99,7 @@ def _schema(figure: plt.Figure) -> dict:
 
 
 def _boxes(figure: plt.Figure) -> list[str]:
-    """Each drawn box's own name, in drawing order."""
+    """Each drawn box's own name, in the order the boxes are read."""
     return [str(entry["z"]) for entry in _schema(figure)["data"]]
 
 
@@ -123,7 +123,7 @@ def test_a_box_chart_still_names_each_box_from_that_same_legend():
     # Asserted beside the label rather than assumed: the point of the fix is
     # that both now come from one legend, and a change that moved only the
     # title would pass the test above while leaving them on two.
-    assert _boxes(_moved_to_the_figure(_box)) == ["a, p", "b, p", "a, q", "b, q"]
+    assert _boxes(_moved_to_the_figure(_box)) == ["a, p", "a, q", "b, p", "b, q"]
 
 
 def test_a_boxen_chart_names_its_variable_from_a_legend_moved_to_the_figure():
@@ -171,11 +171,11 @@ def test_the_axes_own_legend_still_wins_over_the_figures(draw):
 
 @pytest.mark.parametrize(
     ("draw", "categories"),
-    # The two classes walk their boxes in different orders -- `BoxPlot` reads
-    # matplotlib's `bxp` output, level by level, and `BoxenPlot` reads the
-    # dodge lattice, category by category -- so the expected order is named
-    # per class rather than accepted either way.
-    [(_box, ["a", "b", "a", "b"]), (_boxen, ["a", "a", "b", "b"])],
+    # Both classes walk their boxes category by category, as they stand:
+    # `BoxPlot` sorts matplotlib's `bxp` output, drawn level by level, by
+    # where each box stands, and `BoxenPlot` reads the dodge lattice. The
+    # order is still named per class rather than accepted either way.
+    [(_box, ["a", "a", "b", "b"]), (_boxen, ["a", "a", "b", "b"])],
     ids=["box", "boxen"],
 )
 def test_a_chart_with_no_legend_names_nothing_rather_than_something(draw, categories):

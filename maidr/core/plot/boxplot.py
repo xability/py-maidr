@@ -353,6 +353,10 @@ class BoxPlot(
             "outliers": [],
         }
         self.lower_outliers_count = []
+        # The boxes in the order they stand along the category axis, as
+        # indices into the order they were drawn in; set by
+        # `_extract_bxp_maidr` and applied by `_order_box_rows`.
+        self._drawn_order: list[int] | None = None
 
     def _extract_axes_data(self) -> dict:
         """
@@ -415,12 +419,22 @@ class BoxPlot(
     def _order_box_rows(self, rows: list[dict]) -> list[dict]:
         """Apply the same category ordering to box data and selectors.
 
-        maidr.js reverses horizontal boxes into bottom-to-top navigation, so
-        it needs top-to-bottom input. On a normal y axis that means reversing
-        the drawing order; seaborn's inverted category axis already draws in
-        that order. Read the axis at render time, after seaborn or the caller
-        has had a chance to invert it. Vertical boxes keep their existing order.
+        First the order the boxes stand in along the category axis, lowest
+        first (see :meth:`_extract_bxp_maidr`), rather than the order they
+        were drawn in. seaborn draws a ``hue`` level by level, so a vertical
+        chart split by ``sex`` was walked Sun, Sat, Thur, Fri for one level
+        and then the same four again for the other, the outline jumping back
+        across the chart halfway. It is now walked left to right, each
+        category's boxes together.
+
+        Then maidr.js reverses horizontal boxes into bottom-to-top navigation,
+        so it needs top-to-bottom input. On a normal y axis that means
+        reversing the order along the axis; seaborn's inverted category axis
+        already runs top to bottom. Read the axis at render time, after
+        seaborn or the caller has had a chance to invert it.
         """
+        if self._drawn_order is not None and len(self._drawn_order) == len(rows):
+            rows = [rows[index] for index in self._drawn_order]
         if self._orientation != "vert" and not self.ax.yaxis_inverted():
             return list(reversed(rows))
         return rows
@@ -634,6 +648,20 @@ class BoxPlot(
             # no outliers.
             self.elements_map["outliers"].extend(self.elements_map["boxes"])
 
+        # Where each box stands along the category axis, to read the boxes in
+        # that order rather than the order they were drawn in. Measured on
+        # seaborn 0.13: a `hue` dodges each category's levels across its slot
+        # in `hue_order`, left to right (top to bottom on its side), and
+        # `dodge=False` stands them all at the category, where the order they
+        # were drawn in is kept. `ax.boxplot(positions=...)` stands each box
+        # where it is told. A box whose artist gives no position leaves the
+        # drawing order as it was, and so does a layer whose rows and boxes
+        # do not pair one to one.
+        centers = [
+            _box_center(box, self._orientation != "vert")
+            for box in kept(bxp_stats["boxes"])
+        ]
+
         bxp_maidr = []
 
         for whisker, cap, median, outlier, level in zip(
@@ -652,4 +680,7 @@ class BoxPlot(
                 }
             )
 
+        self._drawn_order = None
+        if len(centers) == len(bxp_maidr) and None not in centers:
+            self._drawn_order = sorted(range(len(centers)), key=centers.__getitem__)
         return self._order_box_rows(bxp_maidr)
