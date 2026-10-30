@@ -14,7 +14,7 @@ from maidr.util.mixin import FormatExtractorMixin
 import uuid
 
 
-def twin_title(ax: Axes) -> str:
+def _twin_title(ax: Axes) -> str:
     """
     The title another axes twinned with ``ax`` carries, or the empty string.
 
@@ -45,10 +45,7 @@ def twin_title(ax: Axes) -> str:
     figure = ax.get_figure()
     if twins is None or figure is None:
         return ""
-    try:
-        siblings = set(twins.get_siblings(ax))
-    except Exception:  # noqa: BLE001 -- a private record; absence is no title
-        return ""
+    siblings = set(twins.get_siblings(ax))
     for other in figure.axes:
         if other is not ax and other in siblings and other.get_title():
             return other.get_title()
@@ -206,7 +203,7 @@ class MaidrPlot(ABC, FormatExtractorMixin):
             # chart; the generated one names a panel of a seaborn grid, which
             # seaborn leaves untitled (#660).
             MaidrKey.TITLE: self.ax.get_title()
-            or twin_title(self.ax)
+            or _twin_title(self.ax)
             or panel_title(self.ax),
             MaidrKey.AXES: axes_data,
             MaidrKey.DATA: self._extract_plot_data(),
