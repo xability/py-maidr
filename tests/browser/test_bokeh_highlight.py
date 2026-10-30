@@ -48,6 +48,15 @@ _SELECTED = """(id) => {
   return null;
 }"""
 
+#: Whether a renderer is muted, by model id.
+_MUTED = """(id) => {
+  for (const doc of Bokeh.documents) {
+    const model = doc.get_model_by_id(id);
+    if (model) return model.muted;
+  }
+  return null;
+}"""
+
 #: Where the highlight cursor sits, or null when it is not drawn.
 _CURSOR = """() => {
   for (const doc of Bokeh.documents) {
@@ -207,10 +216,22 @@ def test_a_stacked_bar_selects_the_segment_it_announces(browser, tmp_path):
         assert _step(page, "ArrowRight") == "X is Apples, Y is 2, Level is 2015"
         assert page.evaluate(_SELECTED, low.id) == [0]
         assert page.evaluate(_SELECTED, high.id) == []
+        # Each series has a source of its own, so the other one is muted to
+        # be dimmed with the rest of this one.
+        assert page.evaluate(_MUTED, high.id) is True
+        assert page.evaluate(_MUTED, low.id) is False
 
         assert _step(page, "ArrowUp") == "X is Apples, Y is 5, Level is 2016"
         assert page.evaluate(_SELECTED, low.id) == []
         assert page.evaluate(_SELECTED, high.id) == [0]
+        assert page.evaluate(_MUTED, low.id) is True
+        assert page.evaluate(_MUTED, high.id) is False
+
+        # Leaving the chart leaves both as the author drew them.
+        page.evaluate("document.activeElement.blur()")
+        page.wait_for_timeout(300)
+        assert page.evaluate(_MUTED, low.id) is False
+        assert page.evaluate(_MUTED, high.id) is False
         assert not errors, errors
     finally:
         page.close()
@@ -257,6 +278,65 @@ def test_markers_on_a_line_leave_the_line_drawn(browser, tmp_path):
 
         assert _step(page, "ArrowRight") == "X is 2, Y is 3"
         assert page.evaluate(_CURSOR) == [2, 3]
+        assert not errors, errors
+    finally:
+        page.close()
+
+
+def test_reading_one_series_of_a_stack_dims_the_other(browser, tmp_path):
+    # A stack built from a dict gives each series a source of its own, and
+    # selecting a segment dimmed only its own series: every segment of the
+    # other series stayed as bright as the one being read.
+    from bokeh.plotting import figure
+
+    p = figure(x_range=["Apples", "Pears"], width=500, height=400)
+    p.vbar_stack(
+        ["2015", "2016"], x="fruit", width=0.9, color=["blue", "red"],
+        source={"fruit": ["Apples", "Pears"], "2015": [2, 1], "2016": [5, 3]},
+    )
+    page, errors = _open(browser, _save(p, tmp_path / "dimmed.html"))
+    try:
+        drawn = page.evaluate(_RED_PIXELS)
+        assert drawn > 500
+
+        # On a blue segment, no red one is drawn at full strength.
+        assert _step(page, "ArrowRight") == "X is Apples, Y is 2, Level is 2015"
+        assert page.evaluate(_RED_PIXELS) < 0.05 * drawn
+
+        # On the red segment over Apples, it alone is: the one over Pears,
+        # three eighths of the red, is dimmed.
+        assert _step(page, "ArrowUp") == "X is Apples, Y is 5, Level is 2016"
+        assert 0.4 * drawn < page.evaluate(_RED_PIXELS) < 0.8 * drawn
+        assert not errors, errors
+    finally:
+        page.close()
+
+
+def test_dodged_bars_on_one_source_ring_the_bar_announced(browser, tmp_path):
+    # Both groups draw a bar from each row of the one source, so selecting
+    # the row lit up both bars of the category being read.
+    from bokeh.models import ColumnDataSource
+    from bokeh.plotting import figure
+    from bokeh.transform import dodge
+
+    source = ColumnDataSource({"c": ["A", "B"], "v": [3, 5], "w": [1, 2]})
+    p = figure(x_range=["A", "B"], x_axis_label="Store", y_axis_label="Units")
+    left = p.vbar(
+        x=dodge("c", -0.2, range=p.x_range), top="v", width=0.3, source=source,
+        legend_label="v",
+    )
+    p.vbar(
+        x=dodge("c", 0.2, range=p.x_range), top="w", width=0.3, source=source,
+        legend_label="w",
+    )
+    page, errors = _open(browser, _save(p, tmp_path / "dodged.html"))
+    try:
+        assert _step(page, "ArrowRight").startswith("Store is A, Units is 3")
+        assert page.evaluate(_CURSOR) == [["A", -0.2], 3]
+        assert page.evaluate(_SELECTED, left.id) == []
+
+        assert _step(page, "ArrowUp").startswith("Store is A, Units is 1")
+        assert page.evaluate(_CURSOR) == [["A", 0.2], 1]
         assert not errors, errors
     finally:
         page.close()
@@ -455,6 +535,11 @@ def test_a_candlestick_selects_the_wick_and_body_it_announces(browser, tmp_path)
         assert page.evaluate(_SELECTED, wick.id) == [0]
         assert page.evaluate(_SELECTED, rising.id) == [0]
         assert page.evaluate(_SELECTED, falling.id) == []
+        # The falling bodies are drawn from a source of their own: muted,
+        # they are dimmed with every other candle.
+        assert page.evaluate(_MUTED, falling.id) is True
+        assert page.evaluate(_MUTED, rising.id) is False
+        assert page.evaluate(_MUTED, wick.id) is False
 
         assert _step(page, "ArrowRight").startswith(
             "Day is 2024-01-02, close Price is 11, trend is bear"
@@ -462,6 +547,8 @@ def test_a_candlestick_selects_the_wick_and_body_it_announces(browser, tmp_path)
         assert page.evaluate(_SELECTED, wick.id) == [1]
         assert page.evaluate(_SELECTED, falling.id) == [0]
         assert page.evaluate(_SELECTED, rising.id) == []
+        assert page.evaluate(_MUTED, rising.id) is True
+        assert page.evaluate(_MUTED, falling.id) is False
 
         # Moving between prices of one candle keeps it highlighted.
         assert _step(page, "ArrowUp").startswith("Day is 2024-01-02, open Price is 12")

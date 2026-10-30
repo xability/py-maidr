@@ -30,7 +30,9 @@ the mark being read is highlighted in the Bokeh plot itself: a bar, bin, cell,
 slice, candle or point is selected, dimming the rest, and a line, step or area shows a ring
 on the current point. A bar, bin, cell or point whose data source another mark
 also draws from, such as markers on a line built from one `ColumnDataSource`,
-gets the ring too, so the other mark is never faded.
+gets the ring too, so the other mark is never faded; so do the bars of a
+dodged chart, or the segments of a stack, drawn from one `ColumnDataSource`,
+since selecting their row would light up every bar at that category.
 
 | Bokeh | read as |
 |---|---|

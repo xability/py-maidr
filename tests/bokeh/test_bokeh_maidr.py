@@ -304,6 +304,66 @@ class TestHighlightMap:
             [[rs[1].id, 0], [rs[1].id, 1]],
         ]
 
+    def test_dodged_bars_on_one_source_point_at_the_bar_being_read(self):
+        # Both groups draw a bar from each row, so selecting the row lit up
+        # both bars at that category; the bar being read gets the cursor.
+        source = ColumnDataSource({"c": ["A", "B"], "v": [3, 5], "w": [1, 2]})
+        p = figure(x_range=["A", "B"])
+        for column, offset in (("v", -0.2), ("w", 0.2)):
+            p.vbar(
+                x=dodge("c", offset, range=p.x_range), top=column, width=0.3,
+                source=source, legend_label=column,
+            )
+        schema, highlight = self._highlight(p)
+        layer = schema["subplots"][0][0]["layers"][0]
+        entry = highlight[layer["id"]]
+
+        assert layer["type"] == "dodged_bar"
+        assert entry["kind"] == "cursor"
+        assert entry["grid"] == [
+            [[["A", -0.2], 3], [["B", -0.2], 5]],
+            [[["A", 0.2], 1], [["B", 0.2], 2]],
+        ]
+
+    def test_a_stack_on_one_source_points_at_the_end_of_each_segment(self):
+        source = ColumnDataSource({"c": ["A", "B"], "s1": [1, 2], "s2": [3, 4]})
+        p = figure(x_range=["A", "B"])
+        p.vbar_stack(["s1", "s2"], x="c", width=0.9, source=source)
+        schema, highlight = self._highlight(p)
+        entry = highlight[schema["subplots"][0][0]["layers"][0]["id"]]
+
+        assert entry["kind"] == "cursor"
+        assert entry["grid"] == [[["A", 1], ["B", 2]], [["A", 4], ["B", 6]]]
+
+    def test_a_candle_whose_wick_and_body_share_a_row_still_selects_it(self):
+        # The wick and the body are one candle, read together, so selecting
+        # their row picks out the candle being read and nothing else.
+        import pandas as pd
+        from bokeh.models import BooleanFilter, CDSView
+
+        frame = pd.DataFrame(
+            {
+                "date": pd.date_range("2024-01-01", periods=3),
+                "open": [10.0, 12.0, 11.0],
+                "close": [12.0, 11.0, 13.0],
+                "high": [13.0, 13.5, 14.0],
+                "low": [9.0, 10.0, 10.5],
+            }
+        )
+        source = ColumnDataSource(frame)
+        rising = [bool(up) for up in frame.close > frame.open]
+        p = figure(x_axis_type="datetime")
+        p.segment("date", "high", "date", "low", source=source)
+        for keep in (rising, [not up for up in rising]):
+            p.vbar(
+                "date", 43200000, "open", "close", source=source,
+                view=CDSView(filter=BooleanFilter(keep)),
+            )
+        schema, highlight = self._highlight(p)
+        layer = schema["subplots"][0][0]["layers"][0]
+
+        assert layer["type"] == "candlestick"
+        assert highlight[layer["id"]]["kind"] == "select"
 
     def test_markers_on_a_line_from_one_source_get_a_cursor(self):
         # Selecting the row would draw the line with its nonselection glyph,

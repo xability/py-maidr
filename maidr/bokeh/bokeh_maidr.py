@@ -33,14 +33,17 @@ has a controller built without it, so the page also sends the data once as
 a ``live`` update, which ``maidr.js`` swaps into a running controller.
 
 The callback then selects the data-source rows of a bar, bin, cell, slice,
-candle or point (Bokeh's default ``nonselection_glyph`` dims the rest), and
-moves a small cursor glyph onto a line, step or area, which have one path and
-no row to select. A bar, bin, cell or point whose data source another drawn mark also
-reads -- markers on a line drawn from one source -- gets the cursor too,
-since selecting the row would fade that other mark (see
-``BokehMaidr._retarget_shared_highlights``). The cursor is added to the plot
-only while the document is being serialized and removed again in a
-``finally``, so the caller's figure is left exactly as it was.
+candle or point (Bokeh's default ``nonselection_glyph`` dims the rest, and
+the layer's renderers drawn from other sources are muted for as long as the
+reader is on it), and moves a small cursor glyph onto a line, step or area,
+which have one path and no row to select. A bar, bin, cell or point whose
+data source another drawn mark also reads -- markers on a line drawn from
+one source -- gets the cursor too, since selecting the row would fade that
+other mark, and so does a layer two of whose marks share a source row -- the
+groups of a ``dodge()`` chart on one source -- since selecting the row would
+light up both (see ``BokehMaidr._retarget_shared_highlights``). The cursor
+is added to the plot only while the document is being serialized and removed
+again in a ``finally``, so the caller's figure is left exactly as it was.
 
 Limitations
 -----------
@@ -50,9 +53,8 @@ Limitations
   ``render()`` has no library folder to put it in -- which is what
   ``False`` already does; so ``"auto"`` needs a network for BokehJS, and
   ``False`` is the offline page.
-* Selection is per data source, so renderers sharing one -- the segments of
-  a ``vbar_stack``, the groups of a ``dodge()`` chart -- are highlighted
-  together at the current category.
+* Selection is per data source, so layers sharing one -- a linked scatter --
+  are highlighted together at the current row.
 """
 
 from __future__ import annotations
@@ -446,9 +448,15 @@ class BokehMaidr:
         while a reader is on a point. A layer whose source is shared with a
         drawn renderer that is not itself highlighted by selection is
         pointed at with a cursor instead, as a line is, and leaves every
-        other mark as the author drew it. Renderers highlighted by selection
-        may share a source among themselves -- the segments of a stack, a
-        linked scatter -- and are then highlighted together.
+        other mark as the author drew it.
+
+        So is a layer two of whose marks are drawn from one source row: the
+        groups of a ``dodge()`` chart, or the segments of a ``vbar_stack``,
+        read from one ``ColumnDataSource``. Selecting the row the reader is
+        on lit up the mark of every group at that category, the one being
+        read and the others alike. Layers highlighted by selection may still
+        share a source with each other -- a linked scatter -- and are then
+        highlighted together.
         """
         from bokeh.models import GlyphRenderer
 
@@ -466,7 +474,10 @@ class BokehMaidr:
             if renderer.visible and renderer.id not in selected
         }
         for layer in selecting:
-            if not any(r.data_source.id in shared for r in layer.renderers):
+            if not (
+                any(r.data_source.id in shared for r in layer.renderers)
+                or _selected_together(layer)
+            ):
                 continue
             by_id = {r.id: r for r in layer.renderers}
             columns: dict = {}
@@ -794,6 +805,45 @@ def _panel_id(cell: dict) -> str:
     return f"maidr-bokeh-panel-{cell['id']}"
 
 
+def _selected_together(layer: BokehLayer) -> bool:
+    """
+    Whether selecting the source row of one of a layer's marks selects another.
+
+    Each place a reader can be on -- a cell of the grid, a candle, a point --
+    names the ``[renderer id, source row]`` of the marks it highlights. Two
+    places whose marks are drawn from the same row of the same source cannot
+    be told apart by selecting it: BokehJS draws that row selected in every
+    renderer the source feeds.
+
+    Parameters
+    ----------
+    layer : BokehLayer
+        A layer highlighted by selection.
+
+    Returns
+    -------
+    bool
+        True when two places of the layer select the same source row.
+    """
+    source_of = {r.id: r.data_source.id for r in layer.renderers}
+    highlight = layer.highlight or {}
+    if "columns" in highlight:
+        # The wick and the body of one candle are read together.
+        places = highlight["columns"]
+    elif highlight.get("kind") == "points":
+        places = [[cell] for cell in highlight["points"]]
+    else:
+        places = [[cell] for row in highlight.get("grid", []) for cell in row]
+    owner: dict[tuple, int] = {}
+    for place, cells in enumerate(places):
+        for cell in cells:
+            if cell is None or cell[0] not in source_of:
+                continue
+            if owner.setdefault((source_of[cell[0]], cell[1]), place) != place:
+                return True
+    return False
+
+
 def _cursor_key(layer: BokehLayer) -> tuple:
     """
     Which cursor a layer's highlight uses: one per plot and pair of ranges.
@@ -877,25 +927,36 @@ _INIT_TEMPLATE = """(function() {
     // --- Highlight: MAIDR's onNavigate, answered in the Bokeh document. ---
     function highlighter(doc) {
         function model(id) { return doc.get_model_by_id(id); }
-        function sources() {
-            var out = [];
-            Object.keys(highlight).forEach(function(layerId) {
-                var entry = highlight[layerId];
-                var cells = entry.kind === 'points' ? entry.points
-                    : entry.kind === 'select'
-                        ? [].concat.apply([], entry.grid || entry.columns) : [];
-                cells.forEach(function(cell) {
-                    var r = cell && model(cell[0]);
-                    if (r && out.indexOf(r.data_source) < 0) out.push(r.data_source);
-                });
+        // The sources a selection is made in, and per layer the renderers
+        // that draw its marks.
+        var selectable = [];
+        var drawers = {};
+        Object.keys(highlight).forEach(function(layerId) {
+            var entry = highlight[layerId];
+            var cells = entry.kind === 'points' ? entry.points
+                : entry.kind === 'select'
+                    ? [].concat.apply([], entry.grid || entry.columns) : [];
+            var seen = {};
+            var own = drawers[layerId] = [];
+            cells.forEach(function(cell) {
+                if (!cell || seen[cell[0]]) return;
+                seen[cell[0]] = true;
+                var r = model(cell[0]);
+                if (!r) return;
+                own.push(r);
+                if (selectable.indexOf(r.data_source) < 0) {
+                    selectable.push(r.data_source);
+                }
             });
-            return out;
-        }
-        var selectable = sources();
+        });
+        // The renderers muted while the reader is on a mark of their layer.
+        var muted = [];
         function clear() {
             selectable.forEach(function(source) {
                 if (source.selected.indices.length) source.selected.indices = [];
             });
+            muted.forEach(function(r) { r.muted = false; });
+            muted = [];
             Object.keys(highlight).forEach(function(layerId) {
                 var entry = highlight[layerId];
                 var cursor = entry.kind === 'cursor' && model(entry.cursor);
@@ -944,6 +1005,17 @@ _INIT_TEMPLATE = """(function() {
             Object.keys(byRenderer).forEach(function(id) {
                 var r = model(id);
                 if (r) r.data_source.selected.indices = byRenderer[id];
+            });
+            // BokehJS dims the marks a selection leaves out only in the
+            // renderers whose source holds it. The layer's other renderers,
+            // each drawn from a source of its own -- the other series of a
+            // stack, the other trend of a candlestick -- are muted, so that
+            // the mark being read is the only one at full strength.
+            drawers[info.layerId].forEach(function(r) {
+                if (!r.muted && !r.data_source.selected.indices.length) {
+                    r.muted = true;
+                    muted.push(r);
+                }
             });
         }
         return { onNavigate: onNavigate, clear: clear };
