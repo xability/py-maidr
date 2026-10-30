@@ -145,8 +145,7 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
         for trace_index, trace in enumerate(self._traces):
             boxes = self._trace_boxes(trace, drawn, several)
             placed.extend(
-                (stats, position, trace_index, box_key(first, place))
-                for place, (stats, position, first) in enumerate(boxes, start=1)
+                (stats, position, trace_index, key) for stats, position, key in boxes
             )
             self._boxes_per_trace.append(len(boxes))
 
@@ -184,9 +183,8 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
         Returns
         -------
         list of tuple
-            ``(stats, position, first sample)`` for each box; the position is
-            ``None`` for a lone box with no name to stand at, and the first
-            sample ``None`` for a precomputed one.
+            ``(stats, position, key)`` for each box; the position is ``None``
+            for a lone box with no name to stand at.
         """
         y = trace.get("y", None)
         x = trace.get("x", None)
@@ -222,8 +220,10 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
         values = as_list(data)
         arr = np.array(values, dtype=float)
         stats = _compute_stats(arr, label=name, quartilemethod=quartilemethod)
+        if stats is None:
+            return []
         first = first_samples([None] * len(values), values).get(None)
-        return [] if stats is None else [(stats, name or None, first)]
+        return [(stats, name or None, box_key(first, 1))]
 
     def _extract_precomputed(self, trace: dict) -> list[tuple]:
         """
@@ -240,8 +240,9 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
         the rest of this module gives to data it cannot read; a crash would
         take the whole figure with it.
 
-        A box whose quartiles are missing or out of order is dropped too,
-        because plotly draws none there -- see `_precomputed_box`.
+        A box whose quartiles are missing or out of order is dropped too:
+        plotly draws only a flat line there, with nothing to read -- see
+        `_precomputed_box`. The boxes after it keep their places.
         """
         q1_vals = as_list(trace.get("q1"))
         median_vals = as_list(trace.get("median"))
@@ -279,7 +280,7 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
                 z=announced[i],
             )
             if box is not None:
-                results.append((box, stands_at[i], None))
+                results.append((box, stands_at[i], box_key(None, i + 1)))
         return results
 
     def _extract_grouped(
@@ -309,8 +310,7 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
         Returns
         -------
         list of tuple
-            ``(stats, position, first sample)`` for each position, in drawn
-            order.
+            ``(stats, position, key)`` for each position, in drawn order.
         """
         position_list = as_list(positions)
         sample_list = as_list(samples)
@@ -327,5 +327,5 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
             arr = np.array(groups[cat], dtype=float)
             stats = _compute_stats(arr, label=str(cat), quartilemethod=quartilemethod)
             if stats is not None:
-                results.append((stats, cat, first.get(cat)))
+                results.append((stats, cat, box_key(first.get(cat), 1)))
         return results

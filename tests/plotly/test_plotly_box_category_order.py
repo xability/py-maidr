@@ -289,3 +289,49 @@ def test_a_box_whose_first_samples_are_missing_is_found_by_its_first_number():
     fig = go.Figure(go.Box(x=["a", "a", "a", "b", "b"], y=[None, 1, 2, 3, 4]))
 
     assert [drawn for _, _, drawn in _read(fig)] == [(1, "s1"), (1, "s3")]
+
+
+@pytest.mark.parametrize(
+    ("q1", "median", "q3"),
+    [
+        ([1, None, 21, 31], [2, None, 22, 32], [3, None, 23, 33]),
+        ([1, 15, 21, 31], [2, 12, 22, 32], [3, 13, 23, 33]),
+    ],
+    ids=["missing", "out-of-order"],
+)
+def test_the_boxes_after_a_dropped_precomputed_box_keep_their_places(q1, median, q3):
+    # Measured: plotly still draws b, as a flat line, so c and d are its
+    # third and fourth boxes. Counted among the boxes read, they named the
+    # second and third: c was outlined on b's line and d on c's box.
+    fig = go.Figure(
+        go.Box(x=["a", "b", "c", "d"], q1=q1, median=median, q3=q3, name="P")
+    )
+
+    assert _read(fig) == [
+        ("a", 2, (1, "1")),
+        ("c", 22, (1, "3")),
+        ("d", 32, (1, "4")),
+    ]
+
+
+def test_a_layer_of_precomputed_and_sampled_traces_names_both():
+    fig = go.Figure(
+        [
+            go.Box(
+                x=["Thu", "Fri"],
+                q1=[11, 21],
+                median=[13, 23],
+                q3=[15, 25],
+                name="Male",
+            ),
+            _box(["Thu", "Fri"], [15, 25], name="Female"),
+        ],
+        layout={"boxmode": "group"},
+    )
+
+    assert _read(fig) == [
+        ("Thu, Male", 13, (1, "1")),
+        ("Thu, Female", 18.0, (2, "s0")),
+        ("Fri, Male", 23, (1, "2")),
+        ("Fri, Female", 28.0, (2, "s7")),
+    ]

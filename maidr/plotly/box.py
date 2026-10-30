@@ -304,7 +304,11 @@ def box_key(first_sample: int | None, place: int) -> str:
     The init script writes the same key on what plotly drew (see
     :data:`SPLIT_BOXES_JS`): ``"s7"`` for a box drawn from samples, the first
     of which is entry 7 of the trace's arrays, and the box's place among its
-    trace's boxes, ``"2"``, for one with no samples of its own.
+    trace's boxes, ``"2"``, for one with no samples of its own. The place is
+    the box's place in the trace's own list, counting a box the reader
+    drops: plotly draws a flat line where a precomputed box's quartiles are
+    missing or out of order, and counted among the kept boxes alone, every
+    box after it named the mark drawn before its own.
 
     Parameters
     ----------
@@ -312,8 +316,7 @@ def box_key(first_sample: int | None, place: int) -> str:
         The index of the box's first sample that is a number, or ``None``
         for a precomputed box.
     place : int
-        The box's one-based place among its trace's boxes, in the order the
-        trace lists them.
+        The box's one-based place in its trace's list.
 
     Returns
     -------
@@ -623,13 +626,15 @@ def _precomputed_box(
     """
     Build one box's stats from its precomputed values, the way plotly reads them.
 
-    Plotly's calc keeps a precomputed box only when ``q1``, ``median`` and
-    ``q3`` are all numeric and in order; otherwise it draws nothing there.
-    Such a box is dropped here for the same reason the sample path drops a
-    box with no finite samples: a ``None`` or NaN sent straight through
-    became a bare ``null``/``NaN`` in the schema, and plotly's ``boxlayer``
-    has no ``path.box`` for it, so leaving it in would also shift every
-    later box's positional selector off the element it describes.
+    Plotly reads a precomputed box only when ``q1``, ``median`` and ``q3``
+    are all numeric and in order. Otherwise it draws a flat line in the
+    box's place, at the median or, with none, at 0 -- measured in Chromium,
+    with the box's ``path.box`` still in its trace's group. Such a box is
+    dropped here for the same reason the sample path drops a box with no
+    finite samples: there is nothing to read, and a ``None`` or NaN sent
+    straight through became a bare ``null``/``NaN`` in the schema. The
+    boxes after it keep their places in the trace's list (see
+    :func:`box_key`), which is where plotly draws them.
 
     A fence plotly rejects -- non-numeric, or a lower fence above ``q1`` /
     an upper fence below ``q3`` -- does not cost it the box: with no sample
@@ -944,13 +949,7 @@ class PlotlyBoxPlot(PlotlyPlot):
             boxes = self._extract_precomputed()
         else:
             boxes = self._extract_from_raw_data(drawn)
-        placed = in_drawn_order(
-            [
-                (stats, position, box_key(first, place))
-                for place, (stats, position, first) in enumerate(boxes, start=1)
-            ],
-            drawn,
-        )
+        placed = in_drawn_order(boxes, drawn)
         self._keys = [key for _, _, key in placed]
         data = [stats for stats, _, _ in placed]
         # Record outlier counts so _get_selector can split them.
@@ -978,8 +977,9 @@ class PlotlyBoxPlot(PlotlyPlot):
         the rest of this module gives to data it cannot read; a crash would
         take the whole figure with it.
 
-        A box whose quartiles are missing or out of order is dropped too,
-        because plotly draws none there -- see `_precomputed_box`.
+        A box whose quartiles are missing or out of order is dropped too:
+        plotly draws only a flat line there, with nothing to read -- see
+        `_precomputed_box`. The boxes after it keep their places.
         """
         q1_vals = as_list(self._trace.get("q1"))
         median_vals = as_list(self._trace.get("median"))
@@ -1017,7 +1017,7 @@ class PlotlyBoxPlot(PlotlyPlot):
                 z=announced[i],
             )
             if box is not None:
-                results.append((box, stands_at[i], None))
+                results.append((box, stands_at[i], box_key(None, i + 1)))
         return results
 
     def _extract_from_raw_data(self, drawn: list | None = None) -> list[tuple]:
@@ -1035,8 +1035,8 @@ class PlotlyBoxPlot(PlotlyPlot):
         Returns
         -------
         list of tuple
-            ``(stats, position, first sample)`` for each box, in drawn order;
-            the position is ``None`` for a lone box with no name to stand at.
+            ``(stats, position, key)`` for each box, in drawn order; the
+            position is ``None`` for a lone box with no name to stand at.
         """
         y = self._trace.get("y", None)
         x = self._trace.get("x", None)
@@ -1059,8 +1059,10 @@ class PlotlyBoxPlot(PlotlyPlot):
                 label=name,
                 quartilemethod=self._trace.get("quartilemethod"),
             )
+            if stats is None:
+                return []
             first = first_samples([None] * len(values), values).get(None)
-            return [(stats, name or None, first)] if stats is not None else []
+            return [(stats, name or None, box_key(first, 1))]
 
         return []
 
@@ -1091,8 +1093,7 @@ class PlotlyBoxPlot(PlotlyPlot):
         Returns
         -------
         list of tuple
-            ``(stats, position, first sample)`` for each position, in drawn
-            order.
+            ``(stats, position, key)`` for each position, in drawn order.
         """
         positions = as_list(positions)
         samples = as_list(samples)
@@ -1113,5 +1114,5 @@ class PlotlyBoxPlot(PlotlyPlot):
                 quartilemethod=self._trace.get("quartilemethod"),
             )
             if stats is not None:
-                results.append((stats, cat, first.get(cat)))
+                results.append((stats, cat, box_key(first.get(cat), 1)))
         return results

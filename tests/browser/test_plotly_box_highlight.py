@@ -286,6 +286,57 @@ def test_each_box_is_outlined_where_it_is_drawn(browser, tmp_path, case):
         page.close()
 
 
+def _dropped_box(tmp_path: Path, case: str) -> Path:
+    """A precomputed trace a, b, c, d whose box b has nothing to read."""
+    import plotly.graph_objects as go
+
+    import maidr
+
+    bad = {"missing": (None, None, None), "out-of-order": (15, 12, 13)}[case]
+    fig = go.Figure(
+        go.Box(
+            x=["a", "b", "c", "d"],
+            q1=[1, bad[0], 21, 31],
+            median=[2, bad[1], 22, 32],
+            q3=[3, bad[2], 23, 33],
+            lowerfence=[0, 10, 20, 30],
+            upperfence=[4, 14, 24, 34],
+            name="P",
+        )
+    )
+    path = tmp_path / f"plotly_box_{case}.html"
+    maidr.save_html(fig, file=str(path), use_cdn=False)
+    return path
+
+
+@pytest.mark.parametrize("case", ["missing", "out-of-order"])
+def test_the_boxes_after_one_with_nothing_to_read_keep_their_marks(
+    browser, tmp_path, case
+):
+    # Plotly draws b as a flat line, which the reader drops. Before, c and d
+    # were counted among the boxes read, so c was outlined on b's line and d
+    # on c's box.
+    page, errors = _open(browser, _dropped_box(tmp_path, case))
+    try:
+        boxes = page.evaluate(_BOXES)
+        assert [box["z"] for box in boxes] == ["a", "c", "d"]
+        for _ in range(4):
+            spoken = _step(page, "ArrowUp")
+            if "50%" in spoken:
+                break
+        for index, box in enumerate(boxes):
+            if index:
+                spoken = _step(page, "ArrowRight")
+            assert f"{box['z']}, 50%" in spoken, (box["z"], spoken)
+            want = page.evaluate(_SCREEN_VALUE, ["y", box["q2"]])
+            assert _centre_y(_outline(page)) == pytest.approx(
+                want, abs=_TOLERANCE_PX
+            ), (box["z"], spoken)
+        assert not errors, errors
+    finally:
+        page.close()
+
+
 def test_right_walks_grouped_boxes_across_the_page(browser, tmp_path):
     page, errors = _open(browser, _grouped_boxes(tmp_path))
     try:
