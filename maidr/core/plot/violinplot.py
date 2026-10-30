@@ -20,6 +20,38 @@ from matplotlib.patches import PathPatch, Rectangle
 from maidr.core.enum import MaidrKey
 
 
+def first_violin_at_bottom(ax: Axes, orientation: str) -> bool:
+    """
+    Whether a violin layer's rows are emitted in reverse of drawing order.
+
+    maidr.js reverses a horizontal violin layer, its data and its selectors
+    alike, into bottom-to-top navigation, so it needs the violins listed top
+    first. Both libraries draw them at ascending positions: on a normal y axis
+    that puts the first one at the bottom, so the rows are reversed; seaborn
+    inverts its category axis, which puts the first one at the top, so they
+    are kept. Reversing on the orientation alone listed seaborn's violins
+    bottom first, so Up moved down the page. ``BoxPlot._order_box_rows``
+    applies the same rule to box plots.
+
+    The axis is read at render time, after seaborn or the caller has had a
+    chance to invert it. Vertical violins keep the order they were drawn in.
+
+    Parameters
+    ----------
+    ax : Axes
+        The axes the violins were drawn on.
+    orientation : str
+        ``"vert"`` or ``"horz"``.
+
+    Returns
+    -------
+    bool
+        True when the violins run across the page with the first at the
+        bottom, so each list of per-violin rows is to be reversed.
+    """
+    return orientation != "vert" and not ax.yaxis_inverted()
+
+
 class ViolinDataExtractor:
     """
     Extract raw data groups and values from an ``Axes.violinplot`` call.

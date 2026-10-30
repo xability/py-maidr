@@ -10,6 +10,7 @@ from matplotlib.axes import Axes
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
 from maidr.core.plot.maidr_plot import MaidrPlot
+from maidr.core.plot.violinplot import first_violin_at_bottom
 from maidr.util.mixin.extractor_mixin import LevelExtractorMixin
 from maidr.util.rdp_utils import simplify_curve
 from maidr.util.svg_utils import data_to_svg_coords, settle_layout
@@ -59,9 +60,8 @@ class ViolinKdePlot(MaidrPlot):
         """
         Return one CSS selector per violin using PolyCollection GIDs.
 
-        In the order the data was emitted, which for a horizontal violin is
-        the reverse of the order the collections were drawn in -- the box
-        layer's convention, which the KDE layer matches.
+        In the order the data was emitted, which ``first_violin_at_bottom``
+        decides for this layer and the box layer alike.
 
         The reversal is done here rather than to ``self._poly_gids``, because
         that list is the constructor's and persists across renders. Reversing
@@ -82,7 +82,7 @@ class ViolinKdePlot(MaidrPlot):
 
         gids = (
             list(reversed(self._poly_gids))
-            if self._orientation == "horz"
+            if first_violin_at_bottom(self.ax, self._orientation)
             else self._poly_gids
         )
         return [f"g[id='{gid}'] > path, g[id='{gid}'] > g > use" for gid in gids]
@@ -139,11 +139,11 @@ class ViolinKdePlot(MaidrPlot):
             )
             all_violins.append(violin_points)
 
-        # Reverse for horizontal to match the box layer's ordering convention.
+        # In the box layer's order (see `first_violin_at_bottom`).
         # `all_violins` is rebuilt every call, so reversing it is idempotent;
         # the matching order for the selectors is derived in `_get_selector`
         # rather than written back onto the constructor's gid list.
-        if is_horz:
+        if first_violin_at_bottom(self.ax, self._orientation):
             all_violins.reverse()
 
         return all_violins

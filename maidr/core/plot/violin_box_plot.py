@@ -10,7 +10,10 @@ from matplotlib.axes import Axes
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
 from maidr.core.plot.maidr_plot import MaidrPlot
-from maidr.core.plot.violinplot import ViolinBoxStatsCalculator
+from maidr.core.plot.violinplot import (
+    ViolinBoxStatsCalculator,
+    first_violin_at_bottom,
+)
 
 
 class ViolinBoxPlot(MaidrPlot):
@@ -85,16 +88,23 @@ class ViolinBoxPlot(MaidrPlot):
 
         * **Seaborn** path: each element is an individual ``Line2D``
           with its own GID.
+
+        Both are built in the order the violins were drawn and put in the
+        order the data is emitted in, so selector *i* names violin *i*'s
+        marks. Only the data used to be reordered for a horizontal violin, so
+        each violin was outlined at its mirror image: on seaborn's five
+        horizontal violins, reading Ideal (the top one) outlined Fair's box.
         """
         num_violins = len(self._groups)
 
         if self._mpl_gids:
-            return self._build_mpl_selectors(num_violins)
-        if self._sns_gids:
-            return self._build_sns_selectors()
-
-        # Fallback — no artists, return empty selectors.
-        return [self._empty_selector() for _ in range(num_violins)]
+            selectors = self._build_mpl_selectors(num_violins)
+        elif self._sns_gids:
+            selectors = self._build_sns_selectors()
+        else:
+            # Fallback — no artists, return empty selectors.
+            selectors = [self._empty_selector() for _ in range(num_violins)]
+        return self._in_emitted_order(selectors)
 
     # ------------------------------------------------------------------
     # Data extraction
@@ -155,7 +165,26 @@ class ViolinBoxPlot(MaidrPlot):
 
             box_data.append(record)
 
-        return box_data if self._orientation == "vert" else list(reversed(box_data))
+        return self._in_emitted_order(box_data)
+
+    def _in_emitted_order(self, rows: list) -> list:
+        """
+        Order per-violin rows, drawn first to last, as they are emitted.
+
+        Parameters
+        ----------
+        rows : list
+            One entry per violin, in the order the violins were drawn.
+
+        Returns
+        -------
+        list
+            The rows reversed when ``first_violin_at_bottom`` says so,
+            otherwise as given.
+        """
+        if first_violin_at_bottom(self.ax, self._orientation):
+            return list(reversed(rows))
+        return rows
 
     # ------------------------------------------------------------------
     # Artist tagging
@@ -206,10 +235,18 @@ class ViolinBoxPlot(MaidrPlot):
         Each ``LineCollection`` renders as ``<g id="gid"> <path/>... </g>``
         with one ``<path>`` per violin segment.  Use ``:nth-child(i)`` to
         select the *i*-th violin's element.
+
+        ``iq`` is left empty. maidr.js outlines the 25% and 75% stops at the
+        two ends of the element named there, and ``Axes.violinplot`` draws
+        nothing that spans the quartiles: its bar, ``cbars``, runs from the
+        minimum to the maximum. Named as ``iq``, it put the 25% outline on
+        the minimum's cap and the 75% outline on the maximum's (878 drawn
+        at 326, 4,679 at 18,806 on the gallery's Ideal violin). Unnamed,
+        those two stops are announced without an outline, as nothing marks
+        them on the chart.
         """
         cmins_gid = self._mpl_gids.get("cmins", "")
         cmaxes_gid = self._mpl_gids.get("cmaxes", "")
-        cbars_gid = self._mpl_gids.get("cbars", "")
         cmedians_gid = self._mpl_gids.get("cmedians", "")
         cmeans_gid = self._mpl_gids.get("cmeans", "")
 
@@ -221,11 +258,7 @@ class ViolinBoxPlot(MaidrPlot):
                 MaidrKey.MIN.value: (
                     f"g[id='{cmins_gid}'] > path:nth-child({nth})" if cmins_gid else ""
                 ),
-                # cbars is the vertical whisker bar (min→max), not the IQ range.
-                # Matplotlib violinplot has no IQ-range visual element.
-                MaidrKey.IQ.value: (
-                    f"g[id='{cbars_gid}'] > path:nth-child({nth})" if cbars_gid else ""
-                ),
+                MaidrKey.IQ.value: "",
                 MaidrKey.Q2.value: (
                     f"g[id='{cmedians_gid}'] > path:nth-child({nth})"
                     if cmedians_gid
