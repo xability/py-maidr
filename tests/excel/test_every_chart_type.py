@@ -705,6 +705,40 @@ def test_a_box_and_whisker_names_its_value_axis_after_its_one_series(tmp_path):
     assert not chart.figure.axes[0].yaxis.label.get_visible()
 
 
+def test_a_box_and_whisker_of_two_series_keeps_value_for_its_axis(tmp_path):
+    groups = ["A"] * 5 + ["B"] * 4
+    retest = [v + 1 for v in VALUES]
+    rows = [["Group", "Score", "Retest"]] + [
+        [g, v, r] for g, v, r in zip(groups, VALUES, retest)
+    ]
+    categories = _dimension("strDim", "cat", "Sales!$A$2:$A$10", [groups])
+    second = (
+        f'<cx:data id="1">{categories}'
+        f'{_dimension("numDim", "val", "Sales!$C$2:$C$10", [retest])}</cx:data>'
+    )
+    part = (
+        _part(
+            "boxWhisker",
+            categories,
+            _dimension("numDim", "val", "Sales!$B$2:$B$10", [VALUES]),
+            more='<cx:series layoutId="boxWhisker"><cx:tx><cx:txData>'
+            '<cx:v>Retest</cx:v></cx:txData></cx:tx><cx:dataId val="1"/>'
+            "</cx:series>",
+        )
+        .replace("<cx:v>North</cx:v>", "<cx:v>Score</cx:v>")
+        .replace("</cx:chartData>", f"{second}</cx:chartData>")
+    )
+
+    (chart,) = _read(_excel_2016(tmp_path, part, rows))
+
+    # Each series is a layer of its own, and neither one names an axis that
+    # both are drawn against.
+    assert [layer["axes"]["y"]["label"] for layer in _layers(chart)] == [
+        "Value",
+        "Value",
+    ]
+
+
 def test_an_excel_2016_chart_reads_its_cells_through_the_names_it_uses(tmp_path):
     part = _sales_part("funnel", [120, 150, 90, 175])
     part = re.sub(r"<cx:lvl .*?</cx:lvl>", "", part)
