@@ -52,3 +52,18 @@ def test_the_iris_edge_is_one_number() -> None:
     bins = _bins(fig)
     assert bins[9]["xMax"] == bins[10]["xMin"] == 3.95
     assert bins[10]["x"] == pytest.approx((3.95 + 4.245) / 2)
+
+
+def test_a_staircase_s_bins_share_their_edges() -> None:
+    """``Axes.stairs`` is read through the same bin builder as ``Axes.hist``.
+
+    Its edges are the caller's own, but each bin's upper edge is still
+    computed as a lower edge plus a width.
+    """
+    fig, ax = plt.subplots()
+    ax.stairs(np.arange(1, 21), np.linspace(1.0, 6.9, 21))
+
+    bins = _bins(fig)
+    assert len(bins) == 20
+    for before, after in zip(bins, bins[1:]):
+        assert before["xMax"] == after["xMin"]
