@@ -11,9 +11,15 @@ after the chart's own title, so the fixed string became the chart's
 one page were announced identically, which is the failure #453 was filed
 about, reappearing for these plot types by another route.
 
-``mpf.plot(title=...)`` was never affected: it sets the figure suptitle, which
-lands in the figure-level title and was never the thing being overwritten.
-Both spellings are covered here, since the point is that they now agree.
+``mpf.plot(title=...)`` sets the figure suptitle, which lands in the
+figure-level title. Each layer then fell back to a fixed string instead --
+"Candlestick Chart", "Volume Bar Plot", "Moving Average Line Plot" -- which
+maidr.js takes for a title the author wrote and announces ahead of the
+figure's: ``L T`` and every tab of the ``d`` dialog named the chart "Candlestick
+Chart" while its frame was named "Stock Price with Volume" (py-example-a#6). A
+layer's title names the chart, so an untitled axes now gives an untitled layer
+and maidr.js reads the figure's title. Both spellings are covered here, since
+the point is that they agree.
 """
 
 from __future__ import annotations
@@ -118,31 +124,33 @@ class TestTheCallersTitleSurvives:
         assert "Moving Average Line Plot" not in titles
 
 
-class TestTheDescriptiveLabelIsStillTheFallback:
-    def test_an_untitled_candlestick_says_what_it_is(self) -> None:
+class TestAnUntitledAxesGivesAnUntitledLayer:
+    def test_an_untitled_candlestick_has_no_layer_title(self) -> None:
         fig, _ = mpf.plot(_prices(), type="candle", returnfig=True)
 
-        # Better than the empty string the base render leaves: a reader given
-        # no name still learns what kind of chart they are on.
-        assert "Candlestick Chart" in _layer_titles(fig)
+        # Not "Candlestick Chart": a chart type is not a title, and maidr.js
+        # announces a layer's title as the chart's.
+        assert _layer_titles(fig) == [""]
 
-    def test_an_untitled_volume_panel_says_what_it_is(self) -> None:
+    def test_an_untitled_volume_panel_has_no_layer_title(self) -> None:
         fig, _ = mpf.plot(_prices(), type="candle", volume=True, returnfig=True)
 
-        assert "Volume Bar Plot" in _layer_titles(fig)
+        assert _layer_titles(fig) == ["", ""]
 
-    def test_an_untitled_moving_average_says_what_it_is(self) -> None:
+    def test_an_untitled_moving_average_has_no_layer_title(self) -> None:
         fig, _ = mpf.plot(_prices(), type="candle", mav=2, returnfig=True)
 
-        assert "Moving Average Line Plot" in _layer_titles(fig)
+        assert _layer_titles(fig) == ["", ""]
 
     def test_a_whitespace_title_counts_as_absent(self) -> None:
         fig, axlist = mpf.plot(_prices(), type="candle", returnfig=True)
         axlist[0].set_title("   ")
 
-        # Otherwise the chart would be announced as a run of spaces, and the
-        # frame named "   , accessible chart".
-        assert "Candlestick Chart" in _layer_titles(fig)
+        # The layer carries the axes' title as written, as every layer type
+        # does, and neither reader takes a blank one for a name: the frame is
+        # not named "   , accessible chart", and maidr.js's `isAuthoredTitle`
+        # does not announce the chart as a run of spaces.
+        assert chart_title_of(_schema(fig)) == ""
 
 
 class TestTheFigureLevelSpellingIsUnchanged:
@@ -154,3 +162,20 @@ class TestTheFigureLevelSpellingIsUnchanged:
         # This sets the suptitle, which was never overwritten -- covered so
         # the two spellings are pinned as agreeing rather than assumed to.
         assert chart_title_of(_schema(fig)) == "AAPL 2026 Q1"
+
+    def test_no_layer_names_the_chart_over_the_figures_title(self) -> None:
+        # The chart py-example-a#6 was found on: a titled figure, a volume
+        # panel and three moving averages. Every layer was titled with its
+        # chart type, and maidr.js read that title instead of the figure's.
+        fig, _ = mpf.plot(
+            _prices(),
+            type="candle",
+            volume=True,
+            mav=(2, 3),
+            returnfig=True,
+            title="Stock Price with Volume",
+        )
+
+        schema = _schema(fig)
+        assert schema["title"] == "Stock Price with Volume"
+        assert _layer_titles(fig) == ["", "", ""]
