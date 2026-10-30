@@ -60,6 +60,28 @@ def test_a_title_set_on_the_first_axes_names_the_twins_layer() -> None:
     assert [title for _, title in _titles(fig)] == ["North revenue and margin"] * 2
 
 
+def test_a_twiny_layer_takes_the_title_too() -> None:
+    """``twiny`` twins the other way round, and the title is shared the same."""
+    fig, ax1 = plt.subplots()
+    ax1.set_title("Two scales")
+    ax1.plot([1, 2, 3], [4, 5, 6])
+    ax1.twiny().plot([10, 20, 30], [4, 5, 6])
+
+    assert [title for _, title in _titles(fig)] == ["Two scales"] * 2
+
+
+def test_three_twinned_axes_share_the_one_title() -> None:
+    fig, ax1 = plt.subplots()
+    ax1.bar(["a", "b"], [1, 2])
+    ax2 = ax1.twinx()
+    ax2.plot(["a", "b"], [3, 4])
+    ax3 = ax1.twinx()
+    ax3.plot(["a", "b"], [30, 40])
+    ax3.set_title("Three axes")
+
+    assert [title for _, title in _titles(fig)] == ["Three axes"] * 3
+
+
 def test_each_axes_keeps_a_title_of_its_own() -> None:
     fig, ax1 = plt.subplots()
     ax1.set_title("Left")
