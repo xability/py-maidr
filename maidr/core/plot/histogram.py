@@ -5,6 +5,7 @@ from matplotlib.container import BarContainer
 
 from maidr.core.enum import MaidrKey, PlotType
 from maidr.core.plot import MaidrPlot
+from maidr.core.plot.errorbar import ErrorBarPlot
 from maidr.core.plot.maidr_plot import group_name_of
 from maidr.exception import ExtractionError
 from maidr.util.mixin import ContainerExtractorMixin, DictMergerMixin
@@ -138,22 +139,36 @@ class HistPlot(MaidrPlot, ContainerExtractorMixin, DictMergerMixin):
         the shape's sake and are not read: the core's ``Histogram`` trace
         takes its bin range from the pair on the *binned* axis and never
         looks at the other.
+
+        The edges and the centre are computed from a bar's position and
+        width, so they carry binary floating-point noise, and a bin's upper
+        edge and the next bin's lower edge come out of different sums: on the
+        iris petal lengths, 3.95 for one and 3.9499999999999997 for the next.
+        Rounded to one decimal those read 4.0 and 3.9, so two neighbouring
+        bins were announced as overlapping ("3.7 through 4.0", then "3.9
+        through 4.2"). Each edge is given to twelve significant figures by
+        ``ErrorBarPlot._without_float_noise``, which rounds the derived bounds
+        of error bars and point plots, so a shared edge is one number; the
+        centre is the midpoint of the two edges as emitted.
         """
+        end = ErrorBarPlot._without_float_noise(bin_start + bin_size)
+        bin_start = ErrorBarPlot._without_float_noise(bin_start)
+        middle = (bin_start + end) / 2
         if orientation == "horz":
             return {
                 MaidrKey.X.value: count,
-                MaidrKey.Y.value: bin_start + bin_size / 2,
+                MaidrKey.Y.value: middle,
                 MaidrKey.Y_MIN.value: bin_start,
-                MaidrKey.Y_MAX.value: bin_start + bin_size,
+                MaidrKey.Y_MAX.value: end,
                 MaidrKey.X_MIN.value: 0,
                 MaidrKey.X_MAX.value: count,
             }
 
         return {
             MaidrKey.Y.value: count,
-            MaidrKey.X.value: bin_start + bin_size / 2,
+            MaidrKey.X.value: middle,
             MaidrKey.X_MIN.value: bin_start,
-            MaidrKey.X_MAX.value: bin_start + bin_size,
+            MaidrKey.X_MAX.value: end,
             MaidrKey.Y_MIN.value: 0,
             MaidrKey.Y_MAX.value: count,
         }
