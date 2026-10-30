@@ -134,11 +134,13 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
                 self._boxes_per_trace.append(len(all_boxes) - before)
                 continue
 
-            # Grouped by x
+            # Grouped by position: `y` places a horizontal trace's boxes, `x`
+            # a vertical one's, and the other array holds the samples.
             if x is not None and y is not None:
+                positions, samples = (y, x) if _trace_is_horizontal(trace) else (x, y)
                 all_boxes.extend(
                     self._extract_grouped(
-                        x, y, quartilemethod=trace.get("quartilemethod")
+                        positions, samples, quartilemethod=trace.get("quartilemethod")
                     )
                 )
                 self._boxes_per_trace.append(len(all_boxes) - before)
@@ -218,15 +220,32 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
         return results
 
     def _extract_grouped(
-        self, x: list[Any], y: list[Any], quartilemethod: str | None = None
+        self, positions: Any, samples: Any, quartilemethod: str | None = None
     ) -> list[dict]:
-        """Extract stats grouped by x categories."""
-        x_list = as_list(x)
-        y_list = as_list(y)
-        categories = list(dict.fromkeys(x_list))
+        """
+        Extract one box's stats per position -- see `PlotlyBoxPlot._extract_grouped`.
+
+        Parameters
+        ----------
+        positions : Any
+            Where each sample's box stands: ``x`` for a vertical trace, ``y``
+            for a horizontal one.
+        samples : Any
+            The samples, from the other array.
+        quartilemethod : str or None
+            The trace's ``quartilemethod``.
+
+        Returns
+        -------
+        list of dict
+            One box per position, in order of first appearance.
+        """
+        position_list = as_list(positions)
+        sample_list = as_list(samples)
+        categories = list(dict.fromkeys(position_list))
         groups: dict[Any, list] = {cat: [] for cat in categories}
-        for xi, yi in zip(x_list, y_list):
-            groups[xi].append(yi)
+        for position, sample in zip(position_list, sample_list):
+            groups[position].append(sample)
 
         results = []
         for cat in categories:

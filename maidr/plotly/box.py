@@ -647,8 +647,11 @@ class PlotlyBoxPlot(PlotlyPlot):
         y = self._trace.get("y", None)
         x = self._trace.get("x", None)
 
-        # If there's a grouping variable x, group by unique x values
+        # With both arrays, one places the boxes and the other holds their
+        # samples: `y` places a horizontal trace's boxes, `x` a vertical one's.
         if x is not None and y is not None:
+            if self._is_horizontal():
+                return self._extract_grouped(y, x)
             return self._extract_grouped(x, y)
 
         # Single box — data may be in y (vertical) or x (horizontal)
@@ -664,15 +667,37 @@ class PlotlyBoxPlot(PlotlyPlot):
 
         return []
 
-    def _extract_grouped(self, x: list[Any], y: list[Any]) -> list[dict]:
-        """Extract stats grouped by x categories."""
-        x = as_list(x)
-        y = as_list(y)
+    def _extract_grouped(self, positions: Any, samples: Any) -> list[dict]:
+        """
+        Extract one box's stats per position, from the samples at it.
+
+        Which array is which follows the orientation: a horizontal trace
+        stands its boxes along ``y`` and reads its samples from ``x``. Grouped
+        the vertical way, a horizontal trace -- what ``px.box(x=..., y=...)``
+        draws for a numeric ``x`` and a categorical ``y`` -- took its category
+        names for samples, and ``float()`` of one raised ``ValueError``, which
+        took the whole figure down.
+
+        Parameters
+        ----------
+        positions : Any
+            Where each sample's box stands: ``x`` for a vertical trace, ``y``
+            for a horizontal one.
+        samples : Any
+            The samples, from the other array.
+
+        Returns
+        -------
+        list of dict
+            One box per position, in order of first appearance.
+        """
+        positions = as_list(positions)
+        samples = as_list(samples)
         # Preserve order of appearance
-        categories = list(dict.fromkeys(x))
+        categories = list(dict.fromkeys(positions))
         groups: dict[Any, list] = {cat: [] for cat in categories}
-        for xi, yi in zip(x, y):
-            groups[xi].append(yi)
+        for position, sample in zip(positions, samples):
+            groups[position].append(sample)
 
         results = []
         for cat in categories:
