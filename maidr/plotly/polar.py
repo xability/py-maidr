@@ -4,7 +4,7 @@ import math
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
-from maidr.plotly.plotly_plot import PlotlyPlot, as_list, subplot_block
+from maidr.plotly.plotly_plot import PlotlyPlot, as_list, subplot_block, title_text
 from maidr.plotly.step_shape import renders_through_webgl
 
 
@@ -264,7 +264,4 @@ def _axis_title(axis: object, default: str) -> str:
     """Return a plotly polar axis's title text, or ``default`` when unset."""
     if not isinstance(axis, dict):
         return default
-    title = axis.get("title", "")
-    if isinstance(title, dict):
-        title = title.get("text", "")
-    return str(title) if title else default
+    return title_text(axis.get("title")) or default

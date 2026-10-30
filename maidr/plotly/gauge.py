@@ -4,7 +4,7 @@ from typing import Any
 
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
-from maidr.plotly.plotly_plot import PlotlyPlot, as_list
+from maidr.plotly.plotly_plot import PlotlyPlot, as_list, title_text
 
 
 def draws_a_dial(trace: dict) -> bool:
@@ -184,7 +184,4 @@ class PlotlyGaugePlot(PlotlyPlot):
         "Profit" -- rather than the figure's, which is why it becomes the
         point's ``label`` rather than the layer's title.
         """
-        title = self._trace.get("title")
-        if isinstance(title, dict):
-            title = title.get("text", "")
-        return str(title) if title else ""
+        return title_text(self._trace.get("title"))

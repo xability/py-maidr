@@ -981,6 +981,37 @@ def test_plotly_declared_fan_is_the_5th_25th_median_75th_and_95th(
         assert values == sorted(values)
 
 
+def test_plotly_step_points_carry_the_stage_names(gallery: _Gallery) -> None:
+    """examples-plotly.qmd: "name the codes with the y axis's ``tickvals``
+    and ``ticktext``. maidr attaches the names to each point and announces
+    'REM' instead of '3'."
+    """
+    (points,) = gallery.shown("examples-plotly.qmd", "Step Plot").layer(
+        PlotType.STEP
+    )[MaidrKey.DATA]
+
+    assert {point[MaidrKey.LABEL] for point in points if point[MaidrKey.Y] == 3} == {
+        "REM"
+    }
+
+
+def test_plotly_facet_panels_read_the_titles_they_share(gallery: _Gallery) -> None:
+    """examples-plotly.qmd: "A panel whose own axis is untitled is read with
+    the title of the axis it shares (its ``matches``), so every panel below
+    reads 'Categories' and 'Values'."
+    """
+    shown = gallery.shown("examples-plotly.qmd", "Facet Bar Plot (2x2 Grid)")
+
+    assert [
+        (
+            layer[MaidrKey.AXES][MaidrKey.X][MaidrKey.LABEL],
+            layer[MaidrKey.AXES][MaidrKey.Y][MaidrKey.LABEL],
+        )
+        for cell in shown.layers
+        for layer in cell
+    ] == [("Categories", "Values")] * 4
+
+
 def test_excel_untitled_axis_is_named_after_its_header(gallery: _Gallery) -> None:
     """examples-excel.qmd: "An axis Excel draws no title on is named after the
     header cell above its categories, such as *Quarter*"."""

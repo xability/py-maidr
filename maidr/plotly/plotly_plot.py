@@ -37,6 +37,32 @@ _NATIVE_TYPES = frozenset({float, int, str, bool, type(None)})
 #: a listener, where ``2024-01-01T12:00`` is a time.
 _DATE_UNITS = ("D", "m", "s", "ms", "us", "ns")
 
+#: How plotly.js reads the markup in a label (``svg_text_utils`` in the
+#: bundle the installed package ships): a newline is a space, the text splits
+#: around every ``<...>``, and each piece is a tag only when this pattern finds
+#: one in it.
+_NEWLINES = re.compile(r"\r\n?|\n")
+_SPLIT_TAGS = re.compile(r"(<[^<>]*>)")
+_ONE_TAG = re.compile(r"<(/?)([^ >]*)(\s+(.*))?>", re.IGNORECASE)
+
+#: The tags plotly draws as styling rather than as text. ``br`` breaks the
+#: line; any other tag is drawn as it is written.
+_STYLED_TAGS = frozenset({"sup", "sub", "s", "u", "b", "i", "a", "span", "em"})
+
+#: The entities plotly converts: these eight by name, and any number. Any
+#: other name, and ``&#X41;`` with a capital X, are drawn as written.
+_ENTITY = re.compile(r"&(#\d+|#x[\da-fA-F]+|[a-z]+);")
+_ENTITIES = {
+    "mu": "μ",
+    "amp": "&",
+    "lt": "<",
+    "gt": ">",
+    "nbsp": "\xa0",
+    "times": "\xd7",
+    "plusmn": "\xb1",
+    "deg": "\xb0",
+}
+
 
 class PlotlyPlot(ABC):
     """
@@ -673,10 +699,7 @@ class PlotlyPlot(ABC):
         if subplot_title:
             return subplot_title
 
-        title = self._layout.get("title", "")
-        if isinstance(title, dict):
-            return title.get("text", "")
-        return str(title) if title else ""
+        return title_text(self._layout.get("title"))
 
     def _title_anchor(self) -> tuple[float, float]:
         """Return the point on the page a subplot title annotation sits at.
@@ -722,7 +745,7 @@ class PlotlyPlot(ABC):
             ann_x = ann.get("x", 0)
             # Subplot title annotations sit just above the y-domain top
             if abs(ann_y - y_top) < 0.05 and abs(ann_x - x_mid) < 0.1:
-                text = ann.get("text", "")
+                text = plain_text(ann.get("text"))
                 if text:
                     return text
         return None
@@ -760,23 +783,18 @@ class PlotlyPlot(ABC):
         xaxis = self._layout.get(self._xaxis_name, {})
         yaxis = self._layout.get(self._yaxis_name, {})
 
-        x_label = xaxis.get("title", "")
-        if isinstance(x_label, dict):
-            x_label = x_label.get("text", "")
-
-        y_label = yaxis.get("title", "")
-        if isinstance(y_label, dict):
-            y_label = y_label.get("text", "")
+        x_label = axis_title(self._layout, self._xaxis_name)
+        y_label = axis_title(self._layout, self._yaxis_name)
 
         format_config = self._extract_format(xaxis, yaxis) or {}
 
         return {
             MaidrKey.X: self._axis_config(
-                label=str(x_label) if x_label else "X",
+                label=x_label or "X",
                 format=format_config.get("x"),
             ),
             MaidrKey.Y: self._axis_config(
-                label=str(y_label) if y_label else "Y",
+                label=y_label or "Y",
                 format=format_config.get("y"),
             ),
         }
@@ -976,6 +994,236 @@ def subplot_css_prefix(xaxis_name: str, yaxis_name: str) -> str:
     return f".subplot.{x_ref}{y_ref} "
 
 
+def plain_text(text: Any) -> str:
+    """
+    Return a plotly label as the words plotly draws for it.
+
+    A title, axis title, annotation or tick label may carry a little HTML:
+    ``<br>`` breaks the line, ``<b>``, ``<i>``, ``<em>``, ``<sup>``,
+    ``<sub>``, ``<s>``, ``<u>``, ``<span>`` and ``<a>`` style the words
+    between them, and an entity such as ``&amp;`` stands for a character.
+    Plotly draws the words, not the markup, but the markup was handed to the
+    reader as it was written: a figure titled
+    ``"Hypnogram<br>Sleep stage across one night"`` was announced with the
+    ``<br>`` in it, in the chart's name, its description and its title key.
+
+    The label is read by plotly.js's own rules (``svg_text_utils``), measured
+    in Chromium: a newline is a space; ``<br>``, ``<BR>`` and ``<br />`` end
+    a line, and so become a space here; a styling tag is dropped; any other
+    tag -- ``<br/>`` among them, which plotly does not recognize -- is drawn
+    as written, and so is kept; and the entities plotly converts are
+    converted, while the ones it draws as written are kept. Runs of
+    whitespace are then collapsed, since a listener hears none of them.
+
+    Parameters
+    ----------
+    text : Any
+        The label as the figure holds it.
+
+    Returns
+    -------
+    str
+        The words plotly draws, or an empty string when there are none.
+    """
+    if text is None:
+        return ""
+    drawn = []
+    for part in _SPLIT_TAGS.split(_NEWLINES.sub(" ", str(text))):
+        tag = _ONE_TAG.search(part)
+        name = tag.group(2).lower() if tag else None
+        if name == "br":
+            drawn.append(" ")
+        elif name not in _STYLED_TAGS:
+            drawn.append(_ENTITY.sub(_converted_entity, part))
+    return " ".join("".join(drawn).split())
+
+
+def _converted_entity(match: re.Match) -> str:
+    """
+    One entity as plotly draws it: its character, or as written.
+
+    ``&#0;`` and a surrogate such as ``&#xD800;`` are dropped. Plotly draws
+    them as characters that show nothing (measured in Chromium), so there is
+    nothing to hear; and a lone surrogate cannot be written to a page at all,
+    so keeping it made ``save_html`` raise ``UnicodeEncodeError``.
+    """
+    code = match.group(1)
+    if not code.startswith("#"):
+        return _ENTITIES.get(code, match.group(0))
+    number = int(code[2:], 16) if code[1] == "x" else int(code[1:])
+    if number == 0 or 0xD800 <= number <= 0xDFFF:
+        return ""
+    return chr(number) if number <= 0x10FFFF else match.group(0)
+
+
+def title_text(title: Any) -> str:
+    """
+    Return the words of a plotly ``title``, however it is given.
+
+    Plotly accepts a title as a string or as a ``{"text": ...}`` block, and
+    either may carry the markup :func:`plain_text` removes.
+
+    Parameters
+    ----------
+    title : Any
+        A ``title`` from a layout, an axis, a color bar or a trace.
+
+    Returns
+    -------
+    str
+        The title's words, or an empty string when it has none.
+    """
+    if isinstance(title, dict):
+        title = title.get("text")
+    return plain_text(title) if title else ""
+
+
+#: An axis id as ``matches`` names one: ``x``, ``y2``, ``x10``.
+_AXIS_ID = re.compile(r"^([xy])(\d*)$")
+
+
+def shared_axes(layout: dict, axis_name: str) -> list[dict]:
+    """
+    Return a cartesian axis, then each axis its ``matches`` leads to.
+
+    ``make_subplots(shared_xaxes=True)`` and ``shared_yaxes=True`` share an
+    axis by pointing each panel's own at one other through ``matches``: the
+    panels then draw on the same scale, and plotly hides the tick labels of
+    every axis but the one they match, which is where the author puts the
+    title. A panel's own axis is untitled, so it read as ``X`` or ``Y`` where
+    the reader of the chart takes it from the axis it is drawn against.
+
+    Parameters
+    ----------
+    layout : dict
+        The figure's layout.
+    axis_name : str
+        The layout key of the axis to start from, e.g. ``"xaxis2"``.
+
+    Returns
+    -------
+    list of dict
+        The axis itself, then the axis it matches, and so on, each once.
+        Empty when the layout has no such axis.
+    """
+    chain: list[dict] = []
+    seen: set[str] = set()
+    name: str | None = axis_name
+    while name is not None and name not in seen:
+        seen.add(name)
+        axis = layout.get(name)
+        if not isinstance(axis, dict):
+            break
+        chain.append(axis)
+        name = _axis_key(axis.get("matches"))
+    return chain
+
+
+def _axis_key(axis_id: Any) -> str | None:
+    """The layout key an axis id names, ``"x3"`` -> ``"xaxis3"``, or None."""
+    match = _AXIS_ID.match(axis_id) if isinstance(axis_id, str) else None
+    if match is None:
+        return None
+    letter, number = match.groups()
+    return f"{letter}axis{number}"
+
+
+def axis_title(layout: dict, axis_name: str) -> str:
+    """
+    Return the title a reader should hear for a cartesian axis.
+
+    The axis's own title when it has one, which is the title plotly draws
+    beside it; otherwise the title of the axis it ``matches`` -- see
+    :func:`shared_axes`.
+
+    Parameters
+    ----------
+    layout : dict
+        The figure's layout.
+    axis_name : str
+        The layout key of the axis, e.g. ``"yaxis2"``.
+
+    Returns
+    -------
+    str
+        The title's words, or an empty string when no axis in the chain has
+        one.
+    """
+    for axis in shared_axes(layout, axis_name):
+        text = title_text(axis.get("title"))
+        if text:
+            return text
+    return ""
+
+
+def tick_names(layout: dict, axis_name: str) -> dict[float, str]:
+    """
+    Return the names a cartesian axis draws at its ticks, by position.
+
+    ``tickvals`` with ``ticktext`` is how a plotly figure names the levels a
+    numeric axis encodes: a hypnogram codes its sleep stages ``0`` to ``4``
+    and draws them as ``N3`` to ``Awake``. Plotly draws the names only in
+    tick mode ``"array"``, which is the mode an axis given ``tickvals`` takes
+    unless it asks for another. An axis that names no ticks of its own is
+    read through the one it ``matches`` -- see :func:`shared_axes` -- since
+    plotly hides a shared panel's tick labels in favor of that axis's.
+
+    A text that is a number written out (``"3"``, ``"1,000"``) is left out,
+    as the matplotlib step reader leaves one out: it names no level, and the
+    reader already hears the number. A word that ``float`` would also read,
+    such as ``"NaN"``, is kept. A text with nothing to say is left out too.
+
+    Parameters
+    ----------
+    layout : dict
+        The figure's layout.
+    axis_name : str
+        The layout key of the axis, e.g. ``"yaxis2"``.
+
+    Returns
+    -------
+    dict of float to str
+        ``{tick position: name}``, empty when the axis names no ticks.
+    """
+    for axis in shared_axes(layout, axis_name):
+        names = _named_ticks(axis)
+        if names:
+            return names
+    return {}
+
+
+def _named_ticks(axis: dict) -> dict[float, str]:
+    """One axis's own ``{tick position: name}``; see :func:`tick_names`."""
+    values = as_list(axis.get("tickvals"))
+    if axis.get("tickmode") not in (None, "array") or not values:
+        return {}
+
+    names: dict[float, str] = {}
+    for value, text in zip(values, as_list(axis.get("ticktext"))):
+        name = plain_text(text)
+        if not name or _is_numeral(name):
+            continue
+        try:
+            position = float(value)
+        except (TypeError, ValueError):
+            continue
+        if math.isfinite(position):
+            names[position] = name
+    return names
+
+
+#: A number written out: a sign (``−`` included), digits with or without
+#: thousands separators, a decimal part, an exponent. Not ``float``'s own
+#: rule, which would also take ``"NaN"``, ``"Infinity"`` and ``"1_000"`` --
+#: words a tick may well be named.
+_NUMERAL = re.compile(r"[-+−]?(\d[\d,]*(\.\d*)?|\.\d+)([eE][-+]?\d+)?")
+
+
+def _is_numeral(text: str) -> bool:
+    """Whether a tick text is a number written out, as ``"1,000"`` or ``"−2"``."""
+    return _NUMERAL.fullmatch(text) is not None
+
+
 def colorbar_title(trace: dict) -> str:
     """The title the author gave the color bar, or an empty string.
 
@@ -988,10 +1236,7 @@ def colorbar_title(trace: dict) -> str:
     colorbar = trace.get("colorbar")
     if not isinstance(colorbar, dict):
         return ""
-    title = colorbar.get("title", "")
-    if isinstance(title, dict):
-        title = title.get("text", "")
-    return str(title) if title else ""
+    return title_text(colorbar.get("title"))
 
 
 def as_list(value: Any) -> list:

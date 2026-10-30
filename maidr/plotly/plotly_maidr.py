@@ -27,6 +27,7 @@ from maidr.plotly.plotly_plot import (
     domain_interval,
     draws_marks,
     is_drawn,
+    plain_text,
     subplot_css_prefix,
 )
 from maidr.plotly.violin import (
@@ -1617,7 +1618,9 @@ class PlotlyMaidr:
         text keep their existing schema unchanged. Whitespace-only strings
         count as unauthored, matching the maidr JS engine's trimmed
         "authored" check. Plotly has no figure-level caption concept, so
-        ``caption`` is never emitted.
+        ``caption`` is never emitted. Both are read as the words plotly draws
+        -- see :func:`~maidr.plotly.plotly_plot.plain_text` -- so a title
+        broken over two lines with ``<br>`` is not announced with the tag.
 
         Reads ``self._fig.layout.title`` directly rather than going through
         ``Figure.to_dict()``, which would re-serialize every trace's data
@@ -1634,12 +1637,12 @@ class PlotlyMaidr:
 
         layout_title = getattr(self._fig.layout, "title", None)
 
-        title_text = str(getattr(layout_title, "text", None) or "").strip()
+        title_text = plain_text(getattr(layout_title, "text", None))
         if title_text:
             metadata[MaidrKey.TITLE] = title_text
 
         subtitle = getattr(layout_title, "subtitle", None)
-        subtitle_text = str(getattr(subtitle, "text", None) or "").strip()
+        subtitle_text = plain_text(getattr(subtitle, "text", None))
         if subtitle_text:
             metadata[MaidrKey.SUBTITLE] = subtitle_text
 

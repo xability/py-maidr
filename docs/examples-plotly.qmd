@@ -489,7 +489,10 @@ as *piecewise constant*. maidr reads it and exports a step layer.
 
 A **hypnogram** is the canonical case: the sleep stage is held for a stretch of
 the night and then jumps. Drawn as a line it would claim the sleeper glided
-through every intermediate stage.
+through every intermediate stage. Plot the stages as numeric codes, so they keep
+driving sonification, braille and the min/max bounds, then name the codes with
+the y axis's `tickvals` and `ticktext`. maidr attaches the names to each point
+and announces "REM" instead of "3".
 
 ```{python}
 #| warning: false
@@ -774,6 +777,11 @@ maidr.show(fig)  #<<
 ```
 
 ### Facet Bar Plot (2x2 Grid)
+
+`shared_xaxes` and `shared_yaxes` put the panels on one scale, and plotly draws
+the tick labels, and here the titles, only on the outer axes. A panel whose own
+axis is untitled is read with the title of the axis it shares (its `matches`),
+so every panel below reads "Categories" and "Values".
 
 ```{python}
 #| warning: false
