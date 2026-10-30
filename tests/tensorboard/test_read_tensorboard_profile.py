@@ -78,6 +78,20 @@ def test_the_top_operations_are_the_types_with_the_most_self_time():
     ) == pytest.approx(largest / 1000, rel=1e-3)
 
 
+def test_the_top_operations_are_read_from_the_largest_at_the_top_down():
+    _, top = profile_charts(INPUT_PIPELINE, OP_STATS)
+    (layer,) = _layers(top)
+    names = [point["y"] for point in layer["data"]]
+    times = [point["x"] for point in layer["data"]]
+    # Largest first, the order the chart ranks them in...
+    assert times == sorted(times, reverse=True)
+    # ...and from the top bar down, the order it draws them in.
+    (ax,) = top.figure.axes
+    labels = [label.get_text() for label in ax.get_yticklabels()]
+    heights = ax.transData.transform([(0, y) for y in ax.get_yticks()])[:, 1]
+    assert names == [name for _, name in sorted(zip(heights, labels), reverse=True)]
+
+
 def test_a_profile_without_steps_or_operations_says_so():
     empty = json.dumps([{"cols": [], "rows": []}])
     with pytest.warns(UserWarning) as caught:

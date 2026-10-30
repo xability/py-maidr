@@ -317,12 +317,19 @@ def _draw_steps(
 
 
 def _draw_ops(ops: list[tuple[str, float]], session: str) -> Figure:
-    """One horizontal bar per operation type, the largest at the top."""
+    """
+    One horizontal bar per operation type, the largest at the top.
+
+    The bars are drawn in rank order, the largest first, and the axis runs
+    down the page, so the bars are read in the order the chart ranks them:
+    from the largest at the top down to the smallest.
+    """
     fig = Figure(figsize=(7.0, 0.4 * len(ops) + 1.6))
     ax = fig.add_subplot()
-    kinds = [kind for kind, _ in ops][::-1]
-    times = [time for _, time in ops][::-1]
+    kinds = [kind for kind, _ in ops]
+    times = [time for _, time in ops]
     ax.barh(kinds, times, color="C0")
+    ax.invert_yaxis()
     ax.set_xlabel("Total self time (ms)")
     ax.set_ylabel("Operation type")
     ax.set_title(f"Top operations by self time {session}".strip())
