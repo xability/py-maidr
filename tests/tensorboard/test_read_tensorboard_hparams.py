@@ -89,6 +89,64 @@ def test_the_scatter_matrix_is_a_row_per_metric_and_a_column_per_hyperparameter(
     assert sorted(point["x"] for point in cell["data"]) == [8, 16, 32, 32]
 
 
+def test_the_scatter_matrix_names_each_categorical_value():
+    _, matrix = read_tensorboard_hparams(SWEEP)
+    learning_rate, optimizer, _, dropout = _schema(matrix)["subplots"][0]
+    optimizer = optimizer["layers"][0]
+    dropout = dropout["layers"][0]
+    # Each session's value is read as the cell's tick shows it, at the
+    # position the parallel coordinates give it ("optimizer (0 adam, 1 sgd)").
+    assert optimizer["axes"]["x"]["label"] == "optimizer"
+    assert [(p["x"], p["xLabel"]) for p in optimizer["data"]] == [
+        (1, "sgd"),
+        (0, "adam"),
+        (0, "adam"),
+        (1, "sgd"),
+    ]
+    assert [(p["x"], p["xLabel"]) for p in dropout["data"]] == [
+        (1, "True"),
+        (0, "False"),
+        (1, "True"),
+        (0, "False"),
+    ]
+    # A numeric hyperparameter is read as its numbers.
+    assert all("xLabel" not in p for p in learning_rate["layers"][0]["data"])
+
+
+def test_a_session_without_a_categorical_value_is_left_out_of_its_cell():
+    from maidr.tensorboard.hparams import _column, _matrix
+
+    figure = _matrix(
+        [_column("optimizer", ["sgd", None, "adam"])],
+        [_column("accuracy", [0.5, 0.6, 0.7])],
+    )
+    schema = json.loads(json.dumps(FigureManager.get_maidr(figure)._flatten_maidr()))
+    (cell,) = schema["subplots"][0]
+    (layer,) = cell["layers"]
+
+    # The session that logged no optimizer has no point there, and the two
+    # that did keep the positions of the sorted values.
+    assert [(p["x"], p["xLabel"], p["y"]) for p in layer["data"]] == [
+        (1, "sgd", 0.5),
+        (0, "adam", 0.7),
+    ]
+
+
+def test_each_cell_of_the_scatter_matrix_is_named_for_what_it_plots():
+    _, matrix = read_tensorboard_hparams(SWEEP)
+    titles = [
+        [cell["layers"][0]["title"] for cell in row]
+        for row in _schema(matrix)["subplots"]
+    ]
+    hparams = ["learning_rate", "optimizer", "units", "dropout"]
+    assert titles == [
+        [f"{metric} vs {hparam}" for hparam in hparams]
+        for metric in ["accuracy", "validation/loss"]
+    ]
+    # The names are read, not drawn: the cells keep TensorBoard's layout.
+    assert all(not ax.get_title() for ax in matrix.figure.axes)
+
+
 def test_without_an_experiment_every_scalar_of_a_session_is_a_metric(tmp_path):
     import shutil
 
