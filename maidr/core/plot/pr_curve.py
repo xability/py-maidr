@@ -105,7 +105,37 @@ class PrCurvePlot(MaidrPlot):
 
     def __init__(self, ax: Axes, **kwargs) -> None:
         self._curves: list[PrCurve] = list(kwargs.pop(DRAWN_CURVES, ()) or ())
+        #: How the curves' lines run against the order their points are read
+        #: in -- ``"data"`` or ``"reverse"``, maidr.js's
+        #: ``domMapping.pointOrder`` -- or None when no one order fits them
+        #: all, or a point was left out; set as the points are read.
+        self._drawn_order: str | None = "data"
         super().__init__(ax, PlotType.PR_CURVE)
+
+    def render(self) -> dict:
+        """
+        The layer schema, saying how the curves are drawn against their reading.
+
+        maidr.js outlines a curve's i-th point at the i-th vertex of its path,
+        a staircase's corners skipped, in the order the points are listed. A
+        curve drawn from high recall down is read from low recall up, so the
+        layer says its points are drawn the other way round
+        (``domMapping.pointOrder``). Curves drawn in no one order, or with a
+        point left out for a missing rate, are read without an outline, since
+        no vertex order pairs with their reading.
+
+        Returns
+        -------
+        dict
+            The layer schema.
+        """
+        # `super().render()` reads the points, which sets `_drawn_order`.
+        schema = super().render()
+        if self._drawn_order is None:
+            schema.pop(MaidrKey.SELECTOR, None)
+        elif self._drawn_order == "reverse" and MaidrKey.SELECTOR in schema:
+            schema[MaidrKey.DOM_MAPPING] = {"pointOrder": "reverse"}
+        return schema
 
     def add_curves(self, curves: list[PrCurve]) -> None:
         """
@@ -140,13 +170,29 @@ class PrCurvePlot(MaidrPlot):
 
     def _extract_plot_data(self) -> list[list[dict]]:
         """
-        Read each curve as its points, from low recall up.
+        Read each curve as its points, from low recall up, along its line.
 
         scikit-learn's ``precision_recall_curve`` answers its points from high
-        recall down; they are read from low recall up, the order a reader
-        moving right along the axis meets them, with the higher precision
-        first where a recall repeats -- the order the TensorBoard reader
-        gives the same trace.
+        recall down, and the display draws them in that order. Which way the
+        lines run is read off the signs of each one's recall steps, in the
+        order it is drawn: lines whose recall never falls are read as drawn,
+        and lines whose recall never rises are read back to front, so either
+        way the points come in the order a reader moving right along the axis
+        meets them. A recall that repeats is read in the order the line
+        passes through it -- the higher precision first, the order the
+        TensorBoard reader gives the same trace -- and each point keeps the
+        vertex that drew it, which is where maidr.js outlines it. A line
+        whose recall is the same throughout passes as drawn. When the lines'
+        recall both rises and falls, or the lines run both ways, each curve is
+        sorted instead and the layer is read without an outline
+        (:meth:`render`). The line is drawn with every vertex it was given
+        (:func:`~maidr.survival.keep_every_vertex`): matplotlib merges the
+        vertices of a path of 128 or more as it draws it, which wrote the
+        gallery's 151-point staircase with 62.
+
+        A point whose recall or precision is missing is left out. matplotlib
+        breaks the line there, so its vertices no longer stand one for each
+        point read, and the layer is read without an outline (:meth:`render`).
 
         Returns
         -------
@@ -161,31 +207,42 @@ class PrCurvePlot(MaidrPlot):
         ExtractionError
             When no curve carries a point.
         """
+        # Imported here: maidr.survival imports the figure manager, which
+        # loads this module.
+        from maidr.survival import keep_every_vertex
+
         curves = self._drawn()
         if not curves:
             raise ExtractionError(self.type, self.ax)
 
         data: list[list[dict]] = []
+        every_point_read = True
         for curve in curves:
             self._elements.append(curve.line)
             if curve.line.get_gid() is None:
                 curve.line.set_gid(f"maidr-{uuid.uuid4()}")
+            keep_every_vertex(curve.line)
 
             finite = np.isfinite(curve.recall) & np.isfinite(curve.precision)
-            recall, precision = curve.recall[finite], curve.precision[finite]
-            order = np.lexsort((-precision, recall))
+            every_point_read = every_point_read and bool(finite.all())
             points: list[dict] = []
-            for x, y in zip(recall[order].tolist(), precision[order].tolist()):
+            for x, y in zip(
+                curve.recall[finite].tolist(), curve.precision[finite].tolist()
+            ):
                 point = {MaidrKey.X: x, MaidrKey.Y: y}
                 if curve.name is not None:
                     point[MaidrKey.Z] = curve.name
                 points.append(point)
+            data.append(points)
 
+        data, self._drawn_order = _from_low_recall_up(data)
+        if not every_point_read:
+            self._drawn_order = None
+        for curve, points in zip(curves, data):
             if curve.prevalence is not None:
                 points[0][PREVALENCE] = curve.prevalence
             if curve.average_precision is not None:
                 points[0][AVERAGE_PRECISION] = curve.average_precision
-            data.append(points)
         return data
 
     def _get_selector(self) -> list[str]:
@@ -201,3 +258,39 @@ class PrCurvePlot(MaidrPlot):
                 curve.line.set_gid(f"maidr-{uuid.uuid4()}")
             selectors.append(f"g[id='{curve.line.get_gid()}'] path")
         return selectors
+
+
+def _from_low_recall_up(
+    curves: list[list[dict]],
+) -> tuple[list[list[dict]], str | None]:
+    """
+    Each curve read from low recall up, along its line.
+
+    The plotnine reader walks a ``geom_path`` the same way
+    (``maidr/plotnine/layers.py``).
+
+    Parameters
+    ----------
+    curves : list of list of dict
+        Each curve's points, in the order its line is drawn through them.
+
+    Returns
+    -------
+    tuple
+        The curves, and how their lines run against that reading: ``"data"``
+        when every one is drawn from low recall up, ``"reverse"`` when every
+        one is drawn from high recall down, or None when no one order fits
+        them all -- a line whose recall turns back, or lines drawn both ways.
+        Each curve is then sorted, the higher precision first where a recall
+        repeats, since its vertices are in no order its points can be paired
+        with.
+    """
+    steps = [np.diff([point[MaidrKey.X] for point in points]) for points in curves]
+    if all((step >= 0).all() for step in steps):
+        return curves, "data"
+    if all((step <= 0).all() for step in steps):
+        return [points[::-1] for points in curves], "reverse"
+    return [
+        sorted(points, key=lambda p: (p[MaidrKey.X], -p[MaidrKey.Y]))
+        for points in curves
+    ], None
