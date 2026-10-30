@@ -289,6 +289,19 @@ class SpanPlot(GanttPlot):
         self._along_x = bool(kwargs.pop(SPANS_ALONG_X, True))
         super().__init__(ax, collections=[])
 
+    def _orientation(self) -> str:
+        """
+        Which way the spans run, in maidr.js's terms.
+
+        Returns
+        -------
+        str
+            ``"horz"`` for ``hlines``, whose spans run along x with the lanes
+            up y; ``"vert"`` for ``vlines``, whose spans run up y with the
+            lanes along x.
+        """
+        return "horz" if self._along_x else "vert"
+
     def _extract_plot_data(self) -> dict:
         """
         Read the collection as intervals nested by the lane they sit in.

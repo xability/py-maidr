@@ -93,6 +93,19 @@ def test_a_schedule_is_read_as_a_gantt() -> None:
     ]
 
 
+def test_a_schedule_is_declared_as_bars_across_the_page() -> None:
+    """``broken_barh`` lays its bars along x and its lanes up y.
+
+    maidr.js reads a layer without ``orientation`` as a vertical gantt, bars
+    standing on the x axis, and names the lane by the x axis's label and the
+    interval by the y axis's: the gallery's schedule was announced "Week is
+    Design, Phase is 0 through 3".
+    """
+    fig, _ = _schedule()
+
+    assert _layer(fig)["orientation"] == "horz"
+
+
 def test_two_calls_are_two_lanes_of_one_chart() -> None:
     """Not two charts.
 
