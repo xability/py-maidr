@@ -80,9 +80,9 @@ class TestOneTraceManyCategories:
 
     def test_the_boxes_are_told_apart_within_that_group(self):
         selectors = box_selectors(self.fig())
-        assert "(1 of path.box)" in selectors[0]
-        assert "(2 of path.box)" in selectors[1]
-        assert "(3 of path.box)" in selectors[2]
+        assert '[data-maidr-box-part="1 q1"]' in selectors[0]
+        assert '[data-maidr-box-part="2 q1"]' in selectors[1]
+        assert '[data-maidr-box-part="3 q1"]' in selectors[2]
 
     def test_no_two_boxes_share_a_selector(self):
         selectors = box_selectors(self.fig())
@@ -214,12 +214,18 @@ class TestTheDomContractTheSelectorsAssume:
 
     def test_a_box_is_addressed_inside_its_group_not_as_a_group(self):
         # The regression that started #395: `> path.box` with no index
-        # matches every box the trace drew.
-        for selector in box_selectors(
-            go.Figure([go.Box(x=["a"] * 10 + ["b"] * 10, y=VALUES[:20], name="t")])
+        # matches every box the trace drew. Each part the init script draws
+        # beside a box carries that box's position in its trace's group.
+        for position, selector in enumerate(
+            box_selectors(
+                go.Figure(
+                    [go.Box(x=["a"] * 10 + ["b"] * 10, y=VALUES[:20], name="t")]
+                )
+            ),
+            start=1,
         ):
-            assert "of path.box)" in selector
-            assert not selector.endswith("> path.box")
+            assert selector.endswith(f'> [data-maidr-box-part="{position} q1"]')
+            assert "path.box" not in selector
 
     def test_outliers_are_scoped_to_one_points_group(self):
         fig = go.Figure(

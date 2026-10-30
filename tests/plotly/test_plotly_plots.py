@@ -614,7 +614,10 @@ class TestPlotlyMultiBoxPlot:
         schema = plot.render()
 
         assert schema["orientation"] == expected
-        assert [box["q2"] for box in schema["data"]] == [5, 3.0]
+        # Both traces are read. A horizontal layer lists its boxes top first,
+        # the reverse of the order plotly draws them up the page.
+        medians = [5, 3.0] if expected == "vert" else [3.0, 5]
+        assert [box["q2"] for box in schema["data"]] == medians
         assert plot._boxes_per_trace == [1, 1]
 
     def test_a_precomputed_trace_with_both_arrays_falls_through_to_vertical(self):

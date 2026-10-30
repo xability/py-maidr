@@ -10,6 +10,7 @@ from typing import Any, Literal, cast
 from htmltools import HTML, HTMLDocument, Tag, tags
 
 from maidr.core.enum.maidr_key import MaidrKey
+from maidr.plotly.box import SPLIT_BOXES_JS
 from maidr.plotly.candlestick import is_ohlc_trace, layer_position
 from maidr.plotly.geo import geo_block
 from maidr.plotly.gauge import draws_a_dial
@@ -1880,10 +1881,16 @@ class PlotlyMaidr:
         # ``replace`` on the finished text: that would also rewrite any
         # ``__LOADER__`` in the chart's own title or labels.
         loader = maidr_loader_js(use_cdn, iframe_in_notebook=iframe_in_notebook)
+        # A box layer's selectors name the parts of each box, which plotly
+        # draws as one path: they are drawn here, in the drawn svg, before
+        # the payload that names them is attached. See `SPLIT_BOXES_JS`.
+        draws_boxes = "box" in schema_trace_types(schema)
+        split_boxes = SPLIT_BOXES_JS if draws_boxes else ""
+        split_call = "maidrSplitBoxes(svg);" if draws_boxes else ""
         body = f"""
             var maidrSchema = {script_json(schema)};
             var gd = document.getElementById({script_json(plot_div_id or "")});
-
+            {split_boxes}
             var _maidrDone = false;
             function initMaidr() {{
                 if (_maidrDone) return;
@@ -1894,6 +1901,7 @@ class PlotlyMaidr:
                 }}
                 _maidrDone = true;
 
+                {split_call}
                 svg.setAttribute('id', maidrSchema.id);
                 svg.setAttribute('maidr', JSON.stringify(maidrSchema));
             {loader}
