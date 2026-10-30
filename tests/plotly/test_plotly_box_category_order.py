@@ -9,9 +9,12 @@ an audit that drove every example with the keyboard found. Several traces
 grouped at one category were read trace by trace, and each of their boxes was
 named by the category alone.
 
-Every expected order and place below was measured in Chromium. The medians
-of each trace group's ``path.box`` elements were read from plotly's calcdata
-and compared with the order of the elements.
+Every expected order below was measured in Chromium: the medians of each
+trace group's ``path.box`` elements were read from plotly's calcdata and
+compared with the order of the elements. Each box is found in its group by
+its key, the first of its samples in the trace's arrays (``s7``), which the
+init script reads off the data plotly bound to the element it drew -- also
+measured -- or, for a precomputed box, by its place.
 """
 
 from __future__ import annotations
@@ -35,17 +38,17 @@ def _layer(fig: go.Figure) -> dict:
     return layer
 
 
-def _read(fig: go.Figure) -> list[tuple[str, float, tuple[int, int]]]:
-    """Each box as read: its name, its median, and the drawn box it names."""
+def _read(fig: go.Figure) -> list[tuple[str, float, tuple[int, str]]]:
+    """Each box as read: its name, its median, and its trace group and key."""
     layer = _layer(fig)
     read = []
     for box, selector in zip(layer[MaidrKey.DATA], layer[MaidrKey.SELECTOR]):
         found = re.search(
-            r'g:nth-child\((\d+)\) > \[data-maidr-box-part="(\d+) q2"\]',
+            r'g:nth-child\((\d+)\) > \[data-maidr-box-part="(\w+) q2"\]',
             selector["q2"],
         )
         assert found, selector["q2"]
-        drawn = (int(found.group(1)), int(found.group(2)))
+        drawn = (int(found.group(1)), found.group(2))
         read.append((box[MaidrKey.Z.value], box[MaidrKey.Q2.value], drawn))
     return read
 
@@ -73,18 +76,16 @@ def _box(categories: list, bases: list[float], horizontal=False, **trace) -> go.
 
 
 def test_a_sorted_category_axis_is_read_in_its_order():
-    # Written c, a, b and drawn a, b, c: each box names the box drawn at its
-    # category, where it named the first, second and third drawn in the
-    # trace's own order.
+    # Written c, a, b (samples from 0, 7 and 14) and drawn a, b, c.
     fig = go.Figure(
         _box(["c", "a", "b"], [30, 10, 20], name="T"),
         layout={"xaxis": {"categoryorder": "category ascending"}},
     )
 
     assert _read(fig) == [
-        ("a", 13.0, (1, 1)),
-        ("b", 23.0, (1, 2)),
-        ("c", 33.0, (1, 3)),
+        ("a", 13.0, (1, "s7")),
+        ("b", 23.0, (1, "s14")),
+        ("c", 33.0, (1, "s0")),
     ]
 
 
@@ -97,9 +98,9 @@ def test_a_category_array_puts_what_it_names_first():
     )
 
     assert _read(fig) == [
-        ("c", 33.0, (1, 1)),
-        ("a", 13.0, (1, 2)),
-        ("b", 23.0, (1, 3)),
+        ("c", 33.0, (1, "s14")),
+        ("a", 13.0, (1, "s0")),
+        ("b", 23.0, (1, "s7")),
     ]
 
 
@@ -112,9 +113,9 @@ def test_a_sorted_horizontal_axis_is_read_top_first():
     )
 
     assert _read(fig) == [
-        ("c", 33.0, (1, 3)),
-        ("b", 23.0, (1, 2)),
-        ("a", 13.0, (1, 1)),
+        ("c", 33.0, (1, "s0")),
+        ("b", 23.0, (1, "s14")),
+        ("a", 13.0, (1, "s7")),
     ]
 
 
@@ -126,7 +127,11 @@ def test_numeric_positions_are_read_in_numeric_order(horizontal):
     if horizontal:
         read.reverse()
 
-    assert read == [("1", 13.0, (1, 1)), ("2", 23.0, (1, 2)), ("3", 33.0, (1, 3))]
+    assert read == [
+        ("1", 13.0, (1, "s7")),
+        ("2", 23.0, (1, "s14")),
+        ("3", 33.0, (1, "s0")),
+    ]
 
 
 def test_grouped_traces_are_read_category_by_category():
@@ -141,10 +146,10 @@ def test_grouped_traces_are_read_category_by_category():
     )
 
     assert _read(fig) == [
-        ("Thu, Male", 13.0, (1, 1)),
-        ("Thu, Female", 18.0, (2, 1)),
-        ("Fri, Male", 23.0, (1, 2)),
-        ("Fri, Female", 28.0, (2, 2)),
+        ("Thu, Male", 13.0, (1, "s0")),
+        ("Thu, Female", 18.0, (2, "s0")),
+        ("Fri, Male", 23.0, (1, "s7")),
+        ("Fri, Female", 28.0, (2, "s7")),
     ]
 
 
@@ -160,10 +165,10 @@ def test_grouped_horizontal_traces_are_read_top_first():
     )
 
     assert _read(fig) == [
-        ("Fri, Female", 28.0, (2, 2)),
-        ("Fri, Male", 23.0, (1, 2)),
-        ("Thu, Female", 18.0, (2, 1)),
-        ("Thu, Male", 13.0, (1, 1)),
+        ("Fri, Female", 28.0, (2, "s7")),
+        ("Fri, Male", 23.0, (1, "s7")),
+        ("Thu, Female", 18.0, (2, "s0")),
+        ("Thu, Male", 13.0, (1, "s0")),
     ]
 
 
@@ -181,12 +186,12 @@ def test_grouped_traces_follow_a_category_array_each_in_its_own_order():
     )
 
     assert _read(fig) == [
-        ("Sat, Male", 33.0, (1, 1)),
-        ("Sat, Female", 38.0, (2, 1)),
-        ("Fri, Male", 23.0, (1, 2)),
-        ("Fri, Female", 28.0, (2, 2)),
-        ("Thu, Male", 13.0, (1, 3)),
-        ("Thu, Female", 18.0, (2, 3)),
+        ("Sat, Male", 33.0, (1, "s14")),
+        ("Sat, Female", 38.0, (2, "s0")),
+        ("Fri, Male", 23.0, (1, "s7")),
+        ("Fri, Female", 28.0, (2, "s14")),
+        ("Thu, Male", 13.0, (1, "s0")),
+        ("Thu, Female", 18.0, (2, "s7")),
     ]
 
 
@@ -200,10 +205,10 @@ def test_a_category_another_trace_introduced_is_drawn_where_that_one_put_it():
     )
 
     assert _read(fig) == [
-        ("b, A", 23.0, (1, 1)),
-        ("b, B", 28.0, (2, 1)),
-        ("c, A", 33.0, (1, 2)),
-        ("a, B", 13.0, (2, 2)),
+        ("b, A", 23.0, (1, "s0")),
+        ("b, B", 28.0, (2, "s7")),
+        ("c, A", 33.0, (1, "s7")),
+        ("a, B", 13.0, (2, "s0")),
     ]
 
 
@@ -222,9 +227,9 @@ def test_precomputed_boxes_keep_the_places_they_are_drawn_in():
     )
 
     assert _read(fig) == [
-        ("a", 12, (1, 2)),
-        ("b", 22, (1, 3)),
-        ("c", 32, (1, 1)),
+        ("a", 12, (1, "2")),
+        ("b", 22, (1, "3")),
+        ("c", 32, (1, "1")),
     ]
 
 
@@ -243,4 +248,44 @@ def test_traces_without_positions_keep_their_names():
         [go.Box(y=_samples(10), name="Group 1"), go.Box(y=_samples(20), name="Group 2")]
     )
 
-    assert _read(fig) == [("Group 1", 13.0, (1, 1)), ("Group 2", 23.0, (2, 1))]
+    assert _read(fig) == [("Group 1", 13.0, (1, "s0")), ("Group 2", 23.0, (2, "s0"))]
+
+
+def test_dates_are_read_in_time_order():
+    # Measured: plotly draws a date axis in time order, whatever order the
+    # trace writes the dates in.
+    fig = go.Figure(_box(["2024-03-01", "2024-01-01", "2024-02-01"], [30, 10, 20]))
+
+    assert _read(fig) == [
+        ("2024-01-01", 13.0, (1, "s7")),
+        ("2024-02-01", 23.0, (1, "s14")),
+        ("2024-03-01", 33.0, (1, "s0")),
+    ]
+
+
+def test_an_aggregate_sort_still_finds_each_box_by_its_samples(caplog):
+    # Measured: under "median ascending" plotly draws a, b, c. That order is
+    # not read, so the walk keeps the trace's own, c, a, b, and says so; but
+    # each box is still found by its own samples, so it outlines its own box.
+    fig = go.Figure(
+        _box(["c", "a", "b"], [30, 10, 20], name="T"),
+        layout={"xaxis": {"categoryorder": "median ascending"}},
+    )
+
+    with caplog.at_level("WARNING", logger="maidr.plotly.box"):
+        read = _read(fig)
+
+    assert read == [
+        ("c", 33.0, (1, "s0")),
+        ("a", 13.0, (1, "s7")),
+        ("b", 23.0, (1, "s14")),
+    ]
+    assert "categoryorder='median ascending'" in caplog.text
+
+
+def test_a_box_whose_first_samples_are_missing_is_found_by_its_first_number():
+    # Plotly keeps only the samples that are numbers, so the first of the box
+    # it draws is the first number.
+    fig = go.Figure(go.Box(x=["a", "a", "a", "b", "b"], y=[None, 1, 2, 3, 4]))
+
+    assert [drawn for _, _, drawn in _read(fig)] == [(1, "s1"), (1, "s3")]

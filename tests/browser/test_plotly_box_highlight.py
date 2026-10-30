@@ -234,6 +234,58 @@ def _grouped_boxes(tmp_path: Path) -> Path:
     return path
 
 
+def _unread_order_boxes(tmp_path: Path, case: str) -> Path:
+    """Three boxes written c, a, b, drawn in an order the trace does not give.
+
+    ``median``: sorted by median, an order the reader does not resolve.
+    ``dates``: on a date axis, which plotly draws in time order.
+    """
+    import plotly.graph_objects as go
+
+    import maidr
+
+    positions = {
+        "median": ["c", "a", "b"],
+        "dates": ["2024-03-01", "2024-01-01", "2024-02-01"],
+    }[case]
+    fig = go.Figure(
+        go.Box(
+            x=[position for position in positions for _ in range(7)],
+            y=[base + step for base in (30, 10, 20) for step in range(7)],
+            name="T",
+        )
+    )
+    if case == "median":
+        fig.update_layout(xaxis={"categoryorder": "median ascending"})
+    path = tmp_path / f"plotly_box_{case}.html"
+    maidr.save_html(fig, file=str(path), use_cdn=False)
+    return path
+
+
+@pytest.mark.parametrize("case", ["median", "dates"])
+def test_each_box_is_outlined_where_it_is_drawn(browser, tmp_path, case):
+    # Before, a box was found by its place among its trace's boxes, so under
+    # an order the trace did not give the outline sat on another box.
+    page, errors = _open(browser, _unread_order_boxes(tmp_path, case))
+    try:
+        boxes = page.evaluate(_BOXES)
+        for _ in range(4):
+            spoken = _step(page, "ArrowUp")
+            if "50%" in spoken:
+                break
+        for index, box in enumerate(boxes):
+            if index:
+                spoken = _step(page, "ArrowRight")
+            assert f"{box['z']}, 50%" in spoken, (box["z"], spoken)
+            want = page.evaluate(_SCREEN_VALUE, ["y", box["q2"]])
+            assert _centre_y(_outline(page)) == pytest.approx(
+                want, abs=_TOLERANCE_PX
+            ), (box["z"], spoken)
+        assert not errors, errors
+    finally:
+        page.close()
+
+
 def test_right_walks_grouped_boxes_across_the_page(browser, tmp_path):
     page, errors = _open(browser, _grouped_boxes(tmp_path))
     try:

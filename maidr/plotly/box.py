@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import math
+import re
 from typing import Any
 
 import numpy as np
@@ -26,29 +27,57 @@ _logger = logging.getLogger(__name__)
 #: whiskers nor caps.
 #:
 #: Each part is a hidden sibling of its box carrying ``data-maidr-box-part``:
-#: the box's position among its trace's ``path.box`` elements, a space, and
-#: the statistic it marks. ``iq`` is the body; ``q1`` and ``q3`` are the
-#: body's two edges across the box, ``q2`` the median, and ``min`` and
-#: ``max`` the caps, or the whiskers where no caps are drawn. A box drawn in
-#: no shape this knows gets a copy of the whole path for every statistic,
-#: which is the highlight every statistic had before.
+#: the box's key (see :func:`box_key`), a space, and the statistic it marks.
+#: ``iq`` is the body; ``q1`` and ``q3`` are the body's two edges across the
+#: box, ``q2`` the median, and ``min`` and ``max`` the caps, or the whiskers
+#: where no caps are drawn. A box drawn in no shape this knows gets a copy of
+#: the whole path for every statistic, which is the highlight every statistic
+#: had before. Each box's ``g.points``, which holds its outliers, carries the
+#: same key as ``data-maidr-box-points``.
+#:
+#: The key is read off the data plotly bound to the element it drew. A box
+#: drawn from samples is keyed by the first of them in the trace's arrays,
+#: ``s7``, which pairs it with the box the reader made of the same samples
+#: whatever order plotly drew the boxes in -- including the orders the reader
+#: cannot resolve, an aggregate ``categoryorder``. A box with no samples of
+#: its own, a precomputed one, is keyed by its place among its trace's boxes,
+#: which plotly draws in the order the trace lists them.
 SPLIT_BOXES_JS = r"""
     function maidrSplitBoxes(svg) {
         // Scoped as the selectors are: a range slider's copy of the plot
         // holds a box layer too, and no selector names it.
         var groups = svg.querySelectorAll('.subplot .boxlayer > g');
         for (var g = 0; g < groups.length; g++) {
-            var index = 0;
+            var boxes = 0;
+            var points = 0;
             var children = Array.prototype.slice.call(groups[g].children);
             for (var c = 0; c < children.length; c++) {
-                var box = children[c];
-                if (box.tagName.toLowerCase() === 'path'
-                        && box.classList.contains('box')) {
-                    index += 1;
-                    maidrSplitBox(box, index);
+                var child = children[c];
+                var tag = child.tagName.toLowerCase();
+                if (tag === 'path' && child.classList.contains('box')) {
+                    boxes += 1;
+                    maidrSplitBox(child, maidrBoxKey(child, boxes));
+                } else if (tag === 'g' && child.classList.contains('points')) {
+                    points += 1;
+                    child.setAttribute(
+                        'data-maidr-box-points', maidrBoxKey(child, points));
                 }
             }
         }
+    }
+
+    // The first of a box's samples in its trace's arrays, `s7`, or its place
+    // among the trace's boxes when it has none of its own.
+    function maidrBoxKey(element, place) {
+        var drawn = element.__data__;
+        var samples = drawn && drawn.pts;
+        var first = Infinity;
+        for (var i = 0; samples && i < samples.length; i++) {
+            if (typeof samples[i].i === 'number' && samples[i].i < first) {
+                first = samples[i].i;
+            }
+        }
+        return first === Infinity ? String(place) : 's' + first;
     }
 
     function maidrNumbers(text) {
@@ -114,7 +143,7 @@ SPLIT_BOXES_JS = r"""
         return parts;
     }
 
-    function maidrSplitBox(box, index) {
+    function maidrSplitBox(box, key) {
         var svgNS = 'http://www.w3.org/2000/svg';
         var d = box.getAttribute('d') || '';
         var parts = maidrBoxParts(d);
@@ -136,7 +165,7 @@ SPLIT_BOXES_JS = r"""
             }
             part.setAttribute('style', box.getAttribute('style') || '');
             part.setAttribute('visibility', 'hidden');
-            part.setAttribute('data-maidr-box-part', index + ' ' + names[i]);
+            part.setAttribute('data-maidr-box-part', key + ' ' + names[i]);
             after.insertAdjacentElement('afterend', part);
             after = part;
         }
@@ -147,7 +176,7 @@ SPLIT_BOXES_JS = r"""
 def _build_box_selector(
     prefix: str,
     group: int,
-    box: int,
+    box: int | str,
     lower_count: int,
     upper_count: int,
 ) -> dict:
@@ -162,10 +191,12 @@ def _build_box_selector(
 
     Measured in Chromium: one ``go.Box`` over three categories produces one
     group in the ``boxlayer`` holding three ``path.box`` children and three
-    ``g.points`` children, and the *j*-th of each pair up positionally --
-    including an empty ``g.points`` for a category with no outliers, which
-    is what keeps the pairing positional rather than a count of which
-    categories happen to have any.
+    ``g.points`` children, and the *j*-th of each pair up -- including an
+    empty ``g.points`` for a category with no outliers. Within the group a
+    box is found by its key (see :func:`box_key`), which the init script
+    writes on its parts and on its ``g.points``, not by its place: under a
+    ``categoryorder`` the reader cannot resolve, plotly draws the boxes in an
+    order the reader does not know, and a place named the box drawn there.
 
     The group is matched by position rather than by class. A candlestick's
     group in this layer is built the same way, so a class would not tell the
@@ -182,11 +213,11 @@ def _build_box_selector(
     this did -- outlined the whole box at Minimum, 25%, 50%, 75% and Maximum
     alike, so the outline never showed which statistic was being read. The
     init script draws each part again, hidden, beside the box (see
-    :data:`SPLIT_BOXES_JS`), and these name them by the box's position among
-    its trace's boxes and the statistic: the caps, or the whiskers where none
-    are drawn, for the minimum and maximum, the body's two edges for the
-    quartiles, the median line for the median. ``iq`` names the body, which
-    maidr.js joins the caps to when it draws the box's shape.
+    :data:`SPLIT_BOXES_JS`), and these name them by the box's key and the
+    statistic: the caps, or the whiskers where none are drawn, for the
+    minimum and maximum, the body's two edges for the quartiles, the median
+    line for the median. ``iq`` names the body, which maidr.js joins the caps
+    to when it draws the box's shape.
 
     Parameters
     ----------
@@ -196,13 +227,13 @@ def _build_box_selector(
         One-based position of the trace's ``<g>`` among the ``boxlayer``'s
         children -- ``layer_position`` + 1, so a candlestick sharing the
         layer is counted.
-    box : int
-        One-based position of this box among its own trace's boxes.
+    box : int or str
+        The box's key, from :func:`box_key`.
     lower_count, upper_count : int
         How many outliers fall below and above the whiskers.
     """
     group_sel = f"{prefix}.boxlayer > g:nth-child({group})"
-    base = f"{group_sel} > :nth-child({box} of g.points)"
+    base = f'{group_sel} > [data-maidr-box-points="{box}"]'
 
     def part(statistic: str) -> str:
         return f'{group_sel} > [data-maidr-box-part="{box} {statistic}"]'
@@ -266,6 +297,64 @@ def order_box_rows(schema: dict, *, horizontal: bool, y_reversed: bool) -> None:
         schema[MaidrKey.SELECTOR] = list(reversed(schema[MaidrKey.SELECTOR]))
 
 
+def box_key(first_sample: int | None, place: int) -> str:
+    """
+    What a box's parts and its outliers are found by in the drawn page.
+
+    The init script writes the same key on what plotly drew (see
+    :data:`SPLIT_BOXES_JS`): ``"s7"`` for a box drawn from samples, the first
+    of which is entry 7 of the trace's arrays, and the box's place among its
+    trace's boxes, ``"2"``, for one with no samples of its own.
+
+    Parameters
+    ----------
+    first_sample : int or None
+        The index of the box's first sample that is a number, or ``None``
+        for a precomputed box.
+    place : int
+        The box's one-based place among its trace's boxes, in the order the
+        trace lists them.
+
+    Returns
+    -------
+    str
+        The key.
+    """
+    return str(place) if first_sample is None else f"s{first_sample}"
+
+
+def first_samples(positions: list, samples: list) -> dict:
+    """
+    The index of the first sample that is a number, at each position.
+
+    Plotly keeps only the samples that are numbers, so a box's first sample
+    in its drawn data is its first finite one here.
+
+    Parameters
+    ----------
+    positions : list
+        Where each sample's box stands.
+    samples : list
+        The samples, paired with ``positions`` by index.
+
+    Returns
+    -------
+    dict
+        Each position with a finite sample, mapped to the index of its first.
+    """
+    first: dict = {}
+    for index, (position, sample) in enumerate(zip(positions, samples)):
+        if position in first:
+            continue
+        try:
+            value = float(sample)
+        except (TypeError, ValueError):
+            continue
+        if math.isfinite(value):
+            first[position] = index
+    return first
+
+
 def placed_at(trace: dict) -> list:
     """
     Where plotly stands a trace's boxes on the axis that places them.
@@ -300,14 +389,16 @@ def drawn_positions(plot: PlotlyPlot, axis_name: str, labels: list) -> list | No
     left on x and bottom on y, and draws a trace of samples' ``path.box``
     elements in that order, one per position that has samples. The readers
     took each trace's own order instead, which is what plotly draws only when
-    the two agree. Under a ``categoryorder``, with positions written out of numeric
+    the two agree. Under a ``categoryorder``, with positions written out of
     order, or with a trace whose categories another trace introduced first,
-    a category's numbers were paired with another category's box, and Right
-    moved between the boxes out of the order they are drawn in.
+    Right moved between the boxes out of the order they are drawn in. This
+    is the order the boxes are walked in; which mark a box is outlined by no
+    longer depends on it (see :func:`box_key`).
 
     Measured in Chromium, the order plotly draws is:
 
     - on a numeric axis, numeric order;
+    - on a date axis, time order;
     - on a categorical one, the order the categories first appear, trace
       by trace, unless ``categoryorder`` sorts them. ``"category
       ascending"`` and ``"category descending"`` sort the names.
@@ -316,10 +407,11 @@ def drawn_positions(plot: PlotlyPlot, axis_name: str, labels: list) -> list | No
       no box, and then the rest in the order they first appear.
 
     An aggregate sort (``"total ascending"``, ``"median descending"``, and
-    the like) keeps the order of first appearance, which is what was read
-    before: resolving it offline means redoing plotly's aggregation, which
-    :meth:`PlotlyPlot._drawn_category_order` declines for the bar readers
-    too. So does a date axis, which plotly draws in time order.
+    the like) keeps the order of first appearance, with a warning, as does a
+    date this does not parse. Resolving an aggregate sort offline means
+    redoing plotly's aggregation -- its median orders the samples as text,
+    so 100 comes before 9 -- which :meth:`PlotlyPlot._drawn_category_order`
+    declines for the bar readers too.
 
     Parameters
     ----------
@@ -354,6 +446,15 @@ def drawn_positions(plot: PlotlyPlot, axis_name: str, labels: list) -> list | No
             plot._looks_numeric(label) for label in distinct
         ):
             return sorted(distinct, key=float)
+        times = [_time_of(label) for label in distinct]
+        if declared in (None, "-", "date") and None not in times:
+            return [label for _, label in sorted(zip(times, distinct), key=_first)]
+        _logger.warning(
+            "maidr: the boxes along %s are walked in the order the traces list "
+            "them, which may not be the order they are drawn in: their "
+            "positions mix numbers, dates and names.",
+            axis_name,
+        )
         return distinct
 
     order = axis.get("categoryorder")
@@ -369,7 +470,58 @@ def drawn_positions(plot: PlotlyPlot, axis_name: str, labels: list) -> list | No
         return listed + [label for label in distinct if str(label) not in rank]
     if order in ("category ascending", "category descending"):
         return sorted(distinct, key=str, reverse=order == "category descending")
+    if order not in (None, "trace", "array"):
+        _logger.warning(
+            "maidr: the boxes along %s are sorted by categoryorder=%r, which is "
+            "not read; they are walked in the order the traces list them, not "
+            "the order they are drawn in.",
+            axis_name,
+            order,
+        )
     return distinct
+
+
+#: A date as plotly parses one (``dateTime2ms``): year first, the month and
+#: day of one or two digits, and an hour, minute and second after a space or
+#: a ``T``. Plotly drops a timezone; one here is not parsed, so the order is
+#: left alone rather than guessed.
+_DATE_TIME = re.compile(
+    r"^\s*(\d{4})-(\d{1,2})(?:-(\d{1,2}))?"
+    r"(?:[ Tt](\d{1,2})(?::(\d{2})(?::(\d{2}(?:\.\d+)?))?)?)?\s*$"
+)
+
+
+def _time_of(label: Any) -> tuple | None:
+    """
+    A date label's place in time, to sort by, or ``None`` when it is not one.
+
+    Parameters
+    ----------
+    label : Any
+        One position.
+
+    Returns
+    -------
+    tuple or None
+        Year, month, day, hour, minute and second.
+    """
+    found = _DATE_TIME.match(label) if isinstance(label, str) else None
+    if found is None:
+        return None
+    year, month, day, hour, minute, second = found.groups()
+    return (
+        int(year),
+        int(month),
+        int(day or 1),
+        int(hour or 0),
+        int(minute or 0),
+        float(second or 0),
+    )
+
+
+def _first(pair: tuple) -> Any:
+    """The first of a pair, to sort pairs by it alone."""
+    return pair[0]
 
 
 def in_drawn_order(boxes: list[tuple], drawn: list | None) -> list[tuple]:
@@ -733,27 +885,27 @@ class PlotlyBoxPlot(PlotlyPlot):
         # non-zero.
         self._layer_position = layer_position
         # Both populated by _extract_plot_data before _get_selector runs: each
-        # box's outlier counts, and its place among the trace's `path.box`
-        # elements, in the order of the data.
+        # box's outlier counts, and the key its marks are found by (see
+        # `box_key`), in the order of the data.
         self._outlier_counts: list[tuple[int, int]] = []
-        self._within: list[int] = []
+        self._keys: list[str] = []
 
     def _get_selector(self) -> list[dict]:
         """Return structured per-box selectors with split outliers.
 
-        One trace, so every box shares a group and is told apart by its
-        position *within* that group. A categorical `go.Box` draws one box
-        per category into one `<g>`, which is why the group index alone
-        cannot address them (#395). That position is the box's place in the
-        order plotly drew them, which is not always the order of the data:
-        see :meth:`_extract_plot_data`.
+        One trace, so every box shares a group and is told apart *within*
+        that group. A categorical `go.Box` draws one box per category into one
+        `<g>`, which is why the group index alone cannot address them (#395).
+        Within it a box is found by its key, from its own samples, rather than
+        by its place, which follows an order the data is not always in: see
+        :func:`box_key`.
         """
         prefix = self._subplot_css_prefix()
         group = self._layer_position + 1
         return [
-            _build_box_selector(prefix, group, within, lower, upper)
-            for within, (lower, upper) in zip(
-                self._within or [1], self._outlier_counts or [(0, 0)]
+            _build_box_selector(prefix, group, key, lower, upper)
+            for key, (lower, upper) in zip(
+                self._keys or ["1"], self._outlier_counts or [(0, 0)]
             )
         ]
 
@@ -780,11 +932,11 @@ class PlotlyBoxPlot(PlotlyPlot):
         """
         Return the trace's boxes in the order plotly draws them along the axis.
 
-        A trace of samples draws its boxes in that order too, so its boxes
-        are extracted in it. A precomputed trace draws them in the order it
-        lists them, wherever they stand, so each box keeps its place among the
-        drawn ``path.box`` elements for its selector while the data is sorted
-        by position -- see :func:`drawn_positions`.
+        Each box keeps the key its marks are found by in the page (see
+        :func:`box_key`): its first sample, or for a precomputed box, which
+        plotly draws in the order the trace lists it wherever it stands, its
+        place in that list. The data is sorted by position -- see
+        :func:`drawn_positions`.
         """
         drawn = drawn_positions(self, self._position_axis(), placed_at(self._trace))
         # Plotly box traces can have pre-computed stats or raw data
@@ -794,12 +946,12 @@ class PlotlyBoxPlot(PlotlyPlot):
             boxes = self._extract_from_raw_data(drawn)
         placed = in_drawn_order(
             [
-                (stats, position, within)
-                for within, (stats, position) in enumerate(boxes, start=1)
+                (stats, position, box_key(first, place))
+                for place, (stats, position, first) in enumerate(boxes, start=1)
             ],
             drawn,
         )
-        self._within = [within for _, _, within in placed]
+        self._keys = [key for _, _, key in placed]
         data = [stats for stats, _, _ in placed]
         # Record outlier counts so _get_selector can split them.
         self._outlier_counts = [
@@ -865,7 +1017,7 @@ class PlotlyBoxPlot(PlotlyPlot):
                 z=announced[i],
             )
             if box is not None:
-                results.append((box, stands_at[i]))
+                results.append((box, stands_at[i], None))
         return results
 
     def _extract_from_raw_data(self, drawn: list | None = None) -> list[tuple]:
@@ -883,8 +1035,8 @@ class PlotlyBoxPlot(PlotlyPlot):
         Returns
         -------
         list of tuple
-            ``(stats, position)`` for each box, in drawn order; the position
-            is ``None`` for a lone box with no name to stand at.
+            ``(stats, position, first sample)`` for each box, in drawn order;
+            the position is ``None`` for a lone box with no name to stand at.
         """
         y = self._trace.get("y", None)
         x = self._trace.get("x", None)
@@ -900,13 +1052,15 @@ class PlotlyBoxPlot(PlotlyPlot):
         data = y if y is not None else x
         if data is not None:
             name = self._trace.get("name", "")
-            arr = np.array(as_list(data), dtype=float)
+            values = as_list(data)
+            arr = np.array(values, dtype=float)
             stats = _compute_stats(
                 arr,
                 label=name,
                 quartilemethod=self._trace.get("quartilemethod"),
             )
-            return [(stats, name or None)] if stats is not None else []
+            first = first_samples([None] * len(values), values).get(None)
+            return [(stats, name or None, first)] if stats is not None else []
 
         return []
 
@@ -937,10 +1091,12 @@ class PlotlyBoxPlot(PlotlyPlot):
         Returns
         -------
         list of tuple
-            ``(stats, position)`` for each position, in drawn order.
+            ``(stats, position, first sample)`` for each position, in drawn
+            order.
         """
         positions = as_list(positions)
         samples = as_list(samples)
+        first = first_samples(positions, samples)
         groups: dict[Any, list] = {cat: [] for cat in dict.fromkeys(positions)}
         for position, sample in zip(positions, samples):
             groups[position].append(sample)
@@ -957,5 +1113,5 @@ class PlotlyBoxPlot(PlotlyPlot):
                 quartilemethod=self._trace.get("quartilemethod"),
             )
             if stats is not None:
-                results.append((stats, cat))
+                results.append((stats, cat, first.get(cat)))
         return results

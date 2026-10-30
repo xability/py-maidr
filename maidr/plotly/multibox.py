@@ -9,6 +9,8 @@ from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
 from maidr.plotly.box import (
     _build_box_selector,
+    box_key,
+    first_samples,
     _compute_stats,
     _has_precomputed_stats,
     _precomputed_box,
@@ -58,11 +60,11 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
             else list(range(len(traces)))
         )
         # All populated by _extract_plot_data before _get_selector runs: each
-        # box's outlier counts and its trace and place among that trace's
-        # `path.box` elements, in the order of the data, and how many boxes
+        # box's outlier counts and its trace and the key its marks are found
+        # by (see `box_key`), in the order of the data, and how many boxes
         # each trace drew.
         self._outlier_counts: list[tuple[int, int]] = []
-        self._marks: list[tuple[int, int]] = []
+        self._marks: list[tuple[int, str]] = []
         self._boxes_per_trace: list[int] = []
 
     def _get_selector(self) -> list[dict]:
@@ -78,13 +80,14 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
         data and two selectors, so half the boxes addressed nothing while
         the frontend paired the rest positionally.
 
-        Each box carries both indices from :meth:`_extract_plot_data`, since
-        the data is in the order the boxes are drawn across the layer, not
-        trace by trace.
+        Each box carries its trace and its key from :meth:`_extract_plot_data`,
+        since the data is in the order the boxes are drawn across the layer,
+        not trace by trace, and the key finds the box within its trace's group
+        by its own samples (see :func:`box_key`).
         """
         prefix = self._subplot_css_prefix()
         selectors = []
-        for (trace_index, within), (lower, upper) in zip(
+        for (trace_index, key), (lower, upper) in zip(
             self._marks, self._outlier_counts
         ):
             group = (
@@ -92,7 +95,7 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
                 if trace_index < len(self._layer_positions)
                 else trace_index
             ) + 1
-            selectors.append(_build_box_selector(prefix, group, within, lower, upper))
+            selectors.append(_build_box_selector(prefix, group, key, lower, upper))
         return selectors
 
     def _is_horizontal(self) -> bool:
@@ -124,9 +127,9 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
         layer is read in that order, category by category, where it was read
         trace by trace: two traces grouped at Thu and Fri were walked Thu,
         Fri, Thu, Fri, the highlight jumping back across the chart halfway.
-        Each box keeps its trace and its place among that trace's boxes for
-        its selector, and how many each trace drew is recorded for the
-        callers that count them.
+        Each box keeps its trace and its key (see :func:`box_key`) for its
+        selector, and how many each trace drew is recorded for the callers
+        that count them.
 
         A box grouped at a category is named with its trace as well,
         ``"Thu, Male"`` (see :func:`named_with_trace`), since the category
@@ -142,8 +145,8 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
         for trace_index, trace in enumerate(self._traces):
             boxes = self._trace_boxes(trace, drawn, several)
             placed.extend(
-                (stats, position, trace_index, within)
-                for within, (stats, position) in enumerate(boxes, start=1)
+                (stats, position, trace_index, box_key(first, place))
+                for place, (stats, position, first) in enumerate(boxes, start=1)
             )
             self._boxes_per_trace.append(len(boxes))
 
@@ -181,8 +184,9 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
         Returns
         -------
         list of tuple
-            ``(stats, position)`` for each box; the position is ``None`` for
-            a lone box with no name to stand at.
+            ``(stats, position, first sample)`` for each box; the position is
+            ``None`` for a lone box with no name to stand at, and the first
+            sample ``None`` for a precomputed one.
         """
         y = trace.get("y", None)
         x = trace.get("x", None)
@@ -194,7 +198,7 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
         # named by number, `Sales 2`, already says which trace it is.
         if _has_precomputed_stats(trace):
             boxes = self._extract_precomputed(trace)
-            for stats, position in boxes:
+            for stats, position, _ in boxes:
                 if several and stats.get(MaidrKey.Z.value) == str(position):
                     stats[MaidrKey.Z.value] = named_with_trace(position, name)
             return boxes
@@ -207,7 +211,7 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
                 positions, samples, quartilemethod=quartilemethod, drawn=drawn
             )
             if several:
-                for stats, position in boxes:
+                for stats, position, _ in boxes:
                     stats[MaidrKey.Z.value] = named_with_trace(position, name)
             return boxes
 
@@ -215,9 +219,11 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
         data = y if y is not None else x
         if data is None:
             return []
-        arr = np.array(as_list(data), dtype=float)
+        values = as_list(data)
+        arr = np.array(values, dtype=float)
         stats = _compute_stats(arr, label=name, quartilemethod=quartilemethod)
-        return [] if stats is None else [(stats, name or None)]
+        first = first_samples([None] * len(values), values).get(None)
+        return [] if stats is None else [(stats, name or None, first)]
 
     def _extract_precomputed(self, trace: dict) -> list[tuple]:
         """
@@ -273,7 +279,7 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
                 z=announced[i],
             )
             if box is not None:
-                results.append((box, stands_at[i]))
+                results.append((box, stands_at[i], None))
         return results
 
     def _extract_grouped(
@@ -303,10 +309,12 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
         Returns
         -------
         list of tuple
-            ``(stats, position)`` for each position, in drawn order.
+            ``(stats, position, first sample)`` for each position, in drawn
+            order.
         """
         position_list = as_list(positions)
         sample_list = as_list(samples)
+        first = first_samples(position_list, sample_list)
         groups: dict[Any, list] = {cat: [] for cat in dict.fromkeys(position_list)}
         for position, sample in zip(position_list, sample_list):
             groups[position].append(sample)
@@ -319,5 +327,5 @@ class PlotlyMultiBoxPlot(PlotlyPlot):
             arr = np.array(groups[cat], dtype=float)
             stats = _compute_stats(arr, label=str(cat), quartilemethod=quartilemethod)
             if stats is not None:
-                results.append((stats, cat))
+                results.append((stats, cat, first.get(cat)))
         return results

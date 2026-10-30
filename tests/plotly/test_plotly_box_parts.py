@@ -53,11 +53,12 @@ def test_every_statistic_names_a_part_of_its_own():
         go.Box(x=["a"] * 15 + ["b"] * 15 + ["c"] * 15, y=VALUES, name="t")
     )
 
-    for position, selector in enumerate(_selectors(fig), start=1):
+    # Each box by its key, the first of its samples: 0, 15 and 30.
+    for first, selector in zip((0, 15, 30), _selectors(fig)):
         for statistic in STATISTICS:
             assert selector[statistic] == (
                 ".subplot.xy .boxlayer > g:nth-child(1) > "
-                f'[data-maidr-box-part="{position} {statistic}"]'
+                f'[data-maidr-box-part="s{first} {statistic}"]'
             )
 
 
@@ -67,12 +68,12 @@ def test_the_outliers_still_name_the_points_plotly_drew():
     (selector,) = _selectors(fig)
 
     assert selector["lowerOutliers"] == [
-        ".subplot.xy .boxlayer > g:nth-child(1) > :nth-child(1 of g.points)"
-        " > :nth-child(-n+1 of path.point)"
+        ".subplot.xy .boxlayer > g:nth-child(1) > "
+        '[data-maidr-box-points="s0"] > :nth-child(-n+1 of path.point)'
     ]
     assert selector["upperOutliers"] == [
-        ".subplot.xy .boxlayer > g:nth-child(1) > :nth-child(1 of g.points)"
-        " > :nth-child(n+2 of path.point)"
+        ".subplot.xy .boxlayer > g:nth-child(1) > "
+        '[data-maidr-box-points="s0"] > :nth-child(n+2 of path.point)'
     ]
 
 

@@ -38,13 +38,13 @@ def _names(layer: dict) -> list[str]:
     return [box[MaidrKey.Z.value] for box in layer[MaidrKey.DATA]]
 
 
-def _drawn_box(selector: dict) -> tuple[int, int]:
-    """The trace group and the box within it that a box's selector names."""
+def _drawn_box(selector: dict) -> tuple[int, str]:
+    """The trace group and the key of the box within it a selector names."""
     found = re.search(
-        r'g:nth-child\((\d+)\) > \[data-maidr-box-part="(\d+) q2"\]', selector["q2"]
+        r'g:nth-child\((\d+)\) > \[data-maidr-box-part="(\w+) q2"\]', selector["q2"]
     )
     assert found, selector["q2"]
-    return int(found.group(1)), int(found.group(2))
+    return int(found.group(1)), found.group(2)
 
 
 def _boxes(orientation: str, **layout) -> go.Figure:
@@ -69,10 +69,15 @@ def test_a_horizontal_layer_starts_from_the_top_box():
 
 
 def test_each_box_keeps_its_own_marks():
-    # Group 3 is the third trace, so the third group in the box layer.
+    # Group 3 is the third trace, so the third group in the box layer, and
+    # each trace's one box starts at its first sample.
     layer = _layer(_boxes("h"))
 
-    assert [_drawn_box(s) for s in layer[MaidrKey.SELECTOR]] == [(3, 1), (2, 1), (1, 1)]
+    assert [_drawn_box(s) for s in layer[MaidrKey.SELECTOR]] == [
+        (3, "s0"),
+        (2, "s0"),
+        (1, "s0"),
+    ]
 
 
 @pytest.mark.parametrize(
@@ -84,7 +89,11 @@ def test_a_y_axis_that_runs_backwards_already_draws_the_first_box_on_top(yaxis):
     layer = _layer(_boxes("h", yaxis=yaxis))
 
     assert _names(layer) == GROUPS
-    assert [_drawn_box(s) for s in layer[MaidrKey.SELECTOR]] == [(1, 1), (2, 1), (3, 1)]
+    assert [_drawn_box(s) for s in layer[MaidrKey.SELECTOR]] == [
+        (1, "s0"),
+        (2, "s0"),
+        (3, "s0"),
+    ]
 
 
 def test_a_vertical_layer_keeps_the_order_left_to_right():
@@ -109,4 +118,9 @@ def test_one_trace_of_several_horizontal_boxes_is_reversed_too():
 
     assert layer[MaidrKey.ORIENTATION] == "horz"
     assert _names(layer) == ["high", "mid", "low"]
-    assert [_drawn_box(s) for s in layer[MaidrKey.SELECTOR]] == [(1, 3), (1, 2), (1, 1)]
+    # Precomputed boxes have no samples, so they keep their places.
+    assert [_drawn_box(s) for s in layer[MaidrKey.SELECTOR]] == [
+        (1, "3"),
+        (1, "2"),
+        (1, "1"),
+    ]
