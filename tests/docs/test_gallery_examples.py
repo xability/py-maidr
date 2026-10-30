@@ -578,6 +578,51 @@ def test_every_listed_page_exists() -> None:
 # so that changing the behavior means changing the page, and the other way
 # round.
 
+#: Page Up or Page Down, however a page spells them: "Page Up and Page
+#: Down", "PageUp/PageDown", "Page Down moves ...".
+_PAGE_KEYS = re.compile(r"Page\s*(?:Up|Down)")
+
+
+def _prose(page: Path) -> dict[str, str]:
+    """The text of each section of a page, with its code blocks left out."""
+    text: dict[str, list[str]] = {}
+    section = ""
+    inside = False
+    for line in page.read_text(encoding="utf-8").splitlines():
+        if inside:
+            inside = not _FENCE_CLOSE.match(line)
+        elif line.startswith("```"):
+            inside = True
+        else:
+            heading = _HEADING.match(line)
+            if heading:
+                section = heading.group(1)
+            else:
+                text.setdefault(section, []).append(line)
+    return {section: " ".join(lines) for section, lines in text.items()}
+
+
+@pytest.mark.parametrize("page", PAGES, ids=_page_id)
+def test_page_up_and_down_are_promised_only_between_layers(
+    gallery: _Gallery, page: Path
+) -> None:
+    """A section that names Page Up or Page Down shows a subplot holding
+    more than one layer.
+
+    Page Up and Page Down move between the layers of one subplot. The
+    subplots of a figure are reached from its overview with the arrow keys,
+    and inside a subplot of one layer both keys say there is no other layer
+    -- so a page promising them between the panels of a figure sends the
+    reader to keys that do nothing.
+    """
+    shown = gallery[page]
+    for section, text in _prose(page).items():
+        if section not in shown or not _PAGE_KEYS.search(text):
+            continue
+        assert any(
+            len(cell) > 1 for figure in shown[section] for cell in figure.types
+        ), f"{_page_id(page)}: '{section}' names Page Up or Page Down"
+
 
 def test_gantt_lanes_are_named_by_the_fixed_ticks(gallery: _Gallery) -> None:
     """candlestick-gantt.qmd: "Naming the lanes takes both ``set_yticks()``
