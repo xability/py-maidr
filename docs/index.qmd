@@ -269,7 +269,7 @@ same entry point, since both produce the same figure object.
 
 * Regression plot — a scatter trace overlaid with a fitted trend line, including `px.scatter(..., trendline=...)`.
 
-* Vertical and horizontal box plot (`go.Box`, `px.box`) having one categorical and one numerical axis, single-class or multi-class.
+* Vertical and horizontal box plot (`go.Box`, `px.box`) having one categorical and one numerical axis, single-class or multi-class. The boxes are read in the order they are drawn, following the axis's `categoryorder`. Boxes grouped at one category (several traces under `boxmode="group"`, or `px.box(color=...)`) are read category by category, and each is named with its trace as well, such as "Thu, Male".
 
 * Violin plot (`go.Violin`, `px.violin`), read as a density curve plus the embedded box plot statistics.
 

@@ -4,9 +4,11 @@ A horizontal layer's boxes were emitted bottom first, the order plotly draws
 them up the page; maidr.js expects them top first and reverses them, so the
 reader started on the top box and Up moved down. And every statistic named
 the one path plotly draws a whole box as, so Minimum, 25%, 50%, 75% and
-Maximum all outlined the whole box. These drive the shipped bundle over a
-saved page, hold Up to moving the outline up the page, and hold each
-statistic's outline to a line where plotly draws that value.
+Maximum all outlined the whole box. Boxes grouped at one category were walked
+trace by trace, and under a ``categoryorder`` named the box drawn somewhere
+else. These drive the shipped bundle over a saved page, hold Up to moving the
+outline up the page and Right to moving it across, and hold each statistic's
+outline to a line where plotly draws that value.
 
 plotly.js is linked from ``cdn.plot.ly``; the page is handed the copy the
 installed ``plotly`` package ships instead, so nothing here needs a network.
@@ -193,6 +195,67 @@ def test_each_statistic_outlines_its_own_mark(browser, tmp_path, orientation):
         assert set(seen) == set(_SECTIONS.values()), seen
         # Five marks, at five places: the outline moved at every step.
         assert len({round(centre) for centre in seen.values()}) == 5, seen
+        assert not errors, errors
+    finally:
+        page.close()
+
+
+#: Two traces grouped at three days, the second written in another order,
+#: drawn in the order the category array gives.
+_DAYS = ["Sat", "Fri", "Thu"]
+_GROUPED_ORDER = [f"{day}, {who}" for day in _DAYS for who in ("Male", "Female")]
+
+
+def _grouped_boxes(tmp_path: Path) -> Path:
+    """Grouped boxes under a ``categoryarray``, saved with the bundled maidr.js."""
+    import plotly.graph_objects as go
+
+    import maidr
+
+    def trace(days: list[str], bases: list[int], name: str) -> go.Box:
+        return go.Box(
+            x=[day for day in days for _ in range(7)],
+            y=[base + step for base in bases for step in range(7)],
+            name=name,
+        )
+
+    fig = go.Figure(
+        [
+            trace(["Thu", "Fri", "Sat"], [10, 20, 30], "Male"),
+            trace(["Sat", "Thu", "Fri"], [35, 15, 25], "Female"),
+        ],
+        layout={
+            "boxmode": "group",
+            "xaxis": {"categoryorder": "array", "categoryarray": _DAYS},
+        },
+    )
+    path = tmp_path / "plotly_box_grouped.html"
+    maidr.save_html(fig, file=str(path), use_cdn=False)
+    return path
+
+
+def test_right_walks_grouped_boxes_across_the_page(browser, tmp_path):
+    page, errors = _open(browser, _grouped_boxes(tmp_path))
+    try:
+        boxes = {box["z"]: box for box in page.evaluate(_BOXES)}
+        for _ in range(4):
+            spoken = _step(page, "ArrowUp")
+            if "50%" in spoken:
+                break
+        lefts: list[float] = []
+        for index, name in enumerate(_GROUPED_ORDER):
+            if index:
+                spoken = _step(page, "ArrowRight")
+            assert name in spoken, (name, spoken)
+            outline = _outline(page)
+            # On the announced box's median, and right of the box before it.
+            want = page.evaluate(_SCREEN_VALUE, ["y", boxes[name]["q2"]])
+            assert _centre_y(outline) == pytest.approx(want, abs=_TOLERANCE_PX), (
+                name,
+                outline,
+            )
+            lefts.append(outline["x"])
+        assert lefts == sorted(lefts) and len(set(lefts)) == len(lefts), lefts
         assert not errors, errors
     finally:
         page.close()

@@ -139,17 +139,22 @@ class TestSeveralTracesWithCategories:
         assert len(layer["data"]) == 4
         assert len(layer["selectors"]) == 4
 
-    def test_the_boxes_are_grouped_by_their_trace(self):
+    def test_each_box_names_its_own_trace_group_and_place(self):
+        # Read category by category, each box keeps its trace's group and its
+        # place in it: the boxes at "a" are the first of groups 1 and 2, and
+        # those at "b" the second.
         selectors = box_selectors(self.fig())
-        assert "g:nth-child(1)" in selectors[0]
-        assert "g:nth-child(1)" in selectors[1]
-        assert "g:nth-child(2)" in selectors[2]
-        assert "g:nth-child(2)" in selectors[3]
+        assert 'g:nth-child(1) > [data-maidr-box-part="1 q1"]' in selectors[0]
+        assert 'g:nth-child(2) > [data-maidr-box-part="1 q1"]' in selectors[1]
+        assert 'g:nth-child(1) > [data-maidr-box-part="2 q1"]' in selectors[2]
+        assert 'g:nth-child(2) > [data-maidr-box-part="2 q1"]' in selectors[3]
 
-    def test_the_order_is_trace_major_like_the_dom(self):
-        # Measured: two groups of two, and the data comes back a, b, a, b.
+    def test_the_boxes_are_read_category_by_category(self):
+        # Measured: plotly draws the two traces' boxes at each category
+        # together, so they are read a, a, b, b, each named with its trace
+        # -- see test_plotly_box_category_order.py.
         labels = [record["z"] for record in box_layer(self.fig())["data"]]
-        assert labels == ["a", "b", "a", "b"]
+        assert labels == ["a, t1", "a, t2", "b, t1", "b, t2"]
 
     def test_no_two_boxes_share_a_selector(self):
         selectors = box_selectors(self.fig())
