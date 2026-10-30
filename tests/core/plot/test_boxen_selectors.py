@@ -70,7 +70,7 @@ def _render(draw):
             element.tag = element.tag.split("}", 1)[1]
     (layer,) = [
         plot.schema
-        for plot in FigureManager.get_maidr(figure)._plots
+        for plot in FigureManager.get_maidr(figure).plots
         if plot.schema.get("type") == "boxen"
     ]
     return ax, layer, root
@@ -121,6 +121,6 @@ def test_a_second_render_keeps_one_selector_per_distribution() -> None:
     maidr.render(figure)._repr_html_()
     maidr.render(figure)._repr_html_()
 
-    (plot,) = FigureManager.get_maidr(figure)._plots
+    (plot,) = FigureManager.get_maidr(figure).plots
     schema = plot.render()
     assert len(schema["selectors"]) == len(schema["data"]) == 3
