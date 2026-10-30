@@ -684,6 +684,13 @@ class FormatConfigBuilder:
         bool
             True for the ``functools.partial`` of ``Axis._format_with_dict``
             that ``Axis.set_ticklabels`` installs on fixed ticks.
+
+        Notes
+        -----
+        ``_format_with_dict`` is a private matplotlib name, matched because
+        nothing public marks the lookup. Were it renamed, this would answer
+        False and such an axis would be given ``String(value)`` again;
+        ``tests/util/test_named_tick_format.py`` would fail first.
         """
         return isinstance(func, functools.partial) and (
             getattr(func.func, "__name__", "") == "_format_with_dict"
