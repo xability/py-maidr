@@ -74,9 +74,17 @@ class SmoothPlot(MaidrPlot):
     def _get_selector(self):
         """
         Return the CSS selector for highlighting the regression line or PolyCollection in the SVG output.
+
+        A filled KDE names the fill as matplotlib drew it: a ``<path>`` in
+        its group, or, for a fill with an edge colour -- seaborn's default --
+        the ``<use>`` that draws the template matplotlib puts in ``<defs>``.
+        It named the template, and maidr.js puts the markers it reads at each
+        point's ``svg_x``/``svg_y`` beside the element named, so they went
+        into ``<defs>`` and never drew: every point announced, none outlined.
         """
         if self._is_polycollection and self._poly_gid:
-            return [f"g[id='{self._poly_gid}'] > defs > path"]
+            gid = self._poly_gid
+            return [f"g[id='{gid}'] > path, g[id='{gid}'] > g > use"]
         if self._smooth_gid:
             return [f"g[id='{self._smooth_gid}'] path"]
         return ["g[id^='maidr-'] path"]

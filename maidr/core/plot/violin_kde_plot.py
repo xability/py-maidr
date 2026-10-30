@@ -70,6 +70,12 @@ class ViolinKdePlot(MaidrPlot):
         renders left selector *i* pointing at a different violin from point
         *i*, and the highlight landed on a neighbour. The same failure #354
         describes, one list further along.
+
+        Each names the body as matplotlib drew it: a ``<path>`` in its group,
+        or, for a body with an edge colour, the ``<use>`` that draws the
+        template matplotlib puts in ``<defs>``. The descendant form this was
+        matched that template as well, and only worked because maidr.js
+        prefers a ``<use>`` when a violin's selector matches both.
         """
         if not self._poly_gids:
             return ["g[id^='maidr-'] path"]
@@ -79,7 +85,7 @@ class ViolinKdePlot(MaidrPlot):
             if self._orientation == "horz"
             else self._poly_gids
         )
-        return [f"g[id='{gid}'] path, g[id='{gid}'] use" for gid in gids]
+        return [f"g[id='{gid}'] > path, g[id='{gid}'] > g > use" for gid in gids]
 
     # ------------------------------------------------------------------
     # Data extraction

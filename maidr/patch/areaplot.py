@@ -66,6 +66,9 @@ def stackplot(wrapped, instance, args, kwargs):
         series=series,
         labels=list(kwargs.get("labels") or []),
         collections=list(collections or []),
+        # Each band is `fill_between(x, stack[i-1], stack[i])`: its samples,
+        # the running total at its top, are on the polygon's second bound.
+        samples_on_second_bound=True,
     )
 
     return collections
