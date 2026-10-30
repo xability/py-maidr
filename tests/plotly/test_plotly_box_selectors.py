@@ -79,10 +79,11 @@ class TestOneTraceManyCategories:
         )
 
     def test_the_boxes_are_told_apart_within_that_group(self):
+        # By the first of each box's samples: a at 0, b at 15, c at 30.
         selectors = box_selectors(self.fig())
-        assert '[data-maidr-box-part="1 q1"]' in selectors[0]
-        assert '[data-maidr-box-part="2 q1"]' in selectors[1]
-        assert '[data-maidr-box-part="3 q1"]' in selectors[2]
+        assert '[data-maidr-box-part="s0 q1"]' in selectors[0]
+        assert '[data-maidr-box-part="s15 q1"]' in selectors[1]
+        assert '[data-maidr-box-part="s30 q1"]' in selectors[2]
 
     def test_no_two_boxes_share_a_selector(self):
         selectors = box_selectors(self.fig())
@@ -139,17 +140,22 @@ class TestSeveralTracesWithCategories:
         assert len(layer["data"]) == 4
         assert len(layer["selectors"]) == 4
 
-    def test_the_boxes_are_grouped_by_their_trace(self):
+    def test_each_box_names_its_own_trace_group_and_place(self):
+        # Read category by category, each box keeps its trace's group and is
+        # found in it by its first sample: each trace's "a" samples start at
+        # 0 and its "b" samples at 7.
         selectors = box_selectors(self.fig())
-        assert "g:nth-child(1)" in selectors[0]
-        assert "g:nth-child(1)" in selectors[1]
-        assert "g:nth-child(2)" in selectors[2]
-        assert "g:nth-child(2)" in selectors[3]
+        assert 'g:nth-child(1) > [data-maidr-box-part="s0 q1"]' in selectors[0]
+        assert 'g:nth-child(2) > [data-maidr-box-part="s0 q1"]' in selectors[1]
+        assert 'g:nth-child(1) > [data-maidr-box-part="s7 q1"]' in selectors[2]
+        assert 'g:nth-child(2) > [data-maidr-box-part="s7 q1"]' in selectors[3]
 
-    def test_the_order_is_trace_major_like_the_dom(self):
-        # Measured: two groups of two, and the data comes back a, b, a, b.
+    def test_the_boxes_are_read_category_by_category(self):
+        # Measured: plotly draws the two traces' boxes at each category
+        # together, so they are read a, a, b, b, each named with its trace
+        # -- see test_plotly_box_category_order.py.
         labels = [record["z"] for record in box_layer(self.fig())["data"]]
-        assert labels == ["a", "b", "a", "b"]
+        assert labels == ["a, t1", "a, t2", "b, t1", "b, t2"]
 
     def test_no_two_boxes_share_a_selector(self):
         selectors = box_selectors(self.fig())
@@ -215,16 +221,17 @@ class TestTheDomContractTheSelectorsAssume:
     def test_a_box_is_addressed_inside_its_group_not_as_a_group(self):
         # The regression that started #395: `> path.box` with no index
         # matches every box the trace drew. Each part the init script draws
-        # beside a box carries that box's position in its trace's group.
-        for position, selector in enumerate(
+        # beside a box carries that box's key in its trace's group: the first
+        # of its samples, 0 for "a" and 10 for "b".
+        for first, selector in zip(
+            (0, 10),
             box_selectors(
                 go.Figure(
                     [go.Box(x=["a"] * 10 + ["b"] * 10, y=VALUES[:20], name="t")]
                 )
             ),
-            start=1,
         ):
-            assert selector.endswith(f'> [data-maidr-box-part="{position} q1"]')
+            assert selector.endswith(f'> [data-maidr-box-part="s{first} q1"]')
             assert "path.box" not in selector
 
     def test_outliers_are_scoped_to_one_points_group(self):
@@ -234,8 +241,8 @@ class TestTheDomContractTheSelectorsAssume:
         selector = box_layer(fig)["selectors"][0]
         for found in selector["lowerOutliers"] + selector["upperOutliers"]:
             # `.points` as a descendant would reach every box's outliers in
-            # the trace; the indexed child reaches one box's.
-            assert "of g.points)" in found
+            # the trace; the keyed child reaches one box's.
+            assert '> [data-maidr-box-points="s0"] >' in found
             assert " .points" not in found
 
 
@@ -270,9 +277,11 @@ class TestOutliersFollowTheirBox:
         assert len(selectors[2]["upperOutliers"]) == 1
 
     def test_an_outlier_selector_is_scoped_to_its_own_box(self):
+        # The points group the init script keys as its box: "a" samples start
+        # at 0, "c" ones at 21.
         selectors = box_layer(self.fig())["selectors"]
-        assert "(1 of g.points)" in selectors[0]["lowerOutliers"][0]
-        assert "(3 of g.points)" in selectors[2]["upperOutliers"][0]
+        assert '[data-maidr-box-points="s0"]' in selectors[0]["lowerOutliers"][0]
+        assert '[data-maidr-box-points="s21"]' in selectors[2]["upperOutliers"][0]
 
     def test_the_outlier_group_shares_its_box_s_trace_group(self):
         selectors = box_layer(self.fig())["selectors"]

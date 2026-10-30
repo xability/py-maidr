@@ -4,9 +4,11 @@ A horizontal layer's boxes were emitted bottom first, the order plotly draws
 them up the page; maidr.js expects them top first and reverses them, so the
 reader started on the top box and Up moved down. And every statistic named
 the one path plotly draws a whole box as, so Minimum, 25%, 50%, 75% and
-Maximum all outlined the whole box. These drive the shipped bundle over a
-saved page, hold Up to moving the outline up the page, and hold each
-statistic's outline to a line where plotly draws that value.
+Maximum all outlined the whole box. Boxes grouped at one category were walked
+trace by trace, and under a ``categoryorder`` named the box drawn somewhere
+else. These drive the shipped bundle over a saved page, hold Up to moving the
+outline up the page and Right to moving it across, and hold each statistic's
+outline to a line where plotly draws that value.
 
 plotly.js is linked from ``cdn.plot.ly``; the page is handed the copy the
 installed ``plotly`` package ships instead, so nothing here needs a network.
@@ -193,6 +195,170 @@ def test_each_statistic_outlines_its_own_mark(browser, tmp_path, orientation):
         assert set(seen) == set(_SECTIONS.values()), seen
         # Five marks, at five places: the outline moved at every step.
         assert len({round(centre) for centre in seen.values()}) == 5, seen
+        assert not errors, errors
+    finally:
+        page.close()
+
+
+#: Two traces grouped at three days, the second written in another order,
+#: drawn in the order the category array gives.
+_DAYS = ["Sat", "Fri", "Thu"]
+_GROUPED_ORDER = [f"{day}, {who}" for day in _DAYS for who in ("Male", "Female")]
+
+
+def _grouped_boxes(tmp_path: Path) -> Path:
+    """Grouped boxes under a ``categoryarray``, saved with the bundled maidr.js."""
+    import plotly.graph_objects as go
+
+    import maidr
+
+    def trace(days: list[str], bases: list[int], name: str) -> go.Box:
+        return go.Box(
+            x=[day for day in days for _ in range(7)],
+            y=[base + step for base in bases for step in range(7)],
+            name=name,
+        )
+
+    fig = go.Figure(
+        [
+            trace(["Thu", "Fri", "Sat"], [10, 20, 30], "Male"),
+            trace(["Sat", "Thu", "Fri"], [35, 15, 25], "Female"),
+        ],
+        layout={
+            "boxmode": "group",
+            "xaxis": {"categoryorder": "array", "categoryarray": _DAYS},
+        },
+    )
+    path = tmp_path / "plotly_box_grouped.html"
+    maidr.save_html(fig, file=str(path), use_cdn=False)
+    return path
+
+
+def _unread_order_boxes(tmp_path: Path, case: str) -> Path:
+    """Three boxes written c, a, b, drawn in an order the trace does not give.
+
+    ``median``: sorted by median, an order the reader does not resolve.
+    ``dates``: on a date axis, which plotly draws in time order.
+    """
+    import plotly.graph_objects as go
+
+    import maidr
+
+    positions = {
+        "median": ["c", "a", "b"],
+        "dates": ["2024-03-01", "2024-01-01", "2024-02-01"],
+    }[case]
+    fig = go.Figure(
+        go.Box(
+            x=[position for position in positions for _ in range(7)],
+            y=[base + step for base in (30, 10, 20) for step in range(7)],
+            name="T",
+        )
+    )
+    if case == "median":
+        fig.update_layout(xaxis={"categoryorder": "median ascending"})
+    path = tmp_path / f"plotly_box_{case}.html"
+    maidr.save_html(fig, file=str(path), use_cdn=False)
+    return path
+
+
+@pytest.mark.parametrize("case", ["median", "dates"])
+def test_each_box_is_outlined_where_it_is_drawn(browser, tmp_path, case):
+    # Before, a box was found by its place among its trace's boxes, so under
+    # an order the trace did not give the outline sat on another box.
+    page, errors = _open(browser, _unread_order_boxes(tmp_path, case))
+    try:
+        boxes = page.evaluate(_BOXES)
+        for _ in range(4):
+            spoken = _step(page, "ArrowUp")
+            if "50%" in spoken:
+                break
+        for index, box in enumerate(boxes):
+            if index:
+                spoken = _step(page, "ArrowRight")
+            assert f"{box['z']}, 50%" in spoken, (box["z"], spoken)
+            want = page.evaluate(_SCREEN_VALUE, ["y", box["q2"]])
+            assert _centre_y(_outline(page)) == pytest.approx(
+                want, abs=_TOLERANCE_PX
+            ), (box["z"], spoken)
+        assert not errors, errors
+    finally:
+        page.close()
+
+
+def _dropped_box(tmp_path: Path, case: str) -> Path:
+    """A precomputed trace a, b, c, d whose box b has nothing to read."""
+    import plotly.graph_objects as go
+
+    import maidr
+
+    bad = {"missing": (None, None, None), "out-of-order": (15, 12, 13)}[case]
+    fig = go.Figure(
+        go.Box(
+            x=["a", "b", "c", "d"],
+            q1=[1, bad[0], 21, 31],
+            median=[2, bad[1], 22, 32],
+            q3=[3, bad[2], 23, 33],
+            lowerfence=[0, 10, 20, 30],
+            upperfence=[4, 14, 24, 34],
+            name="P",
+        )
+    )
+    path = tmp_path / f"plotly_box_{case}.html"
+    maidr.save_html(fig, file=str(path), use_cdn=False)
+    return path
+
+
+@pytest.mark.parametrize("case", ["missing", "out-of-order"])
+def test_the_boxes_after_one_with_nothing_to_read_keep_their_marks(
+    browser, tmp_path, case
+):
+    # Plotly draws b as a flat line, which the reader drops. Before, c and d
+    # were counted among the boxes read, so c was outlined on b's line and d
+    # on c's box.
+    page, errors = _open(browser, _dropped_box(tmp_path, case))
+    try:
+        boxes = page.evaluate(_BOXES)
+        assert [box["z"] for box in boxes] == ["a", "c", "d"]
+        for _ in range(4):
+            spoken = _step(page, "ArrowUp")
+            if "50%" in spoken:
+                break
+        for index, box in enumerate(boxes):
+            if index:
+                spoken = _step(page, "ArrowRight")
+            assert f"{box['z']}, 50%" in spoken, (box["z"], spoken)
+            want = page.evaluate(_SCREEN_VALUE, ["y", box["q2"]])
+            assert _centre_y(_outline(page)) == pytest.approx(
+                want, abs=_TOLERANCE_PX
+            ), (box["z"], spoken)
+        assert not errors, errors
+    finally:
+        page.close()
+
+
+def test_right_walks_grouped_boxes_across_the_page(browser, tmp_path):
+    page, errors = _open(browser, _grouped_boxes(tmp_path))
+    try:
+        boxes = {box["z"]: box for box in page.evaluate(_BOXES)}
+        for _ in range(4):
+            spoken = _step(page, "ArrowUp")
+            if "50%" in spoken:
+                break
+        lefts: list[float] = []
+        for index, name in enumerate(_GROUPED_ORDER):
+            if index:
+                spoken = _step(page, "ArrowRight")
+            assert name in spoken, (name, spoken)
+            outline = _outline(page)
+            # On the announced box's median, and right of the box before it.
+            want = page.evaluate(_SCREEN_VALUE, ["y", boxes[name]["q2"]])
+            assert _centre_y(outline) == pytest.approx(want, abs=_TOLERANCE_PX), (
+                name,
+                outline,
+            )
+            lefts.append(outline["x"])
+        assert lefts == sorted(lefts) and len(set(lefts)) == len(lefts), lefts
         assert not errors, errors
     finally:
         page.close()
