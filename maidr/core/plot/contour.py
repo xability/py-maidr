@@ -92,7 +92,9 @@ class ContourPlot(MaidrPlot):
         # labels -- so the gallery's outer levels were written with 136 of
         # 202, 114 of 153 and 98 of 132 vertices, and their highlight stuck
         # on the first point or crossed the ring. Set here, at render, as
-        # `clabel` replaces the paths after the `contour` call.
+        # `clabel` replaces the paths after the `contour` call. It changes the
+        # caller's own paths, deliberately: the flag only says how a path is
+        # drawn, and the drawing is what the highlight is read from.
         for path in paths:
             path.should_simplify = False
 
