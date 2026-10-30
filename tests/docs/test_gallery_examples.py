@@ -578,7 +578,9 @@ def test_every_listed_page_exists() -> None:
 # so that changing the behavior means changing the page, and the other way
 # round.
 
-_PAGE_KEYS = re.compile(r"Page\s+Up\s+and\s+Page\s+Down")
+#: Page Up or Page Down, however a page spells them: "Page Up and Page
+#: Down", "PageUp/PageDown", "Page Down moves ...".
+_PAGE_KEYS = re.compile(r"Page\s*(?:Up|Down)")
 
 
 def _prose(page: Path) -> dict[str, str]:
@@ -604,8 +606,8 @@ def _prose(page: Path) -> dict[str, str]:
 def test_page_up_and_down_are_promised_only_between_layers(
     gallery: _Gallery, page: Path
 ) -> None:
-    """A section that says Page Up and Page Down move between its charts
-    shows a subplot holding more than one layer.
+    """A section that names Page Up or Page Down shows a subplot holding
+    more than one layer.
 
     Page Up and Page Down move between the layers of one subplot. The
     subplots of a figure are reached from its overview with the arrow keys,
@@ -619,7 +621,7 @@ def test_page_up_and_down_are_promised_only_between_layers(
             continue
         assert any(
             len(cell) > 1 for figure in shown[section] for cell in figure.types
-        ), f"{_page_id(page)}: '{section}' promises Page Up and Page Down"
+        ), f"{_page_id(page)}: '{section}' names Page Up or Page Down"
 
 
 def test_gantt_lanes_are_named_by_the_fixed_ticks(gallery: _Gallery) -> None:
