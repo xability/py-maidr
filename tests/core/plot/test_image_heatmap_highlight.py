@@ -199,6 +199,23 @@ def test_two_images_on_one_axes_keep_no_highlight():
     assert [image.get_gid() for image in images] == [None, None]
 
 
+def test_a_view_zoomed_in_after_the_first_render_keeps_no_highlight():
+    # The schema is built once, at the first render, and names the image. A
+    # view zoomed in since cuts the picture matplotlib writes, and the overlay
+    # would divide what is left of it into the whole grid; the image is left
+    # unnamed instead, so the selector names nothing.
+    figure, ax = plt.subplots()
+    image = ax.imshow(GRID)
+    maidr.render(figure)._repr_html_()
+    ax.set_xlim(0, 2)
+    html = maidr.render(figure)._repr_html_()
+
+    (layer,) = [plot.schema for plot in FigureManager.get_maidr(figure)._plots]
+    assert layer["selectors"] == f"image[id='{image.get_gid()}']"
+    rendered = _tree(re.search(r"<svg.*?</svg>", html, re.S).group(0))
+    assert CSSSelector(layer["selectors"])(rendered) == []
+
+
 def test_a_gid_the_caller_set_is_kept_and_named():
     _, _, image, layer, rendered, _ = _render(
         lambda ax: ax.imshow(GRID, gid="heat-grid")

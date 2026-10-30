@@ -139,7 +139,11 @@ class HeatPlot(
         its ``id``, which it loses: its attributes would not be its box, and
         maidr.js would outline cells it did not draw there. Without the id the
         selector names nothing, and the cells are announced without an
-        outline, as they were before the image was named.
+        outline, as they were before the image was named. An image whose
+        axes no longer pass :meth:`_cells_overlay_image` as drawn loses its
+        id too: the schema is built once, at the first render, and a view
+        zoomed in since cuts the picture that the overlay would divide into
+        the whole grid.
 
         Parameters
         ----------
@@ -152,7 +156,9 @@ class HeatPlot(
             drawn = tree.xpath(
                 "//*[local-name()='image'][@id=$gid]", gid=str(element.get_gid())
             )
-            if len(drawn) == 1 and not _place_upright(drawn[0]):
+            if len(drawn) != 1:
+                continue
+            if not (self._cells_overlay_image(element) and _place_upright(drawn[0])):
                 del drawn[0].attrib["id"]
 
     def _cells_overlay_image(self, sm: ScalarMappable | None) -> bool:
