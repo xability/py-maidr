@@ -3,10 +3,10 @@
 ``from_networkx`` makes a ``GraphRenderer``; one made from a directed graph
 is read as a ``directed_graph`` layer. maidr.js walks it in topological
 order and reports the node being read as its index into the layer's data,
-and the page answers by selecting that node's row of the node renderer's
-source. The nodes are added to the graph out of topological order here, so
-a highlight keyed on the walk's position rather than the node would select
-the wrong one.
+and the page answers by drawing its highlight ring round that node, where
+the graph's layout places it. The nodes are added to the graph out of
+topological order here, so a highlight keyed on the walk's position rather
+than the node would ring the wrong one.
 """
 
 from __future__ import annotations
@@ -35,6 +35,18 @@ _SELECTED = """(id) => {
   }
   return null;
 }"""
+#: Where the highlight ring sits, or null when it is not drawn.
+_CURSOR = """() => {
+  for (const doc of Bokeh.documents) {
+    for (const model of doc.all_models) {
+      if (model.name === 'maidr-highlight-cursor') {
+        const data = model.data_source.data;
+        return data.x.length ? [data.x[0], data.y[0]] : null;
+      }
+    }
+  }
+  return undefined;
+}"""
 
 
 def _local_bokeh(route) -> None:
@@ -51,7 +63,7 @@ def _step(page, key: str) -> str:
     return page.evaluate(f"document.querySelector('{_TEXT}')?.innerText") or ""
 
 
-def test_each_node_announced_is_the_node_selected(browser, tmp_path):
+def test_each_node_announced_is_the_node_ringed(browser, tmp_path):
     from bokeh.plotting import figure, from_networkx
 
     import maidr
@@ -67,7 +79,7 @@ def test_each_node_announced_is_the_node_selected(browser, tmp_path):
     p.renderers.append(renderer)
     path = tmp_path / "graph.html"
     maidr.save_html(p, str(path), use_cdn=False)
-    source_row = {"train": 0, "clean": 1, "load": 2, "features": 3}
+    layout = renderer.layout_provider.graph_layout
 
     page = browser.new_page()
     errors: list[str] = []
@@ -83,9 +95,11 @@ def test_each_node_announced_is_the_node_selected(browser, tmp_path):
         for name in ["load", "clean", "features", "train"]:
             spoken = _step(page, "ArrowRight")
             assert f"Node is {name}" in spoken, spoken
-            assert page.evaluate(_SELECTED, renderer.node_renderer.id) == [
-                source_row[name]
-            ], name
+            assert page.evaluate(_CURSOR) == pytest.approx(
+                [float(v) for v in layout[name]]
+            ), name
+            # The other nodes and the edges are left as they are drawn.
+            assert page.evaluate(_SELECTED, renderer.node_renderer.id) == []
         assert not errors, errors
     finally:
         page.close()

@@ -64,7 +64,7 @@ from maidr.bokeh.data import (
     to_native,
     visible_indices,
 )
-from maidr.bokeh.graph import NODE_LABEL, is_directed, read_graph
+from maidr.bokeh.graph import NODE_LABEL, is_directed, node_anchors, read_graph
 from maidr.bokeh.utils import warn
 from maidr.core.enum.maidr_key import MaidrKey
 from maidr.core.enum.plot_type import PlotType
@@ -360,9 +360,10 @@ class PlotReader:
         Returns
         -------
         BokehLayer or None
-            A ``directed_graph`` layer whose highlight selects each node's
-            row of the node renderer's source, or None when the sources do
-            not read as a graph.
+            A ``directed_graph`` layer whose highlight rings each node where
+            the graph's layout draws it, or selects its row of the node
+            renderer's source when the layout does not place every node;
+            None when the sources do not read as a graph.
         """
         read = read_graph(renderer)
         if read is None:
@@ -376,8 +377,15 @@ class PlotReader:
             MaidrKey.DATA: nodes,
         }
         # The core reports a graph node as its index into the layer's data,
-        # as it reports a point of a cloud; see ``NavigateCallback``.
-        highlight = {"kind": "points", "points": cells}
+        # as it reports a point of a cloud; see ``NavigateCallback``. A node
+        # is a small unfilled marker, and selecting its row only faded the
+        # others a little, so the node being read is ringed with the cursor
+        # a line's point gets.
+        anchors = node_anchors(renderer)
+        if anchors is not None:
+            highlight = {"kind": "cursor", "points": anchors}
+        else:
+            highlight = {"kind": "points", "points": cells}
         layer = BokehLayer(schema, self._plot, highlight)
         layer.x_range_name = renderer.node_renderer.x_range_name
         layer.y_range_name = renderer.node_renderer.y_range_name
