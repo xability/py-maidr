@@ -113,6 +113,25 @@ def test_the_scatter_matrix_names_each_categorical_value():
     assert all("xLabel" not in p for p in learning_rate["layers"][0]["data"])
 
 
+def test_a_session_without_a_categorical_value_is_left_out_of_its_cell():
+    from maidr.tensorboard.hparams import _column, _matrix
+
+    figure = _matrix(
+        [_column("optimizer", ["sgd", None, "adam"])],
+        [_column("accuracy", [0.5, 0.6, 0.7])],
+    )
+    schema = json.loads(json.dumps(FigureManager.get_maidr(figure)._flatten_maidr()))
+    (cell,) = schema["subplots"][0]
+    (layer,) = cell["layers"]
+
+    # The session that logged no optimizer has no point there, and the two
+    # that did keep the positions of the sorted values.
+    assert [(p["x"], p["xLabel"], p["y"]) for p in layer["data"]] == [
+        (1, "sgd", 0.5),
+        (0, "adam", 0.7),
+    ]
+
+
 def test_each_cell_of_the_scatter_matrix_is_named_for_what_it_plots():
     _, matrix = read_tensorboard_hparams(SWEEP)
     titles = [
