@@ -23,6 +23,7 @@ from matplotlib.lines import Line2D
 from maidr.core.enum import PlotType
 from maidr.core.figure_manager import FigureManager
 from maidr.core.plot.prebuilt import PrebuiltPlot
+from maidr.survival import keep_every_vertex
 from maidr.tensorboard.events import PR_CURVES_PLUGIN
 from maidr.tensorboard.logdir import TensorBoardChart, load
 from maidr.util.caller_warning import warn_at_caller
@@ -362,9 +363,14 @@ def _draw(title: str, curves: list[_Curve]) -> Figure:
     """
     Draw the curves and their chance lines, and register one ``pr_curve`` layer.
 
-    Each curve is a plain line, one vertex per point, so nothing reads it as
-    a ``line`` layer; its gid names it in the layer's selectors. The dashed
-    chance lines are for the eye: each curve's ``prevalence`` carries them.
+    Each curve is a plain line, so nothing reads it as a ``line`` layer; its
+    gid names it in the layer's selectors. It is drawn through its points in
+    the order the layer lists them, with every vertex kept
+    (:func:`~maidr.survival.keep_every_vertex`): maidr.js puts the highlight
+    of a curve's i-th point on its path's i-th vertex, and matplotlib drops
+    the vertices it can merge from a path of 128 or more as it draws it, which
+    wrote a 275-point Keras curve with 4 vertices. The dashed chance lines
+    are for the eye: each curve's ``prevalence`` carries them.
     """
     fig = Figure(figsize=(6.5, 5.0))
     ax = fig.add_subplot()
@@ -372,6 +378,7 @@ def _draw(title: str, curves: list[_Curve]) -> Figure:
     for index, curve in enumerate(curves):
         color = f"C{index % 10}"
         line = Line2D(curve.recall, curve.precision, color=color, label=curve.label)
+        keep_every_vertex(line)
         line.set_gid(f"maidr-{uuid.uuid4()}")
         ax.add_line(line)
         lines.append(line)
