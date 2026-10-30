@@ -368,6 +368,16 @@ class MultiLinePlot(MaidrPlot, LineExtractorMixin):
         schema = super().render()
         if self.type in (PlotType.LINE, PlotType.STEP) and named_pr_curve(schema):
             schema[MaidrKey.TYPE] = PlotType.PR_CURVE
+            # maidr.js outlines a curve's i-th point at the i-th vertex of its
+            # path, a staircase's corners skipped, and matplotlib merges the
+            # vertices of a path of 128 or more as it draws it: the gallery's
+            # 151-point `ax.step` curve was written with 62, and its outline
+            # never left the first. Imported here: maidr.survival imports the
+            # figure manager, which loads this module.
+            from maidr.survival import keep_every_vertex
+
+            for line in self._series():
+                keep_every_vertex(line)
         return schema
 
     def _extract_plot_data(self) -> Union[List[List[dict]], None]:
