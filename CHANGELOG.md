@@ -1,6 +1,113 @@
 # CHANGELOG
 
 
+## v1.28.2 (2026-11-02)
+
+### Bug Fixes
+
+- Keep a vertex per point on long contour levels and keras pr curves
+  ([#943](https://github.com/xability/py-maidr/pull/943),
+  [`378fff1`](https://github.com/xability/py-maidr/commit/378fff18413291b122554dbb6031470bc3e507ed))
+
+- **area**: Outline the announced point on a filled band
+  ([#926](https://github.com/xability/py-maidr/pull/926),
+  [`7674da3`](https://github.com/xability/py-maidr/commit/7674da311a68b832187b98d8ba497cb0e1b4ac0d))
+
+- **bokeh**: Highlight only the mark being read on a layer of several renderers
+  ([#932](https://github.com/xability/py-maidr/pull/932),
+  [`0db8fc0`](https://github.com/xability/py-maidr/commit/0db8fc0d3f4de760bbca77b6fb1dac7fb693d858))
+
+- **bokeh**: Ring the directed graph's node being read
+  ([#933](https://github.com/xability/py-maidr/pull/933),
+  [`cfc13de`](https://github.com/xability/py-maidr/commit/cfc13de9d9ada46b6460c42f7fd89e74c257a0d9))
+
+- **boxen**: Outline the distribution being read
+  ([#938](https://github.com/xability/py-maidr/pull/938),
+  [`2b1ddaa`](https://github.com/xability/py-maidr/commit/2b1ddaa6ce5624dfad669902453e9f133dc3e6bf))
+
+- **boxplot**: Walk a box plot's boxes in the order they stand
+  ([#948](https://github.com/xability/py-maidr/pull/948),
+  [`3044f90`](https://github.com/xability/py-maidr/commit/3044f9080a2d3da32fe54ba5c1dba5a8468002d6))
+
+- **candlestick**: Leave an mplfinance layer untitled when its axes are
+  ([#930](https://github.com/xability/py-maidr/pull/930),
+  [`0450fe4`](https://github.com/xability/py-maidr/commit/0450fe42752cad19fabad430975c41df9b6a960d))
+
+- **candlestick**: Read the candles mplfinance.original_flavor draws
+  ([#927](https://github.com/xability/py-maidr/pull/927),
+  [`8d13c64`](https://github.com/xability/py-maidr/commit/8d13c64df898df8ec1bdb6dccc9d91cbbf9465e7))
+
+- **excel**: Name a box and whisker chart's value axis after its series
+  ([#935](https://github.com/xability/py-maidr/pull/935),
+  [`d12494f`](https://github.com/xability/py-maidr/commit/d12494fbed9aba259cd36cdf7eae3ef6182e82a0))
+
+- **format**: Leave the numbers of an axis with named ticks unformatted
+  ([#941](https://github.com/xability/py-maidr/pull/941),
+  [`e906c29`](https://github.com/xability/py-maidr/commit/e906c29a78280078750bdfe6b439c85862fc650f))
+
+- **gantt**: Declare broken_barh and hlines schedules horizontal
+  ([#937](https://github.com/xability/py-maidr/pull/937),
+  [`5455849`](https://github.com/xability/py-maidr/commit/54558493a87f66d5798607cec58124c727b8d3f1))
+
+- **heatmap**: Outline the announced cell of a heatmap drawn as an image
+  ([#929](https://github.com/xability/py-maidr/pull/929),
+  [`3ea268c`](https://github.com/xability/py-maidr/commit/3ea268c0fb069c206217d9191b746d3f2e150d90))
+
+- **histogram**: Give neighbouring bins one number for their shared edge
+  ([#942](https://github.com/xability/py-maidr/pull/942),
+  [`4b80116`](https://github.com/xability/py-maidr/commit/4b80116fbc0807b8dbab0119cff4c31abe10d7b6))
+
+- **plotly**: Read a box layer in the order its boxes are drawn
+  ([#947](https://github.com/xability/py-maidr/pull/947),
+  [`d99dd16`](https://github.com/xability/py-maidr/commit/d99dd167980b2f8e00223fa7e076506eda5e12b2))
+
+- **plotly**: Read a horizontal box trace's samples from x
+  ([#946](https://github.com/xability/py-maidr/pull/946),
+  [`1ef6356`](https://github.com/xability/py-maidr/commit/1ef6356c7c99ece4968fb0566f97ecf4dd8b2dc0))
+
+- **plotly**: Read a line drawn with markers as a line
+  ([#944](https://github.com/xability/py-maidr/pull/944),
+  [`818deae`](https://github.com/xability/py-maidr/commit/818deae866c99341e8230b50c23a046221dcedf4))
+
+- **plotly**: Read titles and axis labels as the chart draws them
+  ([#925](https://github.com/xability/py-maidr/pull/925),
+  [`4510bb7`](https://github.com/xability/py-maidr/commit/4510bb7830c63c16a7b57a5a4f04410d76ddccda))
+
+- **plotly**: Walk horizontal boxes up the page and outline each statistic at its mark
+  ([#945](https://github.com/xability/py-maidr/pull/945),
+  [`aa178b5`](https://github.com/xability/py-maidr/commit/aa178b564d7cc569dce933e052fe9787ae8aa3d2))
+
+- **smooth**: Name KDE curves and fitted lines by the labels the legend shows
+  ([#940](https://github.com/xability/py-maidr/pull/940),
+  [`3455557`](https://github.com/xability/py-maidr/commit/3455557a1457ac1856d7bdd70e342e94ef95d8a3))
+
+- **tensorboard**: Name the hparams scatter matrix's cells and categories
+  ([#934](https://github.com/xability/py-maidr/pull/934),
+  [`8272eed`](https://github.com/xability/py-maidr/commit/8272eed47cc918fc60bbaec7bae96d03db5ee136))
+
+- **tensorboard**: Read the top operations from the largest down
+  ([#936](https://github.com/xability/py-maidr/pull/936),
+  [`6e088ce`](https://github.com/xability/py-maidr/commit/6e088cee0c056064515d7c52b9466358a0423879))
+
+- **title**: Give a twinx chart's layers the title either axes carries
+  ([#939](https://github.com/xability/py-maidr/pull/939),
+  [`d365644`](https://github.com/xability/py-maidr/commit/d3656448c926cf8bbe1a3b78c9d292ad4bf8ecfa))
+
+- **violin**: Outline each violin's own marks, bottom up across the page
+  ([#928](https://github.com/xability/py-maidr/pull/928),
+  [`0772804`](https://github.com/xability/py-maidr/commit/0772804498a3493f6829d36921f8ed8f7e8839fc))
+
+### Documentation
+
+- **examples**: Give histogram examples an x format that fits their bin edges
+  ([#949](https://github.com/xability/py-maidr/pull/949),
+  [`b7c5eb9`](https://github.com/xability/py-maidr/commit/b7c5eb91a815a9d10f40c5b5b8ba2d403d932f16))
+
+- **gallery**: Say how to move between the subplots of a figure
+  ([#931](https://github.com/xability/py-maidr/pull/931),
+  [`d87e44e`](https://github.com/xability/py-maidr/commit/d87e44e724ea07a5d494c01a2400927ba6e37bff))
+
+
 ## v1.28.1 (2026-10-26)
 
 ### Bug Fixes
