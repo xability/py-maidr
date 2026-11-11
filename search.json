@@ -2734,7 +2734,7 @@
     "href": "examples-altair.html#saving-an-altair-chart-as-a-self-contained-html-file",
     "title": "Altair Accessible Plot Examples",
     "section": "Saving an Altair Chart as a Self-Contained HTML File",
-    "text": "Saving an Altair Chart as a Self-Contained HTML File\nIf you would like to save and share the accessible chart as a standalone HTML file, use maidr.save_html():\nimport altair as alt\nimport seaborn as sns\n\nimport maidr\n\ntips = sns.load_dataset(\"tips\")\nchart = (\n    alt.Chart(tips)\n    .mark_bar()\n    .encode(x=\"day:N\", y=\"count():Q\")\n)\n\nmaidr.save_html(chart, file=\"tips_by_day.html\")\nThe generated HTML embeds the Vega-Lite spec and loads vega / vega-lite / vega-embed plus the upstream MAIDR Vega-Lite adapter from CDN.",
+    "text": "Saving an Altair Chart as a Self-Contained HTML File\nIf you would like to save and share the accessible chart as a standalone HTML file, use maidr.save_html():\nimport altair as alt\nimport seaborn as sns\n\nimport maidr\n\ntips = sns.load_dataset(\"tips\")\nchart = (\n    alt.Chart(tips)\n    .mark_bar()\n    .encode(x=\"day:N\", y=\"count():Q\")\n)\n\nmaidr.save_html(chart, file=\"tips_by_day.html\")\nThe generated HTML embeds the Vega-Lite spec and loads vega / vega-lite / vega-embed plus the upstream MAIDR Vega-Lite adapter from CDN. It loads the major version of Vega-Lite the spec is written for: Vega-Lite 6, with Vega 6 and Vega-Embed 7, for Altair 6, and Vega-Lite 5, with Vega 5 and Vega-Embed 6, for Altair 5.",
     "crumbs": [
       "Other libraries",
       "Altair Accessible Plot Examples"
