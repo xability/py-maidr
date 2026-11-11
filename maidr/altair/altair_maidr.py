@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import tempfile
 import uuid
@@ -64,9 +65,53 @@ from maidr.util.quarto_cell import fig_alt as quarto_fig_alt
 # stale ``@latest`` response. Pin with ``MAIDR_CDN_VERSION`` when a specific
 # version is needed.
 # ---------------------------------------------------------------------------
-_VEGA_CDN = "https://cdn.jsdelivr.net/npm/vega@5"
-_VEGA_LITE_CDN = "https://cdn.jsdelivr.net/npm/vega-lite@5"
-_VEGA_EMBED_CDN = "https://cdn.jsdelivr.net/npm/vega-embed@6"
+#: The Vega, Vega-Lite and Vega-Embed scripts that run a spec, by the major
+#: version of Vega-Lite its ``$schema`` names. Altair 5 writes Vega-Lite 5
+#: specs and Altair 6 writes Vega-Lite 6 ones; Vega-Lite 6 needs Vega 6, and
+#: Vega-Embed 7 is the release made for them. Each URL is a major version
+#: alone, so jsDelivr serves that major's newest release.
+_VEGA_STACKS: dict[int, tuple[str, str, str]] = {
+    5: (
+        "https://cdn.jsdelivr.net/npm/vega@5",
+        "https://cdn.jsdelivr.net/npm/vega-lite@5",
+        "https://cdn.jsdelivr.net/npm/vega-embed@6",
+    ),
+    6: (
+        "https://cdn.jsdelivr.net/npm/vega@6",
+        "https://cdn.jsdelivr.net/npm/vega-lite@6",
+        "https://cdn.jsdelivr.net/npm/vega-embed@7",
+    ),
+}
+
+#: The Vega-Lite major a spec that names none is run with.
+_DEFAULT_VEGA_LITE_MAJOR = 5
+
+
+def _vega_scripts(spec: dict) -> tuple[str, str, str]:
+    """Return the Vega, Vega-Lite and Vega-Embed scripts that run ``spec``.
+
+    A spec is run with the major version of Vega-Lite its ``$schema`` names:
+    run with another, vega-embed warns that the spec "uses Vega-Lite v6.4.1,
+    but the current version of Vega-Lite is v5.23.0", which every Altair 6
+    page said in its console when only Vega-Lite 5 was loaded. A major
+    newer than any listed in :data:`_VEGA_STACKS` is run with the newest,
+    an older one with the oldest, and a spec naming none with
+    :data:`_DEFAULT_VEGA_LITE_MAJOR`.
+
+    Parameters
+    ----------
+    spec : dict
+        The Vega-Lite spec, as ``chart.to_dict()`` writes it.
+
+    Returns
+    -------
+    tuple of str
+        The URLs of Vega, Vega-Lite and Vega-Embed, in the order they load.
+    """
+    found = re.search(r"/vega-lite/v(\d+)", str(spec.get("$schema", "")))
+    major = int(found.group(1)) if found else _DEFAULT_VEGA_LITE_MAJOR
+    major = min(max(major, min(_VEGA_STACKS)), max(_VEGA_STACKS))
+    return _VEGA_STACKS[major]
 
 #: How tall a chart of ``height="container"`` is in a Shiny output with no
 #: height of its own, as a Plotly figure with none is
@@ -284,9 +329,7 @@ class AltairMaidr:
         """
 
         children: list[Any] = [
-            tags.script(src=_VEGA_CDN),
-            tags.script(src=_VEGA_LITE_CDN),
-            tags.script(src=_VEGA_EMBED_CDN),
+            *(tags.script(src=url) for url in _vega_scripts(self._spec)),
             tags.script(src=cdn_url(MAIDR_VEGALITE_FILENAME)),
             tags.div(id=self._container_id),
             tags.script(HTML(bootstrap), type="text/javascript"),
