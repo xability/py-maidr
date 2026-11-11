@@ -5,7 +5,11 @@ Two things the schema tests cannot see, measured in a real browser:
 * on seaborn's horizontal violins, Up moves the outline up the page, onto the
   whisker of the violin it announces. The box layer used to reverse its data
   for a horizontal violin and not its selectors, so each violin was outlined
-  at its mirror image, and the announced violin moved down the page;
+  at its mirror image, and the announced violin moved down the page.
+  seaborn draws a violin's whiskers as one line from the minimum to the
+  maximum, and the layer names that line for both: maidr.js marks the
+  minimum with a dot at the line's left end, where it is drawn, rather than
+  outlining the whole line (xability/maidr#1548, in maidr.js 4.17.0);
 * on a matplotlib violin, whose drawing has no element spanning the
   quartiles, the 25% and 75% stops are announced with no outline at all. The
   layer used to name the min-to-max bar there, which put them on the caps.
@@ -24,11 +28,11 @@ _PARSE_TIMEOUT_MS = 30_000
 _TEXT = "#maidr-text-container"
 _HIGHLIGHTS = "[id^='maidr-highlight']"
 
-#: Measure in screen coordinates, as the box plot test does, and carry the
-#: path so the outline can be paired with the artist it copies.
+#: Measure in screen coordinates, as the box plot test does: the centre, and
+#: the left end, which is where a whisker drawn along x has its minimum.
 _MEASURE = """(element) => {
   const rect = element.getBoundingClientRect();
-  return {d: element.getAttribute('d'),
+  return {left: rect.left,
           x: rect.left + rect.width / 2,
           y: rect.top + rect.height / 2};
 }"""
@@ -58,7 +62,7 @@ def _step(page, key: str) -> str:
 
 
 def _highlight(page) -> dict:
-    """The one outline drawn, by its path and screen-space centre."""
+    """The one outline drawn, by its screen-space centre."""
     highlighted = page.locator(f"svg {_HIGHLIGHTS}")
     assert highlighted.count() == 1
     return highlighted.evaluate(_MEASURE)
@@ -118,15 +122,19 @@ def test_up_moves_the_outline_up_onto_the_violin_announced(
         }
         top, bottom = sorted(drawn, key=lambda name: drawn[name]["y"])
 
+        # The minimum is marked where it is drawn: at the left end of the
+        # whisker of the violin announced.
         spoken = _step(page, "ArrowRight")
         start = _highlight(page)
         assert f"Group is {bottom}, Minimum" in spoken, spoken
-        assert start["d"] == drawn[bottom]["d"], spoken
+        assert start["x"] == pytest.approx(drawn[bottom]["left"], abs=0.5), spoken
+        assert start["y"] == pytest.approx(drawn[bottom]["y"], abs=0.5), spoken
 
         spoken = _step(page, "ArrowUp")
         above = _highlight(page)
         assert f"Group is {top}, Minimum" in spoken, spoken
-        assert above["d"] == drawn[top]["d"], spoken
+        assert above["x"] == pytest.approx(drawn[top]["left"], abs=0.5), spoken
+        assert above["y"] == pytest.approx(drawn[top]["y"], abs=0.5), spoken
         assert above["y"] < start["y"], "ArrowUp moved the outline down"
         assert not errors, errors
     finally:

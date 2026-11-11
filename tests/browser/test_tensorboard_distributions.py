@@ -57,8 +57,11 @@ def test_the_steps_and_quantiles_of_a_distribution_are_read(browser, page_path):
     page.keyboard.press("Enter")
     page.wait_for_timeout(1_500)
     try:
+        # A value below 0.1 is read to three significant digits
+        # (xability/maidr#1582), and a percentile above 90 as precisely as
+        # its counterpart below 10 (xability/maidr#1596).
         spoken = _step(page, "ArrowRight")
-        assert "Step is 0, Median activations is -0.06" in spoken, spoken
+        assert "Step is 0, Median activations is -0.0571" in spoken, spoken
         assert "Middle 68% is -1.06 to 0.94" in spoken, spoken
         assert page.evaluate(_OUTLINED) == 1
 
@@ -67,7 +70,7 @@ def test_the_steps_and_quantiles_of_a_distribution_are_read(browser, page_path):
         assert [spoken.split(" activations")[0] for spoken in heard] == [
             "Step is 0, 69.2th percentile",
             "Step is 0, 84.1th percentile",
-            "Step is 0, 93.3th percentile",
+            "Step is 0, 93.32th percentile",
             "Step is 0, Maximum",
         ], heard
         assert "Full range is -2.69 to 3.06" in heard[-1], heard[-1]

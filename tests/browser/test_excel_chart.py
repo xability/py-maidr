@@ -233,7 +233,9 @@ def test_a_radar_is_read_round_its_spokes_and_across_its_series(tmp_path, browse
         spoken = _step(page, "ArrowRight")
         assert "Q1" in spoken and "120" in spoken and "North" in spoken, spoken
         _step(page, "ArrowRight")
-        spoken = _step(page, "ArrowDown")
+        # Up is the next series in the order they are declared, at every
+        # spoke (xability/maidr#1449): South follows North.
+        spoken = _step(page, "ArrowUp")
         assert "Q2" in spoken and "110" in spoken and "South" in spoken, spoken
         assert page.evaluate(_OUTLINED) == 1
     finally:
