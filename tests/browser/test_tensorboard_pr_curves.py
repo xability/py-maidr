@@ -56,8 +56,10 @@ def test_the_points_and_curves_of_a_pr_chart_are_read(browser, page_path):
     page.keyboard.press("Enter")
     page.wait_for_timeout(1_500)
     try:
+        # A recall below 0.1 is read to three significant digits
+        # (xability/maidr#1582).
         spoken = _step(page, "ArrowRight")
-        assert "Recall is 0.07, Precision is 1, Curve is good" in spoken, spoken
+        assert "Recall is 0.0709, Precision is 1, Curve is good" in spoken, spoken
         assert "Threshold is 1" in spoken, spoken
         assert "Above baseline is 0.68" in spoken, spoken
         assert page.evaluate(_OUTLINED) == 1
