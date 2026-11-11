@@ -168,13 +168,21 @@ def _chart_frame(page, oid: str | None = None):
     raise AssertionError("no chart frame on the page")
 
 
-def _read(page, presses: int = 1, oid: str | None = None) -> dict:
-    """Focus the chart, press ArrowRight, and say what the reader got."""
+def _read(
+    page, presses: int = 1, oid: str | None = None, key: str = "ArrowRight"
+) -> dict:
+    """Focus the chart, press ``key``, and say what the reader got.
+
+    ArrowRight moves between the bars of an upright chart. On bars drawn on
+    their side, maidr.js moves between them with the key that points to the
+    next one as drawn: ArrowUp, for ``barh``, which draws the first at the
+    bottom.
+    """
     frame = _chart_frame(page, oid)
     frame.locator(CHART).first.focus()
     page.wait_for_timeout(400)
     for _ in range(presses):
-        page.keyboard.press("ArrowRight")
+        page.keyboard.press(key)
         page.wait_for_timeout(300)
     page.wait_for_timeout(600)
     return frame.evaluate(_READING)
@@ -764,6 +772,8 @@ def test_help_over_a_matplotlib_chart_taller_than_the_window_keeps_the_highlight
 ):
     """A reader reads bars on their side, 14 inches tall, and asks for help.
 
+    The bars are walked up the chart with ArrowUp, as ``barh`` draws them.
+
     The dialog, kept to a band as tall as the window, was put in the frame's
     middle, and the page scrolled to show it there, wherever the reader
     was; nothing scrolls the page back as help closes, and the mark they had
@@ -780,7 +790,7 @@ def test_help_over_a_matplotlib_chart_taller_than_the_window_keeps_the_highlight
     try:
         page.evaluate(_PLACE, "centre")
         page.wait_for_timeout(300)
-        _read(page, presses=presses)
+        _read(page, presses=presses, key="ArrowUp")
         page.evaluate(_LIT_AT, at)
         page.wait_for_timeout(600)
         before = page.evaluate(_LIT)
@@ -805,7 +815,7 @@ def test_help_over_a_matplotlib_chart_taller_than_the_window_keeps_the_highlight
         assert back["focused"], back
         _assert_nothing_scrolled(page, "as help closed")
         assert back["litShown"] >= 0.95, (before, back)
-        page.keyboard.press("ArrowRight")
+        page.keyboard.press("ArrowUp")
         page.wait_for_timeout(700)
         moved = page.evaluate(_LIT)
         assert moved["litShown"] >= 0.95, (before, back, moved)
