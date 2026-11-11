@@ -28,10 +28,11 @@ import matplotlib.pyplot as plt  # noqa: E402
 import pandas as pd  # noqa: E402
 from lxml import etree  # noqa: E402
 from lxml.cssselect import CSSSelector  # noqa: E402
-from matplotlib.collections import PatchCollection  # noqa: E402
+from matplotlib.collections import PatchCollection, PathCollection  # noqa: E402
 
 import maidr  # noqa: E402
 from maidr.core.figure_manager import FigureManager  # noqa: E402
+from maidr.core.plot.boxenplot import BoxenPlot  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -133,6 +134,22 @@ def test_each_outlier_is_named_one_mark_apiece(chart: str) -> None:
 
     assert named, "no distribution drew an outlier to name"
     assert len({id(mark) for mark in named}) == len(named)
+
+
+def test_a_cloud_is_named_only_when_its_marks_are_the_outliers() -> None:
+    """A mark the outliers do not account for would pair none in maidr.js.
+
+    A point the ladder spans, or an offset that is not a number, is drawn or
+    counted in the cloud without being read as an outlier, and maidr.js
+    pairs a distribution's marks only when there is one per outlier.
+    """
+    cloud = PathCollection([], offsets=np.array([[0.0, 1.0], [0.0, 2.0]]))
+
+    assert BoxenPlot._flier_gid(cloud, [1.0], []) is None
+    assert BoxenPlot._flier_gid(cloud, [], []) is None
+    assert BoxenPlot._flier_gid(None, [1.0], [2.0]) is None
+    assert BoxenPlot._flier_gid(cloud, [1.0], [2.0]) == cloud.get_gid()
+    assert cloud.get_gid().startswith("maidr-")
 
 
 def test_a_second_render_keeps_one_selector_per_distribution() -> None:

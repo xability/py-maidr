@@ -118,7 +118,8 @@ class BoxenPlot(MaidrPlot):
         # The gid of each ladder read, in the order the distributions are
         # emitted. maidr.js reads a boxen's selectors as one element per
         # distribution and outlines the box of it each rung is read off
-        # (docs/SCHEMA.md, "Selectors" by layer type); a ladder is drawn as
+        # (maidr's docs/SCHEMA.md, "Selectors" by layer type, where the
+        # `BoxenSelector` shape this emits is the contract); a ladder is drawn as
         # one `PatchCollection`, whose group holds every box of it. Filled in
         # during extraction, which runs before the selector is asked for.
         self._ladder_gids: list[str] = []
