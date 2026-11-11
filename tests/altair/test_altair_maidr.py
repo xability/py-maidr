@@ -19,9 +19,8 @@ import altair as alt  # noqa: E402
 
 from maidr.altair import AltairMaidr, is_altair_chart  # noqa: E402
 from maidr.altair.altair_maidr import (  # noqa: E402
-    _VEGA_CDN,
-    _VEGA_EMBED_CDN,
-    _VEGA_LITE_CDN,
+    _VEGA_STACKS,
+    _vega_scripts,
 )
 from maidr.util.dependencies import (  # noqa: E402
     MAIDR_VEGALITE_FILENAME,
@@ -33,6 +32,51 @@ from maidr.api import _is_altair_chart  # noqa: E402
 def _simple_chart() -> alt.Chart:
     df = pd.DataFrame({"x": ["A", "B"], "y": [10, 20]})
     return alt.Chart(df).mark_bar().encode(x="x:N", y="y:Q")
+
+
+class TestVegaStackFollowsTheSchema:
+    """The page loads the Vega-Lite major its spec's ``$schema`` names.
+
+    Every Altair 6 page loaded Vega-Lite 5 and said in its console "The
+    input spec uses Vega-Lite v6.4.1, but the current version of Vega-Lite
+    is v5.23.0".
+    """
+
+    @staticmethod
+    def _schema(version: str) -> dict:
+        return {"$schema": f"https://vega.github.io/schema/vega-lite/{version}.json"}
+
+    def test_a_vega_lite_6_spec_is_run_with_vega_6(self):
+        assert _vega_scripts(self._schema("v6.4.1")) == (
+            "https://cdn.jsdelivr.net/npm/vega@6",
+            "https://cdn.jsdelivr.net/npm/vega-lite@6",
+            "https://cdn.jsdelivr.net/npm/vega-embed@7",
+        )
+
+    def test_a_vega_lite_5_spec_is_run_with_vega_5(self):
+        assert _vega_scripts(self._schema("v5.20.1")) == (
+            "https://cdn.jsdelivr.net/npm/vega@5",
+            "https://cdn.jsdelivr.net/npm/vega-lite@5",
+            "https://cdn.jsdelivr.net/npm/vega-embed@6",
+        )
+
+    def test_a_spec_naming_no_version_is_run_with_vega_lite_5(self):
+        assert _vega_scripts({}) == _VEGA_STACKS[5]
+
+    def test_a_newer_major_is_run_with_the_newest_listed(self):
+        assert _vega_scripts(self._schema("v7.0.0")) == _VEGA_STACKS[6]
+
+    def test_an_older_major_is_run_with_the_oldest_listed(self):
+        assert _vega_scripts(self._schema("v4.17.0")) == _VEGA_STACKS[5]
+
+    def test_the_page_loads_the_major_the_installed_altair_writes(self):
+        major = int(alt.SCHEMA_VERSION.lstrip("v").split(".")[0])
+
+        html_str = str(AltairMaidr(_simple_chart())._build_inner_html())
+
+        assert f"https://cdn.jsdelivr.net/npm/vega-lite@{major}" in html_str
+        for other in set(_VEGA_STACKS) - {major}:
+            assert f"vega-lite@{other}" not in html_str
 
 
 class TestIsAltairChart:
@@ -68,19 +112,20 @@ class TestRenderEmbedsSpec:
     def test_iframe_loads_vega_stack_in_order(self):
         m = AltairMaidr(_simple_chart())
         html_str = str(m._build_inner_html().get_html_string())
+        vega, vega_lite, vega_embed = _vega_scripts(m._spec)
 
         # All four script srcs must be present.
         maidr_vegalite_cdn = cdn_url(MAIDR_VEGALITE_FILENAME)
-        assert _VEGA_CDN in html_str
-        assert _VEGA_LITE_CDN in html_str
-        assert _VEGA_EMBED_CDN in html_str
+        assert vega in html_str
+        assert vega_lite in html_str
+        assert vega_embed in html_str
         assert maidr_vegalite_cdn in html_str
 
         # Order matters: vega before vega-lite before vega-embed before
         # vegalite.js (peer-dep load order).
-        idx_vega = html_str.index(_VEGA_CDN)
-        idx_vl = html_str.index(_VEGA_LITE_CDN)
-        idx_ve = html_str.index(_VEGA_EMBED_CDN)
+        idx_vega = html_str.index(vega)
+        idx_vl = html_str.index(vega_lite)
+        idx_ve = html_str.index(vega_embed)
         idx_maidr = html_str.index(maidr_vegalite_cdn)
         assert idx_vega < idx_vl < idx_ve < idx_maidr
 

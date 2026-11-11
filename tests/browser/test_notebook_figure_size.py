@@ -922,13 +922,6 @@ def test_bokeh_charts_are_whole_and_a_stretched_one_fills_the_frame(browser, tmp
     )
 
 
-_VEGA = (
-    "https://cdn.jsdelivr.net/npm/vega@5",
-    "https://cdn.jsdelivr.net/npm/vega-lite@5",
-    "https://cdn.jsdelivr.net/npm/vega-embed@6",
-)
-
-
 def _fulfil_with(body: bytes) -> Callable[[Any], None]:
     """A route handler answering with ``body``, a script."""
 
@@ -941,17 +934,9 @@ def _fulfil_with(body: bytes) -> Callable[[Any], None]:
 def test_an_altair_chart_of_the_containers_width_fills_the_frame(browser, tmp_path):
     alt = pytest.importorskip("altair")
     pd = pytest.importorskip("pandas")
+    from maidr.altair.altair_maidr import _vega_scripts
     from maidr.util.cdn import cdn_url
     from maidr.util.dependencies import MAIDR_VEGALITE_FILENAME
-
-    adapter = cdn_url(MAIDR_VEGALITE_FILENAME)
-    scripts = {}
-    for url in (*_VEGA, adapter):
-        try:
-            with urllib.request.urlopen(url, timeout=30) as response:  # noqa: S310
-                scripts[url] = response.read()
-        except OSError as error:
-            pytest.skip(f"Vega could not be fetched: {error}")
 
     data = pd.DataFrame({"q": ["Q1", "Q2", "Q3", "Q4"], "units": [5, 7, 3, 8]})
     chart = (
@@ -960,6 +945,15 @@ def test_an_altair_chart_of_the_containers_width_fills_the_frame(browser, tmp_pa
         .encode(x="q", y="units")
         .properties(width="container", height=300)
     )
+    adapter = cdn_url(MAIDR_VEGALITE_FILENAME)
+    scripts = {}
+    # The Vega the page loads for this chart's spec.
+    for url in (*_vega_scripts(chart.to_dict()), adapter):
+        try:
+            with urllib.request.urlopen(url, timeout=30) as response:  # noqa: S310
+                scripts[url] = response.read()
+        except OSError as error:
+            pytest.skip(f"Vega could not be fetched: {error}")
     page = browser.new_page(viewport={"width": 1200, "height": 900})
     try:
         for url, body in scripts.items():
