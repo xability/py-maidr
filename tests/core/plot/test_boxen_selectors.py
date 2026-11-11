@@ -146,6 +146,9 @@ def test_a_cloud_is_named_only_when_its_marks_are_the_outliers() -> None:
     cloud = PathCollection([], offsets=np.array([[0.0, 1.0], [0.0, 2.0]]))
 
     assert BoxenPlot._flier_gid(cloud, [1.0], []) is None
+    # An offset that is not a number is read as no outlier but still counted.
+    blank = PathCollection([], offsets=np.array([[0.0, 1.0], [0.0, np.nan]]))
+    assert BoxenPlot._flier_gid(blank, [1.0], []) is None
     assert BoxenPlot._flier_gid(cloud, [], []) is None
     assert BoxenPlot._flier_gid(None, [1.0], [2.0]) is None
     assert BoxenPlot._flier_gid(cloud, [1.0], [2.0]) == cloud.get_gid()
