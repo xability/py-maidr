@@ -152,7 +152,8 @@ def test_the_heatmap_and_its_trees_are_walked_and_outlined(browser, page):
         spoken = _step(tab, "ArrowDown")
         assert "Row dendrogram" in spoken and "tree plot" in spoken, spoken
         spoken = _step(tab, "ArrowRight")
-        assert "Clustered heatmap" in spoken and "heat plot" in spoken, spoken
+        # The type in words, not its wire value `heat` (xability/maidr#1474).
+        assert "Clustered heatmap" in spoken and "heatmap plot" in spoken, spoken
 
         _step(tab, "Enter")
         spoken = _step(tab, "ArrowRight")
