@@ -1,4 +1,4 @@
-"""A boxen layer names each distribution's ladder and outliers, so what is read is outlined.
+"""A boxen layer names each ladder and its outliers, so what is read is outlined.
 
 maidr.js reads a boxen's selectors as one entry per distribution, in the
 order the distributions are declared: the element of its ladder, whose box
@@ -106,9 +106,7 @@ def test_each_selector_names_its_own_distributions_ladder(chart: str) -> None:
 
     for row, selector in zip(layer["data"], layer["selectors"]):
         gid = selector["ladder"].split("id='", 1)[1].split("'", 1)[0]
-        vertices = np.concatenate(
-            [path.vertices for path in ladders[gid].get_paths()]
-        )
+        vertices = np.concatenate([path.vertices for path in ladders[gid].get_paths()])
         along = vertices[:, 1] if vertical else vertices[:, 0]
         deepest = min(row["levels"], key=lambda level: level["p"])
         assert (along.min(), along.max()) == pytest.approx(
@@ -125,7 +123,9 @@ def test_each_outlier_is_named_one_mark_apiece(chart: str) -> None:
     for row, selector in zip(layer["data"], layer["selectors"]):
         count = len(row.get("lowerOutliers", [])) + len(row.get("upperOutliers", []))
         marks = [
-            mark for one in selector.get("outliers", []) for mark in CSSSelector(one)(root)
+            mark
+            for one in selector.get("outliers", [])
+            for mark in CSSSelector(one)(root)
         ]
         assert len(marks) == count
         assert all(mark.tag == "use" for mark in marks)
