@@ -70,6 +70,14 @@ class FormatConfig:
         BCP 47 locale string (e.g., "en-US") for locale-specific formatting.
     dateFormat : str, optional
         Date format string (e.g., "%b %d" for "Jan 15") for date formatting.
+    unit : str, optional
+        The span of time one unit of the axis's values stands for, on an
+        axis whose values are times: ``"day"`` for matplotlib's date
+        numbers. maidr.js reads a length along such an axis -- a
+        histogram's bin width -- as a span of time ("1 week") rather than
+        as a bare number ("7"), and ignores the key where it predates it.
+        Emitted beside a ``function``; a ``date`` format's values are epoch
+        milliseconds, so it never carries one.
 
     Examples
     --------
@@ -88,6 +96,7 @@ class FormatConfig:
     currency: Optional[str] = None
     locale: Optional[str] = None
     dateFormat: Optional[str] = None
+    unit: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """
@@ -105,6 +114,8 @@ class FormatConfig:
         # Function takes precedence - if provided, use it directly
         if self.function is not None:
             result["function"] = self.function
+            if self.unit is not None:
+                result["unit"] = self.unit
             return result
 
         # Otherwise use type-based formatting
@@ -542,8 +553,9 @@ class FormatConfigBuilder:
         # Generate JS function body for date formatting
         js_body = JSBodyConverter.date_format_to_js(date_format) if date_format else None
 
+        # The body reads matplotlib date numbers, which count days.
         if js_body:
-            return FormatConfig(function=js_body)
+            return FormatConfig(function=js_body, unit="day")
 
         # Fallback to type-based config
         return FormatConfig(type=FormatType.DATE, dateFormat=date_format)
@@ -732,7 +744,7 @@ class FormatConfigBuilder:
             return FormatConfig(function=js_body)
         elif "date" in func_name.lower() or "time" in func_name.lower():
             js_body = JSBodyConverter.date_format_to_js()
-            return FormatConfig(function=js_body)
+            return FormatConfig(function=js_body, unit="day")
 
         # For unknown FuncFormatters, return default (value as-is)
         # This ensures the value is still displayed

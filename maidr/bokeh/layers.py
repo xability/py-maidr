@@ -79,6 +79,9 @@ _STEP_DIRECTIONS = {"after": "hv", "before": "vh", "center": "mid"}
 #: How a Gantt layer's x axis spells a position -- days or hours since the
 #: epoch, see ``PlotReader._gantt`` -- back as the date it stands for. A
 #: ``format.function`` body, which the core compiles with ``new Function``.
+#: ``_TIME_UNITS`` names what those positions count, for the format's
+#: ``unit``.
+_TIME_UNITS = {"days": "day", "hours": "hour"}
 _DATE_FORMATS = {
     "days": "return new Date(value * 864e5).toISOString().slice(0, 10);",
     "hours": (
@@ -1632,7 +1635,8 @@ class PlotReader:
         schema = self._schema(PlotType.GANTT, gantt)
         schema[MaidrKey.ORIENTATION] = "horz"
         schema[MaidrKey.AXES][MaidrKey.X][MaidrKey.FORMAT] = {
-            "function": _DATE_FORMATS[unit]
+            "function": _DATE_FORMATS[unit],
+            "unit": _TIME_UNITS[unit],
         }
         return BokehLayer(schema, self._plot, {"kind": "select", "grid": grid})
 
