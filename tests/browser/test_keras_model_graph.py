@@ -70,8 +70,9 @@ def test_the_layers_and_scopes_of_a_model_graph_are_read(browser, page_path):
         assert "Role is branch point" in spoken, spoken
         assert "To is residual_block, skip" in spoken, spoken
 
+        # A closed block is announced as a scope (xability/maidr#1448).
         spoken = _step(page, "ArrowRight")
-        assert "Layer is residual_block, Scope is 2 nodes inside" in spoken, spoken
+        assert "Scope is residual_block, Size is 2 nodes inside" in spoken, spoken
 
         # Down opens the nested model onto its own layers.
         spoken = _step(page, "ArrowDown")
@@ -84,7 +85,7 @@ def test_the_layers_and_scopes_of_a_model_graph_are_read(browser, page_path):
 
         # Up closes it again, and Right goes on past it to the merge.
         spoken = _step(page, "ArrowUp")
-        assert "Layer is residual_block" in spoken, spoken
+        assert "Scope is residual_block" in spoken, spoken
         spoken = _step(page, "ArrowRight")
         assert "Layer is skip" in spoken, spoken
         assert "Role is merge point" in spoken, spoken
