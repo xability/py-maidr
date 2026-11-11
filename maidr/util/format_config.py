@@ -18,7 +18,7 @@ from typing import Any, Dict, Optional
 import matplotlib.dates as mdates
 import numpy as np
 from matplotlib.axes import Axes
-from matplotlib.dates import DateFormatter
+from matplotlib.dates import AutoDateFormatter, ConciseDateFormatter, DateFormatter
 from matplotlib.ticker import (
     Formatter,
     FuncFormatter,
@@ -181,6 +181,19 @@ class JSBodyConverter:
         ),
         "%H:%M:%S": (
             "return String(d.getUTCHours()).padStart(2,'0')+':'"
+            "+String(d.getUTCMinutes()).padStart(2,'0')+':'"
+            "+String(d.getUTCSeconds()).padStart(2,'0')"
+        ),
+        "%Y-%m-%d %H:%M": (
+            "return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'"
+            "+String(d.getUTCDate()).padStart(2,'0')+' '"
+            "+String(d.getUTCHours()).padStart(2,'0')+':'"
+            "+String(d.getUTCMinutes()).padStart(2,'0')"
+        ),
+        "%Y-%m-%d %H:%M:%S": (
+            "return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'"
+            "+String(d.getUTCDate()).padStart(2,'0')+' '"
+            "+String(d.getUTCHours()).padStart(2,'0')+':'"
             "+String(d.getUTCMinutes()).padStart(2,'0')+':'"
             "+String(d.getUTCSeconds()).padStart(2,'0')"
         ),
@@ -521,6 +534,14 @@ class FormatConfigBuilder:
         if isinstance(formatter, DateFormatter):
             return FormatConfigBuilder._parse_date_formatter(formatter)
 
+        # matplotlib's own date formatters, which a date axis gets unless the
+        # caller sets one, are read as the DateFormatter of the resolution
+        # the axis is ticked at.
+        if isinstance(formatter, (AutoDateFormatter, ConciseDateFormatter)):
+            return FormatConfigBuilder._parse_date_formatter(
+                DateFormatter(FormatConfigBuilder._tick_date_pattern(formatter))
+            )
+
         # Check for PercentFormatter
         if isinstance(formatter, PercentFormatter):
             return FormatConfigBuilder._parse_percent_formatter(formatter)
@@ -542,6 +563,41 @@ class FormatConfigBuilder:
             return FormatConfigBuilder._parse_func_formatter(formatter)
 
         return None
+
+    @staticmethod
+    def _tick_date_pattern(formatter: Formatter) -> str:
+        """
+        The ISO pattern a date axis's values are read in, at its ticks' step.
+
+        ``AutoDateFormatter`` and ``ConciseDateFormatter`` label each tick at
+        the resolution of the ticks ("2024-01", "Jan", "09:00"), and matplotlib
+        gives every date axis one of them unless the caller sets a
+        formatter. py-maidr read such an axis with no format at all, so its
+        values were announced as matplotlib day numbers: "Date is 19,723".
+
+        A value is read as its full date, and with the time of day where the
+        ticks step by hours or minutes, or with seconds where they step by
+        less. The step is read from the ticks the axis draws.
+
+        Parameters
+        ----------
+        formatter : Formatter
+            The axis's date formatter, attached to its axis.
+
+        Returns
+        -------
+        str
+            ``"%Y-%m-%d"``, ``"%Y-%m-%d %H:%M"`` or ``"%Y-%m-%d %H:%M:%S"``.
+        """
+        axis = getattr(formatter, "axis", None)
+        steps = np.diff(axis.get_majorticklocs()) if axis is not None else []
+        positive = [float(step) for step in steps if step > 0]
+        step = min(positive) if positive else 1.0
+        if step >= 1:
+            return "%Y-%m-%d"
+        if step >= 1 / (24 * 60):
+            return "%Y-%m-%d %H:%M"
+        return "%Y-%m-%d %H:%M:%S"
 
     @staticmethod
     def _parse_date_formatter(formatter: DateFormatter) -> FormatConfig:

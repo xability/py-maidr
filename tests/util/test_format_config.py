@@ -440,6 +440,67 @@ def test_a_format_that_draws_no_dates_names_no_unit():
     assert [config.to_dict().get("unit") for config in formats] == [None, None, None]
 
 
+def _x_format(fig) -> dict:
+    """The first layer's x axis format, read as the schema emits it."""
+    try:
+        return FigureManager.get_maidr(fig)._plots[0].schema["axes"]["x"]["format"]
+    finally:
+        plt.close(fig)
+
+
+def test_a_line_on_matplotlibs_default_date_axis_announces_dates():
+    """A date axis gets ``AutoDateFormatter`` unless the caller sets one,
+    which py-maidr read as no format: "Date is 19,737"."""
+    dates = [datetime.date(2024, 1, 15) + datetime.timedelta(days=i) for i in range(28)]
+    fig, ax = plt.subplots()
+    ax.plot(dates, range(28))
+
+    x_format = _x_format(fig)
+
+    # The format a DateFormatter at the axis's resolution gets, whole.
+    daily = FormatConfigBuilder.from_formatter(mdates.DateFormatter("%Y-%m-%d"))
+    assert x_format == daily.to_dict()
+    assert x_format["unit"] == "day"
+    assert _run_js(x_format["function"], mdates.date2num(dates[0])) == "2024-01-15"
+
+
+def test_a_concise_date_axis_announces_full_dates():
+    """``ConciseDateFormatter`` labels ticks "Jan", "08"; a value is read
+    as its whole date."""
+    dates = [datetime.date(2024, 1, 15) + datetime.timedelta(days=i) for i in range(28)]
+    fig, ax = plt.subplots()
+    ax.plot(dates, range(28))
+    locator = mdates.AutoDateLocator()
+    ax.xaxis.set_major_locator(locator)
+    ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(locator))
+
+    body = _x_format(fig)["function"]
+
+    assert _run_js(body, mdates.date2num(dates[3])) == "2024-01-18"
+
+
+def test_a_date_histogram_on_the_default_axis_announces_its_edges_as_dates():
+    start = datetime.date(2024, 1, 1)
+    days = [start + datetime.timedelta(days=i) for i in range(28)]
+    edges = mdates.date2num([start + datetime.timedelta(weeks=k) for k in range(5)])
+    fig, ax = plt.subplots()
+    ax.hist(days, bins=edges)
+
+    body = _x_format(fig)["function"]
+
+    assert [_run_js(body, edge) for edge in edges[:2]] == ["2024-01-01", "2024-01-08"]
+
+
+def test_an_axis_ticked_by_the_hour_announces_the_time_of_day():
+    times = [datetime.datetime(2024, 1, 15, 6) + datetime.timedelta(hours=i) for i in range(12)]
+    fig, ax = plt.subplots()
+    ax.plot(times, range(12))
+
+    body = _x_format(fig)["function"]
+
+    assert _run_js(body, mdates.date2num(times[3])) == "2024-01-15 09:00"
+
+
 def test_a_date_axis_format_is_nested_under_the_axis():
     fig, ax = plt.subplots()
     ax.plot([datetime.date(2024, 1, 15)], [1])
