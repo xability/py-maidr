@@ -20,6 +20,10 @@ pytestmark = pytest.mark.browser
 
 CHART = "[role=img], [role=application]"
 
+#: maidr.js has taken the focus in: the chart's instructions are shown.
+_ENTERED = """() => !!document.querySelector('#maidr-text-container')
+  ?.textContent.trim()"""
+
 #: Places the artifact as the MLflow UI does: a blob URL, ``allow-scripts``.
 _AS_MLFLOW_DOES = """
 (page) => {
@@ -71,6 +75,10 @@ def test_the_logged_chart_is_read_in_a_sandboxed_frame(browser, artifact):
         assert frame is not None, "the chart never came up in the sandboxed frame"
 
         frame.locator(CHART).first.focus()
+        # maidr.js takes the focus in a task after the focus event, and a key
+        # pressed before that reaches no chart. A reader hears the chart's
+        # instructions first; the test waits for them to be shown.
+        frame.wait_for_function(_ENTERED, timeout=10_000)
         spoken = []
         for key in ("ArrowRight", "ArrowRight", "b"):
             page.keyboard.press(key)
