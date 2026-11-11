@@ -49,6 +49,7 @@ from maidr.util.cdn import (
 )
 from maidr.util.dotpad import dotpad_config_child, local_dotpad_sdk_dependency
 from maidr.util.locale_pack import locale_config_child, locale_fallback_js
+from maidr.util.drawn_text import drawn_text
 from maidr.util.grid_position import topmost_subplotspec
 from maidr.util.environment import Environment
 from maidr.util.iframe_utils import (
@@ -1078,8 +1079,10 @@ class Maidr:
         Only authored values are emitted, so figures without figure-level
         text keep their existing schema unchanged. Whitespace-only strings
         count as unauthored, matching the maidr JS engine's trimmed
-        "authored" check. The ``axes`` value follows the canonical per-axis
-        ``AxisConfig`` form (only ``label`` applies at the figure level).
+        "authored" check, and so does a suptitle hidden with
+        ``set_visible(False)``, which the figure does not draw. The ``axes``
+        value follows the canonical per-axis ``AxisConfig`` form (only
+        ``label`` applies at the figure level).
 
         Returns
         -------
@@ -1088,7 +1091,7 @@ class Maidr:
         """
         metadata: dict = {}
 
-        suptitle = self._fig.get_suptitle().strip()
+        suptitle = drawn_text(getattr(self._fig, "_suptitle", None)).strip()
         if suptitle:
             metadata[MaidrKey.TITLE] = suptitle
 
