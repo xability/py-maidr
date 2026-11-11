@@ -6,6 +6,7 @@ from typing import Any
 from matplotlib.axes import Axes
 
 from maidr.core.enum import MaidrKey, PlotType
+from maidr.util.drawn_text import drawn_text
 from maidr.util.grid_position import topmost_subplotspec
 from maidr.util.panel_title import panel_title
 from maidr.util.mixin import FormatExtractorMixin
@@ -28,7 +29,8 @@ def _twin_title(ax: Axes) -> str:
 
     Twins are read from ``Axes._twinned_axes``, matplotlib's own record of
     them, rather than from shared axes: ``sharex=True`` subplots share an
-    axis too and are separate charts with titles of their own.
+    axis too and are separate charts with titles of their own. A title
+    hidden with ``set_visible(False)`` is not drawn, so it names nothing.
 
     Parameters
     ----------
@@ -38,7 +40,7 @@ def _twin_title(ax: Axes) -> str:
     Returns
     -------
     str
-        The first non-empty title among the axes twinned with ``ax``, in the
+        The first title drawn on an axes twinned with ``ax``, in the
         figure's order of axes, or ``""``.
     """
     twins = getattr(type(ax), "_twinned_axes", None)
@@ -47,8 +49,8 @@ def _twin_title(ax: Axes) -> str:
         return ""
     siblings = set(twins.get_siblings(ax))
     for other in figure.axes:
-        if other is not ax and other in siblings and other.get_title():
-            return other.get_title()
+        if other is not ax and other in siblings and drawn_text(other.title):
+            return drawn_text(other.title)
     return ""
 
 
@@ -199,10 +201,10 @@ class MaidrPlot(ABC, FormatExtractorMixin):
         maidr_schema = {
             MaidrKey.ID: str(uuid.uuid4()),
             MaidrKey.TYPE: self.type,
-            # The caller's own title wins; then a twin's, as the two draw one
-            # chart; the generated one names a panel of a seaborn grid, which
-            # seaborn leaves untitled (#660).
-            MaidrKey.TITLE: self.ax.get_title()
+            # The caller's own title wins, if it is drawn; then a twin's, as
+            # the two draw one chart; the generated one names a panel of a
+            # seaborn grid, which seaborn leaves untitled (#660).
+            MaidrKey.TITLE: drawn_text(self.ax.title)
             or _twin_title(self.ax)
             or panel_title(self.ax),
             MaidrKey.AXES: axes_data,
