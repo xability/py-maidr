@@ -21,7 +21,10 @@ every dataset -- and the average precision the chart is quoted by sits in the
 legend text, where a screen reader user is never told it. maidr reads the
 display instead: each point announces how far its precision sits above that
 baseline, and the description gives the average precision of each curve
-against it and the point with the best F1 score.
+against it and the point with the best F1 score. The point being read is
+outlined where the curve draws it. A display built by hand whose recall turns
+back on itself or has a missing value, and a chart whose curves run in both
+directions, are read without the outline.
 
 `PR_CURVE` is **experimental** and may change without a deprecation period:
 see [Plot Type Stability](../stability.qmd).
