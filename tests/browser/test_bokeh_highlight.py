@@ -213,7 +213,9 @@ def test_a_stacked_bar_selects_the_segment_it_announces(browser, tmp_path):
     )
     page, errors = _open(browser, _save(p, tmp_path / "stacked.html"))
     try:
-        assert _step(page, "ArrowRight") == "X is Apples, Y is 2, Level is 2015"
+        # The stack's legend has no title, so its series are named "Series",
+        # as maidr.js's data table heads them (xability/maidr#1563).
+        assert _step(page, "ArrowRight") == "X is Apples, Y is 2, Series is 2015"
         assert page.evaluate(_SELECTED, low.id) == [0]
         assert page.evaluate(_SELECTED, high.id) == []
         # Each series has a source of its own, so the other one is muted to
@@ -221,7 +223,7 @@ def test_a_stacked_bar_selects_the_segment_it_announces(browser, tmp_path):
         assert page.evaluate(_MUTED, high.id) is True
         assert page.evaluate(_MUTED, low.id) is False
 
-        assert _step(page, "ArrowUp") == "X is Apples, Y is 5, Level is 2016"
+        assert _step(page, "ArrowUp") == "X is Apples, Y is 5, Series is 2016"
         assert page.evaluate(_SELECTED, low.id) == []
         assert page.evaluate(_SELECTED, high.id) == [0]
         assert page.evaluate(_MUTED, low.id) is True
@@ -300,12 +302,12 @@ def test_reading_one_series_of_a_stack_dims_the_other(browser, tmp_path):
         assert drawn > 500
 
         # On a blue segment, no red one is drawn at full strength.
-        assert _step(page, "ArrowRight") == "X is Apples, Y is 2, Level is 2015"
+        assert _step(page, "ArrowRight") == "X is Apples, Y is 2, Series is 2015"
         assert page.evaluate(_RED_PIXELS) < 0.05 * drawn
 
         # On the red segment over Apples, it alone is: the one over Pears,
         # three eighths of the red, is dimmed.
-        assert _step(page, "ArrowUp") == "X is Apples, Y is 5, Level is 2016"
+        assert _step(page, "ArrowUp") == "X is Apples, Y is 5, Series is 2016"
         assert 0.4 * drawn < page.evaluate(_RED_PIXELS) < 0.8 * drawn
         assert not errors, errors
     finally:
