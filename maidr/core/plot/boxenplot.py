@@ -117,11 +117,17 @@ class BoxenPlot(MaidrPlot):
 
         # The gid of each ladder read, in the order the distributions are
         # emitted. maidr.js reads a boxen's selectors as one element per
-        # distribution and outlines it for every rung of that distribution
-        # (docs/SCHEMA.md, "Selectors" by layer type); a ladder is drawn as
+        # distribution and outlines the box of it each rung is read off
+        # (maidr's docs/SCHEMA.md, "Selectors" by layer type, where the
+        # `BoxenSelector` shape this emits is the contract); a ladder is drawn as
         # one `PatchCollection`, whose group holds every box of it. Filled in
         # during extraction, which runs before the selector is asked for.
         self._ladder_gids: list[str] = []
+
+        # The gid of each distribution's flier cloud, where it has outliers,
+        # in the same order: the outliers are stops of their own in maidr.js,
+        # each outlining its own mark in the cloud's group.
+        self._flier_gids: list[str | None] = []
 
         # Filled in during extraction, from the median segment of the first
         # ladder read. Vertical is the right default: it is what the core
@@ -167,21 +173,63 @@ class BoxenPlot(MaidrPlot):
         schema[MaidrKey.ORIENTATION] = self._orientation
         return schema
 
-    def _get_selector(self) -> list[str]:
+    def _get_selector(self) -> list[dict]:
         """
-        One selector per distribution, naming the group of its ladder.
+        One selector per distribution: its ladder, and its outliers' marks.
 
-        maidr.js outlines the distribution being read through every box of
-        its ladder, whichever rung the reader is on. Without a selector
-        nothing was outlined on any step.
+        maidr.js outlines the box of the ladder each rung is read off, and
+        each outlier, a stop of its own, outlines its own mark. It pairs the
+        marks with the outliers by where they are drawn, so one selector
+        matching every mark of the distribution's flier cloud is enough.
 
         Returns
         -------
-        list of str
-            ``g[id='<gid>']`` for each ladder, in the order the distributions
-            are emitted.
+        list of dict
+            ``{"ladder": "g[id='<gid>']"}`` for each ladder, in the order the
+            distributions are emitted, with ``"outliers"`` naming the marks
+            of the cloud drawn on its slot where it has outliers.
         """
-        return [f"g[id='{gid}']" for gid in self._ladder_gids]
+        selectors = []
+        for ladder_gid, flier_gid in zip(self._ladder_gids, self._flier_gids):
+            selector: dict = {MaidrKey.LADDER.value: f"g[id='{ladder_gid}']"}
+            if flier_gid is not None:
+                selector[MaidrKey.OUTLIERS.value] = [f"g[id='{flier_gid}'] use"]
+            selectors.append(selector)
+        return selectors
+
+    @staticmethod
+    def _flier_gid(
+        fliers: PathCollection | None, lower: list[float], upper: list[float]
+    ) -> str | None:
+        """
+        The gid of the flier cloud whose marks are a distribution's outliers.
+
+        Named only when every mark it draws is an outlier read off it, so the
+        marks are one per outlier: a cloud holding a point the ladder spans,
+        or one that is not a number and so is read as no outlier, would put
+        a mark too many beside them, and maidr.js would outline the whole
+        distribution at every outlier instead of pairing any.
+
+        Parameters
+        ----------
+        fliers : PathCollection or None
+            The cloud drawn on the distribution's slot.
+        lower, upper : list of float
+            The outliers read off it, below and above the ladder.
+
+        Returns
+        -------
+        str or None
+            The cloud's gid, assigned if it had none, or None.
+        """
+        if fliers is None or not (lower or upper):
+            return None
+        offsets = fliers.get_offsets()
+        if offsets is None or len(offsets) != len(lower) + len(upper):
+            return None
+        if fliers.get_gid() is None:
+            fliers.set_gid(f"maidr-{uuid.uuid4()}")
+        return fliers.get_gid()
 
     def _extract_axes_data(self) -> dict:
         """
@@ -711,7 +759,9 @@ class BoxenPlot(MaidrPlot):
                 levels[0][MaidrKey.LO.value],
                 levels[0][MaidrKey.HI.value],
             )
-            read.append((center, vertical, median, levels, lower, upper, ladder))
+            read.append(
+                (center, vertical, median, levels, lower, upper, ladder, fliers)
+            )
 
         # Read once for the layer rather than once per ladder: the ticks and
         # the legend belong to the axes, not to any one ladder, and asking
@@ -724,13 +774,15 @@ class BoxenPlot(MaidrPlot):
 
         points = []
         self._ladder_gids = []
-        for center, _vertical, median, levels, lower, upper, ladder in read:
+        self._flier_gids = []
+        for center, _vertical, median, levels, lower, upper, ladder, fliers in read:
             # Assigned here rather than relied upon: a gid is otherwise only
             # stamped at draw time, and the schema is built first.
             if ladder.get_gid() is None:
                 ladder.set_gid(f"maidr-{uuid.uuid4()}")
             self._ladder_gids.append(ladder.get_gid())
             self._elements.append(ladder)
+            self._flier_gids.append(self._flier_gid(fliers, lower, upper))
 
             point = {
                 MaidrKey.Z.value: self._category_of(center, offsets, ticks, hue_levels),

@@ -1,11 +1,13 @@
-"""A boxen layer names each distribution's ladder, so the one read is outlined.
+"""A boxen layer names each ladder and its outliers, so what is read is outlined.
 
-maidr.js reads a boxen's selectors as one element per distribution, in the
-order the distributions are declared, and outlines that element for every
-rung of the distribution (docs/SCHEMA.md, "Selectors" by layer type). seaborn
+maidr.js reads a boxen's selectors as one entry per distribution, in the
+order the distributions are declared: the element of its ladder, whose box
+each rung is read off is outlined, and the marks of its outliers, each a stop
+outlining its own mark (docs/SCHEMA.md, "Selectors" by layer type). seaborn
 draws each ladder as one ``PatchCollection``, whose group in the SVG holds
-every box of it. The layer used to emit no selectors at all, so no step of a
-boxen plot was outlined.
+every box of it, and its outliers as a ``PathCollection`` of their own. The
+layer used to emit no selectors at all, so no step of a boxen plot was
+outlined, and then the ladder alone, so no outlier was.
 """
 
 from __future__ import annotations
@@ -26,10 +28,11 @@ import matplotlib.pyplot as plt  # noqa: E402
 import pandas as pd  # noqa: E402
 from lxml import etree  # noqa: E402
 from lxml.cssselect import CSSSelector  # noqa: E402
-from matplotlib.collections import PatchCollection  # noqa: E402
+from matplotlib.collections import PatchCollection, PathCollection  # noqa: E402
 
 import maidr  # noqa: E402
 from maidr.core.figure_manager import FigureManager  # noqa: E402
+from maidr.core.plot.boxenplot import BoxenPlot  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -83,7 +86,7 @@ def test_each_distribution_names_one_drawn_ladder(chart: str) -> None:
 
     selectors = layer["selectors"]
     assert len(selectors) == len(layer["data"])
-    matched = [CSSSelector(selector)(root) for selector in selectors]
+    matched = [CSSSelector(selector["ladder"])(root) for selector in selectors]
     assert [len(found) for found in matched] == [1] * len(selectors)
     for (group,) in matched:
         assert group.tag == "g"
@@ -103,15 +106,53 @@ def test_each_selector_names_its_own_distributions_ladder(chart: str) -> None:
     }
 
     for row, selector in zip(layer["data"], layer["selectors"]):
-        gid = selector.split("id='", 1)[1].split("'", 1)[0]
-        vertices = np.concatenate(
-            [path.vertices for path in ladders[gid].get_paths()]
-        )
+        gid = selector["ladder"].split("id='", 1)[1].split("'", 1)[0]
+        vertices = np.concatenate([path.vertices for path in ladders[gid].get_paths()])
         along = vertices[:, 1] if vertical else vertices[:, 0]
         deepest = min(row["levels"], key=lambda level: level["p"])
         assert (along.min(), along.max()) == pytest.approx(
             (deepest["lo"], deepest["hi"])
         )
+
+
+@pytest.mark.parametrize("chart", list(CHARTS))
+def test_each_outlier_is_named_one_mark_apiece(chart: str) -> None:
+    """A distribution's outlier selectors match one drawn mark per outlier."""
+    _, layer, root = _render(CHARTS[chart])
+
+    named = []
+    for row, selector in zip(layer["data"], layer["selectors"]):
+        count = len(row.get("lowerOutliers", [])) + len(row.get("upperOutliers", []))
+        marks = [
+            mark
+            for one in selector.get("outliers", [])
+            for mark in CSSSelector(one)(root)
+        ]
+        assert len(marks) == count
+        assert all(mark.tag == "use" for mark in marks)
+        named.extend(marks)
+
+    assert named, "no distribution drew an outlier to name"
+    assert len({id(mark) for mark in named}) == len(named)
+
+
+def test_a_cloud_is_named_only_when_its_marks_are_the_outliers() -> None:
+    """A mark the outliers do not account for would pair none in maidr.js.
+
+    A point the ladder spans, or an offset that is not a number, is drawn or
+    counted in the cloud without being read as an outlier, and maidr.js
+    pairs a distribution's marks only when there is one per outlier.
+    """
+    cloud = PathCollection([], offsets=np.array([[0.0, 1.0], [0.0, 2.0]]))
+
+    assert BoxenPlot._flier_gid(cloud, [1.0], []) is None
+    # An offset that is not a number is read as no outlier but still counted.
+    blank = PathCollection([], offsets=np.array([[0.0, 1.0], [0.0, np.nan]]))
+    assert BoxenPlot._flier_gid(blank, [1.0], []) is None
+    assert BoxenPlot._flier_gid(cloud, [], []) is None
+    assert BoxenPlot._flier_gid(None, [1.0], [2.0]) is None
+    assert BoxenPlot._flier_gid(cloud, [1.0], [2.0]) == cloud.get_gid()
+    assert cloud.get_gid().startswith("maidr-")
 
 
 def test_a_second_render_keeps_one_selector_per_distribution() -> None:
