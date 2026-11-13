@@ -388,6 +388,58 @@ def test_a_time_of_day_survives_the_float_day_number():
     assert _run_js(body.replace("Math.round(", "("), nine_past) == "00:08"
 
 
+def test_a_date_line_says_its_values_count_days():
+    """maidr.js reads a length along a time axis as a span of time once the
+    axis's format says what one of its values counts (xability/maidr#1695)."""
+    dates = [datetime.date(2024, 1, 15) + datetime.timedelta(days=i) for i in range(3)]
+    fig, ax = plt.subplots()
+    ax.plot(dates, [1, 2, 3])
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
+    try:
+        x_format = FigureManager.get_maidr(fig)._plots[0].schema["axes"]["x"]["format"]
+    finally:
+        plt.close(fig)
+
+    assert x_format["unit"] == "day"
+
+
+def test_a_date_histogram_says_its_bins_count_days():
+    """Weekly bins of matplotlib dates are 7 wide: with the unit maidr.js
+    reads that bin width as "1 week", without it as "7"."""
+    start = datetime.date(2024, 1, 1)
+    days = [start + datetime.timedelta(days=i) for i in range(28)]
+    edges = mdates.date2num([start + datetime.timedelta(weeks=k) for k in range(5)])
+    fig, ax = plt.subplots()
+    ax.hist(days, bins=edges)
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d"))
+    try:
+        schema = FigureManager.get_maidr(fig)._plots[0].schema
+    finally:
+        plt.close(fig)
+
+    assert {b["xMax"] - b["xMin"] for b in schema["data"]} == {7.0}
+    assert schema["axes"]["x"]["format"]["unit"] == "day"
+
+
+def test_a_func_formatter_named_for_dates_says_its_values_count_days():
+    def format_date(x, pos=None):
+        return str(x)
+
+    config = FormatConfigBuilder.from_formatter(FuncFormatter(format_date)).to_dict()
+
+    assert config["unit"] == "day"
+
+
+def test_a_format_that_draws_no_dates_names_no_unit():
+    formats = [
+        FormatConfigBuilder.from_formatter(StrMethodFormatter("${x:,.2f}")),
+        FormatConfigBuilder.from_formatter(FuncFormatter(lambda x, pos=None: str(x))),
+        FormatConfigBuilder.from_formatter(PercentFormatter()),
+    ]
+
+    assert [config.to_dict().get("unit") for config in formats] == [None, None, None]
+
+
 def test_a_date_axis_format_is_nested_under_the_axis():
     fig, ax = plt.subplots()
     ax.plot([datetime.date(2024, 1, 15)], [1])

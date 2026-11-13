@@ -816,7 +816,8 @@ class TestGantt:
                 "label": "Date",
                 "format": {
                     "function": "return new Date(value * 864e5)"
-                    ".toISOString().slice(0, 10);"
+                    ".toISOString().slice(0, 10);",
+                    "unit": "day",
                 },
             },
             "y": {"label": "Task"},
@@ -854,6 +855,7 @@ class TestGantt:
         assert point["start"] == 19723 * 24 + 9
         assert layer["data"]["unit"] == "hours"
         assert "' ' + t.slice(11, 16)" in layer["axes"]["x"]["format"]["function"]
+        assert layer["axes"]["x"]["format"]["unit"] == "hour"
 
     def test_one_renderer_per_resource_is_one_chart_labelled_by_the_legend(self):
         day = self.DAY
