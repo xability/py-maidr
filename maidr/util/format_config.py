@@ -18,6 +18,7 @@ from typing import Any, Dict, Optional
 import matplotlib.dates as mdates
 import numpy as np
 from matplotlib.axes import Axes
+from matplotlib.patches import Rectangle
 from matplotlib.dates import AutoDateFormatter, ConciseDateFormatter, DateFormatter
 from matplotlib.ticker import (
     Formatter,
@@ -600,17 +601,25 @@ class FormatConfigBuilder:
                 *FormatConfigBuilder._plotted_steps(axis),
             ]
         positive = [float(step) for step in steps if step > 0]
-        step = min(positive) if positive else 1.0
-        if step >= 1:
+        # In whole seconds: a step of one minute between float day numbers
+        # comes out a hair under 1/1440 of a day, and read as a step of
+        # seconds it put ":00" after every minute.
+        seconds = round(min(positive) * 86400) if positive else 86400
+        if seconds >= 86400:
             return "%Y-%m-%d"
-        if step >= 1 / (24 * 60):
+        if seconds >= 60:
             return "%Y-%m-%d %H:%M"
         return "%Y-%m-%d %H:%M:%S"
 
     @staticmethod
     def _plotted_steps(axis: Any) -> np.ndarray:
         """
-        The steps between the values the axes' lines and markers lie at.
+        The steps between the values the axes' lines, markers and bars lie at.
+
+        A line's vertices, a collection's offsets (scatter markers) and a
+        rectangle's two edges (bars and histogram bins) are read. Other
+        patches and artists are not, and an axes whose values cannot be read
+        as numbers gives no steps, which leaves the tick step to decide.
 
         Parameters
         ----------
@@ -620,24 +629,31 @@ class FormatConfigBuilder:
         Returns
         -------
         numpy.ndarray
-            The differences between the distinct finite values its lines'
-            vertices and its collections' offsets take along ``axis``, as
-            matplotlib converted them: matplotlib day numbers on a date axis.
+            The differences between the distinct finite values those take
+            along ``axis``, as matplotlib converted them: matplotlib day
+            numbers on a date axis.
         """
         axes = axis.axes
         column = 0 if axis is axes.xaxis else 1
-        values = [
-            np.asarray(line.get_xydata())[:, column] for line in axes.get_lines()
-        ]
-        values += [
-            np.ma.filled(np.ma.asarray(collection.get_offsets(), dtype=float), np.nan)[
-                :, column
+        try:
+            values = [
+                np.asarray(line.get_xydata(), dtype=float)[:, column]
+                for line in axes.get_lines()
             ]
-            for collection in axes.collections
-        ]
-        if not values:
+            values += [
+                np.ma.filled(
+                    np.ma.asarray(collection.get_offsets(), dtype=float), np.nan
+                )[:, column]
+                for collection in axes.collections
+            ]
+            values += [
+                np.asarray(bar.get_bbox().get_points()[:, column], dtype=float)
+                for bar in axes.patches
+                if isinstance(bar, Rectangle)
+            ]
+            plotted = np.unique(np.concatenate(values)) if values else np.array([])
+        except (TypeError, ValueError, IndexError):
             return np.array([])
-        plotted = np.unique(np.concatenate(values).astype(float))
         return np.diff(plotted[np.isfinite(plotted)])
 
     @staticmethod

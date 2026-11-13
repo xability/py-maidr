@@ -519,6 +519,44 @@ def test_hourly_values_ticked_by_the_week_announce_the_time_of_day():
     assert _run_js(body, mdates.date2num(times[25])) == "2024-01-02 01:00"
 
 
+def test_values_a_minute_apart_announce_minutes_without_seconds():
+    """A minute between float day numbers is a hair under 1/1440 of a day;
+    read as a step of seconds, every value ended in ":00"."""
+    start = datetime.datetime(2024, 1, 15, 6)
+    times = [start + datetime.timedelta(minutes=i) for i in range(30)]
+    fig, ax = plt.subplots()
+    ax.plot(times, range(30))
+
+    body = _x_format(fig)["function"]
+
+    assert _run_js(body, mdates.date2num(times[1])) == "2024-01-15 06:01"
+
+
+def test_dates_on_the_y_axis_are_read_at_their_own_step():
+    start = datetime.datetime(2024, 1, 15, 6)
+    times = [start + datetime.timedelta(minutes=i) for i in range(30)]
+    fig, ax = plt.subplots()
+    ax.plot(range(30), times)
+    try:
+        schema = FigureManager.get_maidr(fig)._plots[0].schema
+    finally:
+        plt.close(fig)
+
+    body = schema["axes"]["y"]["format"]["function"]
+    assert _run_js(body, mdates.date2num(times[1])) == "2024-01-15 06:01"
+
+
+def test_hourly_bars_ticked_by_the_week_announce_the_time_of_day():
+    start = datetime.datetime(2024, 1, 1)
+    times = [start + datetime.timedelta(hours=i) for i in range(1440)]
+    fig, ax = plt.subplots()
+    ax.bar(times, range(1440), width=1 / 48)
+
+    body = _x_format(fig)["function"]
+
+    assert _run_js(body, mdates.date2num(times[25])) == "2024-01-02 01:00"
+
+
 def test_a_date_formatter_on_no_axis_reads_whole_dates():
     pattern = FormatConfigBuilder._tick_date_pattern(mdates.AutoDateFormatter(None))
 
