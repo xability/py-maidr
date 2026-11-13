@@ -567,7 +567,8 @@ class FormatConfigBuilder:
     @staticmethod
     def _tick_date_pattern(formatter: Formatter) -> str:
         """
-        The ISO pattern a date axis's values are read in, at its ticks' step.
+        The ISO pattern a date axis's values are read in, at the finer of the
+        steps its ticks and its plotted values take.
 
         ``AutoDateFormatter`` and ``ConciseDateFormatter`` label each tick at
         the resolution of the ticks ("2024-01", "Jan", "09:00"), and matplotlib
@@ -576,8 +577,10 @@ class FormatConfigBuilder:
         values were announced as matplotlib day numbers: "Date is 19,723".
 
         A value is read as its full date, and with the time of day where the
-        ticks step by hours or minutes, or with seconds where they step by
-        less. The step is read from the ticks the axis draws.
+        ticks or the values step by hours or minutes, or with seconds where
+        they step by less. The ticks alone were not enough: hourly readings
+        over two months are ticked by the week, and 24 points in a row read
+        as the same date.
 
         Parameters
         ----------
@@ -590,7 +593,12 @@ class FormatConfigBuilder:
             ``"%Y-%m-%d"``, ``"%Y-%m-%d %H:%M"`` or ``"%Y-%m-%d %H:%M:%S"``.
         """
         axis = getattr(formatter, "axis", None)
-        steps = np.diff(axis.get_majorticklocs()) if axis is not None else []
+        steps = []
+        if axis is not None:
+            steps = [
+                *np.diff(axis.get_majorticklocs()),
+                *FormatConfigBuilder._plotted_steps(axis),
+            ]
         positive = [float(step) for step in steps if step > 0]
         step = min(positive) if positive else 1.0
         if step >= 1:
@@ -598,6 +606,39 @@ class FormatConfigBuilder:
         if step >= 1 / (24 * 60):
             return "%Y-%m-%d %H:%M"
         return "%Y-%m-%d %H:%M:%S"
+
+    @staticmethod
+    def _plotted_steps(axis: Any) -> np.ndarray:
+        """
+        The steps between the values the axes' lines and markers lie at.
+
+        Parameters
+        ----------
+        axis : matplotlib.axis.Axis
+            The x or y axis of an ``Axes``.
+
+        Returns
+        -------
+        numpy.ndarray
+            The differences between the distinct finite values its lines'
+            vertices and its collections' offsets take along ``axis``, as
+            matplotlib converted them: matplotlib day numbers on a date axis.
+        """
+        axes = axis.axes
+        column = 0 if axis is axes.xaxis else 1
+        values = [
+            np.asarray(line.get_xydata())[:, column] for line in axes.get_lines()
+        ]
+        values += [
+            np.ma.filled(np.ma.asarray(collection.get_offsets(), dtype=float), np.nan)[
+                :, column
+            ]
+            for collection in axes.collections
+        ]
+        if not values:
+            return np.array([])
+        plotted = np.unique(np.concatenate(values).astype(float))
+        return np.diff(plotted[np.isfinite(plotted)])
 
     @staticmethod
     def _parse_date_formatter(formatter: DateFormatter) -> FormatConfig:

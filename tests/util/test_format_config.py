@@ -451,7 +451,8 @@ def _x_format(fig) -> dict:
 def test_a_line_on_matplotlibs_default_date_axis_announces_dates():
     """A date axis gets ``AutoDateFormatter`` unless the caller sets one,
     which py-maidr read as no format: "Date is 19,737"."""
-    dates = [datetime.date(2024, 1, 15) + datetime.timedelta(days=i) for i in range(28)]
+    start = datetime.date(2024, 1, 15)
+    dates = [start + datetime.timedelta(days=i) for i in range(28)]
     fig, ax = plt.subplots()
     ax.plot(dates, range(28))
 
@@ -467,7 +468,8 @@ def test_a_line_on_matplotlibs_default_date_axis_announces_dates():
 def test_a_concise_date_axis_announces_full_dates():
     """``ConciseDateFormatter`` labels ticks "Jan", "08"; a value is read
     as its whole date."""
-    dates = [datetime.date(2024, 1, 15) + datetime.timedelta(days=i) for i in range(28)]
+    start = datetime.date(2024, 1, 15)
+    dates = [start + datetime.timedelta(days=i) for i in range(28)]
     fig, ax = plt.subplots()
     ax.plot(dates, range(28))
     locator = mdates.AutoDateLocator()
@@ -492,13 +494,35 @@ def test_a_date_histogram_on_the_default_axis_announces_its_edges_as_dates():
 
 
 def test_an_axis_ticked_by_the_hour_announces_the_time_of_day():
-    times = [datetime.datetime(2024, 1, 15, 6) + datetime.timedelta(hours=i) for i in range(12)]
+    start = datetime.datetime(2024, 1, 15, 6)
+    times = [start + datetime.timedelta(hours=i) for i in range(12)]
     fig, ax = plt.subplots()
     ax.plot(times, range(12))
 
     body = _x_format(fig)["function"]
 
     assert _run_js(body, mdates.date2num(times[3])) == "2024-01-15 09:00"
+
+
+def test_hourly_values_ticked_by_the_week_announce_the_time_of_day():
+    """1440 hourly readings over 60 days are ticked weekly; read at the
+    ticks' step, 24 points in a row read as the same date."""
+    start = datetime.datetime(2024, 1, 1)
+    times = [start + datetime.timedelta(hours=i) for i in range(1440)]
+    fig, ax = plt.subplots()
+    ax.plot(times, range(1440))
+    ticks = ax.xaxis.get_majorticklocs()
+
+    body = _x_format(fig)["function"]
+
+    assert min(ticks[1:] - ticks[:-1]) >= 7
+    assert _run_js(body, mdates.date2num(times[25])) == "2024-01-02 01:00"
+
+
+def test_a_date_formatter_on_no_axis_reads_whole_dates():
+    pattern = FormatConfigBuilder._tick_date_pattern(mdates.AutoDateFormatter(None))
+
+    assert pattern == "%Y-%m-%d"
 
 
 def test_a_date_axis_format_is_nested_under_the_axis():
