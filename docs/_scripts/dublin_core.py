@@ -38,7 +38,7 @@ PUBLISHER = "(x)Ability Design Lab, University of Illinois Urbana-Champaign"
 # pyproject.toml.
 CREATORS = ["Seo, JooYoung", "Venkatesh, Saairam"]
 
-RIGHTS = "GPL-3.0-or-later"
+RIGHTS = "MIT"
 
 # The home page stands for the library itself; every other page is
 # documentation about it. Telling a reference manager that a guide page is the
