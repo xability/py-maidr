@@ -52,6 +52,10 @@ class MaidrKey(str, Enum):
     P = "p"
     LO = "lo"
     HI = "hi"
+    # A boxen distribution's selectors: the group of its ladder, and the marks
+    # of its outliers, both sides.
+    LADDER = "ladder"
+    OUTLIERS = "outliers"
 
     # Grouped bar, heatmap, and z-axis keys.
     Z = "z"
