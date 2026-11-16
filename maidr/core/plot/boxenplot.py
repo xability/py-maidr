@@ -180,7 +180,9 @@ class BoxenPlot(MaidrPlot):
         maidr.js outlines the box of the ladder each rung is read off, and
         each outlier, a stop of its own, outlines its own mark. It pairs the
         marks with the outliers by where they are drawn, so one selector
-        matching every mark of the distribution's flier cloud is enough.
+        matching every mark of the distribution's flier cloud is enough. The
+        marks are the ``<use>`` elements matplotlib's SVG backend draws one
+        per marker, inside the group its gid names.
 
         Returns
         -------
