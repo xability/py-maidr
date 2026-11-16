@@ -786,11 +786,12 @@ def test_help_over_a_matplotlib_chart_taller_than_the_window_keeps_the_highlight
     iframe's 150px for a moment as help opened, had seemed wholly above
     the window, and the page was moved down by all it grew back.
     """
+    next_bar = "ArrowUp"  # barh draws its first bar at the bottom
     page = _open(browser, f"{shiny_size_app_url}/tall_mpl/", *size)
     try:
         page.evaluate(_PLACE, "centre")
         page.wait_for_timeout(300)
-        _read(page, presses=presses, key="ArrowUp")
+        _read(page, presses=presses, key=next_bar)
         page.evaluate(_LIT_AT, at)
         page.wait_for_timeout(600)
         before = page.evaluate(_LIT)
@@ -815,7 +816,7 @@ def test_help_over_a_matplotlib_chart_taller_than_the_window_keeps_the_highlight
         assert back["focused"], back
         _assert_nothing_scrolled(page, "as help closed")
         assert back["litShown"] >= 0.95, (before, back)
-        page.keyboard.press("ArrowUp")
+        page.keyboard.press(next_bar)
         page.wait_for_timeout(700)
         moved = page.evaluate(_LIT)
         assert moved["litShown"] >= 0.95, (before, back, moved)
