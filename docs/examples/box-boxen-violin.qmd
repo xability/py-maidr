@@ -181,3 +181,8 @@ larger sample earns more rungs. maidr announces each rung as the percentile it
 actually is -- "the 12.5th percentile" rather than a rung number -- and moving
 outward from the median walks the ladder in value order. `k_depth=` controls
 how deep it goes, and the announcement follows it.
+
+Each outlier past the ladder is a stop of its own, and the outline moves to its
+mark. That reading needs maidr.js 4.18.0 or newer: a page that loads an older
+one, through `maidr.set_cdn_version()` or `MAIDR_CDN_VERSION`, outlines
+nothing on a boxen plot.
