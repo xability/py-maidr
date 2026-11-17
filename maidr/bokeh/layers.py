@@ -947,10 +947,10 @@ class PlotReader:
         An ``harea`` is the same band on its side -- ``x1``/``x2`` at each
         ``y`` -- and is read into the same fields, its positions in ``x``
         and its thicknesses in ``y``: the core steps along an area's ``x``
-        and sonifies its ``y``, and ``orientation`` is not read for an area.
-        :meth:`_area_schema` swaps the axis titles to match, as the
-        matplotlib path does for ``fill_betweenx``. The cursor sits on the
-        band's right edge.
+        and sonifies its ``y``. :meth:`_area_schema` swaps the axis titles to
+        match, as the matplotlib path does for ``fill_betweenx``, and says
+        ``orientation: "horz"``, which turns the arrow keys to the drawing.
+        The cursor sits on the band's right edge.
         """
         rows, grid = [], []
         for renderer in renderers:
@@ -1081,6 +1081,11 @@ class PlotReader:
         """
         An area layer's schema, its axis titles swapped for an ``harea``.
 
+        An ``harea`` also says ``orientation: "horz"``: maidr.js reads it on an
+        area to move along the band with Up and Down and between bands with
+        Left and Right (xability/maidr#1711), as the band is drawn, and an
+        older maidr.js reads no orientation on an area at all.
+
         Parameters
         ----------
         renderers : list of bokeh.models.GlyphRenderer
@@ -1101,6 +1106,7 @@ class PlotReader:
         if type(renderers[0].glyph).__name__ == "HArea":
             axes = schema[MaidrKey.AXES]
             axes[MaidrKey.X], axes[MaidrKey.Y] = axes[MaidrKey.Y], axes[MaidrKey.X]
+            schema[MaidrKey.ORIENTATION] = "horz"
         return schema
 
     def _area(self, renderers: list) -> BokehLayer | None:

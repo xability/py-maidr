@@ -805,8 +805,8 @@ def test_bokeh_pie_reads_the_values_clockwise(gallery: _Gallery) -> None:
 
 
 def test_bokeh_harea_steps_through_the_months(gallery: _Gallery) -> None:
-    """examples-bokeh.qmd: "the arrow keys step through the months, and the
-    passengers are what you hear."
+    """examples-bokeh.qmd: "Up and Down step through the months, as they are
+    drawn up the page, and the passengers are what you hear."
     """
     layer = gallery.shown(
         "examples-bokeh.qmd", "Horizontal Area Plot [experimental]"
@@ -817,6 +817,8 @@ def test_bokeh_harea_steps_through_the_months(gallery: _Gallery) -> None:
     assert band[0][MaidrKey.Y] == 417
     assert layer[MaidrKey.AXES][MaidrKey.X][MaidrKey.LABEL] == "Month"
     assert layer[MaidrKey.AXES][MaidrKey.Y][MaidrKey.LABEL] == "Passengers"
+    # Up and Down, because the layer says it is drawn on its side.
+    assert layer[MaidrKey.ORIENTATION] == "horz"
 
 
 def test_bokeh_candlestick_is_a_candle_per_date(gallery: _Gallery) -> None:
