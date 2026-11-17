@@ -14,17 +14,16 @@ payloads for charts that are transposes of each other::
 so a reader was told "horizontal 1, vertical 2" where the chart draws the
 point at vertical 1, horizontal 2.
 
-The **titles** move rather than the data, and this file pins both halves of
-that, because each is wrong on its own:
+The **titles** move rather than the data, and this file pins that: moving the
+data would put the positions in ``y``, which the core sonifies, pitching
+``[1, 2, 3, 4]`` -- a rising ramp on every sideways band ever drawn, whatever
+the data says. The same exchange, for the same reason, is what the core's
+Vega-Lite adapter does to a horizontal waterfall.
 
-- moving the data would put the positions in ``y``, which the core sonifies,
-  pitching ``[1, 2, 3, 4]`` -- a rising ramp on every sideways band ever
-  drawn, whatever the data says;
-- emitting ``orientation`` would be a promise the core does not keep:
-  ``src/util/orientation.ts`` marks ``AREA`` as not oriented on purpose.
-
-The same exchange, for the same reason, is what the core's Vega-Lite adapter
-does to a horizontal waterfall.
+The layer also says ``orientation: "horz"``, which maidr.js reads on an area
+to turn the arrow keys to the drawing (xability/maidr#1711): Up and Down along
+the band, Left and Right between bands. It is said only for a band drawn on
+its side.
 """
 
 from __future__ import annotations
@@ -82,11 +81,22 @@ def test_a_sideways_band_names_each_axis_it_was_drawn_against():
     assert _labels(_schema(fig)) == ("vertical", "horizontal")
 
 
+def test_a_sideways_band_says_it_is_drawn_on_its_side():
+    # So the arrow keys follow the drawing: Up and Down along the band, whose
+    # positions run up the page, and Left and Right between bands.
+    fig, ax = _titled_axes()
+    ax.fill_betweenx(POSITIONS, MAGNITUDES)
+
+    assert _schema(fig)[MaidrKey.ORIENTATION] == "horz"
+
+
 def test_an_upright_band_is_unchanged():
     fig, ax = _titled_axes()
     ax.fill_between(POSITIONS, MAGNITUDES)
 
-    assert _labels(_schema(fig)) == ("horizontal", "vertical")
+    schema = _schema(fig)
+    assert _labels(schema) == ("horizontal", "vertical")
+    assert MaidrKey.ORIENTATION not in schema
 
 
 def test_a_stackplot_is_unchanged():
@@ -96,7 +106,9 @@ def test_a_stackplot_is_unchanged():
     fig, ax = _titled_axes()
     ax.stackplot(POSITIONS, MAGNITUDES)
 
-    assert _labels(_schema(fig)) == ("horizontal", "vertical")
+    schema = _schema(fig)
+    assert _labels(schema) == ("horizontal", "vertical")
+    assert MaidrKey.ORIENTATION not in schema
 
 
 def test_the_magnitudes_stay_where_the_trace_pitches_them():
@@ -148,19 +160,6 @@ def test_a_number_format_stays_put_for_an_upright_band():
     axes = _schema(fig)["axes"]
     assert axes[MaidrKey.X.value]["format"]["type"] == "currency"
     assert "format" not in axes[MaidrKey.Y.value]
-
-
-def test_no_orientation_is_claimed():
-    # `orientation` is the field that says a chart is drawn sideways, and the
-    # core marks AREA as not oriented on purpose -- it navigates along the
-    # series either way. Emitting one would be a promise nothing keeps, the
-    # shape xability/maidr#949 named.
-    fig, ax = _titled_axes()
-    ax.fill_betweenx(POSITIONS, MAGNITUDES)
-
-    # One assertion, not two: `MaidrKey` subclasses `str`, so the enum member
-    # and the bare spelling are the same key.
-    assert MaidrKey.ORIENTATION not in _schema(fig)
 
 
 @pytest.mark.parametrize("sideways", [False, True])
