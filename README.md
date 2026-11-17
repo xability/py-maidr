@@ -183,4 +183,4 @@ and shape a change, and [CONDUCT.md](CONDUCT.md) for our code of conduct.
 
 ## License
 
-GPL-3.0-or-later. See [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).
