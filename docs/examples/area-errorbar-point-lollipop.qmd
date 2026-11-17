@@ -87,7 +87,8 @@ still read, but they can only be told apart by their order in the stack.
 `ax.fill_between()` reads as an area too, when it draws one: `fill_between(x,
 y)` fills from zero up to a curve, which is the same chart a single
 `stackplot` band draws. `ax.fill_betweenx()` is the same picture turned over
-and reads the same way.
+and reads the same way, except that Up and Down step along the band, as its
+positions are drawn up the page, and Left and Right move between bands.
 
 ```{python}
 #| fig-alt: Filled area chart of monthly rainfall

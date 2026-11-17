@@ -96,29 +96,26 @@ class AreaPlot(MaidrPlot):
         identical payloads for charts that are transposes of each other, and
         every number was announced under the other axis' title (#566).
 
-        The **titles** move rather than the data, which is deliberate twice
-        over:
+        The **titles** move rather than the data: the core sonifies an area
+        trace's `y` and steps along its `x`, so putting the positions in `y`
+        would pitch `[1, 2, 3, 4]` -- a rising ramp on every sideways band
+        ever drawn, whatever the data says. The same exchange, for the same
+        reason, is what the core's Vega-Lite adapter does to a horizontal
+        waterfall.
 
-        - the core sonifies an area trace's `y` and steps along its `x`, so
-          putting the positions in `y` would pitch `[1, 2, 3, 4]` -- a rising
-          ramp on every sideways band ever drawn, whatever the data says;
-        - `orientation` is the field that says a chart is drawn sideways, and
-          `src/util/orientation.ts` marks `AREA` as not oriented on purpose,
-          so emitting one would be a promise the core does not keep.
-
-        The same exchange, for the same reason, is what the core's Vega-Lite
-        adapter does to a horizontal waterfall.
-
-        What it does not fix is navigation: left and right still walk the
-        trace's `x`, which for a sideways band is the vertical axis. That is
-        what `orientation` would carry, and it cannot be said for an area
-        trace today.
+        The layer also says `orientation: "horz"`. maidr.js reads it on an
+        area to turn the arrow keys to the drawing (xability/maidr#1711): Up
+        and Down move along the band, whose positions run up the page, and
+        Left and Right between bands. It changes nothing else about the
+        layer -- the data stays as above, and an area is not announced as
+        horizontal -- and a maidr.js from before that reads no orientation on
+        an area at all, so the keys there are as they were.
 
         Returns
         -------
         dict
-            The layer, with `axes.x` and `axes.y` exchanged when the band was
-            drawn sideways.
+            The layer, with `axes.x` and `axes.y` exchanged and `orientation`
+            set to `"horz"` when the band was drawn sideways.
         """
         maidr_schema = super().render()
 
@@ -132,6 +129,7 @@ class AreaPlot(MaidrPlot):
         axes = maidr_schema.get(MaidrKey.AXES)
         if isinstance(axes, dict) and MaidrKey.X in axes and MaidrKey.Y in axes:
             axes[MaidrKey.X], axes[MaidrKey.Y] = axes[MaidrKey.Y], axes[MaidrKey.X]
+        maidr_schema[MaidrKey.ORIENTATION] = "horz"
 
         return maidr_schema
 

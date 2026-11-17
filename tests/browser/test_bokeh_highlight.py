@@ -504,7 +504,10 @@ def test_an_harea_cursor_sits_on_the_bands_right_edge(browser, tmp_path):
         assert _step(page, "ArrowRight").startswith("Level is 1, Depth is 2")
         assert page.evaluate(_CURSOR) == [2, 1]
 
-        assert _step(page, "ArrowRight").startswith("Level is 2, Depth is 4")
+        # Up, to the level drawn above: the layer says it is drawn on its
+        # side, and maidr.js moves along such a band with Up and Down
+        # (xability/maidr#1711). Right moved along it before.
+        assert _step(page, "ArrowUp").startswith("Level is 2, Depth is 4")
         assert page.evaluate(_CURSOR) == [4, 2]
         assert not errors, errors
     finally:
