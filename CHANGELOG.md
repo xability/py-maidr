@@ -1,7 +1,7 @@
 # CHANGELOG
 
 
-## v1.28.2 (2026-11-02)
+## v1.29.0 (2026-11-23)
 
 ### Bug Fixes
 
@@ -9,9 +9,21 @@
   ([#943](https://github.com/xability/py-maidr/pull/943),
   [`378fff1`](https://github.com/xability/py-maidr/commit/378fff18413291b122554dbb6031470bc3e507ed))
 
+- Outline each point of a matplotlib precision-recall curve where it is drawn
+  ([#951](https://github.com/xability/py-maidr/pull/951),
+  [`092c91c`](https://github.com/xability/py-maidr/commit/092c91cfcbccb99c834cb28a299704a68b70589b))
+
+- **altair**: Load the vega-lite major a spec's schema names
+  ([#960](https://github.com/xability/py-maidr/pull/960),
+  [`ed62a10`](https://github.com/xability/py-maidr/commit/ed62a10dde43cd9321beeff3cb402ef44a96ba07))
+
 - **area**: Outline the announced point on a filled band
   ([#926](https://github.com/xability/py-maidr/pull/926),
   [`7674da3`](https://github.com/xability/py-maidr/commit/7674da311a68b832187b98d8ba497cb0e1b4ac0d))
+
+- **area**: Say a sideways band is drawn on its side
+  ([#963](https://github.com/xability/py-maidr/pull/963),
+  [`cb16488`](https://github.com/xability/py-maidr/commit/cb1648890a4028a7a93b6c3c51486f72c6cb69ad))
 
 - **bokeh**: Highlight only the mark being read on a layer of several renderers
   ([#932](https://github.com/xability/py-maidr/pull/932),
@@ -44,6 +56,10 @@
 - **format**: Leave the numbers of an axis with named ticks unformatted
   ([#941](https://github.com/xability/py-maidr/pull/941),
   [`e906c29`](https://github.com/xability/py-maidr/commit/e906c29a78280078750bdfe6b439c85862fc650f))
+
+- **format**: Read a date axis left on matplotlib's own formatter as dates
+  ([#962](https://github.com/xability/py-maidr/pull/962),
+  [`28db185`](https://github.com/xability/py-maidr/commit/28db185a6925bf07885662261baabf99688e7913))
 
 - **gantt**: Declare broken_barh and hlines schedules horizontal
   ([#937](https://github.com/xability/py-maidr/pull/937),
@@ -93,6 +109,10 @@
   ([#939](https://github.com/xability/py-maidr/pull/939),
   [`d365644`](https://github.com/xability/py-maidr/commit/d3656448c926cf8bbe1a3b78c9d292ad4bf8ecfa))
 
+- **title**: Read a title only where the chart draws it
+  ([#955](https://github.com/xability/py-maidr/pull/955),
+  [`df513d2`](https://github.com/xability/py-maidr/commit/df513d261748c2802ccb16cce0e014fdd77d0bff))
+
 - **violin**: Outline each violin's own marks, bottom up across the page
   ([#928](https://github.com/xability/py-maidr/pull/928),
   [`0772804`](https://github.com/xability/py-maidr/commit/0772804498a3493f6829d36921f8ed8f7e8839fc))
@@ -106,6 +126,34 @@
 - **gallery**: Say how to move between the subplots of a figure
   ([#931](https://github.com/xability/py-maidr/pull/931),
   [`d87e44e`](https://github.com/xability/py-maidr/commit/d87e44e724ea07a5d494c01a2400927ba6e37bff))
+
+### Features
+
+- **boxen**: Name each distribution's outliers for maidr.js to outline
+  ([#956](https://github.com/xability/py-maidr/pull/956),
+  [`a394c63`](https://github.com/xability/py-maidr/commit/a394c63201f045813a7589df2512f648d901177f))
+
+- **format**: Say that a date axis's values count days
+  ([#961](https://github.com/xability/py-maidr/pull/961),
+  [`085827e`](https://github.com/xability/py-maidr/commit/085827e0d171faeaea8ff334a96f21ec8453b754))
+
+### Testing
+
+- **browser**: Check a violin's box layer outline in a real browser
+  ([#950](https://github.com/xability/py-maidr/pull/950),
+  [`a52bece`](https://github.com/xability/py-maidr/commit/a52becebd78015d497e1f970b21da44735fe6d5a))
+
+- **browser**: Follow what maidr.js 4.17.0 reads and outlines
+  ([#958](https://github.com/xability/py-maidr/pull/958),
+  [`fe5e486`](https://github.com/xability/py-maidr/commit/fe5e486a662f5493172e7f0fe74054674ce41062))
+
+- **browser**: Wait for maidr.js to enter the MLflow chart before reading it
+  ([#959](https://github.com/xability/py-maidr/pull/959),
+  [`7b431f2`](https://github.com/xability/py-maidr/commit/7b431f2dfe3cb77077d3f821d5df2fcb176f55a6))
+
+- **browser**: Walk the tall barh chart with ArrowUp, as maidr.js moves between its bars
+  ([#957](https://github.com/xability/py-maidr/pull/957),
+  [`31431c3`](https://github.com/xability/py-maidr/commit/31431c3fcdfaaef9649c5054fb0992ca70004e5f))
 
 
 ## v1.28.1 (2026-10-26)
