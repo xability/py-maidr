@@ -439,6 +439,7 @@ class TestAreas:
 
         assert layer["type"] == "area"
         assert layer["data"] == [[{"x": 1, "y": 1}, {"x": 2, "y": 2}, {"x": 3, "y": 3}]]
+        assert "orientation" not in layer
 
     def test_varea_stack_is_a_stacked_area_of_each_band_own_values(self):
         p = figure()
@@ -466,6 +467,9 @@ class TestAreas:
         # Positions in ``x`` and thicknesses in ``y``, as ``fill_betweenx``.
         assert layer["data"] == [[{"x": 1, "y": 2}, {"x": 2, "y": 3}, {"x": 3, "y": 3}]]
         assert layer["axes"] == {"x": {"label": "Level"}, "y": {"label": "Depth"}}
+        # Drawn on its side, so Up and Down move along the band and Left and
+        # Right between bands (xability/maidr#1711).
+        assert layer["orientation"] == "horz"
         # The cursor sits on the right edge, in plot coordinates.
         assert maidr_.layers[0].highlight["grid"] == [[[2, 1], [4, 2], [3, 3]]]
         assert maidr_.layers[0].renderers == [renderer]
@@ -486,6 +490,7 @@ class TestAreas:
             [{"x": 1, "y": 3.0, "z": "s2"}, {"x": 2, "y": 4.0, "z": "s2"}],
         ]
         assert layer["axes"]["z"] == {"label": "Series"}
+        assert layer["orientation"] == "horz"
 
     def test_a_varea_and_harea_stack_on_one_plot_are_two_layers(self):
         p = figure()
@@ -496,6 +501,8 @@ class TestAreas:
             "stacked_area",
             "stacked_area",
         ]
+        # Only the one drawn on its side says so.
+        assert [layer.get("orientation") for layer in _layers(p)] == [None, "horz"]
 
 
 class TestPie:
