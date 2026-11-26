@@ -3,14 +3,23 @@ name: Test & Release
 on:
   # Release on a weekly cadence rather than on every push to ``main``, matching
   # the upstream ``xability/maidr`` repo.  Upstream releases Mondays at 15:00
-  # UTC; we run an hour later so the ``maidr`` npm package that the bundle step
-  # below pulls from the registry is the release upstream just published, not
-  # the previous week's.
+  # UTC; we run ten minutes later so the ``maidr`` npm package that the bundle
+  # step below pulls from the registry is ordinarily the release upstream just
+  # published, not the previous week's.
   #
-  # 16:00 UTC = 10 AM CST (winter) / 11 AM CDT (summer).  GitHub Actions cron
-  # runs in UTC and does not observe DST.
+  # Ten minutes is a nominal offset, not a guarantee of ordering.  GitHub does
+  # not start scheduled workflows at the requested minute -- it queues them,
+  # and the delay observed on upstream's own 15:00 job has ranged from roughly
+  # 35 to 115 minutes, drawn independently per workflow.  A run can therefore
+  # still reach npm before upstream has published, and bundle the previous
+  # week's assets.  That degrades gracefully rather than breaking the release:
+  # the wheel ships the bundle it found, ``check-bundle-freshness.yml`` reports
+  # the drift, and ``update-maidr-js.yml`` refreshes it on demand.
+  #
+  # 15:10 UTC = 9:10 AM CST (winter) / 10:10 AM CDT (summer).  GitHub Actions
+  # cron runs in UTC and does not observe DST.
   schedule:
-    - cron: '0 16 * * 1'
+    - cron: '10 15 * * 1'
 
   workflow_dispatch:
 
